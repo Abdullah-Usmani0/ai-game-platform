@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Id } from './common.js';
+import { Id } from './common';
 
 export const WaveTable = z.object({
   version: z.literal(1),

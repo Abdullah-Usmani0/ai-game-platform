@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ARTIFACT_SCHEMAS, BehaviourFsm, GddFrontmatter, LevelJson, SystemsJson, toJsonSchema } from './index.js';
+import { ARTIFACT_SCHEMAS, BehaviourFsm, GddFrontmatter, LevelJson, SystemsJson, toJsonSchema } from './index';
 
 describe('LevelJson', () => {
   const base = {

@@ -1,29 +1,29 @@
 import { z } from 'zod';
-import { BehaviourFsm, EcaRule } from './behaviour.js';
-import { BundleManifest } from './bundle.js';
-import { GameToHost, HostToGame, StateSnapshot } from './bridge.js';
-import { GddFrontmatter } from './gdd.js';
-import { LevelJson } from './level.js';
-import { GateReport, PlaytestReport } from './playtest.js';
-import { ModelPolicy } from './policy.js';
-import { StyleCard } from './style.js';
-import { SystemsJson } from './systems.js';
-import { Trajectory } from './trajectory.js';
-import { WaveTable } from './waves.js';
+import { BehaviourFsm, EcaRule } from './behaviour';
+import { BundleManifest } from './bundle';
+import { GameToHost, HostToGame, StateSnapshot } from './bridge';
+import { GddFrontmatter } from './gdd';
+import { LevelJson } from './level';
+import { GateReport, PlaytestReport } from './playtest';
+import { ModelPolicy } from './policy';
+import { StyleCard } from './style';
+import { SystemsJson } from './systems';
+import { Trajectory } from './trajectory';
+import { WaveTable } from './waves';
 
-export * from './common.js';
-export * from './events.js';
-export * from './style.js';
-export * from './systems.js';
-export * from './gdd.js';
-export * from './level.js';
-export * from './behaviour.js';
-export * from './waves.js';
-export * from './playtest.js';
-export * from './bundle.js';
-export * from './bridge.js';
-export * from './policy.js';
-export * from './trajectory.js';
+export * from './common';
+export * from './events';
+export * from './style';
+export * from './systems';
+export * from './gdd';
+export * from './level';
+export * from './behaviour';
+export * from './waves';
+export * from './playtest';
+export * from './bundle';
+export * from './bridge';
+export * from './policy';
+export * from './trajectory';
 
 /** Every artifact schema by name, for JSON Schema export and structured-output calls. */
 export const ARTIFACT_SCHEMAS = {

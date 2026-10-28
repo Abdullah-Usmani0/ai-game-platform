@@ -33,7 +33,7 @@ export type StagePolicy = z.infer<typeof StagePolicy>;
 export const ModelPolicy = z.object({
   version: z.int().positive(),
   name: z.string(),
-  stages: z.record(Stage, StagePolicy),
+  stages: z.partialRecord(Stage, StagePolicy),
   jobCaps: z.object({ softUsd: z.number().min(0), hardUsd: z.number().min(0), providerUsd: z.number().min(0), wallMin: z.number().min(0) }),
 });
 export type ModelPolicy = z.infer<typeof ModelPolicy>;

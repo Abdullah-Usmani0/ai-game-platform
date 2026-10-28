@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Genre } from './common.js';
+import { Genre } from './common';
 
 export const BundleManifest = z.object({
   schema: z.literal(1),

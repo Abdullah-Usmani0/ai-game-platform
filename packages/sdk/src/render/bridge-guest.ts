@@ -19,14 +19,23 @@ export class BridgeGuest {
     return this.port !== null;
   }
 
-  connect(timeoutMs = 1500): Promise<InitMessage | null> {
+  /**
+   * Hosts attach their listener after the frame starts loading (a server-rendered page hydrates later),
+   * so `hello` is re-sent every 300 ms until `init` arrives or the timeout elapses.
+   */
+  connect(timeoutMs = 4000): Promise<InitMessage | null> {
     if (typeof window === 'undefined' || window.parent === window) return Promise.resolve(null);
     return new Promise((resolve) => {
       let done = false;
+      const finish = () => {
+        done = true;
+        clearTimeout(timer);
+        clearInterval(repeat);
+        window.removeEventListener('message', onMessage);
+      };
       const timer = setTimeout(() => {
         if (done) return;
-        done = true;
-        window.removeEventListener('message', onMessage);
+        finish();
         resolve(null);
       }, timeoutMs);
       const onMessage = (ev: MessageEvent) => {
@@ -35,9 +44,7 @@ export class BridgeGuest {
         if (!parsed.success || parsed.data.type !== 'init') return;
         const port = ev.ports[0];
         if (!port) return;
-        done = true;
-        clearTimeout(timer);
-        window.removeEventListener('message', onMessage);
+        finish();
         this.port = port;
         port.onmessage = (e) => this.dispatch(e.data);
         resolve(parsed.data);
@@ -50,7 +57,9 @@ export class BridgeGuest {
         versionId: this.build.versionId,
         engine: this.build.engine,
       };
-      window.parent.postMessage(hello, '*');
+      const sayHello = () => window.parent.postMessage(hello, '*');
+      const repeat = setInterval(sayHello, 300);
+      sayHello();
     });
   }
 

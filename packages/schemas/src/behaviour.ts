@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Id } from './common.js';
+import { Id } from './common';
 
 /**
  * Behaviour-as-data. Conditions and actions are a closed vocabulary so a small

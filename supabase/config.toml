@@ -1,0 +1,14 @@
+project_id = "ai-game-platform"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+
+[db]
+port = 54322
+major_version = 17
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"

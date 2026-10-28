@@ -14,6 +14,30 @@ Research and planning for a community-driven platform where users describe a 2D 
   - `reference_feature_legal_quality.md` — legal boundaries for "in the style of", storefront policies, ownership, automated quality metrics
   - `model_agnostic_quality.md` — evidence on producing frontier-quality output on cheap or open-weight models: verifier-driven sampling, structured outputs, curated knowledge, prompt optimization, distillation, multi-agent patterns, open models and harnesses
 
+## Repository layout (Phase 0)
+
+- `packages/schemas` — zod schemas for every artifact: style card, systems, GDD front matter, levels, behaviour FSM and ECA rules, waves, playtest and gate reports, bundle manifest, bridge messages, model policy, trajectory.
+- `packages/sdk` — the runtime: a deterministic pure-TypeScript simulation (seeded RNG, event bus, tilemap physics, FSM/ECA interpreters, `defineSystem`) plus a Phaser 4 view, manual/realtime drivers, the test seam (`window.__game`, `window.__TEST__`) and the iframe bridge guest.
+- `packages/engine` — builds the shared engine chunk (Phaser + SDK) that every game bundle treats as externals; syncs Phaser's agent skills into the harness.
+- `packages/bots` — Playwright smoke (ready flag, zero console errors, manual vs realtime vs in-page replay hash), contact sheets, a static server.
+- `packages/llm` — provider clients (Anthropic, OpenAI-compatible), pricing, and the sample → verify → repair → select loop for schema-constrained artifacts.
+- `packages/db` — the `Store` interface with a Supabase implementation and a JSON file store for local runs; `supabase/migrations/0001_core.sql` is the schema.
+- `packages/config` — eslint preset with the GlueTS rules for simulation code, tsconfig presets, the game vite config.
+- `samples/platformer` — a Celeste-feel platformer written as GlueTS systems plus data (level, enemy FSM, ECA rule); the golden sample and the demo's game.
+- `harness/` — the per-job Claude Code project: `AGENTS.md`, path-scoped rules, subagents, hooks, skills, the worker-runnable gate, budgets.
+- `workers/generator` — the job state machine: materialise the harness, run a stage (gate-only, structured, or Claude Agent SDK), run the gate, checkpoint, log trajectories, accept versions.
+- `apps/web` — Next.js play page hosting bundles in a sandboxed iframe with the MessageChannel bridge host.
+- `tools/demo` — `pnpm demo` runs the sample through the whole gate and the worker loop and prints the evidence bundle.
+
+## Running it
+
+```
+pnpm install
+pnpm typecheck && pnpm lint && pnpm test
+pnpm demo                       # builds engine + sample, runs the gate and a worker job, prints evidence
+pnpm --filter @gg/web build && pnpm --filter @gg/web check:bridge   # play page + bridge handshake
+```
+
 ## Key decisions so far
 
 - Web app first; a desktop wrapper (Tauri) only later for a Steam listing.

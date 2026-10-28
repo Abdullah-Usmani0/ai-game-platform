@@ -16,3 +16,8 @@ samples/*/reports/
 harness/.agents/skills/phaser-*/
 harness/game
 harness/stage.json
+apps/web/public/bundles/
+apps/web/next-env.d.ts
+.gg-work/
+.gg-store/
+.gg-store-demo/

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { Genre, ScopeTier } from './common.js';
-import { FeedbackChannel, GameEventName } from './events.js';
+import { Genre, ScopeTier } from './common';
+import { FeedbackChannel, GameEventName } from './events';
 
 export const GddFrontmatter = z.object({
   title: z.string().min(1).max(80),

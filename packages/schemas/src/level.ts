@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Id, Vec2 } from './common.js';
+import { Id, Vec2 } from './common';
 
 export const TILE_KINDS = ['air', 'solid', 'hazard', 'oneway', 'goal', 'spawn'] as const;
 export const TileKind = z.enum(TILE_KINDS);

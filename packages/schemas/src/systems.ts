@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Genre, Id } from './common.js';
+import { Genre, Id } from './common';
 
 export const ParamValue = z.union([z.number(), z.string().max(64), z.boolean()]);
 export type ParamValue = z.infer<typeof ParamValue>;

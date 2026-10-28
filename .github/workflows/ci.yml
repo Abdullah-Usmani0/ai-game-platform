@@ -23,3 +23,4 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm demo
+      - run: pnpm --filter @gg/web bundles:sample && pnpm --filter @gg/web build && pnpm --filter @gg/web check:bridge
