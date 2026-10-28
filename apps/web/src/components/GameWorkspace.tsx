@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ParamPanel, type PanelItem } from '@/components/ParamPanel';
 import { PlayFrame } from '@/components/PlayFrame';
+import { RemixButton } from '@/components/RemixButton';
 import { StyleEditor, type StyleLike } from '@/components/StyleEditor';
 
 interface GameInfo {
@@ -137,7 +138,8 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
       <section className="col">
         <h1>{game.title}</h1>
         <p className="muted">
-          {game.genre} · {gameView?.head ? `version ${gameView.head.number}` : 'no accepted version yet'} · <Link href="/games">all games</Link>
+          {game.genre} · {gameView?.head ? `version ${gameView.head.number}` : 'no accepted version yet'} · <Link href="/games">all games</Link> · <Link href={`/play/${game.id}`}>play page</Link>{' '}
+          <RemixButton gameId={game.id} disabled={!game.headVersionId} />
         </p>
         {head?.bundleBase ? (
           <PlayFrame key={frameKey} bundleUrl={`${head.bundleBase}/index.html`} mode="preview" seed={1} />

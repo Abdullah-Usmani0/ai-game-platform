@@ -457,6 +457,16 @@ const publish: StageFn = async (ctx) => {
   const contentHash = hash.digest('hex');
   const versions = await ctx.store.listVersions(ctx.gameId);
   const bundlePath = `bundles/g/${ctx.gameId}/v/${ctx.versionId}`;
+  // Remix lineage: walk origin versions back to the root (newest ancestor last).
+  const lineage: Array<{ gameId: string; versionId: string; ownerHandle: string }> = [];
+  let originId = (await ctx.store.getGame(ctx.gameId).catch(() => null))?.originVersionId ?? null;
+  while (originId && lineage.length < 32) {
+    const v = await ctx.store.getVersion(originId);
+    if (!v) break;
+    const og = await ctx.store.getGame(v.gameId).catch(() => null);
+    lineage.unshift({ gameId: v.gameId, versionId: v.id, ownerHandle: og?.ownerId ?? 'unknown' });
+    originId = og?.originVersionId ?? null;
+  }
   const manifest = BundleManifest.parse({
     schema: 1,
     gameId: ctx.gameId,
@@ -470,7 +480,7 @@ const publish: StageFn = async (ctx) => {
     capabilities: { saves: false, multiplayer: false, testSeam: true },
     assets: [],
     contentHash,
-    lineage: [],
+    lineage,
     license: 'gg-remix-1.0',
     aiDisclosure: { preGenerated: ['design', 'systems', 'behaviour', 'levels'], liveGenerated: [] },
     builtAt: new Date().toISOString(),

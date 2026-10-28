@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ModelPolicy, type Trajectory } from '@gg/schemas';
-import type { GameRow, JobEvent, JobEventType, JobRow, NewGame, NewVersion, Store, VersionRow } from './types';
+import type { GameRow, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewVersion, Store, VersionRow } from './types';
 
 interface FileState {
   games: GameRow[];
+  lineage: LineageRow[];
   jobs: JobRow[];
   events: JobEvent[];
   versions: VersionRow[];
@@ -36,7 +37,7 @@ export class FileStore implements Store {
   constructor(private readonly dir: string) {
     mkdirSync(dir, { recursive: true });
     this.file = join(dir, 'store.json');
-    this.state = { games: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY] };
+    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY] };
     this.load();
   }
 
@@ -47,6 +48,7 @@ export class FileStore implements Store {
     const parsed = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<FileState>;
     this.state = {
       games: parsed.games ?? [],
+      lineage: parsed.lineage ?? [],
       jobs: parsed.jobs ?? [],
       events: parsed.events ?? [],
       versions: parsed.versions ?? [],
@@ -264,5 +266,30 @@ export class FileStore implements Store {
   async listJobs(gameId: string): Promise<JobRow[]> {
     this.load();
     return this.state.jobs.filter((j) => j.gameId === gameId).map((j) => ({ ...j }));
+  }
+
+  async forkGame(originVersionId: string, opts: { ownerId: string; slug: string; title: string }): Promise<GameRow> {
+    this.load();
+    const origin = this.state.versions.find((v) => v.id === originVersionId);
+    if (!origin) throw new Error(`origin version ${originVersionId} not found`);
+    const src = this.state.games.find((g) => g.id === origin.gameId);
+    if (!src) throw new Error(`origin game ${origin.gameId} not found`);
+    const game = await this.createGame({ ownerId: opts.ownerId, slug: opts.slug, title: opts.title, genre: src.genre, conceptMd: src.conceptMd ?? undefined, concept: src.concept ?? undefined, state: 'draft' });
+    this.load();
+    const row = this.state.games.find((g) => g.id === game.id)!;
+    row.originVersionId = origin.id;
+    row.rootGameId = src.rootGameId ?? src.id;
+    row.remixDepth = src.remixDepth + 1;
+    for (const l of this.state.lineage.filter((l) => l.gameId === src.id)) this.state.lineage.push({ gameId: game.id, ancestorGameId: l.ancestorGameId, depth: l.depth + 1, forkedFromVersionId: origin.id });
+    this.state.lineage.push({ gameId: game.id, ancestorGameId: src.id, depth: 1, forkedFromVersionId: origin.id });
+    this.save();
+    const copy = await this.insertVersion({ gameId: game.id, kind: 'accepted', stage: 'remix', parentVersionId: origin.id, jobId: null, sourcePath: origin.sourcePath, bundlePath: origin.bundlePath, manifest: origin.manifest, design: origin.design, gateResults: origin.gateResults, evidence: { ...origin.evidence, remixedFrom: origin.id }, engineVersion: origin.engineVersion, contentHash: origin.contentHash, costUsd: 0, policyVersion: origin.policyVersion });
+    await this.acceptVersion(copy.id);
+    return (await this.getGame(game.id))!;
+  }
+
+  async listLineage(gameId: string): Promise<LineageRow[]> {
+    this.load();
+    return this.state.lineage.filter((l) => l.gameId === gameId).map((l) => ({ ...l }));
   }
 }

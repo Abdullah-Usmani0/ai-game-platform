@@ -99,6 +99,13 @@ export interface GameRow {
 
 export type NewGame = Pick<GameRow, 'ownerId' | 'slug' | 'title' | 'genre'> & Partial<Pick<GameRow, 'id' | 'conceptMd' | 'concept' | 'visibility' | 'state' | 'listing'>>;
 
+export interface LineageRow {
+  gameId: string;
+  ancestorGameId: string;
+  depth: number;
+  forkedFromVersionId: string | null;
+}
+
 /**
  * The only persistence surface workers use. Two implementations: Supabase (production)
  * and a JSON file store (local development, demos, tests without credentials).
@@ -126,4 +133,10 @@ export interface Store {
   getVersion(versionId: string): Promise<VersionRow | null>;
   listVersions(gameId: string): Promise<VersionRow[]>;
   listJobs(gameId: string): Promise<JobRow[]>;
+  /**
+   * Remix: a new game whose accepted head is a copy of the origin version (same checkpoint and bundle),
+   * with lineage recorded. Edits on the remix start from that checkpoint.
+   */
+  forkGame(originVersionId: string, opts: { ownerId: string; slug: string; title: string }): Promise<GameRow>;
+  listLineage(gameId: string): Promise<LineageRow[]>;
 }

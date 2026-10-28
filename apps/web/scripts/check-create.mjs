@@ -37,6 +37,11 @@ try {
   result.created = { status: created.status, jobId: createdJson.jobId };
   const jobRes = await fetch(`${url}/api/jobs/${createdJson.jobId}`);
   result.jobStatus = (await jobRes.json()).job?.status;
+  // 1b. Remix the finished game: a new playable game whose head shares the origin's bundle.
+  const remixed = await fetch(`${url}/api/games/${game.id}/remix`, { method: 'POST' });
+  const remixJson = await remixed.json();
+  const remixView = await (await fetch(`${url}/api/games/${remixJson.gameId}`)).json();
+  result.remix = { status: remixed.status, playable: remixView.game?.state, headShared: remixView.head?.bundlePath === (state.versions.find((v) => v.id === game.headVersionId)?.bundlePath) };
   // 2. Workspace of the finished game: evidence panel and a playable preview over the bridge.
   await page.goto(`${url}/games/${game.id}`, { waitUntil: 'load', timeout: 30000 });
   await page.waitForSelector('[data-testid="evidence"]', { timeout: 20000 });
@@ -54,7 +59,7 @@ try {
   await page.waitForSelector('[data-testid="no-preview"]', { timeout: 10000 });
   await page.waitForSelector('[data-testid="job-status"]:has-text("queued")', { timeout: 10000 });
   const wantPanels = process.env.GG_EXPECT_PANELS === '1';
-  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor));
+  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor)) && result.remix.status === 201 && result.remix.playable === 'playable' && result.remix.headShared;
   console.log(JSON.stringify({ ok, ...result, errors }, null, 2));
 } catch (e) {
   console.error('check-create failed:', e.message, JSON.stringify(result));

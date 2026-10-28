@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { ModelPolicy, type Trajectory } from '@gg/schemas';
-import type { GameRow, JobEvent, JobEventType, JobRow, NewGame, NewVersion, Store, VersionRow } from './types';
+import type { GameRow, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewVersion, Store, VersionRow } from './types';
 
 function snake(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -153,5 +153,21 @@ export class SupabaseStore implements Store {
   async listJobs(gameId: string): Promise<JobRow[]> {
     const res = await this.client.from('generation_jobs').select('*').eq('game_id', gameId).order('created_at');
     return (this.unwrap(res, 'listJobs') as Record<string, unknown>[]).map((r) => camel<JobRow>(r));
+  }
+
+  async forkGame(originVersionId: string, opts: { ownerId: string; slug: string; title: string }): Promise<GameRow> {
+    const origin = await this.getVersion(originVersionId);
+    if (!origin) throw new Error(`origin version ${originVersionId} not found`);
+    const forked = await this.client.rpc('fork_game', { p_origin_version_id: originVersionId, p_new_owner: opts.ownerId, p_slug: opts.slug, p_title: opts.title });
+    if (forked.error) throw new Error(`fork_game: ${forked.error.message}`);
+    const game = camel<GameRow>(forked.data as Record<string, unknown>);
+    const copy = await this.insertVersion({ gameId: game.id, kind: 'accepted', stage: 'remix', parentVersionId: origin.id, jobId: null, sourcePath: origin.sourcePath, bundlePath: origin.bundlePath, manifest: origin.manifest, design: origin.design, gateResults: origin.gateResults, evidence: { ...origin.evidence, remixedFrom: origin.id }, engineVersion: origin.engineVersion, contentHash: origin.contentHash, costUsd: 0, policyVersion: origin.policyVersion });
+    await this.acceptVersion(copy.id);
+    return (await this.getGame(game.id)) ?? game;
+  }
+
+  async listLineage(gameId: string): Promise<LineageRow[]> {
+    const res = await this.client.from('remix_lineage').select('*').eq('game_id', gameId).order('depth');
+    return (this.unwrap(res, 'listLineage') as Record<string, unknown>[]).map((r) => camel<LineageRow>(r));
   }
 }

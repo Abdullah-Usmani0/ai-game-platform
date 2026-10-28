@@ -26,4 +26,24 @@ describe('FileStore', () => {
     const path = await store.putObject('checkpoints', 'g1/j1/smoke.tgz', new Uint8Array([1, 2, 3]), 'application/gzip');
     expect(path).toBe('checkpoints/g1/j1/smoke.tgz');
   });
+
+  it('forks a game from its head version with lineage and a shared checkpoint', async () => {
+    const store = new FileStore(mkdtempSync(join(tmpdir(), 'gg-store-')));
+    const origin = await store.createGame({ ownerId: 'alice', slug: 'cave-run', title: 'Cave Run', genre: 'platformer', conceptMd: 'a cave' });
+    const v = await store.insertVersion({ gameId: origin.id, kind: 'stage', stage: 'publish', parentVersionId: null, jobId: null, sourcePath: 'checkpoints/g/x/publish.tgz', bundlePath: 'bundles/g/x/v/1', manifest: { schema: 1 }, design: { gdd: { title: 'Cave Run' } }, gateResults: {}, evidence: {}, engineVersion: 'e', contentHash: 'h', costUsd: 1, policyVersion: 1 });
+    await store.acceptVersion(v.id);
+    const remix = await store.forkGame(v.id, { ownerId: 'bob', slug: 'cave-run-remix', title: 'Cave Run (remix)' });
+    expect(remix.originVersionId).toBe(v.id);
+    expect(remix.rootGameId).toBe(origin.id);
+    expect(remix.remixDepth).toBe(1);
+    expect(remix.state).toBe('playable');
+    const head = await store.getVersion(remix.headVersionId!);
+    expect(head?.sourcePath).toBe('checkpoints/g/x/publish.tgz');
+    expect(head?.bundlePath).toBe('bundles/g/x/v/1');
+    expect(head?.kind).toBe('accepted');
+    expect(await store.listLineage(remix.id)).toEqual([{ gameId: remix.id, ancestorGameId: origin.id, depth: 1, forkedFromVersionId: v.id }]);
+    const second = await store.forkGame(head!.id, { ownerId: 'carol', slug: 'cave-run-remix-2', title: 'Cave Run (remix 2)' });
+    expect(second.remixDepth).toBe(2);
+    expect((await store.listLineage(second.id)).map((l) => l.depth).sort()).toEqual([1, 2]);
+  });
 });

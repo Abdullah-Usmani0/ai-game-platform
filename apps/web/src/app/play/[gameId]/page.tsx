@@ -1,4 +1,5 @@
 import { PlayFrame } from '@/components/PlayFrame';
+import { RemixButton } from '@/components/RemixButton';
 import { bundleBaseUrl, getStore } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +34,9 @@ export default async function PlayPage({ params, searchParams }: Props) {
   }
   return (
     <main>
-      <h1>{title}</h1>
+      <h1>
+        {title} {game?.headVersionId ? <RemixButton gameId={game.id} /> : null}
+      </h1>
       <PlayFrame bundleUrl={bundleUrl} mode={mode} seed={seed} />
     </main>
   );
