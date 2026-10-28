@@ -8,7 +8,7 @@ import { genre as genreOf } from '@gg/templates/node';
 import { checkpoint } from './checkpoint.js';
 import { routeEdit } from './edit-router.js';
 import { FakeProvider } from './fake-provider.js';
-import { runGate } from './gate.js';
+import { runGate, type GateRun } from './gate.js';
 import { materialize, writeStageFile } from './materialize.js';
 import { createPlan, editPlan } from './plan.js';
 import { applyPreset, loadPresets } from './presets.js';
@@ -16,7 +16,7 @@ import { ClaudeSdkRunner } from './runners/claude-sdk.js';
 import { NoneRunner } from './runners/none.js';
 import { OpenRunner } from './runners/open.js';
 import { StructuredRunner } from './runners/structured.js';
-import type { Runner, StageContext, StageSpec } from './runners/types.js';
+import type { Runner, StageContext, StageOutcome, StageSpec } from './runners/types.js';
 import { WorkerRunner, genreOfGame } from './runners/worker.js';
 
 /** Legacy explicit plan (the demo's gate-only job over an existing game package). */
@@ -174,10 +174,23 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
       if (!runner) throw new Error(`no runner '${resolved.runnerKind}'`);
       const versionId = randomUUID();
       const ctx: StageContext = { jobId: job.id, gameId: job.gameId, spec, attempt, workDir, gameDir, policy: resolved.sp, model: resolved.model, provider: resolved.provider, store, log, dryRun, request, route, versionId };
-      const outcome = await runner.run(ctx);
+      // Verify first: an agent stage whose gate already passes needs no session (and costs nothing).
+      let outcome: StageOutcome | null = null;
+      let gate: GateRun | null = null;
+      if (spec.gateFirst && attempt === 1 && (resolved.runnerKind === 'claude-sdk' || resolved.runnerKind === 'open')) {
+        const pre = runGate(workDir, gameDir, spec.stage);
+        if (pre.report.passed) {
+          gate = pre;
+          outcome = { ok: true, summary: 'gate passed before any session (no model call)', usage: { inputTokens: 0, outputTokens: 0 }, costUsd: 0, durationMs: 0, turns: 0 };
+          await store.appendEvent(job.id, 'warning', { note: 'gate-first: stage already passes, session skipped' }, spec.stage);
+        }
+      }
+      if (!outcome || !gate) {
+        outcome = await runner.run(ctx);
+        gate = runGate(workDir, gameDir, spec.stage);
+      }
       totalCost += outcome.costUsd;
       totalTurns += outcome.turns;
-      const gate = runGate(workDir, gameDir, spec.stage);
       passed = outcome.ok && gate.report.passed;
       // Every attempt's gate report is kept (the playbook and evals read failures as well as passes).
       const gateObject = await store

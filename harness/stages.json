@@ -1,5 +1,5 @@
 {
-  "$comment": "Per-stage presets the worker copies into stage.json: gate checks, write scope, default caps, skills to use, default task. Keys are stage ids.",
+  "$comment": "Per-stage presets the worker copies into stage.json: gate checks, write scope, default caps, skills to use, default task. Keys are stage ids. gateFirst: run the gate before any model session on the first attempt and skip the session when it already passes.",
   "gdd": {
     "runner": "worker",
     "gate": [
@@ -142,7 +142,8 @@
       "asset-prompting",
       "verify"
     ],
-    "task": "Check that every asset request has a placeholder in game/assets/manifest.json and that the build boots. Phase 1 games are code-drawn: do not add binary assets."
+    "task": "Check that every asset request has a placeholder in game/assets/manifest.json and that the build boots. Phase 1 games are code-drawn: do not add binary assets.",
+    "gateFirst": true
   },
   "playtest": {
     "runner": "claude-sdk",
@@ -172,7 +173,8 @@
       "playtest",
       "verify"
     ],
-    "task": "Run the playtest skill on seeds 1, 2 and 3, triage the report and fix small issues within the write scope. Do not redesign."
+    "task": "Run the playtest skill on seeds 1, 2 and 3, triage the report and fix small issues within the write scope. Do not redesign.",
+    "gateFirst": true
   },
   "juice": {
     "runner": "claude-sdk",
@@ -193,7 +195,8 @@
     "skills": [
       "juice-pass"
     ],
-    "task": "Make every GDD feedback event produce its channels at runtime (juice-pass skill); tune only within the clamps."
+    "task": "Make every GDD feedback event produce its channels at runtime (juice-pass skill); tune only within the clamps.",
+    "gateFirst": true
   },
   "review": {
     "runner": "claude-sdk",
@@ -212,7 +215,8 @@
       "wallMin": 8
     },
     "skills": [],
-    "task": "Ask the gdd-reviewer subagent for a fresh-context review; write its findings to game/reports/review.json as {\"findings\":[{\"severity\":\"P0|P1\",\"file\":\"...\",\"note\":\"...\"}]}; fix every P0 within the write scope."
+    "task": "Ask the gdd-reviewer subagent for a fresh-context review; write its findings to game/reports/review.json as {\"findings\":[{\"severity\":\"P0|P1\",\"file\":\"...\",\"note\":\"...\"}]}; fix every P0 within the write scope.",
+    "gateFirst": true
   },
   "budget": {
     "runner": "none",

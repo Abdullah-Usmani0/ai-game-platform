@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "id": "drift",
+  "designNotes": "Falls slowly; gone at the bottom.",
+  "initial": "fall",
+  "states": {
+    "fall": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 30
+        }
+      ],
+      "transitions": [
+        {
+          "to": "gone",
+          "when": {
+            "kind": "grounded"
+          }
+        }
+      ]
+    },
+    "gone": {
+      "onEnter": [
+        {
+          "kind": "despawn"
+        }
+      ],
+      "update": [],
+      "transitions": []
+    }
+  }
+}

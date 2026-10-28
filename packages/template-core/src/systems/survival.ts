@@ -26,7 +26,7 @@ export const survival = defineSystem<{ done: boolean }>({
 
 export const meta = {
   id: 'survival',
-  genres: ['survivors'],
+  genres: ['survivors', 'shmup'],
   required: true,
   summary: 'Win by surviving until the timer ends; dying ends the run.',
   params: {

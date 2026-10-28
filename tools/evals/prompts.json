@@ -144,6 +144,24 @@
       "genre": "topdown-action",
       "scopeTier": "small",
       "prompt": "A neon arcade dungeon: a janitor robot sweeps through rooms of malfunctioning bots with a mop swing, parrying laser bolts."
+    },
+    {
+      "id": "h01",
+      "genre": "shmup",
+      "scopeTier": "small",
+      "prompt": "A retro vertical shooter in a static-filled sky: diving drones, slow tanks, aimed bullets, power cells every fifteen seconds."
+    },
+    {
+      "id": "h02",
+      "genre": "shmup",
+      "scopeTier": "small",
+      "prompt": "A bee defending its hive from a minute of wasps and hornets; pollen power-ups widen the stinger spread."
+    },
+    {
+      "id": "h03",
+      "genre": "shmup",
+      "scopeTier": "small",
+      "prompt": "A paper plane dodging crumpled-ball drones and heavy staplers in a classroom sky; hold to fire pencils."
     }
   ]
 }

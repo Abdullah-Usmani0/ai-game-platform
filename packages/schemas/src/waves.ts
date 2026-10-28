@@ -13,7 +13,7 @@ export const WaveTable = z.object({
             z.object({
               enemy: Id,
               count: z.int().min(1).max(200),
-              pattern: z.enum(['ring', 'edge', 'random', 'line']),
+              pattern: z.enum(['ring', 'edge', 'random', 'line', 'top']),
             }),
           )
           .min(1)

@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "designNotes": "difficulty 0.3 ramp over 60s; drones from the top, tanks after the midpoint",
+  "waves": [
+    {
+      "atS": 2,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 6,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 10,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 14,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 15,
+      "spawns": [
+        {
+          "enemy": "power",
+          "count": 1,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 18,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 22,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 26,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 30,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 30,
+      "spawns": [
+        {
+          "enemy": "power",
+          "count": 1,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 34,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 38,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 42,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 45,
+      "spawns": [
+        {
+          "enemy": "power",
+          "count": 1,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 46,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 50,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 54,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 58,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    }
+  ]
+}

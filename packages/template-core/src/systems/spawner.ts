@@ -1,7 +1,7 @@
 import type { WaveTable } from '@gg/schemas';
 import { defineSystem } from '@gg/sdk';
 
-/** Spawns enemies from content.waves at their scheduled time using ring / edge / random / line patterns. */
+/** Spawns enemies from content.waves at their scheduled time using ring / edge / random / line / top patterns. Shared by every wave-driven genre. */
 export const spawner = defineSystem<{ next: number; spawned: number }>({
   id: 'spawner',
   init: () => ({ next: 0, spawned: 0 }),
@@ -30,6 +30,9 @@ export const spawner = defineSystem<{ next: number; spawned: number }>({
           } else if (spawn.pattern === 'line') {
             x = map.tileSize * 2 + (i / Math.max(1, spawn.count - 1)) * (map.pixelWidth - map.tileSize * 5);
             y = map.tileSize * 2;
+          } else if (spawn.pattern === 'top') {
+            x = ctx.rng.range(map.tileSize * 2, map.pixelWidth - map.tileSize * 3);
+            y = map.tileSize * 2;
           } else {
             x = ctx.rng.range(map.tileSize * 2, map.pixelWidth - map.tileSize * 3);
             y = ctx.rng.range(map.tileSize * 2, map.pixelHeight - map.tileSize * 3);
@@ -50,9 +53,9 @@ export const spawner = defineSystem<{ next: number; spawned: number }>({
 
 export const meta = {
   id: 'spawner',
-  genres: ['survivors'],
+  genres: ['survivors', 'shmup'],
   required: true,
-  summary: 'Spawns enemy waves from content/waves.json at scheduled times in ring, edge, random or line patterns.',
+  summary: 'Spawns enemy waves from content/waves.json at scheduled times in ring, edge, random, line or top patterns.',
   params: { maxAlive: { type: 'number', min: 10, max: 200, default: 80, affects: 'none' } },
   emits: ['spawn'],
   feedbackFor: [],

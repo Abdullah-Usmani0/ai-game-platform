@@ -12,6 +12,8 @@ export interface StagePreset {
   ticks?: number;
   skills?: string[];
   task?: string;
+  /** Run the gate before any model session on the first attempt; skip the session when it already passes. */
+  gateFirst?: boolean;
 }
 export type StagePresets = Record<string, StagePreset>;
 
@@ -38,5 +40,6 @@ export function applyPreset(spec: StageSpec, presets: StagePresets): StageSpec {
     skills: spec.skills ?? p.skills,
     task: spec.task ?? p.task,
     caps: spec.caps ?? p.caps,
+    gateFirst: spec.gateFirst ?? p.gateFirst,
   };
 }

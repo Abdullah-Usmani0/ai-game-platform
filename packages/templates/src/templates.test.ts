@@ -52,8 +52,8 @@ describe('genre manifests', () => {
             player: g.player,
             behaviours: g.defaultBehaviours,
             rules: g.defaultRules,
-            params: id === 'survivors' ? { survival: { winAtS: 30 } } : {},
-            content: id === 'survivors' ? { waves: (g.exemplars.find((e) => e.kind === 'waves')?.artifact as object) ?? {} } : {},
+            params: g.systems['survival'] ? { survival: { winAtS: 30 } } : {},
+            content: g.extraContent?.({ seed, difficulty: 0.2 }) ?? {},
             movementMode: g.movementMode,
           });
           done = runBot(sim, g.bots[g.solverBot]!, 60 * 60).completed;

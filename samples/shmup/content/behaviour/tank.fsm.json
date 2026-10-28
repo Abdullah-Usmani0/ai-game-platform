@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "id": "tank",
+  "designNotes": "Slow straight descent with an aimed bullet every 0.8 s; 6 hp.",
+  "initial": "descend",
+  "states": {
+    "descend": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "fly"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 14
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bullet",
+          "speed": 75,
+          "cooldownMs": 800
+        }
+      ],
+      "transitions": [
+        {
+          "to": "gone",
+          "when": {
+            "kind": "grounded"
+          }
+        }
+      ]
+    },
+    "gone": {
+      "onEnter": [
+        {
+          "kind": "despawn"
+        }
+      ],
+      "update": [],
+      "transitions": []
+    }
+  }
+}

@@ -7,6 +7,7 @@ const GENRES = [
   { id: 'platformer', label: 'Precision platformer', hint: 'Celeste-class feel: coyote time, jump buffer, dash, stomp.' },
   { id: 'survivors', label: 'Survivors arena', hint: 'Top-down, auto-attack, waves for sixty seconds.' },
   { id: 'topdown-action', label: 'Top-down action', hint: 'Rooms and doors, directional melee, dash, clear the floor to open the exit.' },
+  { id: 'shmup', label: 'Vertical shooter', hint: 'Hold fire, dodge aimed bullets, survive the minute of waves.' },
 ];
 
 /** New-game form: prompt, genre, scope tier, optional title and references; creates the game and its job. */

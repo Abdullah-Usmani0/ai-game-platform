@@ -36,7 +36,7 @@ export const movementTopdown = defineSystem<{ prevDash: boolean; dashTicks: numb
 
 export const meta = {
   id: 'movement-topdown',
-  genres: ['survivors', 'topdown-action', 'lifesim', 'roguelike'],
+  genres: ['survivors', 'topdown-action', 'shmup', 'lifesim', 'roguelike'],
   required: true,
   summary: 'Eight-direction movement with acceleration and a dash burst, driven by the feel preset.',
   params: {},

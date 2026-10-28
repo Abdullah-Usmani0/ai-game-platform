@@ -15,7 +15,7 @@ function run(cmd: string, args: string[], cwd: string): { ok: boolean; out: stri
 }
 
 describe('scaffold', () => {
-  for (const genre of ['platformer', 'survivors', 'topdown-action'] as const) {
+  for (const genre of ['platformer', 'survivors', 'topdown-action', 'shmup'] as const) {
     it(`emits a ${genre} game that typechecks, lints, tests and builds`, () => {
       const out = mkdtempSync(join(tmpdir(), `gg-scaffold-${genre}-`));
       const result = scaffold({

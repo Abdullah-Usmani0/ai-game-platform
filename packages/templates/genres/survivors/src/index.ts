@@ -1,10 +1,8 @@
-import { movementTopdown, movementTopdownMeta, pickups, pickupsMeta, type GenreRuntime } from '@gg/template-core';
+import { movementTopdown, movementTopdownMeta, pickups, pickupsMeta, spawner, spawnerMeta, survival, survivalMeta, type GenreRuntime } from '@gg/template-core';
 import { DEFAULT_BEHAVIOURS, VOCAB } from './behaviours.js';
 import { COLLECTIBLE_TYPES, ENTITY_DEFS, PLAYER } from './entities.js';
 import { DEFAULT_FEEL, FEEL } from './feel.js';
 import { autoAttack, meta as autoAttackMeta } from './systems/auto-attack.js';
-import { meta as spawnerMeta, spawner } from './systems/spawner.js';
-import { meta as survivalMeta, survival } from './systems/survival.js';
 
 export * from './feel.js';
 export * from './entities.js';

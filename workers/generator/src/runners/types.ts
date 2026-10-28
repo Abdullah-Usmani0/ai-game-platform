@@ -19,6 +19,8 @@ export interface StageSpec {
   /** Skills the stage's agent session should read first (from the stage preset). */
   skills?: string[];
   caps?: { turns: number; usd: number; wallMin: number };
+  /** Verify first: when the gate already passes on the first attempt, no model session runs. */
+  gateFirst?: boolean;
 }
 
 export interface StageContext {

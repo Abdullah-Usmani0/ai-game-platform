@@ -1,0 +1,1 @@
+Ask (one at a time, short): How long is a run? Should bullets be sparse and aimed or dense and patterned? Is the ship fast and fragile or slow and sturdy? What do power-ups do (spread, damage, cooldown)? What is the mood (retro arcade, neon, hand-drawn)?

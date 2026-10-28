@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "id": "drone",
+  "designNotes": "Dives from the top, weaves left and right, fires an aimed bullet every 1.4 s, leaves at the bottom.",
+  "initial": "dive",
+  "states": {
+    "dive": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "fly"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 42
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bullet",
+          "speed": 90,
+          "cooldownMs": 1400
+        }
+      ],
+      "transitions": [
+        {
+          "to": "gone",
+          "when": {
+            "kind": "grounded"
+          }
+        },
+        {
+          "to": "left",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 800
+          }
+        }
+      ]
+    },
+    "left": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": -38,
+          "vy": 28
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bullet",
+          "speed": 90,
+          "cooldownMs": 1400
+        }
+      ],
+      "transitions": [
+        {
+          "to": "gone",
+          "when": {
+            "kind": "grounded"
+          }
+        },
+        {
+          "to": "right",
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 700
+              },
+              {
+                "kind": "hit_wall"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "right": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 38,
+          "vy": 28
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bullet",
+          "speed": 90,
+          "cooldownMs": 1400
+        }
+      ],
+      "transitions": [
+        {
+          "to": "gone",
+          "when": {
+            "kind": "grounded"
+          }
+        },
+        {
+          "to": "left",
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 700
+              },
+              {
+                "kind": "hit_wall"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "gone": {
+      "onEnter": [
+        {
+          "kind": "despawn"
+        }
+      ],
+      "update": [],
+      "transitions": []
+    }
+  }
+}
