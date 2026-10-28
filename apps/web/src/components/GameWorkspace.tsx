@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ParamPanel, type PanelItem } from '@/components/ParamPanel';
 import { PlayFrame } from '@/components/PlayFrame';
+import { StyleEditor, type StyleLike } from '@/components/StyleEditor';
 
 interface GameInfo {
   id: string;
@@ -17,6 +19,8 @@ interface HeadInfo {
   number: number;
   bundleBase: string | null;
   evidence: Record<string, unknown> | null;
+  panels?: PanelItem[] | null;
+  style?: StyleLike | null;
 }
 interface JobView {
   job: { id: string; kind: string; status: string; stage: string | null; costUsd: number; turns: number; resultVersionId: string | null; error: { stage?: string; reason?: string } | null };
@@ -24,7 +28,7 @@ interface JobView {
   trajectories: Array<{ stage: string; attempt: number; passed: boolean; model: string; costUsd: number; durationMs: number; failureMode: string | null }>;
 }
 interface GameView {
-  head: (HeadInfo & { bundlePath: string | null }) | null;
+  head: (HeadInfo & { bundlePath: string | null; design?: { evidence?: Record<string, unknown>; panels?: PanelItem[]; style?: StyleLike } }) | null;
   versions: Array<{ id: string; number: number; kind: string; stage: string | null; isHead: boolean; bundleBase: string | null; summary: string; createdAt: string }>;
   jobs: Array<{ id: string; kind: string; status: string; stage: string | null; costUsd: number; createdAt: string; error: { reason?: string } | null }>;
 }
@@ -77,7 +81,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
     const data = (await res.json()) as GameView;
     setGameView(data);
     if (data.head && data.head.id !== head?.id) {
-      setHead({ id: data.head.id, number: data.head.number, bundleBase: data.head.bundleBase, evidence: (data.head as unknown as { design?: { evidence?: Record<string, unknown> } }).design?.evidence ?? null });
+      setHead({ id: data.head.id, number: data.head.number, bundleBase: data.head.bundleBase, evidence: data.head.design?.evidence ?? null, panels: data.head.design?.panels ?? null, style: data.head.design?.style ?? null });
       setFrameKey((k) => k + 1);
     }
   }, [game.id, head?.id]);
@@ -105,11 +109,11 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
     };
   }, [jobId, refreshGame]);
 
-  async function sendEdit() {
-    if (!message.trim()) return;
+  async function submitEdit(text: string) {
+    if (!text.trim()) return;
     setSending(true);
     setError(null);
-    const res = await fetch(`/api/games/${game.id}/edit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message, dryRun }) });
+    const res = await fetch(`/api/games/${game.id}/edit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text, dryRun }) });
     const data = (await res.json()) as { jobId?: string; error?: string | string[] };
     setSending(false);
     if (!res.ok || !data.jobId) {
@@ -120,6 +124,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
     lastStatus.current = null;
     setJobId(data.jobId);
   }
+  const sendEdit = () => submitEdit(message);
 
   const stages = stageStates(jobView);
   const status = jobView?.job.status ?? (jobId ? 'loading' : 'idle');
@@ -210,6 +215,8 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
           </div>
           {error ? <p className="err">{error}</p> : null}
         </div>
+        {head?.panels?.length ? <ParamPanel panels={head.panels} disabled={sending || active || !game.headVersionId} onApply={(m) => void submitEdit(m)} /> : null}
+        {head?.style ? <StyleEditor style={head.style} disabled={sending || active || !game.headVersionId} onApply={(m) => void submitEdit(m)} /> : null}
         {gameView ? (
           <div className="panel">
             <h2>Versions</h2>

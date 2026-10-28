@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['@gg/schemas', '@gg/db'],
+  transpilePackages: ['@gg/schemas', '@gg/db', '@gg/catalog'],
   serverExternalPackages: ['@supabase/supabase-js'],
   async headers() {
     return [

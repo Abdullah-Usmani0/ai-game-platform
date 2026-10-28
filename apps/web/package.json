@@ -14,6 +14,7 @@
     "check:create": "node scripts/check-create.mjs"
   },
   "dependencies": {
+    "@gg/catalog": "workspace:*",
     "@gg/db": "workspace:*",
     "@gg/schemas": "workspace:*",
     "next": "16.4.3",

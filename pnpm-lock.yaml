@@ -20,6 +20,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@gg/catalog':
+        specifier: workspace:*
+        version: link:../../packages/catalog
       '@gg/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -131,6 +134,28 @@ importers:
       '@types/pngjs':
         specifier: 6.0.5
         version: 6.0.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/catalog:
+    dependencies:
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
       eslint:
         specifier: 10.13.0
         version: 10.13.0
@@ -716,6 +741,9 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: 0.3.312
         version: 0.3.312(@anthropic-ai/sdk@1.3.0(zod@4.6.7))(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))(zod@4.6.7)
+      '@gg/catalog':
+        specifier: workspace:*
+        version: link:../../packages/catalog
       '@gg/db':
         specifier: workspace:*
         version: link:../../packages/db

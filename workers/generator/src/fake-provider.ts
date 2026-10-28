@@ -5,7 +5,7 @@ import type { GenreManifest } from '@gg/template-core';
 import { draftBody, draftFrontmatter } from './gdd-draft.js';
 
 const ZERO = { inputTokens: 0, outputTokens: 0 };
-const STYLE_KEYS = /^(palette|camera|typography|postFx|animationFps|outline|family|audioMood)\./;
+const STYLE_KEYS = /^(palette|camera|typography|postFx|animationFps|canvas)\.|^(outline|family|pixelArt)$/;
 
 /**
  * Keyword routing for edit messages: used by the fake provider and as the fallback when the router model fails.

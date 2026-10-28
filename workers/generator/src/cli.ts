@@ -25,6 +25,7 @@ const { positionals, values } = parseArgs({
     title: { type: 'string' },
     seed: { type: 'string' },
     message: { type: 'string' },
+    refs: { type: 'string' },
     'dry-run': { type: 'boolean', default: false },
     budget: { type: 'string' },
   },
@@ -38,8 +39,8 @@ if (cmd === 'enqueue') {
   const job = await store.enqueueJob({ gameId: values['game-id'], userId: values.user, kind: 'create', input: { gameSource: resolve(values.game), stages } });
   console.log(JSON.stringify({ enqueued: job.id, stages: stages.map((s) => s.stage) }));
 } else if (cmd === 'create') {
-  if (!values.prompt) throw new Error('usage: gg-worker create --prompt TEXT [--genre platformer|survivors] [--tier small|medium|large] [--title T] [--seed N] [--dry-run]');
-  const request = CreateRequest.parse({ prompt: values.prompt, genre: values.genre, scopeTier: values.tier, title: values.title, seed: values.seed ? Number(values.seed) : undefined, dryRun: values['dry-run'] });
+  if (!values.prompt) throw new Error('usage: gg-worker create --prompt TEXT [--genre platformer|survivors|topdown-action] [--tier small|medium|large] [--title T] [--seed N] [--refs "Celeste, Hades"] [--dry-run]');
+  const request = CreateRequest.parse({ prompt: values.prompt, genre: values.genre, scopeTier: values.tier, title: values.title, seed: values.seed ? Number(values.seed) : undefined, dryRun: values['dry-run'], referenceTitles: values.refs ? values.refs.split(',').map((r) => r.trim()).filter(Boolean) : [] });
   const title = request.title ?? titleFromPrompt(request.prompt);
   const slug = `${slugify(title)}-${randomBytes(2).toString('hex')}`;
   const game = await store.createGame({ ownerId: values.user, slug, title, genre: request.genre, conceptMd: request.prompt, concept: { scopeTier: request.scopeTier, referenceTitles: request.referenceTitles } });

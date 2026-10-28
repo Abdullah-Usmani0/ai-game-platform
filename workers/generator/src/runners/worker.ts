@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { blockedTermsFor, resolveReferences, sanitize, styleFromReferences } from '@gg/catalog';
 import { costUsd, generateArtifact, providerFor, type GenerateResult, type Usage } from '@gg/llm';
 import { BundleManifest, GddFrontmatter, StyleCard, SystemsJson, type BehaviourFsm, type LevelJson } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
@@ -83,13 +84,25 @@ const gdd: StageFn = async (ctx) => {
   const budget = g.scopeBudget[req.scopeTier];
   const design = join(ctx.gameDir, 'design');
   mkdirSync(design, { recursive: true });
+  // Style references resolve to cards of unprotectable attributes; the titles and their blocked terms never
+  // reach a prompt or a public artifact (concept.md is private and stays out of the bundle).
+  const refs = resolveReferences(req.referenceTitles);
+  const blocked = blockedTermsFor(refs.matched);
+  const clean = sanitize(req.prompt.trim(), blocked);
+  const cleanReq = { ...req, prompt: clean.text };
   writeFileSync(
     join(design, 'concept.md'),
-    `# Concept\n\n${req.prompt.trim()}\n\n- Genre: ${g.name}\n- Scope tier: ${req.scopeTier}\n${req.referenceTitles.length ? `- Style references: ${req.referenceTitles.join(', ')}\n` : ''}`,
+    `# Concept\n\n${req.prompt.trim()}\n\n- Genre: ${g.name}\n- Scope tier: ${req.scopeTier}\n${refs.matched.length ? `- Style references (private): ${refs.matched.map((e) => e.title).join(', ')}\n` : ''}${refs.unmatched.length ? `- Unresolved references: ${refs.unmatched.join(', ')}\n` : ''}`,
   );
+  if (!existsSync(join(design, 'style.json'))) {
+    const base = { ...DEFAULT_STYLE, name: 'style' };
+    writeJson(join(design, 'style.json'), refs.matched.length ? styleFromReferences(refs.matched, base, 'reference-style') : base);
+  }
+  const styleNotes = refs.matched.flatMap((e) => e.card.notes).slice(0, 8);
   const provider = providerFor(ctx.provider);
-  const draft = draftFrontmatter(req, g);
+  const draft = draftFrontmatter(cleanReq, g);
   const notes: string[] = [];
+  if (clean.hits.length) notes.push(`prompt sanitised (${clean.hits.length} reference term(s) removed)`);
   let usage: Usage = { ...ZERO };
   let cost = 0;
   let turns = 0;
@@ -100,7 +113,8 @@ const gdd: StageFn = async (ctx) => {
     artifact: 'GddFrontmatter',
     system: GDD_SYSTEM,
     prompt: [
-      `Concept:\n${req.prompt.trim()}`,
+      `Concept:\n${clean.text}`,
+      styleNotes.length ? `Art direction (from the style card): ${styleNotes.join('; ')}.` : '',
       `Genre: ${g.name} (${g.id}). Scope tier '${req.scopeTier}' budget: ${JSON.stringify(budget)} (scope must not exceed it).`,
       `Verbs available in this genre: ${g.gddDefaults.verbs.join(', ')}. Enemy types: ${g.entityDefs.filter((e) => e.fsm).map((e) => e.type).join(', ')}. Items: ${g.collectibleTypes.join(', ')}.`,
       `Genre guidance:\n${g.gddFragment}`,
@@ -133,7 +147,8 @@ const gdd: StageFn = async (ctx) => {
     'Required sections, in order, each as a level-2 heading: ## Concept, ## Pillars, ## Core loop (30 seconds / 5 minutes / session), ## Progression, ## Scope, ## Feedback.',
     'Under 600 words. Concrete sentences; counts must match the front matter.',
     `Front matter: ${JSON.stringify(fm)}`,
-    `Concept: ${req.prompt.trim()}`,
+    `Concept: ${clean.text}`,
+    styleNotes.length ? `Art direction: ${styleNotes.join('; ')}.` : '',
   ].join('\n');
   let body: string | null = null;
   let repair = '';
@@ -143,7 +158,7 @@ const gdd: StageFn = async (ctx) => {
       usage = add(usage, r.usage);
       cost += costUsd(ctx.model, r.usage);
       turns++;
-      const candidate = r.text.replace(/^---[\s\S]*?---\s*/m, '').trim();
+      const candidate = sanitize(r.text.replace(/^---[\s\S]*?---\s*/m, '').trim(), blocked).text;
       const check = checkGdd(renderGdd(fm, candidate), budget);
       if (check.ok) body = candidate;
       else repair = `\n\nYour previous body was rejected: ${check.issues.filter((i) => i.severity === 'error').map((i) => i.message).join('; ')}. Write it again with every required section.`;
@@ -153,11 +168,14 @@ const gdd: StageFn = async (ctx) => {
     }
   }
   if (!body) {
-    body = draftBody(req, g, fm);
+    body = draftBody(cleanReq, g, fm);
     notes.push('body: drafted deterministically');
   }
+  fm = { ...fm, title: sanitize(fm.title, blocked).text.slice(0, 80) || fm.title };
   writeFileSync(join(design, 'gdd.md'), renderGdd(fm, body));
-  if (!existsSync(join(design, 'style.json'))) writeJson(join(design, 'style.json'), { ...DEFAULT_STYLE, name: `${slugify(fm.title)}-style` });
+  const stylePath = join(design, 'style.json');
+  const style = StyleCard.parse(readJson(stylePath));
+  if (style.name === 'style' || style.name === 'reference-style') writeJson(stylePath, { ...style, name: `${slugify(fm.title)}-style` });
   return {
     ok: true,
     summary: `wrote design/gdd.md: "${fm.title}", ${fm.scope.levels} level(s), ${fm.scope.enemies} enemy type(s)${notes.length ? `; ${notes.join('; ')}` : ''}`,
@@ -481,6 +499,13 @@ const publish: StageFn = async (ctx) => {
   };
   writeJson(join(bundleDir, 'evidence.json'), evidence);
 
+  const g = genreOfGame(ctx);
+  const panels = g.panels.map((spec) => {
+    const entry = sys.systems.find((e) => e.id === spec.systemId);
+    const current = entry?.params[spec.param];
+    const fallback = CATALOG[spec.systemId]?.params[spec.param]?.default;
+    return { ...spec, value: typeof current === 'number' ? current : typeof fallback === 'number' ? fallback : spec.min };
+  });
   const files = walk(bundleDir);
   let bytes = 0;
   for (const rel of files) {
@@ -492,7 +517,7 @@ const publish: StageFn = async (ctx) => {
   return ok(`published ${files.length} files (${Math.round(bytes / 1024)} KB) to ${bundlePath}`, {
     durationMs: Date.now() - t0,
     artifactPath: bundleDir,
-    version: { bundlePath, manifest: manifest as unknown as Record<string, unknown>, design: { gdd: gddInfo.fm, systems: sys, style, evidence }, contentHash },
+    version: { bundlePath, manifest: manifest as unknown as Record<string, unknown>, design: { gdd: gddInfo.fm, systems: sys, style, evidence, panels }, contentHash },
   });
 };
 

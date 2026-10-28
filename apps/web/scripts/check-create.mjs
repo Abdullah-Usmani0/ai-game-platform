@@ -40,6 +40,8 @@ try {
   // 2. Workspace of the finished game: evidence panel and a playable preview over the bridge.
   await page.goto(`${url}/games/${game.id}`, { waitUntil: 'load', timeout: 30000 });
   await page.waitForSelector('[data-testid="evidence"]', { timeout: 20000 });
+  result.panels = Boolean(await page.$('[data-testid="param-panel"]'));
+  result.styleEditor = Boolean(await page.$('[data-testid="style-editor"]'));
   await page.waitForSelector('[data-testid="status"]:has-text("ready")', { timeout: 30000 });
   await page.waitForTimeout(1500);
   await page.click('[data-testid="request-state"]');
@@ -51,7 +53,8 @@ try {
   await page.goto(`${url}/games/${createdJson.gameId}?job=${createdJson.jobId}`, { waitUntil: 'load', timeout: 30000 });
   await page.waitForSelector('[data-testid="no-preview"]', { timeout: 10000 });
   await page.waitForSelector('[data-testid="job-status"]:has-text("queued")', { timeout: 10000 });
-  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0;
+  const wantPanels = process.env.GG_EXPECT_PANELS === '1';
+  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor));
   console.log(JSON.stringify({ ok, ...result, errors }, null, 2));
 } catch (e) {
   console.error('check-create failed:', e.message, JSON.stringify(result));

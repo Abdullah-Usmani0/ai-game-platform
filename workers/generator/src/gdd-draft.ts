@@ -7,7 +7,7 @@ export function titleFromPrompt(prompt: string): string {
     .split(/[.!?\n]/)[0]!
     .replace(/[^a-zA-Z0-9' ]/g, ' ')
     .split(/\s+/)
-    .filter((w) => w && !/^(a|an|the|about|with|where|that|of|and|in|on|for|to|make|build|create|game|i|want|me)$/i.test(w))
+    .filter((w) => w && !/^(a|an|the|about|with|where|that|of|and|in|on|for|to|make|build|create|game|games|i|want|me|like|named|style|reference)$/i.test(w))
     .slice(0, 4)
     .map((w) => w[0]!.toUpperCase() + w.slice(1).toLowerCase());
   return words.length ? words.join(' ').slice(0, 80) : 'Untitled Game';
