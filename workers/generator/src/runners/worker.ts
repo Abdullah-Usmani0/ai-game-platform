@@ -363,7 +363,8 @@ const levels: StageFn = async (ctx) => {
     const out: Array<{ file: string; level: LevelJson }> = [];
     for (let i = 0; i < count; i++) {
       const id = `l${String(i + 1).padStart(2, '0')}`;
-      const difficulty = Math.round((count === 1 ? 0.25 : 0.15 + (0.6 * i) / (count - 1)) * 100) / 100;
+      // Ramp from 0.15 in steps of at most 0.2 per level (0.75 is reached from four levels up).
+      const difficulty = Math.round((count === 1 ? 0.25 : 0.15 + (0.6 * i) / Math.max(3, count - 1)) * 100) / 100;
       if (targets.size && !targets.has(id) && existing.has(id)) {
         out.push({ file: `L${String(i + 1).padStart(2, '0')}-${id}.json`, level: readJson<LevelJson>(existing.get(id)!) });
         continue;

@@ -1,0 +1,7 @@
+[
+  { "event": "dash", "channels": ["sfx"] },
+  { "event": "hit", "channels": ["hitstop", "shake", "sfx"] },
+  { "event": "death", "channels": ["flash", "sfx"] },
+  { "event": "pickup", "channels": ["sfx"] },
+  { "event": "level_complete", "channels": ["sfx", "particle"] }
+]

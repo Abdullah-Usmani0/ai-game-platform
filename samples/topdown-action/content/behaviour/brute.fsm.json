@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "id": "brute",
+  "designNotes": "Slow chaser with a long wind-up and a two-damage bite; staggers briefly when hit.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "player_within",
+            "px": 96
+          }
+        },
+        {
+          "to": "chase",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 34
+        }
+      ],
+      "transitions": [
+        {
+          "to": "windup",
+          "when": {
+            "kind": "player_within",
+            "px": 16
+          }
+        },
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        },
+        {
+          "to": "wait",
+          "when": {
+            "kind": "player_beyond",
+            "px": 180
+          }
+        }
+      ]
+    },
+    "windup": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "windup"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:windup"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "bite",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 450
+          }
+        }
+      ]
+    },
+    "bite": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "bite"
+        },
+        {
+          "kind": "damage_player",
+          "amount": 2
+        },
+        {
+          "kind": "emit",
+          "event": "custom:bite"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 600
+          }
+        }
+      ]
+    },
+    "stagger": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "hurt"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 160
+          }
+        }
+      ]
+    }
+  }
+}

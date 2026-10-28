@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "id": "archer",
+  "designNotes": "Holds position and shoots arrows while the player is in range; retreats when the player gets close.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        }
+      ],
+      "update": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "attack",
+          "when": {
+            "kind": "player_within",
+            "px": 100
+          }
+        },
+        {
+          "to": "attack",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "attack": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "aim"
+        }
+      ],
+      "update": [
+        {
+          "kind": "idle"
+        },
+        {
+          "kind": "shoot",
+          "projectile": "arrow",
+          "speed": 70,
+          "cooldownMs": 1600
+        }
+      ],
+      "transitions": [
+        {
+          "to": "retreat",
+          "when": {
+            "kind": "player_within",
+            "px": 30
+          }
+        },
+        {
+          "to": "wait",
+          "when": {
+            "kind": "player_beyond",
+            "px": 170
+          }
+        },
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "retreat": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_away_from_player",
+          "speed": 40
+        }
+      ],
+      "transitions": [
+        {
+          "to": "attack",
+          "when": {
+            "kind": "player_beyond",
+            "px": 52
+          }
+        },
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "stagger": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "hurt"
+        },
+        {
+          "kind": "move_away_from_player",
+          "speed": 60
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "attack",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 260
+          }
+        }
+      ]
+    }
+  }
+}

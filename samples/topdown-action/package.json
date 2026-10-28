@@ -1,0 +1,29 @@
+{
+  "name": "@gg/sample-topdown-action",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "content": "node --import tsx scripts/make-content.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs"
+  },
+  "dependencies": {
+    "@gg/schemas": "workspace:*",
+    "@gg/sdk": "workspace:*",
+    "@gg/template-topdown-action": "workspace:*"
+  },
+  "devDependencies": {
+    "@gg/config": "workspace:*",
+    "@gg/engine": "workspace:*",
+    "@gg/template-core": "workspace:*",
+    "@types/node": "22.20.5",
+    "eslint": "10.13.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

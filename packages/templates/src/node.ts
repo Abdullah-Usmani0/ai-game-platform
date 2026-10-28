@@ -2,9 +2,10 @@ import type { Genre } from '@gg/schemas';
 import { buildCatalog, type GenreManifest } from '@gg/template-core';
 import { platformer } from '@gg/template-platformer/node';
 import { survivors } from '@gg/template-survivors/node';
+import { topdownAction } from '@gg/template-topdown-action/node';
 
 /** The ONLY shared edit when adding a genre. */
-export const GENRES: Record<string, GenreManifest> = { platformer, survivors };
+export const GENRES: Record<string, GenreManifest> = { platformer, survivors, 'topdown-action': topdownAction };
 
 export function genre(id: string): GenreManifest {
   const g = GENRES[id];

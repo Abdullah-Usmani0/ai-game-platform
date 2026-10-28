@@ -1,25 +1,149 @@
 {
   "$comment": "Benchmark prompts: 10 per shipped genre, alternating so --limit N covers both genres. Each row is graded by the full gate set.",
   "prompts": [
-    { "id": "p01", "genre": "platformer", "scopeTier": "small", "prompt": "A tight cave platformer about a lantern-carrying mole who dashes through crumbling tunnels, with coins to collect and beetles to stomp." },
-    { "id": "s01", "genre": "survivors", "scopeTier": "small", "prompt": "A frantic arena survivors game where a lighthouse keeper fends off waves of sea ghosts for one minute, collecting lantern oil to level up." },
-    { "id": "p02", "genre": "platformer", "scopeTier": "small", "prompt": "A snowy mountain platformer: short, precise jumps between icy ledges, spikes at the bottom of every pit, a hopping yeti cub as the enemy." },
-    { "id": "s02", "genre": "survivors", "scopeTier": "small", "prompt": "Survive sixty seconds in a haunted library as a candle spirit; books fly at you in rings, and every page you burn makes your flame hit harder." },
-    { "id": "p03", "genre": "platformer", "scopeTier": "small", "prompt": "A sewer-run platformer with a frog courier: hop over sludge pits, stomp rats, collect stamps, three levels that teach jump, dash and stomp in order." },
-    { "id": "s03", "genre": "survivors", "scopeTier": "small", "prompt": "An arena survivors game set on a tiny asteroid; rock crabs swarm from the edges and the miner's drill auto-attacks the nearest one." },
-    { "id": "p04", "genre": "platformer", "scopeTier": "medium", "prompt": "A six-level ruins platformer for a tomb thief: traps are always visible, walkers patrol narrow ledges, turrets guard the gold, dashes cross wide gaps." },
-    { "id": "s04", "genre": "survivors", "scopeTier": "medium", "prompt": "A cozy-looking but tough survivors run in a bee garden: wasps come in waves, nectar levels you up, brutes arrive late." },
-    { "id": "p05", "genre": "platformer", "scopeTier": "small", "prompt": "A clockwork factory platformer where a wind-up toy soldier marches right, hops gears, stomps rust bugs and reaches the exit before winding down." },
-    { "id": "s05", "genre": "survivors", "scopeTier": "small", "prompt": "Hold the campfire: a ranger auto-fires arrows at wolves that circle in from the dark for one minute; pick up embers to level up." },
-    { "id": "p06", "genre": "platformer", "scopeTier": "small", "prompt": "A forgiving first platformer for kids: a round bird hops across mushroom tops, collects seeds and bops sleepy slugs; nothing is hidden, deaths are rare." },
-    { "id": "s06", "genre": "survivors", "scopeTier": "small", "prompt": "A neon arena where a maintenance drone repels rogue cleaner bots; waves get denser, the drone's zapper range grows with every chip collected." },
-    { "id": "p07", "genre": "platformer", "scopeTier": "small", "prompt": "Volcano escape: lava pits with spikes, rising difficulty across three levels, hopping magma imps, coins as salvaged gems." },
-    { "id": "s07", "genre": "survivors", "scopeTier": "small", "prompt": "A pocket-sized survivors game about a gardener and an endless stream of hungry snails; harvest glowing seeds to level up your spade." },
-    { "id": "p08", "genre": "platformer", "scopeTier": "medium", "prompt": "A sky-island platformer: one-way cloud platforms, long dashes, walkers on every island, six levels with a gentle ramp." },
-    { "id": "s08", "genre": "survivors", "scopeTier": "medium", "prompt": "A medium survivors run in a flooded subway: rats in rings, a brute rat late, oil cans as xp; the player's wrench auto-swings." },
-    { "id": "p09", "genre": "platformer", "scopeTier": "small", "prompt": "A haunted mansion platformer where a tiny ghost hunter jumps bookshelves, stomps spider walkers and collects keys; short, readable, fair." },
-    { "id": "s09", "genre": "survivors", "scopeTier": "small", "prompt": "One minute on a frozen lake: penguin chef versus swarms of hungry gulls, fish as xp, waves from the edges then rings." },
-    { "id": "p10", "genre": "platformer", "scopeTier": "small", "prompt": "A desert canyon platformer: dash across wide crevices with spikes below, stomp scorpion walkers, grab water drops, three levels." },
-    { "id": "s10", "genre": "survivors", "scopeTier": "small", "prompt": "A junkyard survivors arena where a magnet robot pulls in scrap (xp) while crushing waves of rust mites that chase it." }
+    {
+      "id": "p01",
+      "genre": "platformer",
+      "scopeTier": "small",
+      "prompt": "A tight cave platformer about a lantern-carrying mole who dashes through crumbling tunnels, with coins to collect and beetles to stomp."
+    },
+    {
+      "id": "s01",
+      "genre": "survivors",
+      "scopeTier": "small",
+      "prompt": "A frantic arena survivors game where a lighthouse keeper fends off waves of sea ghosts for one minute, collecting lantern oil to level up."
+    },
+    {
+      "id": "p02",
+      "genre": "platformer",
+      "scopeTier": "small",
+      "prompt": "A snowy mountain platformer: short, precise jumps between icy ledges, spikes at the bottom of every pit, a hopping yeti cub as the enemy."
+    },
+    {
+      "id": "s02",
+      "genre": "survivors",
+      "scopeTier": "small",
+      "prompt": "Survive sixty seconds in a haunted library as a candle spirit; books fly at you in rings, and every page you burn makes your flame hit harder."
+    },
+    {
+      "id": "p03",
+      "genre": "platformer",
+      "scopeTier": "small",
+      "prompt": "A sewer-run platformer with a frog courier: hop over sludge pits, stomp rats, collect stamps, three levels that teach jump, dash and stomp in order."
+    },
+    {
+      "id": "s03",
+      "genre": "survivors",
+      "scopeTier": "small",
+      "prompt": "An arena survivors game set on a tiny asteroid; rock crabs swarm from the edges and the miner's drill auto-attacks the nearest one."
+    },
+    {
+      "id": "p04",
+      "genre": "platformer",
+      "scopeTier": "medium",
+      "prompt": "A six-level ruins platformer for a tomb thief: traps are always visible, walkers patrol narrow ledges, turrets guard the gold, dashes cross wide gaps."
+    },
+    {
+      "id": "s04",
+      "genre": "survivors",
+      "scopeTier": "medium",
+      "prompt": "A cozy-looking but tough survivors run in a bee garden: wasps come in waves, nectar levels you up, brutes arrive late."
+    },
+    {
+      "id": "p05",
+      "genre": "platformer",
+      "scopeTier": "small",
+      "prompt": "A clockwork factory platformer where a wind-up toy soldier marches right, hops gears, stomps rust bugs and reaches the exit before winding down."
+    },
+    {
+      "id": "s05",
+      "genre": "survivors",
+      "scopeTier": "small",
+      "prompt": "Hold the campfire: a ranger auto-fires arrows at wolves that circle in from the dark for one minute; pick up embers to level up."
+    },
+    {
+      "id": "p06",
+      "genre": "platformer",
+      "scopeTier": "small",
+      "prompt": "A forgiving first platformer for kids: a round bird hops across mushroom tops, collects seeds and bops sleepy slugs; nothing is hidden, deaths are rare."
+    },
+    {
+      "id": "s06",
+      "genre": "survivors",
+      "scopeTier": "small",
+      "prompt": "A neon arena where a maintenance drone repels rogue cleaner bots; waves get denser, the drone's zapper range grows with every chip collected."
+    },
+    {
+      "id": "p07",
+      "genre": "platformer",
+      "scopeTier": "small",
+      "prompt": "Volcano escape: lava pits with spikes, rising difficulty across three levels, hopping magma imps, coins as salvaged gems."
+    },
+    {
+      "id": "s07",
+      "genre": "survivors",
+      "scopeTier": "small",
+      "prompt": "A pocket-sized survivors game about a gardener and an endless stream of hungry snails; harvest glowing seeds to level up your spade."
+    },
+    {
+      "id": "p08",
+      "genre": "platformer",
+      "scopeTier": "medium",
+      "prompt": "A sky-island platformer: one-way cloud platforms, long dashes, walkers on every island, six levels with a gentle ramp."
+    },
+    {
+      "id": "s08",
+      "genre": "survivors",
+      "scopeTier": "medium",
+      "prompt": "A medium survivors run in a flooded subway: rats in rings, a brute rat late, oil cans as xp; the player's wrench auto-swings."
+    },
+    {
+      "id": "p09",
+      "genre": "platformer",
+      "scopeTier": "small",
+      "prompt": "A haunted mansion platformer where a tiny ghost hunter jumps bookshelves, stomps spider walkers and collects keys; short, readable, fair."
+    },
+    {
+      "id": "s09",
+      "genre": "survivors",
+      "scopeTier": "small",
+      "prompt": "One minute on a frozen lake: penguin chef versus swarms of hungry gulls, fish as xp, waves from the edges then rings."
+    },
+    {
+      "id": "p10",
+      "genre": "platformer",
+      "scopeTier": "small",
+      "prompt": "A desert canyon platformer: dash across wide crevices with spikes below, stomp scorpion walkers, grab water drops, three levels."
+    },
+    {
+      "id": "s10",
+      "genre": "survivors",
+      "scopeTier": "small",
+      "prompt": "A junkyard survivors arena where a magnet robot pulls in scrap (xp) while crushing waves of rust mites that chase it."
+    },
+    {
+      "id": "t01",
+      "genre": "topdown-action",
+      "scopeTier": "small",
+      "prompt": "A mythic dungeon crawl: a torch-bearer clears ember-lit halls room by room, swinging a heavy blade at skeleton grunts and dodging archers behind pillars."
+    },
+    {
+      "id": "t02",
+      "genre": "topdown-action",
+      "scopeTier": "small",
+      "prompt": "A cartoon kitchen brawl: a chef with a frying pan clears pantry rooms of rushing rats and jar-throwing imps; the door opens when the room is clean."
+    },
+    {
+      "id": "t03",
+      "genre": "topdown-action",
+      "scopeTier": "medium",
+      "prompt": "A four-floor crypt where a knight fights grunts in tight rooms, archers across long halls and a brute at the bottom; dashes cross arrow lanes."
+    },
+    {
+      "id": "t04",
+      "genre": "topdown-action",
+      "scopeTier": "small",
+      "prompt": "A neon arcade dungeon: a janitor robot sweeps through rooms of malfunctioning bots with a mop swing, parrying laser bolts."
+    }
   ]
 }

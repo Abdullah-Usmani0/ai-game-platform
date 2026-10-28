@@ -1,5 +1,7 @@
 import { approach, defineSystem } from '@gg/sdk';
 
+/** Shared by every top-down genre (survivors, topdown-action, lifesim, roguelike); the catalog lists it once. */
+
 /** Eight-direction movement with acceleration from the feel preset; a short dash burst on the dash key. */
 export const movementTopdown = defineSystem<{ prevDash: boolean; dashTicks: number; dashCooldown: number }>({
   id: 'movement-topdown',

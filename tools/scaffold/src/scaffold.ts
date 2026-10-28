@@ -76,8 +76,9 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   mkdirSync(out, { recursive: true });
 
   const runtimeImport = `@gg/template-${g.id}`;
-  const runtimeName = `${g.id}Runtime`;
-  const manifestName = g.id;
+  const camel = g.id.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+  const runtimeName = `${camel}Runtime`;
+  const manifestName = camel;
   write(files, out, 'package.json', JSON.stringify({
     name: `game-${opts.gameId}`,
     version: '0.0.0',
@@ -145,7 +146,7 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
     const count = Math.max(1, Math.min(opts.levels ?? gdd.data.scope.levels, 10));
     let s = seed;
     for (let i = 0; i < count; i++) {
-      const difficulty = count === 1 ? 0.2 : 0.15 + (0.6 * i) / (count - 1);
+      const difficulty = count === 1 ? 0.2 : 0.15 + (0.6 * i) / Math.max(3, count - 1);
       let level = g.levelGrammar.generate({ seed: s, difficulty });
       let tries = 0;
       while (!accept(level, {})) {

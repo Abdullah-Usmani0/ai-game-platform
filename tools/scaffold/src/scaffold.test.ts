@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from './scaffold.js';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
-const sampleGdd = (genre: string) => readFileSync(join(root, 'samples', genre === 'survivors' ? 'survivors' : 'platformer', 'design', 'gdd.md'), 'utf8');
+const sampleGdd = (genre: string) => readFileSync(join(root, 'samples', genre, 'design', 'gdd.md'), 'utf8');
 
 function run(cmd: string, args: string[], cwd: string): { ok: boolean; out: string } {
   const r = spawnSync(cmd, args, { cwd, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
@@ -15,7 +15,7 @@ function run(cmd: string, args: string[], cwd: string): { ok: boolean; out: stri
 }
 
 describe('scaffold', () => {
-  for (const genre of ['platformer', 'survivors'] as const) {
+  for (const genre of ['platformer', 'survivors', 'topdown-action'] as const) {
     it(`emits a ${genre} game that typechecks, lints, tests and builds`, () => {
       const out = mkdtempSync(join(tmpdir(), `gg-scaffold-${genre}-`));
       const result = scaffold({

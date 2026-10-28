@@ -88,6 +88,18 @@ export function applyAction(a: Action, e: Entity, ctx: SimCtx): void {
       const readyAt = e.fsm.cooldowns[a.projectile] ?? -1;
       if (ctx.tick < readyAt) return;
       e.fsm.cooldowns[a.projectile] = ctx.tick + Math.ceil(a.cooldownMs / TICK_MS);
+      if (ctx.movementMode === 'topdown') {
+        // Aimed at the player; spawned just outside the shooter's body.
+        const dx = centerX(p) - centerX(e);
+        const dy = centerY(p) - centerY(e);
+        const len = Math.hypot(dx, dy) || 1;
+        const proj = ctx.spawn(a.projectile, centerX(e) - 2 + (dx / len) * (e.w / 2 + 3), centerY(e) - 2 + (dy / len) * (e.h / 2 + 3));
+        proj.vx = (dx / len) * a.speed;
+        proj.vy = (dy / len) * a.speed;
+        proj.facing = dx >= 0 ? 1 : -1;
+        e.facing = proj.facing;
+        return;
+      }
       const proj = ctx.spawn(a.projectile, e.facing > 0 ? e.x + e.w : e.x - 4, centerY(e) - 2);
       proj.vx = e.facing * a.speed;
       proj.facing = e.facing;

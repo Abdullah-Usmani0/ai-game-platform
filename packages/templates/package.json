@@ -16,10 +16,11 @@
   },
   "dependencies": {
     "@gg/schemas": "workspace:*",
+    "@gg/sdk": "workspace:*",
     "@gg/template-core": "workspace:*",
     "@gg/template-platformer": "workspace:*",
     "@gg/template-survivors": "workspace:*",
-    "@gg/sdk": "workspace:*",
+    "@gg/template-topdown-action": "workspace:*",
     "@gg/validators": "workspace:*"
   },
   "devDependencies": {

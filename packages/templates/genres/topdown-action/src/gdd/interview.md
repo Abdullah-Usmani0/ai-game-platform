@@ -1,0 +1,1 @@
+Ask (one at a time, short): How many floors should a run have? Should fights be about crowds of grunts or careful duels with archers behind cover? How heavy should hits feel (light and fast, or slow and crunchy)? Should dashing be the main defence or a rare escape? What is the mood (mythic, grim, cartoon)?
