@@ -9,3 +9,4 @@ export * from './world.js';
 export * from './system.js';
 export * from './fsm.js';
 export * from './sim.js';
+export * from './feedback.js';

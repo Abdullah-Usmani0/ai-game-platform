@@ -54,12 +54,14 @@ describe('sample platformer', () => {
     expect(a.player['x']).toBeGreaterThan(40);
   });
 
-  it('coins award score and emit pickup + audio_play through the eca rule', () => {
+  it('coins award score; the binder emits feedback and audio for bound events; the rule raises its cue', () => {
     const sim = createSim({ ...SIM_OPTIONS, level, seed: 1 });
     greedyBot(sim, 20 * 60);
     expect(sim.world.score).toBeGreaterThan(0);
     expect(sim.events.count('pickup')).toBeGreaterThan(0);
-    expect(sim.events.count('audio_play')).toBe(sim.events.count('pickup'));
+    expect(sim.events.count('custom:coin_cue')).toBe(sim.events.count('pickup'));
+    expect(sim.events.count('audio_play')).toBeGreaterThanOrEqual(sim.events.count('pickup') + sim.events.count('jump'));
+    expect(sim.events.count('feedback')).toBeGreaterThan(sim.events.count('audio_play'));
   });
 
   it('coyote time: a jump pressed 5 ticks after leaving a ledge still fires', () => {

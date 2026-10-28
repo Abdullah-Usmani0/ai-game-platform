@@ -1,8 +1,8 @@
 {
   "version": 1,
   "id": "coin-sfx",
-  "designNotes": "Every coin pickup plays a sound; audio_play is the channel the juice linter checks.",
+  "designNotes": "Every coin pickup also raises a custom cue the HUD can react to; feedback itself comes from the binder.",
   "on": "pickup",
   "if": [],
-  "do": [{ "kind": "emit", "event": "audio_play" }]
+  "do": [{ "kind": "emit", "event": "custom:coin_cue" }]
 }

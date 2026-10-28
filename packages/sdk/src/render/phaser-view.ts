@@ -27,6 +27,7 @@ export class MainScene extends Phaser.Scene {
   private followTarget = { x: 0, y: 0 };
   private unsubs: Array<() => void> = [];
   private levelDirty = true;
+  private hitstopUntil = 0;
 
   constructor(
     private readonly controller: GameController,
@@ -72,14 +73,13 @@ export class MainScene extends Phaser.Scene {
     this.cameras.main.setDeadzone(this.style.camera.deadzone.w, this.style.camera.deadzone.h);
     this.levelDirty = true;
     const maxShake = this.style.camera.maxShake;
+    // The sim decides *that* feedback happens (feedback-binder); the view decides *how* each channel looks.
     this.unsubs.push(
-      sim.events.on('hit', () => {
-        if (maxShake > 0) this.cameras.main.shake(120, 0.004 * maxShake);
-        sim.events.emit(sim.tick, 'feedback', { channel: 'shake', source: 'hit' });
-      }),
-      sim.events.on('death', () => {
-        this.cameras.main.flash(150, 255, 255, 255);
-        sim.events.emit(sim.tick, 'feedback', { channel: 'flash', source: 'death' });
+      sim.events.on('feedback', (ev) => {
+        const channel = String(ev.payload['channel']);
+        if (channel === 'shake' && maxShake > 0) this.cameras.main.shake(120, 0.004 * maxShake);
+        else if (channel === 'flash') this.cameras.main.flash(120, 255, 255, 255);
+        else if (channel === 'hitstop') this.hitstopUntil = performance.now() + 50;
       }),
       sim.events.on('level_complete', () => this.refreshOverlay()),
     );
@@ -117,6 +117,11 @@ export class MainScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number): void {
+    // Hitstop is a render-side pause: realtime frames are skipped while it lasts; manual stepping is unaffected.
+    if (performance.now() < this.hitstopUntil && this.controller.mode === 'realtime') {
+      this.controller.metrics.record(delta);
+      return;
+    }
     this.controller.frame(delta);
     if (this.levelDirty) this.drawTiles();
     const w = this.controller.sim.world;

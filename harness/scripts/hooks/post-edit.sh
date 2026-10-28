@@ -20,9 +20,7 @@ case "$file" in
     esac
     ;;
   *gdd.md)
-    if [ -f .agents/skills/gdd-author/scripts/check-gdd.ts ]; then
-      out=$(node --import tsx .agents/skills/gdd-author/scripts/check-gdd.ts "$file" 2>&1) || { echo "$out" | tail -n 40 >&2; exit 2; }
-    fi
+    out=$(pnpm validate "$file" 2>&1) || { echo "$out" | tail -n 40 >&2; exit 2; }
     ;;
 esac
 exit 0

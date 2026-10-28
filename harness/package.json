@@ -12,7 +12,9 @@
   "dependencies": {
     "@gg/bots": "workspace:*",
     "@gg/schemas": "workspace:*",
-    "tsx": "4.23.15"
+    "tsx": "4.23.15",
+    "@gg/validators": "workspace:*",
+    "@gg/sdk": "workspace:*"
   },
   "devDependencies": {
     "@gg/config": "workspace:*",

@@ -29,6 +29,7 @@ export interface SmokeResult {
 /** Boot the bundle headless, drive it by script in manual mode, verify ready flag, errors, hashes and metrics. */
 interface ManualRun {
   manual: StateSnapshot;
+  events: Array<{ tick: number; name: string; payload: Record<string, unknown> }>;
   inPageReplay: StateSnapshot;
   readyMs: number;
   metrics: ReturnType<TestSeam['metrics']>;
@@ -46,6 +47,7 @@ async function runManual(url: string, script: InputSegment[], ticks: number, see
     if ((await s.mode()) !== 'manual') failures.push('expected manual mode');
     await s.runScript(script, ticks);
     const manual = await s.state();
+    const events = await s.events();
     const inPageReplay = await s.replay(script, ticks, seed);
     if (manual.tick !== ticks) failures.push(`manual run stopped at tick ${manual.tick}, expected ${ticks}`);
     if (inPageReplay.hash !== manual.hash) failures.push(`in-page replay hash ${inPageReplay.hash} != live ${manual.hash}`);
@@ -57,7 +59,7 @@ async function runManual(url: string, script: InputSegment[], ticks: number, see
       screenshotPath = join(outDir, `smoke-seed${seed}-tick${ticks}.png`);
       writeFileSync(screenshotPath, await s.screenshotPng());
     }
-    return { manual, inPageReplay, readyMs, metrics, errors: [...session.consoleErrors, ...session.pageErrors], failures, screenshotPath };
+    return { manual, events, inPageReplay, readyMs, metrics, errors: [...session.consoleErrors, ...session.pageErrors], failures, screenshotPath };
   } finally {
     await session.close();
   }
@@ -104,7 +106,7 @@ export async function runSmoke(opts: SmokeOptions): Promise<SmokeResult> {
     await server.close();
   }
   if (consoleErrors.length > 0) failures.push(`${consoleErrors.length} console/page error(s): ${consoleErrors[0]}`);
-  const { manual, inPageReplay, readyMs, metrics, screenshotPath } = run;
+  const { manual, events, inPageReplay, readyMs, metrics, screenshotPath } = run;
   const report: PlaytestReport = {
     version: 1,
     createdAt: new Date().toISOString(),
@@ -123,6 +125,7 @@ export async function runSmoke(opts: SmokeOptions): Promise<SmokeResult> {
       },
     ],
     consoleErrors,
+    events,
     readyMs,
     replayHashMatch: realtime ? realtime.hash === manual.hash : inPageReplay.hash === manual.hash,
     passed: failures.length === 0,

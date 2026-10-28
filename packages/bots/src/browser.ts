@@ -38,6 +38,7 @@ export function seam(page: Page): {
   runScript(segments: InputSegment[], until: number): Promise<void>;
   replay(segments: InputSegment[], ticks: number, seed?: number): Promise<StateSnapshot>;
   eventCount(name: string): Promise<number>;
+  events(): Promise<Array<{ tick: number; name: string; payload: Record<string, unknown> }>>;
   metrics(): Promise<ReturnType<TestSeam['metrics']>>;
   mode(): Promise<string>;
   screenshotPng(): Promise<Buffer>;
@@ -49,6 +50,7 @@ export function seam(page: Page): {
     runScript: (segments, until) => page.evaluate(([s, u]) => window.__game!.runScript(s as InputSegment[], u as number), [segments, until] as const),
     replay: (segments, ticks, seed) => page.evaluate(([s, t, sd]) => window.__game!.replay(s as InputSegment[], t as number, sd as number | undefined), [segments, ticks, seed] as const),
     eventCount: (name) => page.evaluate((n) => window.__game!.events.count(n), name),
+    events: () => page.evaluate(() => window.__game!.events.history().map((e) => ({ tick: e.tick, name: e.name, payload: e.payload }))),
     metrics: () => page.evaluate(() => window.__game!.metrics()),
     mode: () => page.evaluate(() => window.__game!.mode),
     screenshotPng: () => page.screenshot({ type: 'png' }),

@@ -3,7 +3,7 @@
   "attempt": 1,
   "runner": "claude-sdk",
   "model": "sonnet",
-  "gate": ["typecheck", "lint", "test", "build", "smoke", "budget"],
+  "gate": ["typecheck", "lint", "test", "validate:gdd", "validate:levels", "validate:behaviour", "build", "smoke", "juice", "budget"],
   "allowedWrite": ["game/src/systems/**", "game/content/**", "game/design/**", "game/tests/**"],
   "seeds": [1],
   "ticks": 600,

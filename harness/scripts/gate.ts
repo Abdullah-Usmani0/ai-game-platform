@@ -4,6 +4,8 @@ import { join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { runSmoke } from '@gg/bots';
 import type { GateReport, PlaytestReport } from '@gg/schemas';
+import { juiceLint, parseFrontmatter } from '@gg/validators';
+import { GddFrontmatter } from '@gg/schemas';
 
 /**
  * `pnpm gate`: the deterministic definition of done for the current stage.
@@ -56,6 +58,37 @@ async function check(name: string): Promise<Check> {
     case 'build': {
       const r = run('pnpm', ['-C', gameDir, 'run', name], harnessDir);
       return { name, passed: r.ok, detail: r.ok ? '' : tail(r.out) };
+    }
+    case 'validate:levels':
+    case 'validate:behaviour': {
+      const sub = name === 'validate:levels' ? join(gameDir, 'content', 'levels') : join(gameDir, 'content', 'behaviour');
+      if (!existsSync(sub)) return { name, passed: true, detail: 'no files' };
+      const files = readdirSync(sub).filter((f) => f.endsWith('.json')).map((f) => join(sub, f));
+      if (files.length === 0) return { name, passed: true, detail: 'no files' };
+      const r = run('pnpm', ['validate', ...files], harnessDir);
+      return { name, passed: r.ok, detail: r.ok ? '' : tail(r.out) };
+    }
+    case 'validate:gdd': {
+      const gdd = join(gameDir, 'design', 'gdd.md');
+      if (!existsSync(gdd)) return { name, passed: false, detail: 'design/gdd.md missing' };
+      const r = run('pnpm', ['validate', gdd], harnessDir);
+      return { name, passed: r.ok, detail: r.ok ? '' : tail(r.out) };
+    }
+    case 'juice': {
+      const reportPath = join(reportsDir, 'playtest-report.json');
+      if (!existsSync(reportPath)) return { name, passed: false, detail: 'no playtest report; run the smoke check first' };
+      const rep = JSON.parse(readFileSync(reportPath, 'utf8')) as PlaytestReport;
+      const gddPath = join(gameDir, 'design', 'gdd.md');
+      let table: { feedbackEvents: GddFrontmatter['feedbackEvents'] } = { feedbackEvents: [{ event: 'hit', channels: ['shake', 'flash', 'sfx'] }, { event: 'death', channels: ['flash', 'sfx'] }, { event: 'pickup', channels: ['sfx'] }] };
+      if (existsSync(gddPath)) {
+        const fm = parseFrontmatter(readFileSync(gddPath, 'utf8'));
+        const parsed = fm ? GddFrontmatter.safeParse(fm.data) : null;
+        if (parsed?.success) table = { feedbackEvents: parsed.data.feedbackEvents };
+      }
+      const r = juiceLint(rep.events ?? [], table);
+      const errors = r.issues.filter((i) => i.severity === 'error').map((i) => `${i.code}: ${i.message}`);
+      const warnings = r.issues.filter((i) => i.severity === 'warning').map((i) => `${i.code}: ${i.message}`);
+      return { name, passed: r.ok, detail: [...errors, ...warnings.map((w) => `warning ${w}`)].join('\n') };
     }
     case 'smoke': {
       const dist = join(gameDir, 'dist');

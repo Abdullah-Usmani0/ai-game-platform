@@ -1,0 +1,20 @@
+{
+  "name": "@gg/game-base",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The exact dependency set a scaffolded game needs. Scaffolded games symlink this package's node_modules so they build and test outside the workspace.",
+  "type": "module",
+  "scripts": { "typecheck": "echo ok" },
+  "dependencies": {
+    "@gg/schemas": "workspace:*",
+    "@gg/sdk": "workspace:*",
+    "@gg/engine": "workspace:*",
+    "@gg/config": "workspace:*",
+    "@types/node": "22.20.5",
+    "eslint": "10.13.0",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

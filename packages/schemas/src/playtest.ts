@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { GameEventRecord } from './events';
 
 export const BotResult = z.object({
   bot: z.string(),
@@ -19,6 +20,8 @@ export const PlaytestReport = z.object({
   seeds: z.array(z.int()),
   bots: z.array(BotResult),
   consoleErrors: z.array(z.string()).default([]),
+  /** Semantic event history of the manual run (bounded by the SDK ring buffer); the juice linter's input. */
+  events: z.array(GameEventRecord).default([]),
   readyMs: z.number().nonnegative().optional(),
   replayHashMatch: z.boolean().optional(),
   passed: z.boolean(),

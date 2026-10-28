@@ -15,7 +15,7 @@ for (const [a, b] of [[18, 19], [37, 38], [52, 53]]) {
 }
 fill(24, 19, 27, 19, '#'); // one-tile step
 fill(30, 18, 30, 19, '#'); // two-tile wall: needs a held jump
-fill(42, 15, 48, 15, '-'); // one-way platform
+fill(42, 17, 48, 17, '-'); // one-way platform, two tiles above the floor: reachable with a held jump
 fill(62, 19, 62, 19, 'G'); // goal
 grid[19][2] = 'S';
 const rows = grid.map((r) => r.join(''));
@@ -33,9 +33,9 @@ const level = {
     { type: 'walker', x: 56, y: 19, props: {} },
     { type: 'coin', x: 10, y: 18, props: {} },
     { type: 'coin', x: 26, y: 17, props: {} },
-    { type: 'coin', x: 44, y: 13, props: {} },
-    { type: 'coin', x: 45, y: 13, props: {} },
-    { type: 'coin', x: 46, y: 13, props: {} },
+    { type: 'coin', x: 44, y: 15, props: {} },
+    { type: 'coin', x: 45, y: 15, props: {} },
+    { type: 'coin', x: 46, y: 15, props: {} },
     { type: 'coin', x: 58, y: 18, props: {} },
   ],
   spawn: { x: 2, y: 19 },
