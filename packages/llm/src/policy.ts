@@ -5,6 +5,11 @@ import type { Provider } from './provider.js';
 
 const cache = new Map<string, Provider>();
 
+/** Register a provider instance under a name (the worker registers its fake provider for dry runs). */
+export function registerProvider(name: string, provider: Provider): void {
+  cache.set(name, provider);
+}
+
 /** Resolve a provider by name from the environment. Providers are cached per process. */
 export function providerFor(name: string): Provider {
   const cached = cache.get(name);

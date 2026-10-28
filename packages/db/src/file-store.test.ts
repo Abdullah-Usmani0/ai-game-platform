@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { FileStore } from './file-store.js';
+import { FileStore } from './file-store';
 
 describe('FileStore', () => {
   it('enqueues, claims, logs events, versions and trajectories', async () => {

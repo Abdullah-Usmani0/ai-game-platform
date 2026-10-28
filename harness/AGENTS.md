@@ -11,6 +11,27 @@ from `stage.json`. Do not guess them; read the injected summary.
 - `pnpm validate <file>` validates a design or content JSON artifact against its schema.
 - `pnpm exec gg-bots smoke game/dist --seed <n> --ticks 600 --replay-check --out game/reports`
 - `pnpm exec gg-bots contact-sheet game/dist --seed <n> --frames 12 --out game/reports`
+- `pnpm catalog <genre>` exports the systems catalog for the systems-select skill.
+- Skill scripts: `node --import tsx .agents/skills/<skill>/scripts/<script>.ts ...` (each SKILL.md lists its own).
+
+## Stages, gates and skills
+
+| Stage | Who | Gate | Skill |
+|---|---|---|---|
+| gdd | worker (structured) or you | validate:gdd, validate:style | gdd-author |
+| systems | worker (structured) | validate:systems | systems-select |
+| scaffold | worker | typecheck, lint, test, build, smoke | - |
+| behaviour | worker (structured) or you | validate:behaviour, solver | behaviour-author |
+| implement | you | typecheck, lint, test, build, smoke | mechanic-author, verify |
+| levels | worker (generator + solver) or level-designer | validate:levels, validate:ramp, solver | level-design |
+| integrate | you | validate:assets, build, smoke | asset-prompting |
+| playtest | you (bots) | build, smoke, solver | playtest |
+| juice | you | build, smoke, juice | juice-pass |
+| review | gdd-reviewer | review (zero P0) | - |
+| budget | worker | build, smoke, budget | budget-check |
+| publish | worker | - | - |
+
+Edit jobs run one route (parameter, style, behaviour, content, code) and then the regression skill before the gate.
 
 ## Project map
 

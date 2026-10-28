@@ -1,4 +1,4 @@
-import type { BehaviourFsm, EcaRule, Genre, LevelJson, ScopeTier } from '@gg/schemas';
+import type { BehaviourFsm, EcaRule, GddFrontmatter, Genre, LevelJson, ScopeTier } from '@gg/schemas';
 import type { EntityDef, FeelPreset, InputState, Sim, SystemDef } from '@gg/sdk';
 import type { CatalogSystem, ValidationReport } from '@gg/validators';
 
@@ -45,6 +45,14 @@ export interface PanelSpec {
   affects: 'levels' | 'assets' | 'none';
 }
 
+/** Genre defaults the GDD drafter starts from (and the dry run uses verbatim). */
+export interface GddDefaults {
+  pillars: [string, string, string];
+  verbs: string[];
+  feedbackEvents: GddFrontmatter['feedbackEvents'];
+  targets: GddFrontmatter['targets'];
+}
+
 export interface ScopeBudget {
   levels: number;
   enemies: number;
@@ -85,6 +93,7 @@ export interface GenreManifest extends GenreRuntime {
   gddFragment: string;
   interviewFragment: string;
   scopeBudget: Record<ScopeTier, ScopeBudget>;
+  gddDefaults: GddDefaults;
   panels: PanelSpec[];
   exemplars: Exemplar[];
   /** Repo-relative paths of golden sample game packages. */

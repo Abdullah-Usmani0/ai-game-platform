@@ -9,7 +9,17 @@ if [ -f stage.json ]; then
     console.log(`Gate: ${(s.gate ?? []).join(", ")}`);
     console.log(`Write scope: ${(s.allowedWrite ?? []).join(", ") || "(none)"}`);
     if (s.budget) console.log(`Budget left: ${s.budget.turnsLeft ?? "?"} turns, $${s.budget.usdLeft ?? "?"}, model ${s.model ?? "?"} (${s.runner ?? "?"})`);
+    if (s.skills?.length) console.log(`Skills for this stage: ${s.skills.join(", ")} (read .agents/skills/<name>/SKILL.md first)`);
+    if (s.task) console.log(`Task: ${s.task}`);
   '
+if [ -f .agents/skills/playbook/entries/*.md ] 2>/dev/null; then :; fi
+genre=$(node -e '
+  try { const s = JSON.parse(require("fs").readFileSync("game/design/systems.json", "utf8")); process.stdout.write(s.genre || ""); } catch { process.stdout.write(""); }
+')
+if [ -n "$genre" ] && [ -f ".agents/skills/playbook/entries/$genre.md" ]; then
+  echo "## Playbook ($genre)"
+  head -n 12 ".agents/skills/playbook/entries/$genre.md"
+fi
 else
   echo "## Stage: unknown (no stage.json)"
 fi

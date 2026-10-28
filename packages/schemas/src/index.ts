@@ -3,6 +3,7 @@ import { BehaviourFsm, EcaRule } from './behaviour';
 import { BundleManifest } from './bundle';
 import { GameToHost, HostToGame, StateSnapshot } from './bridge';
 import { GddFrontmatter } from './gdd';
+import { CreateRequest, EditRequest, EditRoute } from './jobs';
 import { LevelJson } from './level';
 import { GateReport, PlaytestReport } from './playtest';
 import { ModelPolicy } from './policy';
@@ -24,6 +25,7 @@ export * from './bundle';
 export * from './bridge';
 export * from './policy';
 export * from './trajectory';
+export * from './jobs';
 
 /** Every artifact schema by name, for JSON Schema export and structured-output calls. */
 export const ARTIFACT_SCHEMAS = {
@@ -42,6 +44,9 @@ export const ARTIFACT_SCHEMAS = {
   HostToGame,
   ModelPolicy,
   Trajectory,
+  CreateRequest,
+  EditRoute,
+  EditRequest,
 } as const;
 export type ArtifactName = keyof typeof ARTIFACT_SCHEMAS;
 

@@ -162,16 +162,19 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   }
   for (const b of g.defaultBehaviours) write(files, out, `content/behaviour/${b.id}.fsm.json`, JSON.stringify(b, null, 2) + '\n');
 
-  if (opts.linkNodeModules ?? true) {
-    const nm = join(out, 'node_modules');
-    try {
-      if (lstatSync(nm)) rmSync(nm, { recursive: true, force: true });
-    } catch {
-      /* missing */
-    }
-    symlinkSync(gameBaseNodeModules(), nm, 'dir');
-  }
+  if (opts.linkNodeModules ?? true) linkGameBase(out);
   return { outDir: out, files, levels };
+}
+
+/** Point <gameDir>/node_modules at @gg/game-base's node_modules (restores a checkpointed game too). */
+export function linkGameBase(gameDir: string): void {
+  const nm = join(gameDir, 'node_modules');
+  try {
+    if (lstatSync(nm)) rmSync(nm, { recursive: true, force: true });
+  } catch {
+    /* missing */
+  }
+  symlinkSync(gameBaseNodeModules(), nm, 'dir');
 }
 
 /** Minimal systems.json for a genre: every required system plus the listed optional ones, default params. */

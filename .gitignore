@@ -18,9 +18,11 @@ harness/game
 harness/stage.json
 apps/web/public/bundles/
 apps/web/next-env.d.ts
-.gg-work/
-.gg-store/
-.gg-store-demo/
+.gg-work*/
+.gg-store*/
 
 # generated per job by the systems-select skill
 harness/.agents/skills/systems-select/catalog.json
+tools/evals/.bench-store/
+tools/evals/.bench-work/
+tools/evals/reports/

@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ModelPolicy, type Trajectory } from '@gg/schemas';
-import type { JobEvent, JobEventType, JobRow, NewVersion, Store, VersionRow } from './types.js';
+import type { GameRow, JobEvent, JobEventType, JobRow, NewGame, NewVersion, Store, VersionRow } from './types';
 
 interface FileState {
+  games: GameRow[];
   jobs: JobRow[];
   events: JobEvent[];
   versions: VersionRow[];
@@ -23,24 +24,47 @@ const DEFAULT_POLICY: ModelPolicy = ModelPolicy.parse({
   jobCaps: { softUsd: 10, hardUsd: 15, providerUsd: 3, wallMin: 90 },
 });
 
-/** JSON-file store for local development and the demo. Single-process; not for production. */
+/**
+ * JSON-file store for local development, demos and evals. Not for production: every method re-reads the
+ * file when it changed on disk and writes atomically, which is enough for one worker plus the dev web app.
+ */
 export class FileStore implements Store {
   private state: FileState;
   private readonly file: string;
+  private mtime = 0;
 
   constructor(private readonly dir: string) {
     mkdirSync(dir, { recursive: true });
     this.file = join(dir, 'store.json');
-    this.state = existsSync(this.file)
-      ? (JSON.parse(readFileSync(this.file, 'utf8')) as FileState)
-      : { jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY] };
+    this.state = { games: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY] };
+    this.load();
+  }
+
+  private load(): void {
+    if (!existsSync(this.file)) return;
+    const m = statSync(this.file).mtimeMs;
+    if (m === this.mtime) return;
+    const parsed = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<FileState>;
+    this.state = {
+      games: parsed.games ?? [],
+      jobs: parsed.jobs ?? [],
+      events: parsed.events ?? [],
+      versions: parsed.versions ?? [],
+      trajectories: parsed.trajectories ?? [],
+      policies: parsed.policies?.length ? parsed.policies : [DEFAULT_POLICY],
+    };
+    this.mtime = m;
   }
 
   private save(): void {
-    writeFileSync(this.file, JSON.stringify(this.state, null, 2));
+    const tmp = `${this.file}.${process.pid}.tmp`;
+    writeFileSync(tmp, JSON.stringify(this.state, null, 2));
+    renameSync(tmp, this.file);
+    this.mtime = statSync(this.file).mtimeMs;
   }
 
   async claimJob(workerId: string): Promise<JobRow | null> {
+    this.load();
     const job = this.state.jobs.filter((j) => j.status === 'queued').sort((a, b) => b.priority - a.priority || a.createdAt.localeCompare(b.createdAt))[0];
     if (!job) return null;
     job.status = 'running';
@@ -52,11 +76,13 @@ export class FileStore implements Store {
   }
 
   async getJob(jobId: string): Promise<JobRow | null> {
+    this.load();
     const j = this.state.jobs.find((x) => x.id === jobId);
     return j ? { ...j } : null;
   }
 
   async enqueueJob(input: Parameters<Store['enqueueJob']>[0]): Promise<JobRow> {
+    this.load();
     const job: JobRow = {
       id: randomUUID(),
       gameId: input.gameId,
@@ -87,6 +113,7 @@ export class FileStore implements Store {
   }
 
   async updateJob(jobId: string, patch: Partial<Omit<JobRow, 'id'>>): Promise<void> {
+    this.load();
     const j = this.state.jobs.find((x) => x.id === jobId);
     if (!j) throw new Error(`job ${jobId} not found`);
     Object.assign(j, patch);
@@ -94,6 +121,7 @@ export class FileStore implements Store {
   }
 
   async appendEvent(jobId: string, type: JobEventType, payload: Record<string, unknown> = {}, stage: string | null = null): Promise<JobEvent> {
+    this.load();
     const seq = this.state.events.filter((e) => e.jobId === jobId).length + 1;
     const ev: JobEvent = { jobId, seq, ts: new Date().toISOString(), stage, type, payload };
     this.state.events.push(ev);
@@ -102,36 +130,48 @@ export class FileStore implements Store {
   }
 
   async listEvents(jobId: string): Promise<JobEvent[]> {
+    this.load();
     return this.state.events.filter((e) => e.jobId === jobId).map((e) => ({ ...e }));
   }
 
   async insertVersion(v: NewVersion): Promise<VersionRow> {
+    this.load();
     const number = this.state.versions.filter((x) => x.gameId === v.gameId).length + 1;
-    const row: VersionRow = { ...v, id: randomUUID(), number, isHead: false, createdAt: new Date().toISOString() };
+    const row: VersionRow = { ...v, id: v.id ?? randomUUID(), number, isHead: false, createdAt: new Date().toISOString() };
     this.state.versions.push(row);
     this.save();
     return { ...row };
   }
 
   async acceptVersion(versionId: string): Promise<void> {
+    this.load();
     const v = this.state.versions.find((x) => x.id === versionId);
     if (!v) throw new Error(`version ${versionId} not found`);
     for (const x of this.state.versions) if (x.gameId === v.gameId) x.isHead = false;
     v.isHead = true;
     v.kind = 'accepted';
+    const g = this.state.games.find((x) => x.id === v.gameId);
+    if (g) {
+      g.headVersionId = v.id;
+      g.state = 'playable';
+      g.updatedAt = new Date().toISOString();
+    }
     this.save();
   }
 
   async insertTrajectory(t: Trajectory): Promise<void> {
+    this.load();
     this.state.trajectories.push(t);
     this.save();
   }
 
   async listTrajectories(jobId: string): Promise<Trajectory[]> {
+    this.load();
     return this.state.trajectories.filter((t) => t.jobId === jobId);
   }
 
   async activePolicy(): Promise<ModelPolicy> {
+    this.load();
     const p = this.state.policies[this.state.policies.length - 1];
     if (!p) throw new Error('no policy');
     return p;
@@ -142,5 +182,87 @@ export class FileStore implements Store {
     mkdirSync(dirname(full), { recursive: true });
     writeFileSync(full, bytes);
     return `${bucket}/${path}`;
+  }
+
+  async getObject(bucket: string, path: string): Promise<Uint8Array> {
+    return new Uint8Array(readFileSync(join(this.dir, 'buckets', bucket, path)));
+  }
+
+  /** Absolute path of a stored object (the dev web app serves bundles straight from here). */
+  objectPath(bucket: string, path: string): string {
+    return join(this.dir, 'buckets', bucket, path);
+  }
+
+  async createGame(g: NewGame): Promise<GameRow> {
+    this.load();
+    if (this.state.games.some((x) => x.slug === g.slug)) throw new Error(`slug '${g.slug}' is taken`);
+    const now = new Date().toISOString();
+    const row: GameRow = {
+      id: g.id ?? randomUUID(),
+      ownerId: g.ownerId,
+      slug: g.slug,
+      title: g.title,
+      genre: g.genre,
+      visibility: g.visibility ?? 'private',
+      state: g.state ?? 'draft',
+      headVersionId: null,
+      conceptMd: g.conceptMd ?? null,
+      concept: g.concept ?? null,
+      listing: g.listing ?? {},
+      originVersionId: null,
+      rootGameId: null,
+      remixDepth: 0,
+      stats: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.games.push(row);
+    this.save();
+    return { ...row };
+  }
+
+  async getGame(gameId: string): Promise<GameRow | null> {
+    this.load();
+    const g = this.state.games.find((x) => x.id === gameId);
+    return g ? { ...g } : null;
+  }
+
+  async getGameBySlug(slug: string): Promise<GameRow | null> {
+    this.load();
+    const g = this.state.games.find((x) => x.slug === slug);
+    return g ? { ...g } : null;
+  }
+
+  async listGames(opts: { ownerId?: string; limit?: number } = {}): Promise<GameRow[]> {
+    this.load();
+    return this.state.games
+      .filter((g) => !opts.ownerId || g.ownerId === opts.ownerId)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, opts.limit ?? 50)
+      .map((g) => ({ ...g }));
+  }
+
+  async updateGame(gameId: string, patch: Partial<Omit<GameRow, 'id'>>): Promise<void> {
+    this.load();
+    const g = this.state.games.find((x) => x.id === gameId);
+    if (!g) throw new Error(`game ${gameId} not found`);
+    Object.assign(g, patch, { updatedAt: new Date().toISOString() });
+    this.save();
+  }
+
+  async getVersion(versionId: string): Promise<VersionRow | null> {
+    this.load();
+    const v = this.state.versions.find((x) => x.id === versionId);
+    return v ? { ...v } : null;
+  }
+
+  async listVersions(gameId: string): Promise<VersionRow[]> {
+    this.load();
+    return this.state.versions.filter((v) => v.gameId === gameId).map((v) => ({ ...v }));
+  }
+
+  async listJobs(gameId: string): Promise<JobRow[]> {
+    this.load();
+    return this.state.jobs.filter((j) => j.gameId === gameId).map((j) => ({ ...j }));
   }
 }

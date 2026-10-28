@@ -1,10 +1,10 @@
-export * from './types.js';
-export * from './file-store.js';
-export * from './supabase-store.js';
+export * from './types';
+export * from './file-store';
+export * from './supabase-store';
 
-import { FileStore } from './file-store.js';
-import { SupabaseStore } from './supabase-store.js';
-import type { Store } from './types.js';
+import { FileStore } from './file-store';
+import { SupabaseStore } from './supabase-store';
+import type { Store } from './types';
 
 /** Supabase when credentials are present, otherwise a local file store under GG_STORE_DIR (default .gg-store). */
 export function storeFromEnv(env: NodeJS.ProcessEnv = process.env): Store {

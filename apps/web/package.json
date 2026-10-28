@@ -10,9 +10,11 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "bundles:sample": "node scripts/sync-sample-bundle.mjs",
-    "check:bridge": "node scripts/check-bridge.mjs"
+    "check:bridge": "node scripts/check-bridge.mjs",
+    "check:create": "node scripts/check-create.mjs"
   },
   "dependencies": {
+    "@gg/db": "workspace:*",
     "@gg/schemas": "workspace:*",
     "next": "16.4.3",
     "react": "19.3.1",

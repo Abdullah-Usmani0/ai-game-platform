@@ -50,6 +50,8 @@ if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDi
 mkdirSync(\`\${here}dist\`, { recursive: true });
 copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
 copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
 console.log('bundle ready in', \`\${here}dist\`);
 `;
 

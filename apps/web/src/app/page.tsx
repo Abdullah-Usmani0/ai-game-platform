@@ -4,13 +4,16 @@ export default function Home() {
   return (
     <main>
       <h1>AI Game Platform</h1>
-      <p>Phase 0: a deterministic runtime, a harness with gates, and this play page.</p>
+      <p>Describe a 2D game; a verified harness builds it, plays it with bots and publishes it only when every gate passes.</p>
       <ul>
         <li>
-          <Link href="/play/sample">Play the sample platformer</Link>
+          <Link href="/create">Create a game</Link>
         </li>
         <li>
-          <Link href="/play/sample?mode=preview&seed=7">Preview mode (autoplay, seed 7)</Link>
+          <Link href="/games">Your games</Link>
+        </li>
+        <li>
+          <Link href="/play/sample">Play the sample platformer</Link>
         </li>
       </ul>
     </main>

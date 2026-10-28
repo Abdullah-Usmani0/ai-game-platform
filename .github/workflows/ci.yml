@@ -6,7 +6,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -23,4 +23,5 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm demo
-      - run: pnpm --filter @gg/web bundles:sample && pnpm --filter @gg/web build && pnpm --filter @gg/web check:bridge
+      - run: pnpm --filter @gg/web bundles:sample && pnpm --filter @gg/web build && pnpm --filter @gg/web check:bridge && pnpm --filter @gg/web check:create
+      - run: pnpm bench --limit 2 --k 1

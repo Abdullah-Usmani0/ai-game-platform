@@ -1,8 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { ARTIFACT_SCHEMAS, type ArtifactName, type BehaviourFsm, type LevelJson, type SystemsJson } from '@gg/schemas';
-import { CELESTE_CLASS, FEEL_PRESETS } from '@gg/sdk';
-import { checkGdd, validateBehaviour, validateLevel, type ValidationReport } from '@gg/validators';
+import { ARTIFACT_SCHEMAS, GddFrontmatter, type ArtifactName, type BehaviourFsm, type LevelJson, type SystemsJson } from '@gg/schemas';
+import { CELESTE_CLASS } from '@gg/sdk';
+import { GENRES } from '@gg/templates/node';
+import type { GenreManifest } from '@gg/template-core';
+import { checkGdd, parseFrontmatter, validateBehaviour, validateLevel, type ValidationReport } from '@gg/validators';
 
 /**
  * Picks the schema for a design/content artifact by its path, validates it, then runs the semantic
@@ -32,13 +34,34 @@ function gameRootOf(file: string): string {
   return dirname(file);
 }
 
-function feelFor(gameRoot: string) {
+function systemsOf(gameRoot: string): SystemsJson | null {
   try {
-    const systems = JSON.parse(readFileSync(join(gameRoot, 'design', 'systems.json'), 'utf8')) as SystemsJson;
-    return FEEL_PRESETS[systems.feelPreset] ?? CELESTE_CLASS;
+    return JSON.parse(readFileSync(join(gameRoot, 'design', 'systems.json'), 'utf8')) as SystemsJson;
   } catch {
-    return CELESTE_CLASS;
+    return null;
   }
+}
+
+function frontmatterOf(gameRoot: string): GddFrontmatter | null {
+  try {
+    const fm = parseFrontmatter(readFileSync(join(gameRoot, 'design', 'gdd.md'), 'utf8'));
+    const parsed = fm ? GddFrontmatter.safeParse(fm.data) : null;
+    return parsed?.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The genre of a game root, from systems.json or the GDD front matter. */
+function genreOf(gameRoot: string): GenreManifest | null {
+  const id = systemsOf(gameRoot)?.genre ?? frontmatterOf(gameRoot)?.genre;
+  return id ? (GENRES[id] ?? null) : null;
+}
+
+function feelFor(gameRoot: string, g: GenreManifest | null) {
+  const preset = systemsOf(gameRoot)?.feelPreset;
+  if (g) return (preset ? g.feelPresets[preset] : undefined) ?? g.feelPresets[g.defaultFeel] ?? CELESTE_CLASS;
+  return CELESTE_CLASS;
 }
 
 function printReport(file: string, label: string, r: ValidationReport): boolean {
@@ -60,7 +83,11 @@ for (const file of files) {
   const abs = resolve(file);
   const gameRoot = gameRootOf(abs);
   if (basename(abs) === 'gdd.md') {
-    if (!printReport(file, 'gdd', checkGdd(readFileSync(abs, 'utf8')))) failed++;
+    const md = readFileSync(abs, 'utf8');
+    const fm = parseFrontmatter(md);
+    const parsed = fm ? GddFrontmatter.safeParse(fm.data) : null;
+    const budget = parsed?.success ? GENRES[parsed.data.genre]?.scopeBudget[parsed.data.scopeTier] : undefined;
+    if (!printReport(file, 'gdd', checkGdd(md, budget))) failed++;
     continue;
   }
   const name = schemaFor(abs);
@@ -83,10 +110,14 @@ for (const file of files) {
     for (const issue of result.error.issues.slice(0, 20)) console.error(`  - ${issue.path.join('.') || '(root)'}: ${issue.message}`);
     continue;
   }
+  const g = genreOf(gameRoot);
   if (name === 'LevelJson') {
-    if (!printReport(file, 'level', validateLevel(result.data as LevelJson, { feel: feelFor(gameRoot) }))) failed++;
+    const level = result.data as LevelJson;
+    const feel = feelFor(gameRoot, g);
+    const r = g ? g.levelGrammar.validate(level, feel) : validateLevel(level, { feel });
+    if (!printReport(file, `level (${g?.id ?? 'generic'})`, r)) failed++;
   } else if (name === 'BehaviourFsm') {
-    if (!printReport(file, 'behaviour', validateBehaviour(result.data as BehaviourFsm))) failed++;
+    if (!printReport(file, 'behaviour', validateBehaviour(result.data as BehaviourFsm, g?.behaviourVocab))) failed++;
   } else {
     console.log(`${file}: OK (${name})`);
   }

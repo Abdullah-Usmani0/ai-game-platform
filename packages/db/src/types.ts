@@ -71,7 +71,33 @@ export interface VersionRow {
   createdAt: string;
 }
 
-export type NewVersion = Omit<VersionRow, 'id' | 'number' | 'createdAt' | 'isHead'>;
+/** A version to insert; `id` may be supplied so a publisher can name the bundle after it before the row exists. */
+export type NewVersion = Omit<VersionRow, 'id' | 'number' | 'createdAt' | 'isHead'> & { id?: string };
+
+export type GameVisibility = 'private' | 'unlisted' | 'listed';
+export type GameState = 'draft' | 'generating' | 'playable' | 'published' | 'suspended' | 'removed';
+
+export interface GameRow {
+  id: string;
+  ownerId: string;
+  slug: string;
+  title: string;
+  genre: string;
+  visibility: GameVisibility;
+  state: GameState;
+  headVersionId: string | null;
+  conceptMd: string | null;
+  concept: Record<string, unknown> | null;
+  listing: Record<string, unknown>;
+  originVersionId: string | null;
+  rootGameId: string | null;
+  remixDepth: number;
+  stats: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NewGame = Pick<GameRow, 'ownerId' | 'slug' | 'title' | 'genre'> & Partial<Pick<GameRow, 'id' | 'conceptMd' | 'concept' | 'visibility' | 'state' | 'listing'>>;
 
 /**
  * The only persistence surface workers use. Two implementations: Supabase (production)
@@ -91,4 +117,13 @@ export interface Store {
   activePolicy(): Promise<ModelPolicy>;
   /** Upload a file (checkpoint tarball, report, screenshot) and return its storage path. */
   putObject(bucket: string, path: string, bytes: Uint8Array, contentType: string): Promise<string>;
+  getObject(bucket: string, path: string): Promise<Uint8Array>;
+  createGame(g: NewGame): Promise<GameRow>;
+  getGame(gameId: string): Promise<GameRow | null>;
+  getGameBySlug(slug: string): Promise<GameRow | null>;
+  listGames(opts?: { ownerId?: string; limit?: number }): Promise<GameRow[]>;
+  updateGame(gameId: string, patch: Partial<Omit<GameRow, 'id'>>): Promise<void>;
+  getVersion(versionId: string): Promise<VersionRow | null>;
+  listVersions(gameId: string): Promise<VersionRow[]>;
+  listJobs(gameId: string): Promise<JobRow[]>;
 }

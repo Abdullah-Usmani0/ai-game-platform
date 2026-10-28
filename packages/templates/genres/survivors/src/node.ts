@@ -24,6 +24,18 @@ export const survivors: GenreManifest = {
     medium: { levels: 2, enemies: 2, items: 2, bosses: 0 },
     large: { levels: 3, enemies: 3, items: 3, bosses: 1 },
   },
+  gddDefaults: {
+    pillars: ['constant forward pressure', 'every kill feeds the next', 'sixty seconds, no filler'],
+    verbs: ['move', 'dash', 'attack'],
+    feedbackEvents: [
+      { event: 'dash', channels: ['sfx'] },
+      { event: 'hit', channels: ['hitstop', 'flash', 'sfx'] },
+      { event: 'death', channels: ['shake', 'sfx'] },
+      { event: 'pickup', channels: ['sfx'] },
+      { event: 'level_complete', channels: ['sfx', 'particle'] },
+    ],
+    targets: { sessionMin: 5, levelTimeS: 60, deathsPerLevel: 2 },
+  },
   panels: PANELS,
   exemplars: EXEMPLARS,
   samples: ['samples/survivors'],

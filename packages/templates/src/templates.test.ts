@@ -22,6 +22,8 @@ describe('genre manifests', () => {
         expect(g.gddFragment.length).toBeGreaterThan(100);
         expect(g.interviewFragment.length).toBeGreaterThan(50);
         expect(g.exemplars.length).toBeGreaterThan(2);
+        expect(g.gddDefaults.pillars).toHaveLength(3);
+        expect(g.gddDefaults.verbs.length).toBeGreaterThan(0);
         for (const s of g.samples) expect(existsSync(resolve(root, s, 'package.json'))).toBe(true);
         for (const p of g.panels) expect(g.systems[p.systemId]?.meta.params[p.param]).toBeDefined();
       });

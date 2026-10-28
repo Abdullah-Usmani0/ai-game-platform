@@ -1,0 +1,17 @@
+{
+  "$comment": "First cheap experiment: Haiku with k=8 sampling on the data stages (gdd front matter, systems, behaviour) and k=16 generator seeds on levels; Sonnet k=1 elsewhere. Compare pass^3 and cost per passing game against frontier-v1 on the same prompts.",
+  "version": 2,
+  "name": "cheap-experiment-v1",
+  "stages": {
+    "gdd":       { "runner": "structured", "provider": "anthropic", "model": "claude-haiku-5-5", "effort": "medium", "k": 4, "repairRounds": 2, "escalateTo": { "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium" }, "caps": { "turns": 0, "usd": 0.5, "wallMin": 10 } },
+    "systems":   { "runner": "structured", "provider": "anthropic", "model": "claude-haiku-5-5", "effort": "medium", "k": 8, "repairRounds": 2, "escalateTo": { "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium" }, "caps": { "turns": 0, "usd": 0.3, "wallMin": 5 } },
+    "behaviour": { "runner": "structured", "provider": "anthropic", "model": "claude-haiku-5-5", "effort": "medium", "k": 8, "repairRounds": 2, "escalateTo": { "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium" }, "caps": { "turns": 0, "usd": 0.3, "wallMin": 5 } },
+    "implement": { "runner": "claude-sdk", "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium", "k": 1, "repairRounds": 2, "escalateTo": { "provider": "anthropic", "model": "claude-opus-5-5", "effort": "high" }, "caps": { "turns": 120, "usd": 4, "wallMin": 30 } },
+    "levels":    { "runner": "structured", "provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low", "k": 16, "repairRounds": 2, "caps": { "turns": 0, "usd": 0.5, "wallMin": 15 } },
+    "integrate": { "runner": "claude-sdk", "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium", "k": 1, "repairRounds": 1, "caps": { "turns": 40, "usd": 1, "wallMin": 10 } },
+    "playtest":  { "runner": "claude-sdk", "provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low", "k": 1, "repairRounds": 1, "caps": { "turns": 30, "usd": 0.5, "wallMin": 15 } },
+    "juice":     { "runner": "claude-sdk", "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium", "k": 1, "repairRounds": 1, "caps": { "turns": 40, "usd": 1, "wallMin": 10 } },
+    "review":    { "runner": "claude-sdk", "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "low", "k": 1, "repairRounds": 1, "caps": { "turns": 25, "usd": 0.75, "wallMin": 8 } }
+  },
+  "jobCaps": { "softUsd": 5, "hardUsd": 8, "providerUsd": 3, "wallMin": 90 }
+}

@@ -113,14 +113,20 @@ export class GameController {
   step(n = 1): void {
     this.frozen = false;
     if (this.scene === 'title') this.setScene('play');
-    this.driver.step(n);
-    this.afterSteps();
+    // One step at a time so level sequencing happens at the same tick as in realtime play.
+    for (let i = 0; i < n; i++) {
+      this.driver.step(1);
+      this.afterSteps();
+    }
   }
 
   private afterSteps(): void {
     const w = this.sim.world;
     if (!w.flags.won) return;
     if (this.winTick < 0) this.winTick = this.sim.tick;
+    // Level sequencing is free-play only: a scripted run (the determinism oracle) and a frozen sim hold the won
+    // level and keep ticking it, so manual, realtime and in-page replay hashes agree whatever the level count.
+    if (this.script || this.frozen) return;
     if (this.sim.tick - this.winTick > 90 && this.scene === 'play') this.nextLevel();
   }
 

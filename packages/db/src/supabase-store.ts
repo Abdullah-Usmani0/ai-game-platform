@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { ModelPolicy, type Trajectory } from '@gg/schemas';
-import type { JobEvent, JobEventType, JobRow, NewVersion, Store, VersionRow } from './types.js';
+import type { GameRow, JobEvent, JobEventType, JobRow, NewGame, NewVersion, Store, VersionRow } from './types';
 
 function snake(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -102,5 +102,56 @@ export class SupabaseStore implements Store {
     const res = await this.client.storage.from(bucket).upload(path, bytes, { contentType, upsert: true });
     if (res.error) throw new Error(`putObject ${bucket}/${path}: ${res.error.message}`);
     return `${bucket}/${path}`;
+  }
+
+  async getObject(bucket: string, path: string): Promise<Uint8Array> {
+    const res = await this.client.storage.from(bucket).download(path);
+    if (res.error || !res.data) throw new Error(`getObject ${bucket}/${path}: ${res.error?.message ?? 'no data'}`);
+    return new Uint8Array(await res.data.arrayBuffer());
+  }
+
+  async createGame(g: NewGame): Promise<GameRow> {
+    const res = await this.client.from('games').insert(snake({ ...g })).select('*').single();
+    return camel<GameRow>(this.unwrap(res, 'createGame') as Record<string, unknown>);
+  }
+
+  async getGame(gameId: string): Promise<GameRow | null> {
+    const res = await this.client.from('games').select('*').eq('id', gameId).maybeSingle();
+    if (res.error) throw new Error(`getGame: ${res.error.message}`);
+    return res.data ? camel<GameRow>(res.data as Record<string, unknown>) : null;
+  }
+
+  async getGameBySlug(slug: string): Promise<GameRow | null> {
+    const res = await this.client.from('games').select('*').eq('slug', slug).maybeSingle();
+    if (res.error) throw new Error(`getGameBySlug: ${res.error.message}`);
+    return res.data ? camel<GameRow>(res.data as Record<string, unknown>) : null;
+  }
+
+  async listGames(opts: { ownerId?: string; limit?: number } = {}): Promise<GameRow[]> {
+    let q = this.client.from('games').select('*').order('updated_at', { ascending: false }).limit(opts.limit ?? 50);
+    if (opts.ownerId) q = q.eq('owner_id', opts.ownerId);
+    const res = await q;
+    return (this.unwrap(res, 'listGames') as Record<string, unknown>[]).map((r) => camel<GameRow>(r));
+  }
+
+  async updateGame(gameId: string, patch: Partial<Omit<GameRow, 'id'>>): Promise<void> {
+    const res = await this.client.from('games').update(snake({ ...patch, updatedAt: new Date().toISOString() })).eq('id', gameId);
+    if (res.error) throw new Error(`updateGame: ${res.error.message}`);
+  }
+
+  async getVersion(versionId: string): Promise<VersionRow | null> {
+    const res = await this.client.from('game_versions').select('*').eq('id', versionId).maybeSingle();
+    if (res.error) throw new Error(`getVersion: ${res.error.message}`);
+    return res.data ? camel<VersionRow>(res.data as Record<string, unknown>) : null;
+  }
+
+  async listVersions(gameId: string): Promise<VersionRow[]> {
+    const res = await this.client.from('game_versions').select('*').eq('game_id', gameId).order('number');
+    return (this.unwrap(res, 'listVersions') as Record<string, unknown>[]).map((r) => camel<VersionRow>(r));
+  }
+
+  async listJobs(gameId: string): Promise<JobRow[]> {
+    const res = await this.client.from('generation_jobs').select('*').eq('game_id', gameId).order('created_at');
+    return (this.unwrap(res, 'listJobs') as Record<string, unknown>[]).map((r) => camel<JobRow>(r));
   }
 }

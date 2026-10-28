@@ -1,12 +1,16 @@
+import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, lstatSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { linkGameBase } from '@gg/scaffold';
 import type { StageSpec } from './runners/types.js';
 
 export interface MaterializeOptions {
   templateDir: string;
   workDir: string;
-  /** Phase 0: the game package to link as ./game. Phase 1 scaffolds a fresh game here instead. */
-  gameSource: string;
+  /** Link an existing game package as ./game (demo and regression jobs). */
+  gameSource?: string;
+  /** Restore a checkpoint tarball into ./game (edit jobs). Without either, ./game starts empty for the scaffold stage. */
+  checkpoint?: Uint8Array;
 }
 
 const TEMPLATE_ENTRIES = ['AGENTS.md', '.agents', '.claude', '.opencode', 'scripts', 'budgets.json', 'package.json', 'tsconfig.json', 'eslint.config.js'];
@@ -40,7 +44,16 @@ export function materialize(opts: MaterializeOptions): { workDir: string; gameDi
   symlinkSync(join(template, 'node_modules'), join(workDir, 'node_modules'), 'dir');
   const gameDir = join(workDir, 'game');
   safeRm(gameDir);
-  symlinkSync(resolve(opts.gameSource), gameDir, 'dir');
+  if (opts.gameSource) {
+    symlinkSync(resolve(opts.gameSource), gameDir, 'dir');
+  } else {
+    mkdirSync(gameDir, { recursive: true });
+    if (opts.checkpoint) {
+      const r = spawnSync('tar', ['-xzf', '-', '-C', gameDir], { input: opts.checkpoint, maxBuffer: 512 * 1024 * 1024 });
+      if (r.status !== 0) throw new Error(`checkpoint restore failed: ${r.stderr?.toString().slice(0, 500)}`);
+      linkGameBase(gameDir);
+    }
+  }
   return { workDir, gameDir };
 }
 
@@ -54,6 +67,9 @@ export function writeStageFile(workDir: string, spec: StageSpec, attempt: number
     allowedWrite: spec.allowedWrite ?? ['game/src/systems/**', 'game/content/**', 'game/design/**', 'game/tests/**'],
     seeds: spec.seeds ?? [1],
     ticks: spec.ticks ?? 600,
+    skills: spec.skills ?? [],
+    task: spec.task ?? null,
+    caps: spec.caps ?? null,
     budget: extra['budget'] ?? {},
   };
   writeFileSync(join(workDir, 'stage.json'), JSON.stringify(stage, null, 2) + '\n');

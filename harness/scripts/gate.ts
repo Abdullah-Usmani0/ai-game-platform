@@ -3,9 +3,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { runSmoke } from '@gg/bots';
-import type { GateReport, PlaytestReport } from '@gg/schemas';
-import { juiceLint, parseFrontmatter } from '@gg/validators';
-import { GddFrontmatter } from '@gg/schemas';
+import { GddFrontmatter, LevelJson, StyleCard, SystemsJson, type GateReport, type PlaytestReport } from '@gg/schemas';
+import { CATALOG, GENRES } from '@gg/templates/node';
+import { checkGdd, checkSystems, juiceLint, parseFrontmatter, validateRamp } from '@gg/validators';
 
 /**
  * `pnpm gate`: the deterministic definition of done for the current stage.
@@ -32,6 +32,18 @@ function run(cmd: string, args: string[], cwd: string): { ok: boolean; out: stri
   const r = spawnSync(cmd, args, { cwd, encoding: 'utf8', env: { ...process.env, CI: '1' }, maxBuffer: 16 * 1024 * 1024 });
   const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
   return { ok: r.status === 0, out };
+}
+
+function readGdd(): GddFrontmatter | null {
+  const gddPath = join(gameDir, 'design', 'gdd.md');
+  if (!existsSync(gddPath)) return null;
+  const fm = parseFrontmatter(readFileSync(gddPath, 'utf8'));
+  const parsed = fm ? GddFrontmatter.safeParse(fm.data) : null;
+  return parsed?.success ? parsed.data : null;
+}
+
+function readJson<T>(path: string): T {
+  return JSON.parse(readFileSync(path, 'utf8')) as T;
 }
 
 function tail(text: string, lines = 30): string {
@@ -69,22 +81,70 @@ async function check(name: string): Promise<Check> {
       return { name, passed: r.ok, detail: r.ok ? '' : tail(r.out) };
     }
     case 'validate:gdd': {
-      const gdd = join(gameDir, 'design', 'gdd.md');
-      if (!existsSync(gdd)) return { name, passed: false, detail: 'design/gdd.md missing' };
-      const r = run('pnpm', ['validate', gdd], harnessDir);
+      const gddPath = join(gameDir, 'design', 'gdd.md');
+      if (!existsSync(gddPath)) return { name, passed: false, detail: 'design/gdd.md missing' };
+      const md = readFileSync(gddPath, 'utf8');
+      const fm = readGdd();
+      const budget = fm ? GENRES[fm.genre]?.scopeBudget[fm.scopeTier] : undefined;
+      const r = checkGdd(md, budget);
+      return { name, passed: r.ok, detail: r.issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
+    }
+    case 'validate:style': {
+      const p = join(gameDir, 'design', 'style.json');
+      if (!existsSync(p)) return { name, passed: false, detail: 'design/style.json missing' };
+      const r = StyleCard.safeParse(readJson(p));
+      return { name, passed: r.success, detail: r.success ? '' : r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n') };
+    }
+    case 'validate:systems': {
+      const p = join(gameDir, 'design', 'systems.json');
+      if (!existsSync(p)) return { name, passed: false, detail: 'design/systems.json missing' };
+      const parsed = SystemsJson.safeParse(readJson(p));
+      if (!parsed.success) return { name, passed: false, detail: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n') };
+      const r = checkSystems(parsed.data, CATALOG, readGdd() ?? undefined);
+      return { name, passed: r.ok, detail: r.issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
+    }
+    case 'validate:ramp': {
+      const dir = join(gameDir, 'content', 'levels');
+      if (!existsSync(dir)) return { name, passed: false, detail: 'content/levels missing' };
+      const files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
+      const levels = files.map((f) => {
+        const l = LevelJson.parse(readJson(join(dir, f)));
+        return { id: l.id, difficulty: l.ramp?.difficulty ?? 0 };
+      });
+      const r = validateRamp(levels);
+      const problems = r.issues.filter((i) => i.severity === 'error').map((i) => `${i.code}: ${i.message}`);
+      const gdd = readGdd();
+      if (gdd && levels.length !== gdd.scope.levels) problems.push(`level count ${levels.length} != GDD scope ${gdd.scope.levels}`);
+      return { name, passed: problems.length === 0, detail: problems.join('\n') };
+    }
+    case 'validate:assets': {
+      const reqPath = join(gameDir, 'assets', 'requests.json');
+      const manPath = join(gameDir, 'assets', 'manifest.json');
+      const requests = existsSync(reqPath) ? (readJson<{ requests?: Array<{ key: string }> }>(reqPath).requests ?? []) : [];
+      const assets = existsSync(manPath) ? (readJson<{ assets?: Array<{ key: string }> }>(manPath).assets ?? []) : [];
+      const have = new Set(assets.map((a) => a.key));
+      const missing = requests.filter((r) => !have.has(r.key)).map((r) => r.key);
+      return { name, passed: missing.length === 0, detail: missing.length ? `requested assets without a manifest entry: ${missing.join(', ')}` : '' };
+    }
+    case 'solver': {
+      // The scaffolded game's own solver test: every level completed by the genre's solver bot, with bespoke systems included.
+      const testFile = join(gameDir, 'tests', 'unit', 'game.test.ts');
+      const r = existsSync(testFile) ? run('pnpm', ['-C', gameDir, 'exec', 'vitest', 'run', 'tests/unit/game.test.ts'], harnessDir) : run('pnpm', ['-C', gameDir, 'run', 'test'], harnessDir);
       return { name, passed: r.ok, detail: r.ok ? '' : tail(r.out) };
+    }
+    case 'review': {
+      const p = join(reportsDir, 'review.json');
+      if (!existsSync(p)) return { name, passed: true, detail: 'no review report (reviewer did not run)' };
+      const rev = readJson<{ findings?: Array<{ severity?: string; file?: string; note?: string }> }>(p);
+      const p0 = (rev.findings ?? []).filter((f) => f.severity === 'P0');
+      return { name, passed: p0.length === 0, detail: p0.map((f) => `P0 ${f.file ?? ''}: ${f.note ?? ''}`).join('\n') };
     }
     case 'juice': {
       const reportPath = join(reportsDir, 'playtest-report.json');
       if (!existsSync(reportPath)) return { name, passed: false, detail: 'no playtest report; run the smoke check first' };
       const rep = JSON.parse(readFileSync(reportPath, 'utf8')) as PlaytestReport;
-      const gddPath = join(gameDir, 'design', 'gdd.md');
-      let table: { feedbackEvents: GddFrontmatter['feedbackEvents'] } = { feedbackEvents: [{ event: 'hit', channels: ['shake', 'flash', 'sfx'] }, { event: 'death', channels: ['flash', 'sfx'] }, { event: 'pickup', channels: ['sfx'] }] };
-      if (existsSync(gddPath)) {
-        const fm = parseFrontmatter(readFileSync(gddPath, 'utf8'));
-        const parsed = fm ? GddFrontmatter.safeParse(fm.data) : null;
-        if (parsed?.success) table = { feedbackEvents: parsed.data.feedbackEvents };
-      }
+      const fm = readGdd();
+      const table: { feedbackEvents: GddFrontmatter['feedbackEvents'] } = fm ? { feedbackEvents: fm.feedbackEvents } : { feedbackEvents: [{ event: 'hit', channels: ['shake', 'flash', 'sfx'] }, { event: 'death', channels: ['flash', 'sfx'] }, { event: 'pickup', channels: ['sfx'] }] };
       const r = juiceLint(rep.events ?? [], table);
       const errors = r.issues.filter((i) => i.severity === 'error').map((i) => `${i.code}: ${i.message}`);
       const warnings = r.issues.filter((i) => i.severity === 'warning').map((i) => `${i.code}: ${i.message}`);

@@ -1,0 +1,320 @@
+{
+  "$comment": "Per-stage presets the worker copies into stage.json: gate checks, write scope, default caps, skills to use, default task. Keys are stage ids.",
+  "gdd": {
+    "runner": "worker",
+    "gate": [
+      "validate:gdd",
+      "validate:style"
+    ],
+    "allowedWrite": [
+      "game/design/concept.md",
+      "game/design/gdd.md",
+      "game/design/style.json"
+    ],
+    "caps": {
+      "turns": 40,
+      "usd": 1.5,
+      "wallMin": 10
+    },
+    "skills": [
+      "gdd-author"
+    ],
+    "task": "Write game/design/gdd.md from game/design/concept.md with the gdd-author skill; style.json may be adjusted within the schema."
+  },
+  "systems": {
+    "runner": "worker",
+    "gate": [
+      "validate:systems"
+    ],
+    "allowedWrite": [
+      "game/design/systems.json"
+    ],
+    "caps": {
+      "turns": 0,
+      "usd": 0.5,
+      "wallMin": 5
+    },
+    "skills": [
+      "systems-select"
+    ],
+    "task": "Select and parameterise catalog systems in game/design/systems.json so every GDD verb and feedback event is covered."
+  },
+  "scaffold": {
+    "runner": "worker",
+    "gate": [
+      "typecheck",
+      "lint",
+      "test",
+      "build",
+      "smoke"
+    ],
+    "allowedWrite": [],
+    "caps": {
+      "turns": 0,
+      "usd": 0,
+      "wallMin": 5
+    },
+    "skills": [],
+    "task": "Scaffold the game package from the design artifacts (worker step)."
+  },
+  "behaviour": {
+    "runner": "worker",
+    "gate": [
+      "validate:behaviour",
+      "solver"
+    ],
+    "allowedWrite": [
+      "game/content/behaviour/**",
+      "game/content/rules/**"
+    ],
+    "caps": {
+      "turns": 0,
+      "usd": 0.5,
+      "wallMin": 5
+    },
+    "skills": [
+      "behaviour-author"
+    ],
+    "task": "Author one BehaviourFsm per enemy type in the GDD scope using the genre vocabulary."
+  },
+  "implement": {
+    "runner": "claude-sdk",
+    "gate": [
+      "typecheck",
+      "lint",
+      "test",
+      "build",
+      "smoke"
+    ],
+    "allowedWrite": [
+      "game/src/systems/**",
+      "game/tests/**",
+      "game/design/deviations.md"
+    ],
+    "caps": {
+      "turns": 120,
+      "usd": 4,
+      "wallMin": 30
+    },
+    "skills": [
+      "mechanic-author",
+      "verify"
+    ],
+    "task": "Implement any mechanic the GDD requires that no selected catalog system provides, as bespoke GlueTS systems under game/src/systems with unit tests. If every GDD mechanic is already covered, append one line to game/design/deviations.md saying so and stop."
+  },
+  "levels": {
+    "runner": "worker",
+    "gate": [
+      "validate:levels",
+      "validate:ramp",
+      "solver"
+    ],
+    "allowedWrite": [
+      "game/content/**"
+    ],
+    "caps": {
+      "turns": 60,
+      "usd": 1,
+      "wallMin": 15
+    },
+    "skills": [
+      "level-design"
+    ],
+    "task": "Produce the GDD's level count as data with a monotonic difficulty ramp; every level must pass the validator and the solver bot."
+  },
+  "integrate": {
+    "runner": "claude-sdk",
+    "gate": [
+      "validate:assets",
+      "build",
+      "smoke"
+    ],
+    "allowedWrite": [
+      "game/assets/**",
+      "game/design/style.json"
+    ],
+    "caps": {
+      "turns": 40,
+      "usd": 1,
+      "wallMin": 10
+    },
+    "skills": [
+      "asset-prompting",
+      "verify"
+    ],
+    "task": "Check that every asset request has a placeholder in game/assets/manifest.json and that the build boots. Phase 1 games are code-drawn: do not add binary assets."
+  },
+  "playtest": {
+    "runner": "claude-sdk",
+    "gate": [
+      "build",
+      "smoke",
+      "solver"
+    ],
+    "allowedWrite": [
+      "game/src/systems/**",
+      "game/content/**",
+      "game/tests/**",
+      "game/design/deviations.md"
+    ],
+    "seeds": [
+      1,
+      2,
+      3
+    ],
+    "ticks": 600,
+    "caps": {
+      "turns": 30,
+      "usd": 0.5,
+      "wallMin": 15
+    },
+    "skills": [
+      "playtest",
+      "verify"
+    ],
+    "task": "Run the playtest skill on seeds 1, 2 and 3, triage the report and fix small issues within the write scope. Do not redesign."
+  },
+  "juice": {
+    "runner": "claude-sdk",
+    "gate": [
+      "build",
+      "smoke",
+      "juice"
+    ],
+    "allowedWrite": [
+      "game/design/feedback.json",
+      "game/src/systems/**"
+    ],
+    "caps": {
+      "turns": 40,
+      "usd": 1,
+      "wallMin": 10
+    },
+    "skills": [
+      "juice-pass"
+    ],
+    "task": "Make every GDD feedback event produce its channels at runtime (juice-pass skill); tune only within the clamps."
+  },
+  "review": {
+    "runner": "claude-sdk",
+    "gate": [
+      "review"
+    ],
+    "allowedWrite": [
+      "game/src/systems/**",
+      "game/content/**",
+      "game/design/deviations.md",
+      "game/reports/review.json"
+    ],
+    "caps": {
+      "turns": 25,
+      "usd": 0.75,
+      "wallMin": 8
+    },
+    "skills": [],
+    "task": "Ask the gdd-reviewer subagent for a fresh-context review; write its findings to game/reports/review.json as {\"findings\":[{\"severity\":\"P0|P1\",\"file\":\"...\",\"note\":\"...\"}]}; fix every P0 within the write scope."
+  },
+  "budget": {
+    "runner": "none",
+    "gate": [
+      "build",
+      "smoke",
+      "budget"
+    ],
+    "allowedWrite": [],
+    "caps": {
+      "turns": 0,
+      "usd": 0,
+      "wallMin": 5
+    },
+    "skills": [
+      "budget-check"
+    ],
+    "task": "Budget gate (worker step)."
+  },
+  "publish": {
+    "runner": "worker",
+    "gate": [],
+    "allowedWrite": [],
+    "caps": {
+      "turns": 0,
+      "usd": 0,
+      "wallMin": 5
+    },
+    "skills": [],
+    "task": "Publish the accepted build (worker step)."
+  },
+  "smoke": {
+    "runner": "none",
+    "gate": [
+      "typecheck",
+      "lint",
+      "test",
+      "validate:gdd",
+      "validate:levels",
+      "validate:behaviour",
+      "build",
+      "smoke",
+      "juice",
+      "budget"
+    ],
+    "allowedWrite": [
+      "game/src/systems/**",
+      "game/content/**",
+      "game/design/**",
+      "game/tests/**"
+    ],
+    "caps": {
+      "turns": 0,
+      "usd": 0,
+      "wallMin": 10
+    },
+    "skills": [
+      "verify"
+    ],
+    "task": "Full gate over an existing game (demo and regression)."
+  },
+  "apply-params": {
+    "runner": "worker",
+    "gate": [
+      "validate:systems",
+      "validate:levels",
+      "solver",
+      "build",
+      "smoke"
+    ],
+    "allowedWrite": [
+      "game/design/systems.json",
+      "game/content/**"
+    ],
+    "caps": {
+      "turns": 0,
+      "usd": 0,
+      "wallMin": 5
+    },
+    "skills": [
+      "edit-apply"
+    ],
+    "task": "Apply a parameter patch to design/systems.json within catalog ranges; regenerate levels when the impact says so (worker step)."
+  },
+  "apply-style": {
+    "runner": "worker",
+    "gate": [
+      "validate:style",
+      "build",
+      "smoke"
+    ],
+    "allowedWrite": [
+      "game/design/style.json"
+    ],
+    "caps": {
+      "turns": 0,
+      "usd": 0,
+      "wallMin": 5
+    },
+    "skills": [
+      "edit-apply"
+    ],
+    "task": "Apply a style patch to design/style.json (worker step)."
+  }
+}
