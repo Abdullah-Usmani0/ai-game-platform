@@ -60,15 +60,27 @@ importers:
       '@gg/bots':
         specifier: workspace:*
         version: link:../packages/bots
+      '@gg/scaffold':
+        specifier: workspace:*
+        version: link:../tools/scaffold
       '@gg/schemas':
         specifier: workspace:*
         version: link:../packages/schemas
       '@gg/sdk':
         specifier: workspace:*
         version: link:../packages/sdk
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../packages/template-core
+      '@gg/templates':
+        specifier: workspace:*
+        version: link:../packages/templates
       '@gg/validators':
         specifier: workspace:*
         version: link:../packages/validators
+      pngjs:
+        specifier: 7.0.0
+        version: 7.0.0
       tsx:
         specifier: 4.23.15
         version: 4.23.15
@@ -79,6 +91,9 @@ importers:
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5
+      '@types/pngjs':
+        specifier: 6.0.5
+        version: 6.0.5
       eslint:
         specifier: 10.13.0
         version: 10.13.0
@@ -202,6 +217,21 @@ importers:
       '@gg/sdk':
         specifier: workspace:*
         version: link:../sdk
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../template-core
+      '@gg/template-platformer':
+        specifier: workspace:*
+        version: link:../templates/genres/platformer
+      '@gg/template-survivors':
+        specifier: workspace:*
+        version: link:../templates/genres/survivors
+      '@gg/templates':
+        specifier: workspace:*
+        version: link:../templates
+      '@gg/validators':
+        specifier: workspace:*
+        version: link:../validators
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5
@@ -296,6 +326,136 @@ importers:
         specifier: 5.0.5
         version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
 
+  packages/template-core:
+    dependencies:
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@gg/validators':
+        specifier: workspace:*
+        version: link:../validators
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/templates:
+    dependencies:
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../template-core
+      '@gg/template-platformer':
+        specifier: workspace:*
+        version: link:genres/platformer
+      '@gg/template-survivors':
+        specifier: workspace:*
+        version: link:genres/survivors
+      '@gg/validators':
+        specifier: workspace:*
+        version: link:../validators
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/templates/genres/platformer:
+    dependencies:
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../../../schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../../../sdk
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../../../template-core
+      '@gg/validators':
+        specifier: workspace:*
+        version: link:../../../validators
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../../../config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/templates/genres/survivors:
+    dependencies:
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../../../schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../../../sdk
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../../../template-core
+      '@gg/validators':
+        specifier: workspace:*
+        version: link:../../../validators
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../../../config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
   packages/validators:
     dependencies:
       '@gg/schemas':
@@ -329,6 +489,9 @@ importers:
       '@gg/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@gg/template-platformer':
+        specifier: workspace:*
+        version: link:../../packages/templates/genres/platformer
     devDependencies:
       '@gg/config':
         specifier: workspace:*
@@ -352,7 +515,87 @@ importers:
         specifier: 5.0.5
         version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
 
+  samples/survivors:
+    dependencies:
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@gg/template-survivors':
+        specifier: workspace:*
+        version: link:../../packages/templates/genres/survivors
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@gg/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../../packages/template-core
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vite:
+        specifier: 8.3.5
+        version: 8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
   tools/demo: {}
+
+  tools/scaffold:
+    dependencies:
+      '@gg/game-base':
+        specifier: workspace:*
+        version: link:../../packages/game-base
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../../packages/template-core
+      '@gg/templates':
+        specifier: workspace:*
+        version: link:../../packages/templates
+      '@gg/validators':
+        specifier: workspace:*
+        version: link:../../packages/validators
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
 
   workers/generator:
     dependencies:

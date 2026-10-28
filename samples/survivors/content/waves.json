@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "designNotes": "difficulty 0.25 ramp over 60s",
+  "waves": [
+    {
+      "atS": 2,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 8,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 14,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 20,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 4,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 26,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 4,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 32,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 38,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 44,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 50,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 6,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 56,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 6,
+          "pattern": "ring"
+        }
+      ]
+    }
+  ]
+}

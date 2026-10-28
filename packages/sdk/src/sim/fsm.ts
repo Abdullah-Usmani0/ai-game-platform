@@ -62,13 +62,20 @@ export function applyAction(a: Action, e: Entity, ctx: SimCtx): void {
       e.vx = e.facing * a.speed;
       return;
     case 'move_toward_player':
-      e.facing = centerX(p) >= centerX(e) ? 1 : -1;
-      e.vx = e.facing * a.speed;
+    case 'move_away_from_player': {
+      const sign = a.kind === 'move_toward_player' ? 1 : -1;
+      const dx = centerX(p) - centerX(e);
+      const dy = centerY(p) - centerY(e);
+      e.facing = dx >= 0 ? sign : -sign;
+      if (ctx.movementMode === 'topdown') {
+        const len = Math.hypot(dx, dy) || 1;
+        e.vx = (sign * dx * a.speed) / len;
+        e.vy = (sign * dy * a.speed) / len;
+      } else {
+        e.vx = e.facing * a.speed;
+      }
       return;
-    case 'move_away_from_player':
-      e.facing = centerX(p) >= centerX(e) ? -1 : 1;
-      e.vx = e.facing * a.speed;
-      return;
+    }
     case 'jump':
       if (e.grounded) e.vy = a.vy;
       return;

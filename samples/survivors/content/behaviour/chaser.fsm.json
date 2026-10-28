@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "id": "chaser",
+  "designNotes": "Runs straight at the player; staggers briefly when hit.",
+  "initial": "chase",
+  "states": {
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 38
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "stagger": {
+      "onEnter": [
+        {
+          "kind": "move_away_from_player",
+          "speed": 60
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 200
+          }
+        }
+      ]
+    }
+  }
+}

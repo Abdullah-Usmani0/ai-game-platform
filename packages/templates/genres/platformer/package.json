@@ -1,0 +1,30 @@
+{
+  "name": "@gg/template-platformer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gg/schemas": "workspace:*",
+    "@gg/sdk": "workspace:*",
+    "@gg/validators": "workspace:*",
+    "@gg/template-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@gg/config": "workspace:*",
+    "@types/node": "22.20.5",
+    "eslint": "10.13.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

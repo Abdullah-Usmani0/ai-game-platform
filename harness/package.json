@@ -7,19 +7,25 @@
     "gate": "node --import tsx scripts/gate.ts",
     "validate": "node --import tsx scripts/validate-artifact.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "catalog": "node --import tsx .agents/skills/systems-select/scripts/export-catalog.ts"
   },
   "dependencies": {
     "@gg/bots": "workspace:*",
     "@gg/schemas": "workspace:*",
     "tsx": "4.23.15",
     "@gg/validators": "workspace:*",
-    "@gg/sdk": "workspace:*"
+    "@gg/sdk": "workspace:*",
+    "@gg/templates": "workspace:*",
+    "@gg/template-core": "workspace:*",
+    "@gg/scaffold": "workspace:*",
+    "pngjs": "7.0.0"
   },
   "devDependencies": {
     "@gg/config": "workspace:*",
     "@types/node": "22.20.5",
     "eslint": "10.13.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "@types/pngjs": "6.0.5"
   }
 }

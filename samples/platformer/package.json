@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@gg/schemas": "workspace:*",
-    "@gg/sdk": "workspace:*"
+    "@gg/sdk": "workspace:*",
+    "@gg/template-platformer": "workspace:*"
   },
   "devDependencies": {
     "@gg/config": "workspace:*",

@@ -18,6 +18,9 @@ export interface SimCtx {
   readonly feel: FeelPreset;
   /** This system's parameters from systems.json (typed loosely; validate in init). */
   readonly params: Readonly<Record<string, ParamValue>>;
+  /** Content JSON (waves, dialogue, progression) the game ships with. */
+  readonly content: Readonly<Record<string, unknown>>;
+  readonly movementMode: 'platformer' | 'topdown';
   emit(name: string, payload?: Record<string, unknown>): void;
   spawn(type: string, x: number, y: number): Entity;
   damage(target: Entity, amount: number, source: Entity | null): void;

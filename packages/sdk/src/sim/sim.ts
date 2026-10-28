@@ -24,6 +24,10 @@ export interface SimOptions {
   behaviours?: BehaviourFsm[];
   rules?: EcaRule[];
   params?: Record<string, Record<string, ParamValue>>;
+  /** Arbitrary content JSON systems may read (waves, dialogue, progression). */
+  content?: Record<string, unknown>;
+  /** 'platformer' (gravity, facing along x) or 'topdown' (no gravity, FSM moves on both axes). */
+  movementMode?: 'platformer' | 'topdown';
 }
 
 export interface Sim {
@@ -130,6 +134,8 @@ class SimImpl implements Sim {
       },
       feel: this.options.feel,
       params: this.options.params?.[systemId] ?? {},
+      content: this.options.content ?? {},
+      movementMode: this.options.movementMode ?? 'platformer',
       emit: (name, payload) => this.events.emit(this.tick, name, payload),
       spawn: (type, x, y) => this.spawn(type, x, y),
       damage: (target, amount, source) => this.damage(target, amount, source),
@@ -207,7 +213,7 @@ class SimImpl implements Sim {
         if (fsm) stepFsm(fsm, e, ctx);
       }
       if (!e.alive) continue;
-      if (e.gravity) e.vy = Math.min(e.vy + feel.gravity * DT, feel.maxFall);
+      if (e.gravity && (this.options.movementMode ?? 'platformer') === 'platformer') e.vy = Math.min(e.vy + feel.gravity * DT, feel.maxFall);
       moveBody(this.map, e, e.vx * DT, e.vy * DT);
       if (e.isProjectile) {
         if (e.hitWall || e.hitCeiling || e.grounded || e.x < -32 || e.x > this.map.pixelWidth + 32 || e.y > this.map.pixelHeight + 32) {

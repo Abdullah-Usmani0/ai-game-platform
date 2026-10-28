@@ -1,0 +1,2 @@
+- Pressure above the base dps is fine only if xp level-ups shorten the attack cooldown; without progression the kiter dies by 40 s. (seed: sample)
+- Ring spawns from the second third onward; edge spawns first so the player learns the arena before being surrounded. (seed: sample)

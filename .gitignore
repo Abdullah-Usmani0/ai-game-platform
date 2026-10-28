@@ -21,3 +21,6 @@ apps/web/next-env.d.ts
 .gg-work/
 .gg-store/
 .gg-store-demo/
+
+# generated per job by the systems-select skill
+harness/.agents/skills/systems-select/catalog.json

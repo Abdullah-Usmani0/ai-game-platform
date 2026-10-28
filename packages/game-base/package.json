@@ -4,7 +4,9 @@
   "private": true,
   "description": "The exact dependency set a scaffolded game needs. Scaffolded games symlink this package's node_modules so they build and test outside the workspace.",
   "type": "module",
-  "scripts": { "typecheck": "echo ok" },
+  "scripts": {
+    "typecheck": "echo ok"
+  },
   "dependencies": {
     "@gg/schemas": "workspace:*",
     "@gg/sdk": "workspace:*",
@@ -15,6 +17,11 @@
     "prettier": "3.9.10",
     "typescript": "5.9.3",
     "vite": "8.3.5",
-    "vitest": "5.0.5"
+    "vitest": "5.0.5",
+    "@gg/template-core": "workspace:*",
+    "@gg/template-platformer": "workspace:*",
+    "@gg/template-survivors": "workspace:*",
+    "@gg/templates": "workspace:*",
+    "@gg/validators": "workspace:*"
   }
 }

@@ -1,0 +1,3 @@
+- Emit `land` only on the frame grounded flips from false to true, or the juice linter counts every tick on the floor as a landing. (seed: sample)
+- Hazards belong at the bottom of pits, never on the walking row of the first 10 tiles; the validator rejects the latter. (seed: sample)
+- Put coins where a held jump reaches: at most 3 tiles above a standing tile. (seed: sample level fix)

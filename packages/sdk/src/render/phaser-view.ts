@@ -138,8 +138,9 @@ export class MainScene extends Phaser.Scene {
       this.gfx.fillRect(e.x + (e.w - dw) / 2, e.y + (e.h - dh), dw, dh);
     }
     if (this.controller.scene === 'play') {
-      const won = w.flags.won ? '  LEVEL COMPLETE' : w.flags.paused ? '  PAUSED' : '';
-      this.hud.setText(`HP ${p.hp}  SCORE ${w.score}  DEATHS ${w.deaths}${won}`);
+      const won = w.flags.won ? '  LEVEL COMPLETE' : w.flags.gameOver ? '  GAME OVER' : w.flags.paused ? '  PAUSED' : '';
+      const extra = Object.entries(w.hud).map(([k, v]) => `  ${k.toUpperCase()} ${v}`).join('');
+      this.hud.setText(`HP ${p.hp}  SCORE ${w.score}  DEATHS ${w.deaths}${extra}${won}`);
     } else {
       this.hud.setText('');
     }

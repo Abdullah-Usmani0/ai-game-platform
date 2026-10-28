@@ -1,0 +1,1 @@
+{ "hitstopMs": 50, "flashMs": 120, "shakeMs": 120, "maxFeedbackPerTick": 4, "feedbackWindowTicks": 6 }
