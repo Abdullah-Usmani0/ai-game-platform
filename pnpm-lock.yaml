@@ -18,6 +18,31 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
+  harness:
+    dependencies:
+      '@gg/bots':
+        specifier: workspace:*
+        version: link:../packages/bots
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../packages/schemas
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../packages/config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   packages/bots:
     dependencies:
       '@gg/schemas':
@@ -172,6 +197,8 @@ importers:
       vitest:
         specifier: 5.0.5
         version: 5.0.5(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  tools/demo: {}
 
 packages:
 

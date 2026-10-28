@@ -14,3 +14,5 @@ samples/*/reports/
 
 # synced from the phaser package by @gg/engine sync-skills
 harness/.agents/skills/phaser-*/
+harness/game
+harness/stage.json

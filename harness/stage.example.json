@@ -1,0 +1,11 @@
+{
+  "stage": "smoke",
+  "attempt": 1,
+  "runner": "claude-sdk",
+  "model": "sonnet",
+  "gate": ["typecheck", "lint", "test", "build", "smoke", "budget"],
+  "allowedWrite": ["game/src/systems/**", "game/content/**", "game/design/**", "game/tests/**"],
+  "seeds": [1],
+  "ticks": 600,
+  "budget": { "turnsLeft": 40, "usdLeft": 2 }
+}

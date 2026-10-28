@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Read", "Edit", "Write", "MultiEdit", "Glob", "Grep",
+      "Bash(pnpm gate*)", "Bash(pnpm validate*)", "Bash(pnpm -C game *)", "Bash(pnpm exec gg-bots *)", "Bash(node scripts/*)"
+    ],
+    "deny": [
+      "WebFetch", "WebSearch",
+      "Bash(curl*)", "Bash(wget*)", "Bash(git push*)", "Bash(pnpm add*)", "Bash(pnpm install*)", "Bash(npm *)", "Bash(rm -rf*)", "Bash(sudo*)",
+      "Edit(.claude/**)", "Write(.claude/**)", "Edit(.agents/**)", "Write(.agents/**)",
+      "Edit(game/provenance.json)", "Write(game/provenance.json)", "Edit(stage.json)", "Write(stage.json)"
+    ]
+  },
+  "env": { "CLAUDE_CODE_STOP_HOOK_BLOCK_CAP": "5", "GG_TEST_SEAM": "1" },
+  "hooks": {
+    "SessionStart": [
+      { "matcher": "startup|resume|compact", "hooks": [{ "type": "command", "command": "bash scripts/hooks/session-start.sh" }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Edit|Write|MultiEdit", "hooks": [{ "type": "command", "command": "bash scripts/hooks/protect-paths.sh" }] },
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "bash scripts/hooks/guard-bash.sh" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Edit|Write|MultiEdit", "hooks": [{ "type": "command", "command": "bash scripts/hooks/post-edit.sh" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "bash scripts/hooks/stop-gate.sh", "timeout": 600 }] }
+    ],
+    "SubagentStop": [
+      { "matcher": "level-designer", "hooks": [{ "type": "command", "command": "bash scripts/hooks/subagent-stop.sh" }] }
+    ],
+    "PreCompact": [
+      { "matcher": "auto|manual", "hooks": [{ "type": "command", "command": "bash scripts/hooks/pre-compact.sh" }] }
+    ]
+  }
+}
