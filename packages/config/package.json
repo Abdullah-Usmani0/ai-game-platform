@@ -1,0 +1,23 @@
+{
+  "name": "@gg/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint/index.js",
+    "./eslint/plugin-gg": "./eslint/plugin-gg.js",
+    "./tsconfig.node.json": "./tsconfig.node.json",
+    "./tsconfig.browser.json": "./tsconfig.browser.json",
+    "./vite-game": "./vite-game.js",
+    "./tsconfig.base.json": "./tsconfig.base.json"
+  },
+  "scripts": {
+    "test": "node --test eslint/plugin-gg.test.js"
+  },
+  "dependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.13.0",
+    "globals": "16.4.0",
+    "typescript-eslint": "8.72.1"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@gg/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { "./package.json": "./package.json", "./versions": "./src/versions.ts" },
+  "scripts": {
+    "build": "vite build && node scripts/report-size.mjs",
+    "sync-skills": "node scripts/sync-skills.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@gg/sdk": "workspace:*",
+    "phaser": "4.2.1"
+  },
+  "devDependencies": {
+    "@gg/config": "workspace:*",
+    "@types/node": "22.20.5",
+    "eslint": "10.13.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.5"
+  }
+}

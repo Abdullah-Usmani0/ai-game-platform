@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "walker",
+  "designNotes": "Patrols its ledge; chases when the player comes close; gives up when the player gets away.",
+  "initial": "patrol",
+  "states": {
+    "patrol": {
+      "onEnter": [{ "kind": "play_anim", "anim": "walk" }],
+      "update": [{ "kind": "patrol", "speed": 25 }],
+      "transitions": [{ "to": "chase", "when": { "kind": "player_within", "px": 48 } }]
+    },
+    "chase": {
+      "onEnter": [{ "kind": "play_anim", "anim": "run" }],
+      "update": [{ "kind": "move_toward_player", "speed": 45 }],
+      "transitions": [{ "to": "patrol", "when": { "kind": "player_beyond", "px": 96 } }]
+    }
+  }
+}

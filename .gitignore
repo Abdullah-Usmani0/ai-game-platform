@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+reports/screenshots/
+samples/*/reports/
+/work/
+.DS_Store
+
+# synced from the phaser package by @gg/engine sync-skills
+harness/.agents/skills/phaser-*/
