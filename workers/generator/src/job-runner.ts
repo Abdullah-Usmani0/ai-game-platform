@@ -14,6 +14,7 @@ import { createPlan, editPlan } from './plan.js';
 import { applyPreset, loadPresets } from './presets.js';
 import { ClaudeSdkRunner } from './runners/claude-sdk.js';
 import { NoneRunner } from './runners/none.js';
+import { OpenRunner } from './runners/open.js';
 import { StructuredRunner } from './runners/structured.js';
 import type { Runner, StageContext, StageSpec } from './runners/types.js';
 import { WorkerRunner, genreOfGame } from './runners/worker.js';
@@ -35,7 +36,7 @@ export interface RunJobOptions {
   policy?: ModelPolicy | null;
 }
 
-const RUNNERS: Record<string, Runner> = { none: new NoneRunner(), 'claude-sdk': new ClaudeSdkRunner(), structured: new StructuredRunner(), worker: new WorkerRunner() };
+const RUNNERS: Record<string, Runner> = { none: new NoneRunner(), 'claude-sdk': new ClaudeSdkRunner(), open: new OpenRunner(), structured: new StructuredRunner(), worker: new WorkerRunner() };
 
 interface Resolved {
   runnerKind: string;
@@ -178,6 +179,10 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
       totalTurns += outcome.turns;
       const gate = runGate(workDir, gameDir, spec.stage);
       passed = outcome.ok && gate.report.passed;
+      // Every attempt's gate report is kept (the playbook and evals read failures as well as passes).
+      const gateObject = await store
+        .putObject('trajectories', `g/${job.gameId}/j/${job.id}/${spec.stage}-${attempt}-gate.json`, new TextEncoder().encode(JSON.stringify({ ...gate.report, summary: outcome.summary.slice(0, 2000), model: resolved.model, runner: resolved.runnerKind })), 'application/json')
+        .catch(() => gate.reportPath);
       const trajectory: Trajectory = {
         jobId: job.id,
         stage: spec.stage,
@@ -193,7 +198,7 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
         costUsd: outcome.costUsd,
         durationMs: outcome.durationMs + gate.report.durationMs,
         passed,
-        gateReportPath: gate.reportPath,
+        gateReportPath: gateObject,
         failureMode: passed ? null : (outcome.failureMode ?? (gate.report.stalled ? 'repetition' : 'wrong_verification')),
         artifactPath: outcome.artifactPath ?? null,
         scrubbed: false,

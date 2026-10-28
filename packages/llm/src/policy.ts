@@ -16,6 +16,7 @@ export function providerFor(name: string): Provider {
   if (cached) return cached;
   let p: Provider;
   if (name === 'anthropic') p = new AnthropicProvider();
+  else if (name === 'fake') throw new Error("provider 'fake' is only available in dry runs (the worker registers it)");
   else p = OpenAICompatibleProvider.fromEnv(name);
   cache.set(name, p);
   return p;

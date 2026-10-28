@@ -1,0 +1,18 @@
+{
+  "name": "@gg/playbook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "extract": "node --import tsx src/cli.ts extract",
+    "promote": "node --import tsx src/cli.ts promote",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": { "@gg/db": "workspace:*", "@gg/schemas": "workspace:*", "tsx": "4.23.15" },
+  "devDependencies": { "@gg/config": "workspace:*", "@types/node": "22.20.5", "eslint": "10.13.0", "typescript": "5.9.3", "vitest": "5.0.5" }
+}

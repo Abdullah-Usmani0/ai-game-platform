@@ -31,9 +31,49 @@ export interface TextResponse {
   usage: Usage;
 }
 
+export interface ToolSpec {
+  name: string;
+  description: string;
+  /** JSON Schema of the tool input (flat objects only). */
+  inputSchema: Record<string, unknown>;
+}
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'tool';
+  content: string;
+  /** Assistant messages: the tool calls it made. */
+  toolCalls?: ToolCall[];
+  /** Tool messages: which call this result answers. */
+  toolCallId?: string;
+}
+
+export interface ChatRequest {
+  model: string;
+  system: string;
+  messages: ChatMessage[];
+  tools: ToolSpec[];
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export interface ChatResponse {
+  text: string;
+  toolCalls: ToolCall[];
+  usage: Usage;
+  stop: 'end' | 'tool' | 'length';
+}
+
 /** A model provider: Anthropic Messages or any OpenAI-compatible endpoint (vLLM, OpenRouter, DeepSeek, ...). */
 export interface Provider {
   readonly name: string;
   structured(req: StructuredRequest): Promise<StructuredResponse>;
   text(req: TextRequest): Promise<TextResponse>;
+  /** One tool-using chat turn (the built-in open runner's loop). Optional: not every provider supports tools. */
+  chat?(req: ChatRequest): Promise<ChatResponse>;
 }

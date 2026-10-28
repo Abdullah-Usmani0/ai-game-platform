@@ -1,0 +1,17 @@
+{
+  "$comment": "Open-weight policy through the built-in open runner: an OpenAI-compatible endpoint (GG_OPENAI_BASE_URL/GG_OPENAI_API_KEY, e.g. a pinned OpenRouter route or a local vLLM with llguidance) carries the data stages with k-sampling and the agent stages with the guarded tool loop; every stage escalates to Sonnet when its gate never passes. Provider name 'open' resolves through providerFor -> OpenAICompatibleProvider.fromEnv.",
+  "version": 3,
+  "name": "cheap-open-v1",
+  "stages": {
+    "gdd":       { "runner": "structured", "provider": "open", "model": "deepseek-v4-flash", "effort": "medium", "k": 4, "repairRounds": 2, "escalateTo": { "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium" }, "caps": { "turns": 0, "usd": 0.3, "wallMin": 10 } },
+    "systems":   { "runner": "structured", "provider": "open", "model": "deepseek-v4-flash", "effort": "medium", "k": 8, "repairRounds": 2, "escalateTo": { "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium" }, "caps": { "turns": 0, "usd": 0.2, "wallMin": 5 } },
+    "behaviour": { "runner": "structured", "provider": "open", "model": "qwen3.6-27b", "effort": "medium", "k": 8, "repairRounds": 2, "escalateTo": { "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium" }, "caps": { "turns": 0, "usd": 0.2, "wallMin": 5 } },
+    "implement": { "runner": "open", "provider": "open", "model": "qwen3.6-27b", "effort": "medium", "k": 1, "repairRounds": 2, "escalateTo": { "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium" }, "caps": { "turns": 60, "usd": 1, "wallMin": 25 } },
+    "levels":    { "runner": "structured", "provider": "open", "model": "qwen3.6-27b", "effort": "low", "k": 16, "repairRounds": 2, "caps": { "turns": 0, "usd": 0.3, "wallMin": 15 } },
+    "integrate": { "runner": "open", "provider": "open", "model": "qwen3.6-27b", "effort": "medium", "k": 1, "repairRounds": 1, "escalateTo": { "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium" }, "caps": { "turns": 30, "usd": 0.5, "wallMin": 10 } },
+    "playtest":  { "runner": "open", "provider": "open", "model": "qwen3.6-27b", "effort": "low", "k": 1, "repairRounds": 1, "escalateTo": { "provider": "anthropic", "model": "claude-haiku-5-5", "effort": "low" }, "caps": { "turns": 30, "usd": 0.4, "wallMin": 15 } },
+    "juice":     { "runner": "open", "provider": "open", "model": "qwen3.6-27b", "effort": "medium", "k": 1, "repairRounds": 1, "escalateTo": { "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "medium" }, "caps": { "turns": 30, "usd": 0.5, "wallMin": 10 } },
+    "review":    { "runner": "claude-sdk", "provider": "anthropic", "model": "claude-sonnet-5-5", "effort": "low", "k": 1, "repairRounds": 1, "caps": { "turns": 25, "usd": 0.75, "wallMin": 8 } }
+  },
+  "jobCaps": { "softUsd": 4, "hardUsd": 6, "providerUsd": 3, "wallMin": 90 }
+}
