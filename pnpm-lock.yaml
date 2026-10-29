@@ -29,6 +29,12 @@ importers:
       '@gg/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../../packages/template-core
+      '@gg/templates':
+        specifier: workspace:*
+        version: link:../../packages/templates
       next:
         specifier: 16.4.3
         version: 16.4.3(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)

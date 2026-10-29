@@ -58,6 +58,7 @@ function ctxFor(workDir: string, gameDir: string): StageContext {
     dryRun: false,
     request: null,
     route: null,
+    edit: null,
     versionId: 'v1',
   };
 }

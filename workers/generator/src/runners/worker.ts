@@ -3,10 +3,10 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { join } from 'node:path';
 import { blockedTermsFor, resolveReferences, sanitize, styleFromReferences } from '@gg/catalog';
 import { costUsd, generateArtifact, providerFor, type GenerateResult, type Usage } from '@gg/llm';
-import { BundleManifest, GddFrontmatter, StyleCard, SystemsJson, type BehaviourFsm, type LevelJson } from '@gg/schemas';
+import { BundleManifest, GddFrontmatter, LevelJson, StyleCard, SystemsJson, type BehaviourFsm } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from '@gg/scaffold';
-import { runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
+import { checkLevel, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
 import { CATALOG, genre as genreOf } from '@gg/templates/node';
 import { checkGdd, checkSystems, impact, parseFrontmatter, validateBehaviour } from '@gg/validators';
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
@@ -443,10 +443,18 @@ const publish: StageFn = async (ctx) => {
   mkdirSync(join(bundleDir, 'content'), { recursive: true });
   mkdirSync(join(bundleDir, 'design'), { recursive: true });
   for (const f of ['index.html', 'engine.js', 'game.js', 'engine.json']) if (existsSync(join(dist, f))) copyFileSync(join(dist, f), join(bundleDir, f));
-  for (const rel of walk(join(ctx.gameDir, 'content'))) {
+  const contentFiles = walk(join(ctx.gameDir, 'content'));
+  for (const rel of contentFiles) {
     mkdirSync(join(bundleDir, 'content', rel, '..'), { recursive: true });
     copyFileSync(join(ctx.gameDir, 'content', rel), join(bundleDir, 'content', rel));
   }
+  // content/index.json lists the content files of the bundle (the level editor loads levels and behaviours by it).
+  writeJson(join(bundleDir, 'content', 'index.json'), {
+    levels: contentFiles.filter((f) => f.startsWith('levels/') && f.endsWith('.json')),
+    behaviour: contentFiles.filter((f) => f.startsWith('behaviour/') && f.endsWith('.fsm.json')),
+    rules: contentFiles.filter((f) => f.startsWith('rules/') && f.endsWith('.json')),
+    files: contentFiles.filter((f) => !f.includes('/') && f.endsWith('.json')),
+  });
   for (const f of ['systems.json', 'style.json', 'feedback.json']) if (existsSync(join(ctx.gameDir, 'design', f))) copyFileSync(join(ctx.gameDir, 'design', f), join(bundleDir, 'design', f));
   copyFileSync(join(ctx.gameDir, 'design', 'gdd.md'), join(bundleDir, 'design', 'gdd.md'));
   const shots = existsSync(reports) ? readdirSync(reports).filter((f) => /^smoke-seed\d+-tick\d+\.png$/.test(f)).sort() : [];
@@ -580,10 +588,42 @@ const applyStyle: StageFn = async (ctx) => {
   return ok(`applied ${route.paramPatch.length} style value(s): ${route.paramPatch.map((p) => p.key).join(', ')}`, { artifactPath: path });
 };
 
+/**
+ * Levels authored in the editor replace the files with the same ids, each one only after the genre validator and the
+ * solver bot (over this game's systems, behaviours and content) accept it: the same oracle the levels stage uses.
+ */
+const applyContent: StageFn = async (ctx) => {
+  const t0 = Date.now();
+  const content = ctx.edit?.content;
+  if (!content) return fail('apply-content needs authored content on the edit request', 'spec_violation');
+  const g = genreOfGame(ctx);
+  const sys = readSystems(ctx.gameDir);
+  if (!sys) return fail('design/systems.json missing', 'spec_violation');
+  const kit = { runtime: g, validate: g.levelGrammar.validate, bots: g.bots, solverBot: g.solverBot };
+  const inputs = { behaviours: behavioursOf(ctx.gameDir), content: extraContentOf(ctx.gameDir), feedback: feedbackOf(ctx.gameDir) };
+  const levelsDir = join(ctx.gameDir, 'content', 'levels');
+  const existing = new Map(listJson(levelsDir).map((f) => [readJson<LevelJson>(f).id, f]));
+  const accepted: Array<{ file: string; level: LevelJson; ticks: number }> = [];
+  for (const raw of content.levels) {
+    const parsed = LevelJson.safeParse(raw);
+    if (!parsed.success) return fail(`level rejected by the schema: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`, 'schema_invalid', { durationMs: Date.now() - t0 });
+    const file = existing.get(parsed.data.id);
+    if (!file) return fail(`level '${parsed.data.id}' does not exist in this game (levels: ${[...existing.keys()].join(', ') || 'none'})`, 'semantic_invalid', { durationMs: Date.now() - t0 });
+    const prev = readJson<LevelJson>(file);
+    const level: LevelJson = { ...parsed.data, ramp: parsed.data.ramp ?? prev.ramp };
+    const check = checkLevel(kit, level, sys, inputs);
+    if (!check.report.ok) return fail(`level '${level.id}' rejected: ${check.report.issues.filter((i) => i.severity === 'error').map((i) => i.message).join('; ')}`, 'semantic_invalid', { durationMs: Date.now() - t0 });
+    if (!check.solver?.completed) return fail(`the ${g.solverBot} bot could not finish '${level.id}' within 90 s (deaths ${check.solver?.deaths ?? 0}, longest stall ${Math.round((check.solver?.stuckMaxTicks ?? 0) / 60)} s)`, 'semantic_invalid', { durationMs: Date.now() - t0 });
+    accepted.push({ file, level, ticks: check.solver.ticks });
+  }
+  for (const a of accepted) writeJson(a.file, a.level);
+  return ok(`applied ${accepted.length} authored level(s): ${accepted.map((a) => `${a.level.id} (solver ${Math.round(a.ticks / 60)} s)`).join(', ')}`, { durationMs: Date.now() - t0, artifactPath: levelsDir });
+};
+
 /** Stages the worker implements itself: structured data stages, the scaffold, model-free level search, publishing, edit patches. */
 export class WorkerRunner implements Runner {
   readonly kind = 'worker' as const;
-  private readonly stages: Record<string, StageFn> = { gdd, systems, scaffold: scaffoldStage, behaviour, levels, publish, 'apply-params': applyParams, 'apply-style': applyStyle };
+  private readonly stages: Record<string, StageFn> = { gdd, systems, scaffold: scaffoldStage, behaviour, levels, publish, 'apply-params': applyParams, 'apply-style': applyStyle, 'apply-content': applyContent };
 
   async run(ctx: StageContext): Promise<StageOutcome> {
     const fn = this.stages[ctx.spec.stage];

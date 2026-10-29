@@ -54,12 +54,34 @@ try {
   const stateText = await page.textContent('[data-testid="state"]');
   result.tick = Number(/tick (\d+)/.exec(stateText ?? '')?.[1] ?? 0);
   result.jobStatusShown = await page.textContent('[data-testid="job-status"]');
+  // 2b. Level editor: place a collectible on the spawn tile, run the in-page check (validator + solver bot), apply.
+  // The edit is queued as an edit_content job carrying the authored level; no worker runs here.
+  const editor = await page.waitForSelector('[data-testid="level-editor"][data-loaded="yes"]', { timeout: 20000 }).catch(() => null);
+  result.editor = Boolean(editor);
+  if (editor) {
+    await page.waitForSelector('[data-testid="level-check"]:not([disabled])', { timeout: 20000 });
+    const canvas = await page.$('[data-testid="level-canvas"]');
+    const cell = Number(await canvas.getAttribute('data-cell'));
+    const [sx, sy] = (await canvas.getAttribute('data-spawn')).split(',').map(Number);
+    await page.selectOption('[data-testid="entity-type"]', 'coin');
+    await page.click('[data-testid="tool-entity"]');
+    await canvas.click({ position: { x: sx * cell + cell / 2, y: sy * cell + cell / 2 } });
+    await page.click('[data-testid="level-check"]');
+    await page.waitForSelector('[data-testid="level-report"]', { timeout: 60000 });
+    result.editorCheck = await page.getAttribute('[data-testid="level-report"]', 'data-ok');
+    await page.click('[data-testid="level-apply"]');
+    await page.waitForSelector('[data-testid="job-status"]:has-text("queued")', { timeout: 15000 });
+    const view = await (await fetch(`${url}/api/games/${game.id}`)).json();
+    const editJob = view.jobs[0];
+    result.editorJob = { kind: editJob?.kind, status: editJob?.status, levels: editJob?.input?.content?.levels?.map((l) => `${l.id}:${l.entities.length}`) };
+  }
   // 3. The new game's workspace shows the queued job.
   await page.goto(`${url}/games/${createdJson.gameId}?job=${createdJson.jobId}`, { waitUntil: 'load', timeout: 30000 });
   await page.waitForSelector('[data-testid="no-preview"]', { timeout: 10000 });
   await page.waitForSelector('[data-testid="job-status"]:has-text("queued")', { timeout: 10000 });
   const wantPanels = process.env.GG_EXPECT_PANELS === '1';
-  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor)) && result.remix.status === 201 && result.remix.playable === 'playable' && result.remix.headShared;
+  const editorOk = !wantPanels || (result.editor && result.editorCheck === 'yes' && result.editorJob?.kind === 'edit_content' && result.editorJob?.status === 'queued' && result.editorJob?.levels?.length === 1);
+  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor)) && editorOk && result.remix.status === 201 && result.remix.playable === 'playable' && result.remix.headShared;
   console.log(JSON.stringify({ ok, ...result, errors }, null, 2));
 } catch (e) {
   console.error('check-create failed:', e.message, JSON.stringify(result));

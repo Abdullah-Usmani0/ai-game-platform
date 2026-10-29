@@ -51,3 +51,13 @@ textarea, input[type="text"], input:not([type]), select { background: #11111f; c
 .swatch { display: grid; justify-items: center; gap: 2px; font-size: 11px; }
 .swatch input[type="color"] { width: 36px; height: 28px; border: 1px solid #3a3a55; background: none; padding: 0; }
 code.muted { font-size: 11px; word-break: break-all; }
+.editor-tools { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; align-items: center; }
+.tool { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 8px; }
+.tool.selected { border-color: var(--accent); background: #33334f; }
+.chip { display: inline-block; width: 10px; height: 10px; border: 1px solid #0b0b14; }
+.entity-type { width: auto; padding: 3px 6px; font-size: 12px; }
+.editor-scroll { overflow: auto; max-width: 100%; border: 1px solid #2a2a40; background: #11111f; }
+.editor-canvas { display: block; image-rendering: pixelated; cursor: crosshair; touch-action: none; }
+.small { font-size: 12px; }
+.report { font-size: 12px; }
+.issues { margin: 4px 0; padding-left: 16px; }

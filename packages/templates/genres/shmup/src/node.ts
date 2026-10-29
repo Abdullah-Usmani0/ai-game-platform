@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { LevelJson } from '@gg/schemas';
-import { validateArena, type GenreManifest } from '@gg/template-core';
-import { BOTS } from './bots.js';
+import type { GenreManifest } from '@gg/template-core';
+import { shmupCheck } from './check.js';
 import { EXEMPLARS } from './exemplars.js';
 import { shmupRuntime } from './index.js';
 import { generateSky, generateWaves } from './level/generate.js';
@@ -12,10 +11,10 @@ const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.met
 
 export const shmup: GenreManifest = {
   ...shmupRuntime,
-  levelGrammar: { kind: 'arena', generate: generateSky, validate: (level: LevelJson) => validateArena(level) },
+  levelGrammar: { kind: 'arena', generate: generateSky, validate: shmupCheck.validate },
   extraContent: (params) => ({ waves: generateWaves(params, 60) }),
-  bots: BOTS,
-  solverBot: 'dodger',
+  bots: shmupCheck.bots,
+  solverBot: shmupCheck.solverBot,
   gddFragment: read('./gdd/fragment.md'),
   interviewFragment: read('./gdd/interview.md'),
   scopeBudget: {
@@ -42,3 +41,4 @@ export const shmup: GenreManifest = {
 export * from './index.js';
 export { generateSky, generateWaves } from './level/generate.js';
 export { BOTS } from './bots.js';
+export * from './check.js';

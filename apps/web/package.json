@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -17,6 +17,8 @@
     "@gg/catalog": "workspace:*",
     "@gg/db": "workspace:*",
     "@gg/schemas": "workspace:*",
+    "@gg/template-core": "workspace:*",
+    "@gg/templates": "workspace:*",
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1"

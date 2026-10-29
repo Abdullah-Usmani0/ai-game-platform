@@ -1,0 +1,581 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import type { BehaviourFsm, LevelJson, SystemsJson, TileKind } from '@gg/schemas';
+import type { GenreCheck, LevelCheck } from '@gg/template-core';
+
+/** content/index.json of a published bundle (written by the publisher). */
+interface ContentIndex {
+  levels: string[];
+  behaviour: string[];
+  rules?: string[];
+  files: string[];
+}
+
+interface Loaded {
+  levels: LevelJson[];
+  systems: SystemsJson;
+  behaviours: BehaviourFsm[];
+  feedback: unknown[];
+  content: Record<string, unknown>;
+}
+
+type Tool =
+  | { kind: 'tile'; tile: TileKind }
+  | { kind: 'entity'; type: string }
+  | { kind: 'erase' }
+  | { kind: 'spawn' }
+  | { kind: 'goal' };
+
+const KINDS: TileKind[] = ['air', 'solid', 'hazard', 'oneway', 'goal', 'spawn'];
+const DEFAULT_CHARS: Record<TileKind, string> = {
+  air: '.',
+  solid: '#',
+  hazard: '^',
+  oneway: '-',
+  goal: 'G',
+  spawn: 'S',
+};
+const COLORS: Record<TileKind, string> = {
+  air: '#11111f',
+  solid: '#5a5a78',
+  hazard: '#ef476f',
+  oneway: '#8fb996',
+  goal: '#ffd166',
+  spawn: '#4cc9f0',
+};
+const ENTITY_COLORS = ['#f78c6b', '#c792ea', '#82aaff', '#ffcb6b', '#89ddff', '#f07178', '#c3e88d'];
+const SPARE_CHARS = 'abcdefhijklmnopqrstuvwxyz0123456789*+=%&@';
+
+/** The legend character for a tile kind, adding one to the legend when the level has none yet. */
+function charFor(level: LevelJson, kind: TileKind): { char: string; legend: LevelJson['legend'] } {
+  for (const [ch, k] of Object.entries(level.legend))
+    if (k === kind) return { char: ch, legend: level.legend };
+  const used = new Set(Object.keys(level.legend));
+  const char = !used.has(DEFAULT_CHARS[kind])
+    ? DEFAULT_CHARS[kind]
+    : [...SPARE_CHARS].find((c) => !used.has(c));
+  if (!char) throw new Error('legend is full');
+  return { char, legend: { ...level.legend, [char]: kind } };
+}
+
+function kindAt(level: LevelJson, x: number, y: number): TileKind | null {
+  const ch = level.rows[y]?.[x];
+  return ch ? (level.legend[ch] ?? null) : null;
+}
+
+function withTile(level: LevelJson, x: number, y: number, kind: TileKind): LevelJson {
+  if (x < 0 || y < 0 || x >= level.width || y >= level.height || kindAt(level, x, y) === kind)
+    return level;
+  const { char, legend } = charFor(level, kind);
+  const rows = level.rows.slice();
+  const row = rows[y]!;
+  rows[y] = row.slice(0, x) + char + row.slice(x + 1);
+  return { ...level, legend, rows };
+}
+
+/** Move the spawn or the goal: the old marker tile becomes air, the new tile takes the marker. */
+function withMarker(level: LevelJson, marker: 'spawn' | 'goal', x: number, y: number): LevelJson {
+  const old = level[marker];
+  let next = kindAt(level, old.x, old.y) === marker ? withTile(level, old.x, old.y, 'air') : level;
+  next = withTile(next, x, y, marker);
+  return { ...next, [marker]: { x, y } };
+}
+
+function withEntity(level: LevelJson, x: number, y: number, type: string): LevelJson {
+  const entities = level.entities.filter((e) => !(e.x === x && e.y === y));
+  return { ...level, entities: [...entities, { type, x, y, props: {} }] };
+}
+
+function withoutEntity(level: LevelJson, x: number, y: number): LevelJson {
+  const entities = level.entities.filter((e) => !(e.x === x && e.y === y));
+  return entities.length === level.entities.length ? level : { ...level, entities };
+}
+
+function colorForType(type: string, types: string[]): string {
+  const i = Math.max(0, types.indexOf(type));
+  return ENTITY_COLORS[i % ENTITY_COLORS.length]!;
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`${res.status} ${url}`);
+  return (await res.json()) as T;
+}
+
+/** The level being edited with its undo history. A reducer keeps every transition pure (Strict Mode replays them). */
+interface EditorState {
+  draft: LevelJson | null;
+  history: LevelJson[];
+  dirty: boolean;
+}
+type EditorAction =
+  | { type: 'load'; level: LevelJson | null }
+  | { type: 'edit'; fn: (l: LevelJson) => LevelJson }
+  | { type: 'undo' }
+  | { type: 'saved' };
+const EMPTY_EDITOR: EditorState = { draft: null, history: [], dirty: false };
+
+function editorReducer(state: EditorState, action: EditorAction): EditorState {
+  switch (action.type) {
+    case 'load':
+      return {
+        draft: action.level ? structuredClone(action.level) : null,
+        history: [],
+        dirty: false,
+      };
+    case 'edit': {
+      if (!state.draft) return state;
+      const next = action.fn(state.draft);
+      if (next === state.draft) return state;
+      return { draft: next, history: [...state.history.slice(-99), state.draft], dirty: true };
+    }
+    case 'undo': {
+      const prev = state.history[state.history.length - 1];
+      return prev ? { draft: prev, history: state.history.slice(0, -1), dirty: true } : state;
+    }
+    case 'saved':
+      return { ...state, dirty: false };
+    default:
+      return state;
+  }
+}
+
+/**
+ * Tile and entity editor over the head version's levels. "Check" runs the gate's own validator and solver bot in the
+ * page (the genre check kit); "Apply" sends the level as authored content, which the worker verifies again, plays,
+ * builds and publishes as a new version. No model call anywhere on this path.
+ */
+export function LevelEditor({
+  genre,
+  bundleBase,
+  disabled,
+  onApply,
+}: {
+  genre: string;
+  bundleBase: string;
+  disabled: boolean;
+  onApply: (content: { levels: LevelJson[] }, message: string) => void;
+}) {
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [kit, setKit] = useState<GenreCheck | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [{ draft, history, dirty }, dispatch] = useReducer(editorReducer, EMPTY_EDITOR);
+  const [tool, setTool] = useState<Tool>({ kind: 'tile', tile: 'solid' });
+  const [entityType, setEntityType] = useState<string>('');
+  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  // A check result belongs to the exact draft it ran on; any later edit makes it stale.
+  const [checked, setChecked] = useState<{ level: LevelJson; result: LevelCheck } | null>(null);
+  const check = checked && checked.level === draft ? checked.result : null;
+  const [checking, setChecking] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const painting = useRef(false);
+
+  // Load the bundle's content and the genre's check kit (validator + solver, browser-safe).
+  useEffect(() => {
+    let cancelled = false;
+    setLoaded(null);
+    setLoadError(null);
+    dispatch({ type: 'load', level: null });
+    (async () => {
+      try {
+        const index = await fetchJson<ContentIndex>(`${bundleBase}/content/index.json`);
+        const [levels, behaviours, systems, feedback, files] = await Promise.all([
+          Promise.all(index.levels.map((f) => fetchJson<LevelJson>(`${bundleBase}/content/${f}`))),
+          Promise.all(
+            index.behaviour.map((f) => fetchJson<BehaviourFsm>(`${bundleBase}/content/${f}`)),
+          ),
+          fetchJson<SystemsJson>(`${bundleBase}/design/systems.json`),
+          fetchJson<unknown[]>(`${bundleBase}/design/feedback.json`).catch(() => []),
+          Promise.all(
+            index.files
+              .filter((f) => f !== 'index.json')
+              .map(
+                async (f) =>
+                  [
+                    f.replace(/\.json$/, ''),
+                    await fetchJson<unknown>(`${bundleBase}/content/${f}`),
+                  ] as const,
+              ),
+          ),
+        ]);
+        if (cancelled) return;
+        const first = levels[0] ?? null;
+        setLoaded({ levels, behaviours, systems, feedback, content: Object.fromEntries(files) });
+        setSelectedId(first?.id ?? null);
+        dispatch({ type: 'load', level: first });
+      } catch (e) {
+        if (!cancelled)
+          setLoadError(`no editable content in this version (${(e as Error).message})`);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bundleBase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    import('@gg/templates/check')
+      .then((m) => {
+        if (!cancelled) setKit(m.checkKit(genre));
+      })
+      .catch(() => {
+        if (!cancelled) setKit(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [genre]);
+
+  const entityTypes = useMemo(() => {
+    const types = new Set<string>();
+    for (const e of kit?.runtime.entityDefs ?? []) if (!e.projectile) types.add(e.type);
+    for (const l of loaded?.levels ?? []) for (const e of l.entities) types.add(e.type);
+    return [...types];
+  }, [kit, loaded]);
+  useEffect(() => {
+    if (!entityType && entityTypes[0]) setEntityType(entityTypes[0]);
+  }, [entityTypes, entityType]);
+
+  const cell = draft ? Math.max(4, Math.min(16, Math.floor(640 / draft.width))) : 8;
+
+  // Draw the level: tiles by kind, entities as discs, the hovered cell outlined.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !draft) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = COLORS.air;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let y = 0; y < draft.height; y++) {
+      for (let x = 0; x < draft.width; x++) {
+        const k = kindAt(draft, x, y) ?? 'air';
+        if (k === 'air') continue;
+        ctx.fillStyle = COLORS[k];
+        if (k === 'oneway')
+          ctx.fillRect(x * cell, y * cell, cell, Math.max(1, Math.floor(cell / 3)));
+        else ctx.fillRect(x * cell, y * cell, cell, cell);
+      }
+    }
+    if (cell >= 8) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= draft.width; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * cell + 0.5, 0);
+        ctx.lineTo(x * cell + 0.5, draft.height * cell);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= draft.height; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * cell + 0.5);
+        ctx.lineTo(draft.width * cell, y * cell + 0.5);
+        ctx.stroke();
+      }
+    }
+    for (const e of draft.entities) {
+      ctx.fillStyle = colorForType(e.type, entityTypes);
+      ctx.beginPath();
+      ctx.arc(
+        e.x * cell + cell / 2,
+        e.y * cell + cell / 2,
+        Math.max(2, cell * 0.4),
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+      if (cell >= 10) {
+        ctx.fillStyle = '#0b0b14';
+        ctx.font = `${Math.floor(cell * 0.7)}px ui-monospace, monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(e.type[0]!.toUpperCase(), e.x * cell + cell / 2, e.y * cell + cell / 2 + 1);
+      }
+    }
+    if (hover) {
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(hover.x * cell + 0.5, hover.y * cell + 0.5, cell - 1, cell - 1);
+    }
+  }, [draft, cell, hover, entityTypes]);
+
+  const mutate = useCallback(
+    (fn: (l: LevelJson) => LevelJson) => dispatch({ type: 'edit', fn }),
+    [],
+  );
+
+  const applyTool = useCallback(
+    (x: number, y: number) => {
+      if (!draft || x < 0 || y < 0 || x >= draft.width || y >= draft.height) return;
+      switch (tool.kind) {
+        case 'tile':
+          return mutate((l) => withTile(l, x, y, tool.tile));
+        case 'entity':
+          return mutate((l) => withEntity(l, x, y, tool.type));
+        case 'erase':
+          return mutate((l) => withoutEntity(l, x, y));
+        case 'spawn':
+          return mutate((l) => withMarker(l, 'spawn', x, y));
+        case 'goal':
+          return mutate((l) => withMarker(l, 'goal', x, y));
+        default:
+          return;
+      }
+    },
+    [draft, tool, mutate],
+  );
+
+  const cellOf = (e: React.PointerEvent<HTMLCanvasElement>) => ({
+    x: Math.floor(e.nativeEvent.offsetX / cell),
+    y: Math.floor(e.nativeEvent.offsetY / cell),
+  });
+
+  const selectLevel = (id: string) => {
+    const level = loaded?.levels.find((l) => l.id === id);
+    if (!level) return;
+    setSelectedId(id);
+    dispatch({ type: 'load', level });
+  };
+
+  const undo = () => dispatch({ type: 'undo' });
+
+  async function runCheck() {
+    if (!draft || !loaded || !kit) return;
+    const level = draft;
+    setChecking(true);
+    // Let the button repaint before the solver runs up to 90 simulated seconds on the main thread.
+    await new Promise((r) => setTimeout(r, 0));
+    try {
+      const { checkLevel } = await import('@gg/templates/check');
+      setChecked({
+        level,
+        result: checkLevel(kit, level, loaded.systems, {
+          behaviours: loaded.behaviours,
+          content: loaded.content,
+          feedback: loaded.feedback as never,
+        }),
+      });
+    } catch (e) {
+      setChecked({
+        level,
+        result: {
+          ok: false,
+          report: {
+            ok: false,
+            issues: [{ code: 'check_failed', message: (e as Error).message, severity: 'error' }],
+            metrics: {},
+          },
+          solver: null,
+        },
+      });
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  const apply = () => {
+    if (!draft || !check?.ok) return;
+    const original = loaded?.levels.find((l) => l.id === draft.id);
+    const tiles = original
+      ? draft.rows.reduce(
+          (n, row, y) => n + [...row].filter((ch, x) => ch !== original.rows[y]?.[x]).length,
+          0,
+        )
+      : 0;
+    onApply(
+      { levels: [draft] },
+      `Level editor: ${draft.id} edited (${tiles} tile(s) changed, ${draft.entities.length} entities, solver ${Math.round((check.solver?.ticks ?? 0) / 60)} s).`,
+    );
+    dispatch({ type: 'saved' });
+  };
+
+  const errors = check?.report.issues.filter((i) => i.severity === 'error') ?? [];
+  const warnings = check?.report.issues.filter((i) => i.severity === 'warning') ?? [];
+  const toolIs = (t: Tool) => JSON.stringify(t) === JSON.stringify(tool);
+
+  return (
+    <div className="panel" data-testid="level-editor" data-loaded={loaded ? 'yes' : 'no'}>
+      <h2>Level editor</h2>
+      {loadError ? <p className="muted">{loadError}</p> : null}
+      {!loaded && !loadError ? <p className="muted">Loading levels…</p> : null}
+      {loaded && draft ? (
+        <>
+          <div className="row">
+            <label>
+              level{' '}
+              <select
+                value={selectedId ?? ''}
+                onChange={(e) => selectLevel(e.target.value)}
+                disabled={disabled}
+                data-testid="level-select"
+              >
+                {loaded.levels.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.id} · {l.name} ({l.width}×{l.height})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              onClick={undo}
+              disabled={disabled || history.length === 0}
+              data-testid="level-undo"
+            >
+              undo
+            </button>
+            <button
+              onClick={() => selectedId && selectLevel(selectedId)}
+              disabled={disabled || !dirty}
+            >
+              reset
+            </button>
+          </div>
+          <div className="editor-tools" data-testid="editor-tools">
+            {KINDS.map((k) => (
+              <button
+                key={k}
+                className={`tool${toolIs({ kind: 'tile', tile: k }) ? ' selected' : ''}`}
+                onClick={() => setTool({ kind: 'tile', tile: k })}
+                disabled={disabled}
+                data-testid={`tool-${k}`}
+              >
+                <span className="chip" style={{ background: COLORS[k] }} /> {k}
+              </button>
+            ))}
+            <button
+              className={`tool${tool.kind === 'spawn' ? ' selected' : ''}`}
+              onClick={() => setTool({ kind: 'spawn' })}
+              disabled={disabled}
+              data-testid="tool-move-spawn"
+            >
+              move spawn
+            </button>
+            <button
+              className={`tool${tool.kind === 'goal' ? ' selected' : ''}`}
+              onClick={() => setTool({ kind: 'goal' })}
+              disabled={disabled}
+              data-testid="tool-move-goal"
+            >
+              move goal
+            </button>
+            <button
+              className={`tool${tool.kind === 'entity' ? ' selected' : ''}`}
+              onClick={() => setTool({ kind: 'entity', type: entityType })}
+              disabled={disabled || !entityType}
+              data-testid="tool-entity"
+            >
+              <span
+                className="chip"
+                style={{ background: entityType ? colorForType(entityType, entityTypes) : '#333' }}
+              />{' '}
+              place
+            </button>
+            <select
+              value={entityType}
+              onChange={(e) => {
+                setEntityType(e.target.value);
+                setTool({ kind: 'entity', type: e.target.value });
+              }}
+              disabled={disabled}
+              data-testid="entity-type"
+              className="entity-type"
+            >
+              {entityTypes.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <button
+              className={`tool${tool.kind === 'erase' ? ' selected' : ''}`}
+              onClick={() => setTool({ kind: 'erase' })}
+              disabled={disabled}
+              data-testid="tool-erase"
+            >
+              erase entity
+            </button>
+          </div>
+          <div className="editor-scroll">
+            <canvas
+              ref={canvasRef}
+              width={draft.width * cell}
+              height={draft.height * cell}
+              className="editor-canvas"
+              data-testid="level-canvas"
+              data-cell={cell}
+              data-spawn={`${draft.spawn.x},${draft.spawn.y}`}
+              data-goal={`${draft.goal.x},${draft.goal.y}`}
+              onPointerDown={(e) => {
+                if (disabled) return;
+                painting.current = true;
+                const c = cellOf(e);
+                applyTool(c.x, c.y);
+              }}
+              onPointerMove={(e) => {
+                const c = cellOf(e);
+                setHover(c);
+                if (painting.current && tool.kind === 'tile') applyTool(c.x, c.y);
+              }}
+              onPointerUp={() => (painting.current = false)}
+              onPointerLeave={() => {
+                painting.current = false;
+                setHover(null);
+              }}
+            />
+          </div>
+          <p className="muted small">
+            {draft.width}×{draft.height} tiles · spawn {draft.spawn.x},{draft.spawn.y} · goal{' '}
+            {draft.goal.x},{draft.goal.y} · {draft.entities.length} entities
+            {hover ? ` · at ${hover.x},${hover.y}: ${kindAt(draft, hover.x, hover.y) ?? '?'}` : ''}
+            {dirty ? ' · unsaved changes' : ''}
+          </p>
+          <div className="row">
+            <button
+              onClick={() => void runCheck()}
+              disabled={disabled || checking || !kit}
+              data-testid="level-check"
+            >
+              {checking
+                ? 'Checking…'
+                : kit
+                  ? 'Check (validator + solver bot)'
+                  : 'Check unavailable'}
+            </button>
+            <button
+              onClick={apply}
+              disabled={disabled || !dirty || !check?.ok}
+              data-testid="level-apply"
+            >
+              Apply level
+            </button>
+          </div>
+          {check ? (
+            <div className="report" data-testid="level-report" data-ok={check.ok ? 'yes' : 'no'}>
+              <p className={check.ok ? 'ok' : 'err'}>
+                {check.ok
+                  ? `passes: validator ok, ${kit?.solverBot ?? 'solver'} bot finishes in ${Math.round((check.solver?.ticks ?? 0) / 60)} s with ${check.solver?.deaths ?? 0} death(s)`
+                  : check.solver
+                    ? `the ${kit?.solverBot ?? 'solver'} bot could not finish (${check.solver.deaths} death(s), longest stall ${Math.round(check.solver.stuckMaxTicks / 60)} s)`
+                    : 'rejected by the validator'}
+              </p>
+              <ul className="issues">
+                {errors.map((i, n) => (
+                  <li key={`e${n}`} className="err">
+                    {i.code}: {i.message}
+                  </li>
+                ))}
+                {warnings.map((i, n) => (
+                  <li key={`w${n}`} className="muted">
+                    warning {i.code}: {i.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}

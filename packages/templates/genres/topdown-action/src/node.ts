@@ -1,21 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { LevelJson } from '@gg/schemas';
 import type { GenreManifest } from '@gg/template-core';
-import { BOTS } from './bots.js';
+import { topdownActionCheck } from './check.js';
 import { EXEMPLARS } from './exemplars.js';
 import { topdownActionRuntime } from './index.js';
 import { generateRooms } from './level/generate.js';
-import { validateRooms } from './level/validate.js';
 import { PANELS } from './panels.js';
 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 
 export const topdownAction: GenreManifest = {
   ...topdownActionRuntime,
-  levelGrammar: { kind: 'rooms', generate: generateRooms, validate: (level: LevelJson) => validateRooms(level) },
-  bots: BOTS,
-  solverBot: 'clearer',
+  levelGrammar: { kind: 'rooms', generate: generateRooms, validate: topdownActionCheck.validate },
+  bots: topdownActionCheck.bots,
+  solverBot: topdownActionCheck.solverBot,
   gddFragment: read('./gdd/fragment.md'),
   interviewFragment: read('./gdd/interview.md'),
   scopeBudget: {
@@ -43,3 +41,4 @@ export * from './index.js';
 export { generateRooms } from './level/generate.js';
 export { validateRooms, tileDistances } from './level/validate.js';
 export { BOTS, nextTileToward } from './bots.js';
+export * from './check.js';

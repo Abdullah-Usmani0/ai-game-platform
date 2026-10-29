@@ -6,7 +6,7 @@ import { checkGdd } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
 import { FakeProvider, heuristicRoute } from './fake-provider.js';
 import { draftBody, draftFrontmatter, renderGdd, slugify, titleFromPrompt } from './gdd-draft.js';
-import { CREATE_STAGES, createPlan, editPlan } from './plan.js';
+import { AUTHORED_CONTENT_PLAN, CREATE_STAGES, createPlan, editPlan } from './plan.js';
 import { loadPresets } from './presets.js';
 
 const harness = resolve(fileURLToPath(new URL('../../../harness', import.meta.url)));
@@ -25,10 +25,19 @@ describe('stage presets and plans', () => {
   });
   it('edit routes end in budget and publish', () => {
     for (const route of ['parameter', 'style', 'behaviour', 'content', 'code'] as const) {
-      const plan = editPlan(route, presets);
-      expect(plan.slice(-2).map((s) => s.stage)).toEqual(['budget', 'publish']);
-      for (const s of plan) expect(presets[s.stage], `${route}:${s.stage}`).toBeDefined();
+      for (const authored of [false, true]) {
+        const plan = editPlan(route, presets, authored);
+        expect(plan.slice(-2).map((s) => s.stage)).toEqual(['budget', 'publish']);
+        for (const s of plan) expect(presets[s.stage], `${route}:${s.stage}`).toBeDefined();
+      }
     }
+  });
+  it('authored content replaces the level search with apply-content; other routes ignore the flag', () => {
+    expect(editPlan('content', presets, true).map((s) => s.stage)).toEqual([...AUTHORED_CONTENT_PLAN]);
+    expect(editPlan('content', presets).map((s) => s.stage)[0]).toBe('levels');
+    expect(editPlan('parameter', presets, true).map((s) => s.stage)).toEqual(editPlan('parameter', presets).map((s) => s.stage));
+    expect(presets['apply-content']?.gate).toEqual(['validate:levels', 'validate:ramp', 'solver']);
+    expect(presets['apply-content']?.runner).toBe('worker');
   });
 });
 

@@ -1,4 +1,4 @@
-import type { CreateRequest, EditRoute, FailureMode, StagePolicy } from '@gg/schemas';
+import type { CreateRequest, EditRequest, EditRoute, FailureMode, StagePolicy } from '@gg/schemas';
 import type { Store } from '@gg/db';
 import type { Usage } from '@gg/llm';
 
@@ -41,6 +41,8 @@ export interface StageContext {
   request: CreateRequest | null;
   /** The resolved edit route for edit jobs. */
   route: EditRoute | null;
+  /** The edit request for edit jobs (its authored content, when the level editor sent some). */
+  edit: EditRequest | null;
   /** The id the version row gets if this attempt passes its gate (the publisher names the bundle after it). */
   versionId: string;
 }

@@ -310,6 +310,7 @@ route ∈ parameter | style | behaviour | content | code;  confidence < 0.7 → 
 | style | `style.json` patch; only assets whose prompt hash changed regenerate; INTEGRATE-lite | styleLint; asset-qa; IP screen; smoke; regression vs new goldens on crashes/metrics | provider only; 3–10 min |
 | behaviour | structured re-sample of the targeted FSM/rule sets | validate:behaviour; smoke; bots on affected systems; metrics-compare | cents; 1–3 min |
 | content | level-designer on targeted files | validate targets; walker on targets; metrics-compare | ~$0.10–1; 3–6 min |
+| authored content (level editor) | no router call; `apply-content` writes each edited level once the genre validator and the solver bot accept it (the same check kit the editor ran in the browser); then PLAYTEST, BUDGET, PUBLISH | validate:levels; validate:ramp; solver; smoke; budget | $0; 1–3 min |
 | code | IMPLEMENT-style session scoped by `edit-request.json` with k-sampling; then LEVELS if impact says; PLAYTEST; JUICE; REVIEW; regression (zero masked diffs outside `affected_scenes`); BUDGET; PUBLISH | full ladder | $0.5–5; 10–20 min |
 | remix | `fork_game` copies origin accepted source + lineage edge; optional follow-up edit job | none | $0; seconds |
 

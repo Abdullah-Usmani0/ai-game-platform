@@ -18,6 +18,10 @@ export function createPlan(presets: StagePresets): StageSpec[] {
   return CREATE_STAGES.map((stage) => applyPreset({ stage, gate: [] }, presets));
 }
 
-export function editPlan(route: EditRouteName, presets: StagePresets): StageSpec[] {
-  return EDIT_PLANS[route].map((stage) => applyPreset({ stage, gate: [] }, presets));
+/** Authored content (the level editor): written as given once the validator and the solver bot accept it; no model call. */
+export const AUTHORED_CONTENT_PLAN = ['apply-content', 'playtest', 'budget', 'publish'];
+
+export function editPlan(route: EditRouteName, presets: StagePresets, authored = false): StageSpec[] {
+  const stages = authored && route === 'content' ? AUTHORED_CONTENT_PLAN : EDIT_PLANS[route];
+  return stages.map((stage) => applyPreset({ stage, gate: [] }, presets));
 }

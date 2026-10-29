@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +26,7 @@ const { positionals, values } = parseArgs({
     title: { type: 'string' },
     seed: { type: 'string' },
     message: { type: 'string' },
+    content: { type: 'string' },
     refs: { type: 'string' },
     'dry-run': { type: 'boolean', default: false },
     budget: { type: 'string' },
@@ -48,11 +50,13 @@ if (cmd === 'enqueue') {
   console.log(JSON.stringify({ gameId: game.id, slug, jobId: job.id, dryRun: request.dryRun }));
 } else if (cmd === 'edit') {
   const gameId = positionals[1];
-  if (!gameId || !values.message) throw new Error('usage: gg-worker edit <gameId> --message TEXT [--dry-run]');
+  if (!gameId || !values.message) throw new Error('usage: gg-worker edit <gameId> --message TEXT [--content levels.json] [--dry-run]');
   const game = await store.getGame(gameId);
   if (!game) throw new Error(`game ${gameId} not found`);
-  const request = EditRequest.parse({ message: values.message, dryRun: values['dry-run'] });
-  const job = await store.enqueueJob({ gameId, userId: values.user, kind: 'edit_code', input: request, baseVersionId: game.headVersionId });
+  // --content: a JSON file { "levels": [LevelJson, ...] } authored outside the model (what the level editor sends).
+  const content = values.content ? (JSON.parse(readFileSync(resolve(values.content), 'utf8')) as unknown) : undefined;
+  const request = EditRequest.parse({ message: values.message, dryRun: values['dry-run'], content });
+  const job = await store.enqueueJob({ gameId, userId: values.user, kind: content ? 'edit_content' : 'edit_code', input: request, baseVersionId: game.headVersionId });
   console.log(JSON.stringify({ gameId, jobId: job.id, base: game.headVersionId }));
 } else if (cmd === 'run') {
   const n = await workerLoop({ store, templateDir: resolve(values.template), workRoot: resolve(values['work-root']), once: values.once });

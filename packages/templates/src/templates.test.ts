@@ -6,6 +6,7 @@ import { createSim } from '@gg/sdk';
 import { checkSystems } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
 import { runBot } from '@gg/template-core';
+import { CHECKS, checkKit, checkLevel } from './check.js';
 import { CATALOG, GENRES } from './node.js';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
@@ -62,8 +63,40 @@ describe('genre manifests', () => {
       });
     });
   }
+  it('has a browser-safe check kit for every genre', () => {
+    expect(Object.keys(CHECKS).sort()).toEqual(Object.keys(GENRES).sort());
+  });
   it('builds one catalog with no duplicate ids across genres', () => {
     expect(Object.keys(CATALOG).length).toBeGreaterThan(8);
     expect(CATALOG['pickups']?.genres).toBe('*');
+  });
+});
+
+describe('check kits (the level editor runs the gate in the page)', () => {
+  for (const [id, g] of Object.entries(GENRES)) {
+    it(`${id}: the kit is the manifest's validator and solver, and accepts a generated level`, () => {
+      const kit = checkKit(id);
+      expect(kit.validate).toBe(g.levelGrammar.validate);
+      expect(kit.bots).toBe(g.bots);
+      expect(kit.solverBot).toBe(g.solverBot);
+      expect(kit.runtime.id).toBe(g.id);
+      const systems = ARTIFACT_SCHEMAS.SystemsJson.parse({ version: 1, genre: g.id, feelPreset: g.defaultFeel, systems: Object.keys(g.systems).map((s) => ({ id: s, params: s === 'survival' ? { winAtS: 30 } : {} })) });
+      let ok = false;
+      for (let seed = 1; seed <= 8 && !ok; seed++) {
+        const level = g.levelGrammar.generate({ seed, difficulty: 0.2 });
+        ok = checkLevel(kit, level, systems, { content: g.extraContent?.({ seed, difficulty: 0.2 }) ?? {} }).ok;
+      }
+      expect(ok).toBe(true);
+    });
+  }
+  it('reports the validator rejection without running the solver', () => {
+    const g = GENRES['platformer']!;
+    const level = g.levelGrammar.generate({ seed: 1, difficulty: 0.2 });
+    const broken = { ...level, goal: { x: 0, y: 0 } };
+    const systems = ARTIFACT_SCHEMAS.SystemsJson.parse({ version: 1, genre: 'platformer', feelPreset: g.defaultFeel, systems: g.requiredSystems.map((s) => ({ id: s, params: {} })) });
+    const r = checkLevel(checkKit('platformer'), broken, systems);
+    expect(r.ok).toBe(false);
+    expect(r.solver).toBeNull();
+    expect(r.report.issues.some((i) => i.code === 'goal_tile_missing')).toBe(true);
   });
 });

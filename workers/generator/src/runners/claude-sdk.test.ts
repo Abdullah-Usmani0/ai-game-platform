@@ -27,6 +27,7 @@ function ctx(partial: Partial<StageContext> = {}): StageContext {
     dryRun: false,
     request: null,
     route: null,
+    edit: null,
     versionId: 'v1',
     ...partial,
   };

@@ -1,11 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { LevelJson } from '@gg/schemas';
-import type { FeelPreset } from '@gg/sdk';
 import type { GenreManifest } from '@gg/template-core';
-import { validateLevel } from '@gg/validators';
-import { BOTS } from './bots.js';
-import { COLLECTIBLE_TYPES } from './entities.js';
+import { platformerCheck } from './check.js';
 import { EXEMPLARS } from './exemplars.js';
 import { platformerRuntime } from './index.js';
 import { generateLevel } from './level/generate.js';
@@ -18,10 +14,10 @@ export const platformer: GenreManifest = {
   levelGrammar: {
     kind: 'tilemap',
     generate: generateLevel,
-    validate: (level: LevelJson, feel: FeelPreset) => validateLevel(level, { feel, collectibleTypes: COLLECTIBLE_TYPES }),
+    validate: platformerCheck.validate,
   },
-  bots: BOTS,
-  solverBot: 'walker',
+  bots: platformerCheck.bots,
+  solverBot: platformerCheck.solverBot,
   gddFragment: read('./gdd/fragment.md'),
   interviewFragment: read('./gdd/interview.md'),
   scopeBudget: {
@@ -49,3 +45,4 @@ export const platformer: GenreManifest = {
 export * from './index.js';
 export { generateLevel } from './level/generate.js';
 export { BOTS } from './bots.js';
+export * from './check.js';

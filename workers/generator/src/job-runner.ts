@@ -90,6 +90,7 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
   const game = await store.getGame(job.gameId).catch(() => null);
   let request: CreateRequest | null = null;
   let route: EditRoute | null = null;
+  let edit: EditRequest | null = null;
   let stages: StageSpec[];
   let gameDir: string;
   let dryRun = dryRunEnv;
@@ -106,7 +107,7 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
     stages = createPlan(presets);
     if (dryRun) registerProvider('fake', new FakeProvider({ genre: genreOf(request.genre), request }));
   } else if (job.kind.startsWith('edit_')) {
-    const edit = EditRequest.parse(job.input);
+    edit = EditRequest.parse(job.input);
     dryRun = dryRun || edit.dryRun;
     const baseId = edit.baseVersionId ?? job.baseVersionId ?? game?.headVersionId ?? null;
     if (!baseId) throw new Error('edit job needs a base version (no head version on the game)');
@@ -118,7 +119,11 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
     const g = genreOfGame({ request: null, gameDir });
     if (dryRun) registerProvider('fake', new FakeProvider({ genre: g, request: null }));
     const stored = job.input['route'] as EditRoute | undefined;
-    if (stored) {
+    if (edit.content) {
+      // Authored in the level editor: no routing call; the apply-content stage verifies and writes the levels.
+      const ids = edit.content.levels.map((l) => l.id);
+      route = EditRoute.parse({ designNotes: `levels authored in the editor: ${ids.join(', ')}`, route: 'content', targets: ids, affectedScenes: [], confidence: 1, paramPatch: [] });
+    } else if (stored) {
       route = EditRoute.parse(stored);
     } else {
       const r = resolveStage(policy, { stage: 'route', gate: [], runner: 'structured' }, dryRun);
@@ -138,7 +143,7 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
     await store.updateJob(job.id, { kind: `edit_${route.route}` as JobKind, input: { ...job.input, route }, baseVersionId: baseId });
     await store.appendEvent(job.id, 'assistant_summary', { route: route.route, confidence: route.confidence, targets: route.targets, designNotes: route.designNotes }, 'route');
     log(`edit routed to '${route.route}' (confidence ${route.confidence}): ${route.designNotes}`);
-    stages = editPlan(route.route, presets);
+    stages = editPlan(route.route, presets, Boolean(edit.content));
   } else {
     throw new Error(`job kind '${job.kind}' needs a create request, an edit request or an explicit plan`);
   }
@@ -173,7 +178,7 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
       const runner = RUNNERS[resolved.runnerKind];
       if (!runner) throw new Error(`no runner '${resolved.runnerKind}'`);
       const versionId = randomUUID();
-      const ctx: StageContext = { jobId: job.id, gameId: job.gameId, spec, attempt, workDir, gameDir, policy: resolved.sp, model: resolved.model, provider: resolved.provider, store, log, dryRun, request, route, versionId };
+      const ctx: StageContext = { jobId: job.id, gameId: job.gameId, spec, attempt, workDir, gameDir, policy: resolved.sp, model: resolved.model, provider: resolved.provider, store, log, dryRun, request, route, edit, versionId };
       // Verify first: an agent stage whose gate already passes needs no session (and costs nothing).
       let outcome: StageOutcome | null = null;
       let gate: GateRun | null = null;

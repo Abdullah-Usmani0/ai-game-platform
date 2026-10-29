@@ -78,6 +78,18 @@ export interface GenreRuntime {
   collectibleTypes: string[];
 }
 
+/**
+ * The browser-safe check kit of a genre: the static level validator, the bots and the solver, with no Node imports.
+ * The worker's gates, the scaffold oracle and the level editor's in-browser check all run this same code.
+ */
+export interface GenreCheck {
+  runtime: GenreRuntime;
+  validate(level: LevelJson, feel: FeelPreset): ValidationReport;
+  bots: Record<string, BotPolicy>;
+  /** Bot that must complete a valid level (the solvability oracle). */
+  solverBot: string;
+}
+
 /** Node-only part: generators, validators, bots, prompt fragments, exemplars, panels, samples. */
 export interface GenreManifest extends GenreRuntime {
   levelGrammar: {

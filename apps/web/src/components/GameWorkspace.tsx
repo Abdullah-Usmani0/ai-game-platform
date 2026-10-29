@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { LevelJson } from '@gg/schemas';
+import { LevelEditor } from '@/components/LevelEditor';
 import { ParamPanel, type PanelItem } from '@/components/ParamPanel';
 import { PlayFrame } from '@/components/PlayFrame';
 import { RemixButton } from '@/components/RemixButton';
@@ -110,11 +112,11 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
     };
   }, [jobId, refreshGame]);
 
-  async function submitEdit(text: string) {
+  async function submitEdit(text: string, content?: { levels: LevelJson[] }) {
     if (!text.trim()) return;
     setSending(true);
     setError(null);
-    const res = await fetch(`/api/games/${game.id}/edit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text, dryRun }) });
+    const res = await fetch(`/api/games/${game.id}/edit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text, dryRun, content }) });
     const data = (await res.json()) as { jobId?: string; error?: string | string[] };
     setSending(false);
     if (!res.ok || !data.jobId) {
@@ -219,6 +221,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
         </div>
         {head?.panels?.length ? <ParamPanel panels={head.panels} disabled={sending || active || !game.headVersionId} onApply={(m) => void submitEdit(m)} /> : null}
         {head?.style ? <StyleEditor style={head.style} disabled={sending || active || !game.headVersionId} onApply={(m) => void submitEdit(m)} /> : null}
+        {head?.bundleBase ? <LevelEditor key={head.id} genre={game.genre} bundleBase={head.bundleBase} disabled={sending || active || !game.headVersionId} onApply={(content, m) => void submitEdit(m, content)} /> : null}
         {gameView ? (
           <div className="panel">
             <h2>Versions</h2>

@@ -1,22 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { LevelJson } from '@gg/schemas';
 import type { GenreManifest } from '@gg/template-core';
-import { BOTS } from './bots.js';
+import { survivorsCheck } from './check.js';
 import { EXEMPLARS } from './exemplars.js';
 import { survivorsRuntime } from './index.js';
 import { generateArena, generateWaves } from './level/generate.js';
-import { validateArena } from './level/validate.js';
 import { PANELS } from './panels.js';
 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 
 export const survivors: GenreManifest = {
   ...survivorsRuntime,
-  levelGrammar: { kind: 'arena', generate: generateArena, validate: (level: LevelJson) => validateArena(level) },
+  levelGrammar: { kind: 'arena', generate: generateArena, validate: survivorsCheck.validate },
   extraContent: (params) => ({ waves: generateWaves(params, 60) }),
-  bots: BOTS,
-  solverBot: 'kiter',
+  bots: survivorsCheck.bots,
+  solverBot: survivorsCheck.solverBot,
   gddFragment: read('./gdd/fragment.md'),
   interviewFragment: read('./gdd/interview.md'),
   scopeBudget: {
@@ -44,3 +42,4 @@ export * from './index.js';
 export { generateArena, generateWaves } from './level/generate.js';
 export { validateArena, validateWaves } from './level/validate.js';
 export { BOTS } from './bots.js';
+export * from './check.js';

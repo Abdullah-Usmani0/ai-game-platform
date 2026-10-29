@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Genre, ScopeTier } from './common';
+import { LevelJson } from './level';
 
 /** What a user asks for on the create form; the input of a create job. */
 export const CreateRequest = z.object({
@@ -31,10 +32,20 @@ export const EditRoute = z.object({
 });
 export type EditRoute = z.infer<typeof EditRoute>;
 
-/** The input of an edit job: the user's message; the worker routes it. */
+/**
+ * Content authored directly (the level editor): each level replaces the file with the same id after the genre
+ * validator and the solver bot accept it. No model call is involved.
+ */
+export const ContentPatch = z.object({
+  levels: z.array(LevelJson).min(1).max(10),
+});
+export type ContentPatch = z.infer<typeof ContentPatch>;
+
+/** The input of an edit job: the user's message (the worker routes it), or authored content (applied as given). */
 export const EditRequest = z.object({
   message: z.string().min(2).max(2000),
   baseVersionId: z.string().optional(),
   dryRun: z.boolean().default(false),
+  content: ContentPatch.optional(),
 });
 export type EditRequest = z.infer<typeof EditRequest>;

@@ -23,5 +23,8 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm demo
+      # the demo store is fresh, so the workspace must show the parameter panels, the style card and the level editor
       - run: pnpm --filter @gg/web bundles:sample && pnpm --filter @gg/web build && pnpm --filter @gg/web check:bridge && pnpm --filter @gg/web check:create
+        env:
+          GG_EXPECT_PANELS: '1'
       - run: pnpm bench --limit 2 --k 1

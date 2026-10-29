@@ -1,7 +1,7 @@
 // `pnpm demo`: build the engine and sample, point the harness at the sample as its game, run the gate, print evidence.
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, lstatSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -50,6 +50,41 @@ const createJob = store2.jobs.find((j) => j.id === createJobId);
 const game = store2.games.find((g) => g.id === gameId);
 const head = store2.versions.find((v) => v.id === game?.headVersionId);
 const createStages = store2.trajectories.filter((t) => t.jobId === createJobId).map((t) => `${t.stage}:${t.passed ? 'pass' : 'fail'}@${t.attempt}`);
+
+// The level editor path: an authored level (a coin on the spawn tile) runs apply-content -> playtest -> budget ->
+// publish. The validator and the solver bot accept or reject it; no model is called.
+const bucketPath = (p) => join(storeDir, 'buckets', p.slice(0, p.indexOf('/')), p.slice(p.indexOf('/') + 1));
+let edit = null;
+if (head?.bundlePath && existsSync(join(bucketPath(head.bundlePath), 'content', 'index.json'))) {
+  const index = JSON.parse(readFileSync(join(bucketPath(head.bundlePath), 'content', 'index.json'), 'utf8'));
+  const levelRel = index.levels[0];
+  const level = JSON.parse(readFileSync(join(bucketPath(head.bundlePath), 'content', levelRel), 'utf8'));
+  const authored = { ...level, entities: [...level.entities, { type: 'coin', x: level.spawn.x, y: level.spawn.y, props: {} }] };
+  const contentFile = join(root, '.gg-work', `demo-authored-${gameId}.json`);
+  mkdirSync(dirname(contentFile), { recursive: true });
+  writeFileSync(contentFile, JSON.stringify({ levels: [authored] }));
+  const enq = spawnSync(process.execPath, ['--import', 'tsx', worker, 'edit', gameId, '--message', 'Level editor: a coin on the spawn tile', '--content', contentFile, '--dry-run'], { cwd: join(root, 'workers', 'generator'), env, encoding: 'utf8' });
+  if (enq.status !== 0) {
+    console.error(`demo: enqueueing the authored edit failed\n${enq.stderr}`);
+    process.exit(1);
+  }
+  const editJobId = JSON.parse(enq.stdout.trim().split('\n').pop()).jobId;
+  const editRun = spawnSync(process.execPath, ['--import', 'tsx', worker, 'run', '--once'], { cwd: join(root, 'workers', 'generator'), env, stdio: 'inherit' });
+  const store3 = JSON.parse(readFileSync(join(storeDir, 'store.json'), 'utf8'));
+  const editJob = store3.jobs.find((j) => j.id === editJobId);
+  const head3 = store3.versions.find((v) => v.id === store3.games.find((g) => g.id === gameId)?.headVersionId);
+  const published = head3?.bundlePath ? JSON.parse(readFileSync(join(bucketPath(head3.bundlePath), 'content', levelRel), 'utf8')) : null;
+  edit = {
+    jobId: editJobId,
+    kind: editJob?.kind,
+    status: editJob?.status,
+    runStatus: editRun.status,
+    stages: store3.trajectories.filter((t) => t.jobId === editJobId).map((t) => `${t.stage}:${t.passed ? 'pass' : 'fail'}@${t.attempt}`),
+    newHead: Boolean(head3) && head3.id !== head.id,
+    coinOnSpawn: Boolean(published?.entities.some((e) => e.type === 'coin' && e.x === level.spawn.x && e.y === level.spawn.y)),
+    error: editJob?.error ?? null,
+  };
+}
 console.log('\n=== evidence bundle ===');
 console.log(JSON.stringify({
   gate: { stage: report.stage, passed: report.passed, checks: report.checks.map((c) => `${c.name}:${c.passed ? 'pass' : 'fail'}`), durationMs: report.durationMs },
@@ -57,6 +92,7 @@ console.log(JSON.stringify({
   playtest: { passed: playtest.passed, replayHashMatch: playtest.replayHashMatch, readyMs: playtest.readyMs, hash: playtest.bots[0]?.finalHash, metrics: playtest.bots[0]?.metrics, consoleErrors: playtest.consoleErrors.length },
   screenshot: join(sample, 'reports', `smoke-seed${playtest.seeds[0]}-tick${playtest.bots[0]?.ticks}.png`),
   create: { gameId, slug: game?.slug, state: game?.state, jobStatus: createJob?.status, stages: createStages, bundlePath: head?.bundlePath, evidence: head?.design?.evidence ? { gates: head.design.evidence.gates.map((g) => `${g.stage}:${g.passed ? 'pass' : 'fail'}`), playtest: head.design.evidence.playtest, thumbnail: head.design.evidence.thumbnail } : null },
+  edit,
 }, null, 2));
-const ok = gate.status === 0 && run.status === 0 && job?.status === 'succeeded' && version?.isHead === true && createRun.status === 0 && createJob?.status === 'succeeded' && game?.state === 'playable' && Boolean(head?.bundlePath);
+const ok = gate.status === 0 && run.status === 0 && job?.status === 'succeeded' && version?.isHead === true && createRun.status === 0 && createJob?.status === 'succeeded' && game?.state === 'playable' && Boolean(head?.bundlePath) && edit?.kind === 'edit_content' && edit.status === 'succeeded' && edit.newHead && edit.coinOnSpawn;
 process.exit(ok ? 0 : 1);

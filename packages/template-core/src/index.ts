@@ -7,3 +7,4 @@ export { spawner, meta as spawnerMeta } from './systems/spawner.js';
 export { survival, meta as survivalMeta } from './systems/survival.js';
 export { validateArena, validateWaves } from './level/arena.js';
 export * from './sim-options.js';
+export * from './check.js';
