@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { ModelPolicy, type Trajectory } from '@gg/schemas';
-import type { GameRow, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewVersion, Store, VersionRow } from './types';
+import { ModelPolicy, type RatingTag, type TestSubmission, type Trajectory } from '@gg/schemas';
+import { computeStats, feedEligible, headPlaytestPassed, RANKING, testOutcome } from './ranking';
+import type { CreditEntry, FeedItem, GameRow, GameStats, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, Store, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
 
 interface FileState {
   games: GameRow[];
@@ -12,7 +13,15 @@ interface FileState {
   versions: VersionRow[];
   trajectories: Trajectory[];
   policies: ModelPolicy[];
+  plays: PlayRow[];
+  ratings: RatingRow[];
+  testQueue: TestQueueRow[];
+  testAssignments: TestAssignmentRow[];
+  credits: CreditEntry[];
 }
+
+/** How long a claimed test stays reserved for its tester. */
+const TEST_CLAIM_MS = 30 * 60_000;
 
 const DEFAULT_POLICY: ModelPolicy = ModelPolicy.parse({
   version: 1,
@@ -37,7 +46,7 @@ export class FileStore implements Store {
   constructor(private readonly dir: string) {
     mkdirSync(dir, { recursive: true });
     this.file = join(dir, 'store.json');
-    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY] };
+    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], ratings: [], testQueue: [], testAssignments: [], credits: [] };
     this.load();
   }
 
@@ -54,6 +63,11 @@ export class FileStore implements Store {
       versions: parsed.versions ?? [],
       trajectories: parsed.trajectories ?? [],
       policies: parsed.policies?.length ? parsed.policies : [DEFAULT_POLICY],
+      plays: parsed.plays ?? [],
+      ratings: parsed.ratings ?? [],
+      testQueue: parsed.testQueue ?? [],
+      testAssignments: parsed.testAssignments ?? [],
+      credits: parsed.credits ?? [],
     };
     this.mtime = m;
   }
@@ -291,5 +305,164 @@ export class FileStore implements Store {
   async listLineage(gameId: string): Promise<LineageRow[]> {
     this.load();
     return this.state.lineage.filter((l) => l.gameId === gameId).map((l) => ({ ...l }));
+  }
+
+  // ---------------------------------------------------------------- community
+
+  async recordPlay(play: NewPlay): Promise<PlayRow> {
+    this.load();
+    if (!this.state.games.some((g) => g.id === play.gameId)) throw new Error(`game ${play.gameId} not found`);
+    const row: PlayRow = { ...play, id: randomUUID(), createdAt: new Date().toISOString() };
+    this.state.plays.push(row);
+    this.save();
+    return { ...row };
+  }
+
+  async rateGame(gameId: string, userId: string, rating: { tag: RatingTag; score?: number }): Promise<RatingRow> {
+    this.load();
+    if (!this.state.games.some((g) => g.id === gameId)) throw new Error(`game ${gameId} not found`);
+    const now = new Date().toISOString();
+    let row = this.state.ratings.find((r) => r.gameId === gameId && r.userId === userId);
+    if (row) Object.assign(row, { tag: rating.tag, score: rating.score ?? null, updatedAt: now });
+    else {
+      row = { gameId, userId, tag: rating.tag, score: rating.score ?? null, createdAt: now, updatedAt: now };
+      this.state.ratings.push(row);
+    }
+    this.save();
+    return { ...row };
+  }
+
+  async getRating(gameId: string, userId: string): Promise<RatingRow | null> {
+    this.load();
+    const r = this.state.ratings.find((x) => x.gameId === gameId && x.userId === userId);
+    return r ? { ...r } : null;
+  }
+
+  private statsFor(game: GameRow, now = new Date()): GameStats {
+    const closed = this.state.testQueue.filter((q) => q.gameId === game.id && q.status === 'closed').sort((a, b) => (b.closedAt ?? '').localeCompare(a.closedAt ?? ''));
+    return computeStats({
+      game,
+      plays: this.state.plays.filter((p) => p.gameId === game.id),
+      ratings: this.state.ratings.filter((r) => r.gameId === game.id),
+      remixes: this.state.lineage.filter((l) => l.ancestorGameId === game.id).length,
+      testOutcome: closed[0]?.outcome ?? null,
+      now,
+    });
+  }
+
+  async gameStats(gameId: string): Promise<GameStats> {
+    this.load();
+    const g = this.state.games.find((x) => x.id === gameId);
+    if (!g) throw new Error(`game ${gameId} not found`);
+    return this.statsFor(g);
+  }
+
+  async listFeed(opts: { limit?: number } = {}): Promise<FeedItem[]> {
+    this.load();
+    const now = new Date();
+    const items: FeedItem[] = [];
+    for (const game of this.state.games) {
+      if (game.visibility !== 'listed') continue;
+      const head = this.state.versions.find((v) => v.id === game.headVersionId) ?? null;
+      const stats = this.statsFor(game, now);
+      if (head && feedEligible(game, head, stats)) items.push({ game: { ...game }, head: { ...head }, stats });
+    }
+    return items.sort((a, b) => b.stats.rankScore - a.stats.rankScore || b.game.createdAt.localeCompare(a.game.createdAt)).slice(0, opts.limit ?? 50);
+  }
+
+  async setListed(gameId: string, listed: boolean): Promise<GameRow> {
+    this.load();
+    const g = this.state.games.find((x) => x.id === gameId);
+    if (!g) throw new Error(`game ${gameId} not found`);
+    if (listed) {
+      const head = this.state.versions.find((v) => v.id === g.headVersionId) ?? null;
+      if (!head || !headPlaytestPassed(head)) throw new Error('the game needs an accepted version whose playtest passed before it can be listed');
+      const last = this.state.testQueue.filter((q) => q.gameId === g.id && q.versionId === head.id && q.status === 'closed').pop();
+      if (last?.outcome === 'broken') throw new Error('testers reported this version broken; publish a fixed version first');
+    }
+    Object.assign(g, { visibility: listed ? 'listed' : 'unlisted', state: listed ? 'published' : g.state === 'published' ? 'playable' : g.state, updatedAt: new Date().toISOString() });
+    this.save();
+    return { ...g };
+  }
+
+  async enqueueTest(input: { gameId: string; versionId: string; requestedBy: string; needed?: number; rewardCredits?: number }): Promise<TestQueueRow> {
+    this.load();
+    const g = this.state.games.find((x) => x.id === input.gameId);
+    if (!g) throw new Error(`game ${input.gameId} not found`);
+    const v = this.state.versions.find((x) => x.id === input.versionId && x.gameId === g.id);
+    if (!v?.bundlePath) throw new Error(`version ${input.versionId} has no published bundle`);
+    const open = this.state.testQueue.find((q) => q.gameId === g.id && q.versionId === v.id && q.status === 'open');
+    if (open) return { ...open };
+    const row: TestQueueRow = { id: randomUUID(), gameId: g.id, versionId: v.id, requestedBy: input.requestedBy, needed: input.needed ?? 3, rewardCredits: input.rewardCredits ?? 5, status: 'open', outcome: null, createdAt: new Date().toISOString(), closedAt: null };
+    this.state.testQueue.push(row);
+    this.save();
+    return { ...row };
+  }
+
+  async listTests(gameId: string): Promise<{ queue: TestQueueRow[]; assignments: TestAssignmentRow[] }> {
+    this.load();
+    return {
+      queue: this.state.testQueue.filter((q) => q.gameId === gameId).map((q) => ({ ...q })),
+      assignments: this.state.testAssignments.filter((a) => a.gameId === gameId).map((a) => ({ ...a })),
+    };
+  }
+
+  async claimTest(testerId: string): Promise<{ assignment: TestAssignmentRow; queue: TestQueueRow } | null> {
+    this.load();
+    const now = Date.now();
+    const live = (a: TestAssignmentRow) => a.submittedAt === null && Date.parse(a.expiresAt) > now;
+    const mine = this.state.testAssignments.find((a) => a.testerId === testerId && live(a));
+    if (mine) {
+      const q = this.state.testQueue.find((x) => x.id === mine.queueId)!;
+      return { assignment: { ...mine }, queue: { ...q } };
+    }
+    const candidates = this.state.testQueue
+      .filter((q) => q.status === 'open')
+      .filter((q) => this.state.games.find((g) => g.id === q.gameId)?.ownerId !== testerId)
+      .filter((q) => !this.state.testAssignments.some((a) => a.queueId === q.id && a.testerId === testerId))
+      .filter((q) => this.state.testAssignments.filter((a) => a.queueId === q.id && (a.submittedAt !== null || live(a))).length < q.needed)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const q = candidates[0];
+    if (!q) return null;
+    const assignment: TestAssignmentRow = { id: randomUUID(), queueId: q.id, gameId: q.gameId, versionId: q.versionId, testerId, claimedAt: new Date(now).toISOString(), expiresAt: new Date(now + TEST_CLAIM_MS).toISOString(), submittedAt: null, verdict: null, tag: null, note: '', rewardPaid: 0 };
+    this.state.testAssignments.push(assignment);
+    this.save();
+    return { assignment: { ...assignment }, queue: { ...q } };
+  }
+
+  async submitTest(assignmentId: string, testerId: string, report: TestSubmission): Promise<{ assignment: TestAssignmentRow; queue: TestQueueRow }> {
+    this.load();
+    const a = this.state.testAssignments.find((x) => x.id === assignmentId);
+    if (!a || a.testerId !== testerId) throw new Error('assignment not found');
+    if (a.submittedAt !== null) throw new Error('this test was already submitted');
+    if (Date.parse(a.expiresAt) <= Date.now()) throw new Error('this test claim expired; claim again');
+    const played = this.state.plays.some((p) => p.gameId === a.gameId && p.versionId === a.versionId && p.userId === testerId && p.source === 'test' && p.durationS >= RANKING.qualifiedPlayS && p.createdAt >= a.claimedAt);
+    if (!played) throw new Error(`play the game for at least ${RANKING.qualifiedPlayS} s before reporting`);
+    const q = this.state.testQueue.find((x) => x.id === a.queueId)!;
+    Object.assign(a, { submittedAt: new Date().toISOString(), verdict: report.verdict, tag: report.tag, note: report.note, rewardPaid: q.rewardCredits });
+    if (q.rewardCredits > 0) {
+      const balance = this.balance(testerId) + q.rewardCredits;
+      this.state.credits.push({ userId: testerId, delta: q.rewardCredits, reason: 'test_reward', refId: a.id, balanceAfter: balance, createdAt: new Date().toISOString() });
+    }
+    const done = this.state.testAssignments.filter((x) => x.queueId === q.id && x.submittedAt !== null);
+    if (done.length >= q.needed && q.status === 'open') {
+      q.status = 'closed';
+      q.closedAt = new Date().toISOString();
+      q.outcome = testOutcome(done.map((x) => x.verdict!));
+      const g = this.state.games.find((x) => x.id === q.gameId);
+      if (g) g.listing = { ...g.listing, tested: { versionId: q.versionId, outcome: q.outcome, at: q.closedAt } };
+    }
+    this.save();
+    return { assignment: { ...a }, queue: { ...q } };
+  }
+
+  private balance(userId: string): number {
+    const entries = this.state.credits.filter((c) => c.userId === userId);
+    return entries.length ? entries[entries.length - 1]!.balanceAfter : 0;
+  }
+
+  async creditBalance(userId: string): Promise<number> {
+    this.load();
+    return this.balance(userId);
   }
 }

@@ -26,6 +26,7 @@ export * from './bridge';
 export * from './policy';
 export * from './trajectory';
 export * from './jobs';
+export * from './community';
 
 /** Every artifact schema by name, for JSON Schema export and structured-output calls. */
 export const ARTIFACT_SCHEMAS = {

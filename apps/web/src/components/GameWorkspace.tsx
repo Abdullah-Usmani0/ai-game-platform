@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LevelJson } from '@gg/schemas';
+import { CommunityPanel } from '@/components/CommunityPanel';
 import { LevelEditor } from '@/components/LevelEditor';
 import { ParamPanel, type PanelItem } from '@/components/ParamPanel';
 import { PlayFrame } from '@/components/PlayFrame';
@@ -219,6 +220,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
           </div>
           {error ? <p className="err">{error}</p> : null}
         </div>
+        <CommunityPanel gameId={game.id} hasHead={Boolean(game.headVersionId)} />
         {head?.panels?.length ? <ParamPanel panels={head.panels} disabled={sending || active || !game.headVersionId} onApply={(m) => void submitEdit(m)} /> : null}
         {head?.style ? <StyleEditor style={head.style} disabled={sending || active || !game.headVersionId} onApply={(m) => void submitEdit(m)} /> : null}
         {head?.bundleBase ? <LevelEditor key={head.id} genre={game.genre} bundleBase={head.bundleBase} disabled={sending || active || !game.headVersionId} onApply={(content, m) => void submitEdit(m, content)} /> : null}

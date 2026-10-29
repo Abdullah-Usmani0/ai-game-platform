@@ -1,4 +1,4 @@
-import type { ModelPolicy, Trajectory } from '@gg/schemas';
+import type { ModelPolicy, PlaySource, RatingTag, TestSubmission, TestVerdict, Trajectory } from '@gg/schemas';
 
 export type JobKind = 'create' | 'edit_parameter' | 'edit_style' | 'edit_behaviour' | 'edit_content' | 'edit_code' | 'remix' | 'republish';
 export type JobStatus = 'queued' | 'running' | 'waiting_assets' | 'needs_human' | 'succeeded' | 'failed' | 'cancelled';
@@ -106,6 +106,95 @@ export interface LineageRow {
   forkedFromVersionId: string | null;
 }
 
+export interface PlayRow {
+  id: string;
+  gameId: string;
+  versionId: string;
+  userId: string;
+  source: PlaySource;
+  durationS: number;
+  completed: boolean;
+  levelsCompleted: number;
+  deaths: number;
+  createdAt: string;
+}
+export type NewPlay = Omit<PlayRow, 'id' | 'createdAt'>;
+
+export interface RatingRow {
+  gameId: string;
+  userId: string;
+  tag: RatingTag;
+  score: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A game's community signals, aggregated per player (see ranking.ts for the formula). */
+export interface GameStats {
+  gameId: string;
+  players: number;
+  qualifiedPlayers: number;
+  plays: number;
+  completionRate: number;
+  avgPlayMin: number;
+  ratings: Record<RatingTag, number>;
+  ratingCount: number;
+  remixes: number;
+  engagement: number;
+  quality: number;
+  rankScore: number;
+  /** Rated broken by too many players, or a test round concluded broken: kept out of the feed. */
+  broken: boolean;
+  computedAt: string;
+}
+
+export interface FeedItem {
+  game: GameRow;
+  head: VersionRow;
+  stats: GameStats;
+}
+
+export type TestQueueStatus = 'open' | 'closed';
+
+/** A request for testers to play an unreleased version; closes when `needed` reports are in. */
+export interface TestQueueRow {
+  id: string;
+  gameId: string;
+  versionId: string;
+  requestedBy: string;
+  needed: number;
+  rewardCredits: number;
+  status: TestQueueStatus;
+  /** Majority verdict once closed (a tie counts as broken). */
+  outcome: TestVerdict | null;
+  createdAt: string;
+  closedAt: string | null;
+}
+
+export interface TestAssignmentRow {
+  id: string;
+  queueId: string;
+  gameId: string;
+  versionId: string;
+  testerId: string;
+  claimedAt: string;
+  expiresAt: string;
+  submittedAt: string | null;
+  verdict: TestVerdict | null;
+  tag: RatingTag | null;
+  note: string;
+  rewardPaid: number;
+}
+
+export interface CreditEntry {
+  userId: string;
+  delta: number;
+  reason: 'test_reward' | 'purchase' | 'generation' | 'edit' | 'refund' | 'admin';
+  refId: string | null;
+  balanceAfter: number;
+  createdAt: string;
+}
+
 /**
  * The only persistence surface workers use. Two implementations: Supabase (production)
  * and a JSON file store (local development, demos, tests without credentials).
@@ -139,4 +228,23 @@ export interface Store {
    */
   forkGame(originVersionId: string, opts: { ownerId: string; slug: string; title: string }): Promise<GameRow>;
   listLineage(gameId: string): Promise<LineageRow[]>;
+
+  // ---- community (phase 3) ----
+  /** Record a finished play session. Plays by the owner and from curated, search, test or workspace traffic do not rank. */
+  recordPlay(play: NewPlay): Promise<PlayRow>;
+  /** One rating per player per game; rating again replaces the tag. */
+  rateGame(gameId: string, userId: string, rating: { tag: RatingTag; score?: number }): Promise<RatingRow>;
+  getRating(gameId: string, userId: string): Promise<RatingRow | null>;
+  gameStats(gameId: string): Promise<GameStats>;
+  /** Listed, playable games whose head passed its gates and is not broken, ranked by rank score. */
+  listFeed(opts?: { limit?: number }): Promise<FeedItem[]>;
+  /** List the game (or unlist it). Listing needs an accepted head whose playtest passed and no broken test verdict. */
+  setListed(gameId: string, listed: boolean): Promise<GameRow>;
+  enqueueTest(input: { gameId: string; versionId: string; requestedBy: string; needed?: number; rewardCredits?: number }): Promise<TestQueueRow>;
+  listTests(gameId: string): Promise<{ queue: TestQueueRow[]; assignments: TestAssignmentRow[] }>;
+  /** The tester's open assignment, or a new one on the oldest open request that is not their own game. */
+  claimTest(testerId: string): Promise<{ assignment: TestAssignmentRow; queue: TestQueueRow } | null>;
+  /** Needs a test play of at least 30 s since the claim; pays the reward and closes the request when enough reports are in. */
+  submitTest(assignmentId: string, testerId: string, report: TestSubmission): Promise<{ assignment: TestAssignmentRow; queue: TestQueueRow }>;
+  creditBalance(userId: string): Promise<number>;
 }

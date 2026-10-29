@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { ModelPolicy, type Trajectory } from '@gg/schemas';
-import type { GameRow, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewVersion, Store, VersionRow } from './types';
+import { ModelPolicy, type RatingTag, type TestSubmission, type Trajectory } from '@gg/schemas';
+import type { FeedItem, GameRow, GameStats, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, Store, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
 
 function snake(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -169,5 +169,128 @@ export class SupabaseStore implements Store {
   async listLineage(gameId: string): Promise<LineageRow[]> {
     const res = await this.client.from('remix_lineage').select('*').eq('game_id', gameId).order('depth');
     return (this.unwrap(res, 'listLineage') as Record<string, unknown>[]).map((r) => camel<LineageRow>(r));
+  }
+
+  // ---------------------------------------------------------------- community (functions in 0003_community.sql)
+
+  private async rpcRow<T>(fn: string, args: Record<string, unknown>): Promise<T | null> {
+    const res = await this.client.rpc(fn, args);
+    if (res.error) throw new Error(`${fn}: ${res.error.message}`);
+    const row = (Array.isArray(res.data) ? res.data[0] : res.data) as Record<string, unknown> | null | undefined;
+    // A function returning a null composite yields a row of nulls; callers check the fields they need.
+    return row ? camel<T>(row) : null;
+  }
+
+  private statsFromRow(row: Record<string, unknown>): GameStats {
+    const n = (k: string) => Number(row[k] ?? 0);
+    return {
+      gameId: String(row['game_id']),
+      players: n('players'),
+      qualifiedPlayers: n('qualified_players'),
+      plays: n('plays'),
+      completionRate: n('completion_rate'),
+      avgPlayMin: n('avg_play_min'),
+      ratings: { fun: n('fun'), confusing: n('confusing'), broken: n('broken'), ugly: n('ugly') },
+      ratingCount: n('rating_count'),
+      remixes: n('remixes'),
+      engagement: n('engagement'),
+      quality: n('quality'),
+      rankScore: n('rank_score'),
+      broken: row['is_broken'] === true,
+      computedAt: String(row['computed_at']),
+    };
+  }
+
+  async recordPlay(play: NewPlay): Promise<PlayRow> {
+    const row = await this.rpcRow<PlayRow>('record_play', { p_user_id: play.userId, p_game_id: play.gameId, p_version_id: play.versionId, p_source: play.source, p_duration_s: play.durationS, p_completed: play.completed, p_levels_completed: play.levelsCompleted, p_deaths: play.deaths });
+    if (!row) throw new Error('record_play: no row');
+    return row;
+  }
+
+  async rateGame(gameId: string, userId: string, rating: { tag: RatingTag; score?: number }): Promise<RatingRow> {
+    const row = await this.rpcRow<RatingRow>('rate_game', { p_user_id: userId, p_game_id: gameId, p_tag: rating.tag, p_score: rating.score ?? null });
+    if (!row) throw new Error('rate_game: no row');
+    return row;
+  }
+
+  async getRating(gameId: string, userId: string): Promise<RatingRow | null> {
+    const res = await this.client.from('ratings').select('*').eq('game_id', gameId).eq('user_id', userId).maybeSingle();
+    if (res.error) throw new Error(`getRating: ${res.error.message}`);
+    return res.data ? camel<RatingRow>(res.data as Record<string, unknown>) : null;
+  }
+
+  async gameStats(gameId: string): Promise<GameStats> {
+    const res = await this.client.rpc('game_stats_for', { p_game_id: gameId });
+    if (res.error) throw new Error(`game_stats_for: ${res.error.message}`);
+    const row = (res.data as Record<string, unknown>[] | null)?.[0];
+    if (!row) throw new Error(`game ${gameId} not found`);
+    return this.statsFromRow(row);
+  }
+
+  async listFeed(opts: { limit?: number } = {}): Promise<FeedItem[]> {
+    const res = await this.client.rpc('feed', { p_limit: opts.limit ?? 50 });
+    if (res.error) throw new Error(`feed: ${res.error.message}`);
+    const stats = ((res.data as Record<string, unknown>[] | null) ?? []).map((r) => this.statsFromRow(r));
+    if (stats.length === 0) return [];
+    const games = await this.client.from('games').select('*').in('id', stats.map((s) => s.gameId));
+    const byId = new Map((this.unwrap(games, 'feed games') as Record<string, unknown>[]).map((r) => [String(r['id']), camel<GameRow>(r)]));
+    const heads = [...byId.values()].map((g) => g.headVersionId).filter((v): v is string => Boolean(v));
+    const versions = await this.client.from('game_versions').select('*').in('id', heads);
+    const vById = new Map((this.unwrap(versions, 'feed versions') as Record<string, unknown>[]).map((r) => [String(r['id']), camel<VersionRow>(r)]));
+    const items: FeedItem[] = [];
+    for (const s of stats) {
+      const game = byId.get(s.gameId);
+      const head = game?.headVersionId ? vById.get(game.headVersionId) : undefined;
+      if (game && head) items.push({ game, head, stats: s });
+    }
+    return items;
+  }
+
+  async setListed(gameId: string, listed: boolean): Promise<GameRow> {
+    const game = await this.getGame(gameId);
+    if (!game) throw new Error(`game ${gameId} not found`);
+    const row = await this.rpcRow<GameRow>('set_listed', { p_user_id: game.ownerId, p_game_id: gameId, p_listed: listed });
+    if (!row) throw new Error('set_listed: no row');
+    return row;
+  }
+
+  async enqueueTest(input: { gameId: string; versionId: string; requestedBy: string; needed?: number; rewardCredits?: number }): Promise<TestQueueRow> {
+    const row = await this.rpcRow<TestQueueRow>('enqueue_test', { p_user_id: input.requestedBy, p_game_id: input.gameId, p_version_id: input.versionId, p_needed: input.needed ?? 3, p_reward: input.rewardCredits ?? 5 });
+    if (!row) throw new Error('enqueue_test: no row');
+    return row;
+  }
+
+  async listTests(gameId: string): Promise<{ queue: TestQueueRow[]; assignments: TestAssignmentRow[] }> {
+    const [q, a] = await Promise.all([
+      this.client.from('test_queue').select('*').eq('game_id', gameId).order('created_at'),
+      this.client.from('test_assignments').select('*').eq('game_id', gameId).order('claimed_at'),
+    ]);
+    return {
+      queue: (this.unwrap(q, 'listTests queue') as Record<string, unknown>[]).map((r) => camel<TestQueueRow>(r)),
+      assignments: (this.unwrap(a, 'listTests assignments') as Record<string, unknown>[]).map((r) => camel<TestAssignmentRow>(r)),
+    };
+  }
+
+  private async queueRow(id: string): Promise<TestQueueRow> {
+    const res = await this.client.from('test_queue').select('*').eq('id', id).single();
+    return camel<TestQueueRow>(this.unwrap(res, 'test_queue') as Record<string, unknown>);
+  }
+
+  async claimTest(testerId: string): Promise<{ assignment: TestAssignmentRow; queue: TestQueueRow } | null> {
+    const assignment = await this.rpcRow<TestAssignmentRow>('claim_test', { p_user_id: testerId });
+    if (!assignment?.id) return null;
+    return { assignment, queue: await this.queueRow(assignment.queueId) };
+  }
+
+  async submitTest(assignmentId: string, testerId: string, report: TestSubmission): Promise<{ assignment: TestAssignmentRow; queue: TestQueueRow }> {
+    const assignment = await this.rpcRow<TestAssignmentRow>('submit_test', { p_user_id: testerId, p_assignment_id: assignmentId, p_verdict: report.verdict, p_tag: report.tag, p_note: report.note });
+    if (!assignment) throw new Error('submit_test: no row');
+    return { assignment, queue: await this.queueRow(assignment.queueId) };
+  }
+
+  async creditBalance(userId: string): Promise<number> {
+    const res = await this.client.from('profiles').select('credits_balance').eq('id', userId).maybeSingle();
+    if (res.error) throw new Error(`creditBalance: ${res.error.message}`);
+    return Number((res.data as { credits_balance?: number } | null)?.credits_balance ?? 0);
   }
 }

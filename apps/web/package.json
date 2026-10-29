@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "bundles:sample": "node scripts/sync-sample-bundle.mjs",
     "check:bridge": "node scripts/check-bridge.mjs",
-    "check:create": "node scripts/check-create.mjs"
+    "check:create": "node scripts/check-create.mjs",
+    "check:community": "node scripts/check-community.mjs"
   },
   "dependencies": {
     "@gg/catalog": "workspace:*",

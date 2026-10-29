@@ -8,11 +8,13 @@ export interface PlayFrameProps {
   bundleUrl: string;
   mode: 'play' | 'preview' | 'test';
   seed?: number;
+  /** Every validated message from the game (play sessions count deaths and completions from the events). */
+  onMessage?: (msg: GameToHost) => void;
 }
 
 type Status = 'loading' | 'hello' | 'ready' | 'error';
 
-export function PlayFrame({ bundleUrl, mode, seed }: PlayFrameProps) {
+export function PlayFrame({ bundleUrl, mode, seed, onMessage }: PlayFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const hostRef = useRef<BridgeHost | null>(null);
   const [status, setStatus] = useState<Status>('loading');
@@ -21,6 +23,10 @@ export function PlayFrame({ bundleUrl, mode, seed }: PlayFrameProps) {
   const [metrics, setMetrics] = useState<{ fps: number; frameMsP95: number } | null>(null);
   const [shot, setShot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const onMessageRef = useRef(onMessage);
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -35,6 +41,7 @@ export function PlayFrame({ bundleUrl, mode, seed }: PlayFrameProps) {
     });
     hostRef.current = host;
     const offMsg = host.on((msg: GameToHost) => {
+      onMessageRef.current?.(msg);
       switch (msg.type) {
         case 'hello':
           setStatus('hello');
