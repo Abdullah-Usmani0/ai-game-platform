@@ -4,7 +4,7 @@ import type { FeelPreset } from './feel.js';
 import type { InputState } from './input.js';
 import type { Rng } from './rng.js';
 import type { Tilemap } from './tilemap.js';
-import type { Entity, MenuOption, World } from './world.js';
+import type { Entity, EntityDef, MenuOption, World } from './world.js';
 
 /** What a system asks for when it opens a menu (ctx.openMenu). */
 export interface MenuSpec {
@@ -33,6 +33,8 @@ export interface SimCtx {
   /** Content JSON (waves, dialogue, progression) the game ships with. */
   readonly content: Readonly<Record<string, unknown>>;
   readonly movementMode: 'platformer' | 'topdown';
+  /** The definition of an entity type (what it is, even once its last entity is gone), or undefined for an unknown type. */
+  defOf(type: string): Readonly<EntityDef> | undefined;
   emit(name: string, payload?: Record<string, unknown>): void;
   spawn(type: string, x: number, y: number): Entity;
   damage(target: Entity, amount: number, source: Entity | null): void;

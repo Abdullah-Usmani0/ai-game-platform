@@ -98,6 +98,11 @@ export interface World {
   menu: Menu | null;
 }
 
+/** Whether a type is hostile by its definition: it has a behaviour or deals contact damage, and is neither a pickup nor a projectile. */
+export function isHostileDef(def: Readonly<EntityDef> | undefined): boolean {
+  return def !== undefined && !def.pickup && !def.projectile && (def.fsm !== undefined || (def.contactDamage ?? 0) > 0);
+}
+
 export function makeEntity(id: number, def: EntityDef, x: number, y: number): Entity {
   return {
     id,

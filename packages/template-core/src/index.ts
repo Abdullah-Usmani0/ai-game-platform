@@ -6,6 +6,7 @@ export { pickups, meta as pickupsMeta } from './systems/pickups.js';
 export { movementTopdown, meta as movementTopdownMeta } from './systems/movement-topdown.js';
 export { spawner, meta as spawnerMeta } from './systems/spawner.js';
 export { survival, meta as survivalMeta } from './systems/survival.js';
+export { objectives, meta as objectivesMeta } from './systems/objectives.js';
 export { validateArena, validateWaves } from './level/arena.js';
 export * from './sim-options.js';
 export * from './check.js';

@@ -433,6 +433,15 @@ describe('progress', () => {
     expect(sim.progress()).toBeCloseTo((0.2 + 0.6 + 1 + 0) / 4);
   });
 
+  it('counts only the systems named in progressFrom, when set (a composed game asks its win owner alone)', () => {
+    const systems = [mover, fixed('win', () => 0.8), fixed('side', () => 0.2)];
+    expect(createSim({ ...options, systems }).progress()).toBeCloseTo(0.5);
+    expect(createSim({ ...options, systems, progressFrom: ['win'] }).progress()).toBeCloseTo(0.8);
+    // Naming no system with a hook falls back to the goal, as a game without hooks does.
+    const none = createSim({ ...options, systems, progressFrom: ['mover'] });
+    expect(none.progress()).toBeCloseTo(goalCloseness(none.map, none.world.player));
+  });
+
   it('reading it never changes the game: hooks may read, but the rng and every action throw', () => {
     const reader = fixed('reader', () => 0.5);
     const a = createSim({ ...options, systems: [mover, reader] });

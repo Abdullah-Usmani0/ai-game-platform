@@ -34,6 +34,8 @@ export interface SimOptions {
   movementMode?: 'platformer' | 'topdown';
   /** Player props carried over from the previous level (boons, upgrades); copied onto the player before systems init. */
   carry?: Readonly<Record<string, ParamValue>>;
+  /** The systems whose progress hooks count toward progress() (a composed game's win owner); every system's when unset. */
+  progressFrom?: readonly string[];
 }
 
 /** A save point: everything the steps after it depend on, as plain data (see Sim.save). */
@@ -76,7 +78,10 @@ export interface Sim {
    */
   save(): SimSave;
   load(save: SimSave): void;
-  /** How close the level is to being won, 0 to 1: the mean of what its systems report, or the closeness to the goal tile. */
+  /**
+   * How close the level is to being won, 0 to 1: the mean of what its systems report (those in options.progressFrom,
+   * when set), or the closeness to the goal tile when none reports.
+   */
   progress(): number;
 }
 
@@ -174,6 +179,7 @@ class SimImpl implements Sim {
       params: this.options.params?.[systemId] ?? {},
       content: this.options.content ?? {},
       movementMode: this.options.movementMode ?? 'platformer',
+      defOf: (type) => this.defs.get(type),
       emit: (name, payload) => this.events.emit(this.tick, name, payload),
       spawn: (type, x, y) => this.spawn(type, x, y),
       damage: (target, amount, source) => this.damage(target, amount, source),
@@ -211,6 +217,7 @@ class SimImpl implements Sim {
       params: ctx.params,
       content: ctx.content,
       movementMode: ctx.movementMode,
+      defOf: ctx.defOf,
       emit: deny('emit events'),
       spawn: deny('spawn entities'),
       damage: deny('deal damage'),
@@ -414,8 +421,9 @@ class SimImpl implements Sim {
     if (this.world.flags.won) return 1;
     let sum = 0;
     let n = 0;
+    const from = this.options.progressFrom;
     for (const s of this.options.systems) {
-      if (!s.progress) continue;
+      if (!s.progress || (from && !from.includes(s.id))) continue;
       const v = s.progress(this.states.get(s.id), this.readCtx(s.id));
       if (!Number.isFinite(v)) continue;
       sum += Math.max(0, Math.min(1, v));

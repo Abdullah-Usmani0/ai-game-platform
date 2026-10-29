@@ -5,7 +5,7 @@ export interface CatalogParam {
   type: 'number' | 'string' | 'boolean';
   min?: number;
   max?: number;
-  values?: string[];
+  values?: readonly string[];
   default: number | string | boolean;
   /** What a change invalidates: levels (re-validate), assets (regenerate), none. */
   affects: 'levels' | 'assets' | 'none';
@@ -19,8 +19,11 @@ export interface CatalogParam {
 /** How the player moves. Every game has exactly one system that provides it. */
 export type MovementKind = 'platformer' | 'topdown' | 'grid';
 
-/** How a level is won: reach the goal, survive the clock, clear the hostiles then exit, put every crate on a target. */
-export type WinKind = 'reach_goal' | 'survive' | 'clear_room' | 'place_crates';
+/**
+ * How a level is won: reach the goal, survive the clock, clear the hostiles then exit, put every crate on a target, or
+ * by the clauses of content/objectives.json.
+ */
+export type WinKind = 'reach_goal' | 'survive' | 'clear_room' | 'place_crates' | 'objectives';
 
 /** What entities in a game are for, whatever their type is called: what systems need to find in a level. */
 export type EntityRole = 'hostile' | 'collectible' | 'relic' | 'key' | 'door' | 'crate' | 'target';
@@ -31,33 +34,36 @@ export interface SystemProvides {
   movement?: MovementKind;
   /** How the level is won (the system sets the won flag). */
   win?: WinKind;
-  /** What the player's death does: respawn at the checkpoint, or end the run (the system sets the game-over flag). */
-  death?: 'respawn' | 'game_over';
+  /**
+   * What the player's death does: respawn at the checkpoint, end the run (the system sets the game-over flag), or
+   * respawn until the lives run out, then end it.
+   */
+  death?: 'respawn' | 'game_over' | 'lives';
   /** How the player deals damage. */
   combat?: 'stomp' | 'melee' | 'shoot' | 'aura';
   /** Entity types the system spawns while the game runs; 'waves' stands for the types its waves content names. */
-  spawns?: string[];
+  spawns?: readonly string[];
 }
 
 /** What a system needs from the rest of the game to do its job. */
 export interface SystemRequires {
   /** Movement it works with. */
-  movement?: MovementKind[];
+  movement?: readonly MovementKind[];
   /** Entity roles the game must have (a room to clear needs hostiles). */
-  roles?: EntityRole[];
+  roles?: readonly EntityRole[];
   /** Content files the game must ship (waves.json). */
-  content?: string[];
+  content?: readonly string[];
 }
 
 export interface CatalogSystem {
   id: string;
-  genres: string[] | '*';
+  genres: readonly string[] | '*';
   required?: boolean;
   summary: string;
   params: Record<string, CatalogParam>;
-  emits: string[];
+  emits: readonly string[];
   /** Feedback events this system can bind channels for. */
-  feedbackFor: string[];
+  feedbackFor: readonly string[];
   /**
    * What the system does with each key it reads (action: 'attack', dash: 'restart'). The play page lists them; bots
    * that explore leave alone the keys marked 'undo' or 'restart' (a save point does that job better).
@@ -68,7 +74,7 @@ export interface CatalogSystem {
   /** What it needs from the rest of the game. */
   requires?: SystemRequires;
   /** Systems it cannot share a game with. */
-  conflicts?: string[];
+  conflicts?: readonly string[];
 }
 
 export type SystemsCatalog = Record<string, CatalogSystem>;

@@ -11,6 +11,7 @@ import { StyleCard } from './style';
 import { SystemsJson } from './systems';
 import { Trajectory } from './trajectory';
 import { WaveTable } from './waves';
+import { Objectives } from './objectives';
 
 export * from './common';
 export * from './events';
@@ -20,6 +21,7 @@ export * from './gdd';
 export * from './level';
 export * from './behaviour';
 export * from './waves';
+export * from './objectives';
 export * from './playtest';
 export * from './bundle';
 export * from './bridge';
@@ -37,6 +39,7 @@ export const ARTIFACT_SCHEMAS = {
   BehaviourFsm,
   EcaRule,
   WaveTable,
+  Objectives,
   PlaytestReport,
   GateReport,
   BundleManifest,

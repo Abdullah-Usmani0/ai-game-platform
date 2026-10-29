@@ -17,6 +17,7 @@ function schemaFor(file: string): ArtifactName | null {
   if (/\/content\/behaviour\/[^/]+\.fsm\.json$/.test(f)) return 'BehaviourFsm';
   if (/\/content\/rules\/[^/]+\.eca\.json$/.test(f)) return 'EcaRule';
   if (name === 'waves.json') return 'WaveTable';
+  if (name === 'objectives.json') return 'Objectives';
   if (name === 'systems.json') return 'SystemsJson';
   if (name === 'style.json') return 'StyleCard';
   if (name === 'playtest-report.json') return 'PlaytestReport';

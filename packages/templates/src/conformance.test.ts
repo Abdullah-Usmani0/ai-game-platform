@@ -72,7 +72,7 @@ describe('systems do what their metadata says', () => {
         const allowed = (t: string) => spawns.includes(t) || (spawns.includes('waves') && wavesTypes.has(t));
         expect([...r.spawns].filter((t) => !allowed(t)), `${g.id}/${id} spawns undeclared types`).toEqual([]);
         if (r.won) expect(meta.provides?.win, `${g.id}/${id} wins the level without declaring a win`).toBeDefined();
-        if (r.gameOver) expect(meta.provides?.death, `${g.id}/${id} ends the run without declaring it`).toBe('game_over');
+        if (r.gameOver) expect(['game_over', 'lives'], `${g.id}/${id} ends the run without declaring it`).toContain(meta.provides?.death);
       }
       for (const [id, m] of Object.entries(g.systems)) {
         if (m.meta.provides?.win) expect(seen.get(id)?.won, `${g.id}/${id} declares a win no run reached`).toBe(true);

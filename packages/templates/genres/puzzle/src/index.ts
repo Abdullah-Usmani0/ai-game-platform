@@ -15,7 +15,7 @@ export const puzzleRuntime: GenreRuntime = {
   name: 'Puzzle (Sokoban)',
   movementMode: 'topdown',
   systems: {
-    [gridPushMeta.id]: { meta: gridPushMeta as never, create: () => gridPush },
+    [gridPushMeta.id]: { meta: gridPushMeta, create: () => gridPush },
   },
   requiredSystems: ['grid-push'],
   optionalSystems: [],

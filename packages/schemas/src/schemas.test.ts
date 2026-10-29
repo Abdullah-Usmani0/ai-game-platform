@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, GddFrontmatter, GENRES, JamInput, LevelJson, PLAYABLE_GENRES, SystemsJson, toJsonSchema } from './index';
+import { ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, GddFrontmatter, GENRES, JamInput, LevelJson, Objectives, PLAYABLE_GENRES, SystemsJson, toJsonSchema } from './index';
 
 describe('LevelJson', () => {
   const base = {
@@ -92,5 +92,20 @@ describe('playable genres', () => {
     const jam = (genres: string[]) => JamInput.safeParse({ slug: 'spring-jam', title: 'Spring jam', theme: 'growth', genres, startsAt: '2026-11-01T00:00:00Z', submissionsClose: '2026-11-08T00:00:00Z', votingClose: '2026-11-15T00:00:00Z' });
     expect(jam(['puzzle', 'shmup']).success).toBe(true);
     expect(jam(['lifesim']).success).toBe(false);
+  });
+});
+
+describe('Objectives', () => {
+  it('fills the defaults and bounds every clause', () => {
+    const o = Objectives.parse({ version: 1, win: { clauses: [{ kind: 'defeat', count: 'all' }, { kind: 'collect', type: 'gem', count: 3 }] } });
+    expect(o.win.mode).toBe('all');
+    expect(o.lose).toEqual([]);
+    const ok = (win: unknown, lose: unknown = []) => Objectives.safeParse({ version: 1, win, lose }).success;
+    expect(ok({ clauses: [] })).toBe(false);
+    expect(ok({ clauses: [{ kind: 'survive', seconds: 2 }] })).toBe(false);
+    expect(ok({ clauses: [{ kind: 'defeat', count: 0 }] })).toBe(false);
+    expect(ok({ clauses: [{ kind: 'score_at_least', value: 3 }] })).toBe(false);
+    expect(ok({ clauses: [{ kind: 'reach_goal' }] }, [{ kind: 'lives', count: 0 }])).toBe(false);
+    expect(ok({ mode: 'any', clauses: [{ kind: 'reach_goal' }, { kind: 'survive', seconds: 60 }] }, [{ kind: 'time_out', seconds: 90 }])).toBe(true);
   });
 });

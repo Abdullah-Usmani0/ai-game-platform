@@ -1,4 +1,4 @@
-import type { EntityDef } from '@gg/sdk';
+import { isHostileDef, type EntityDef } from '@gg/sdk';
 import type { EntityRole } from '@gg/validators';
 import type { GenreRuntime } from './manifest.js';
 
@@ -14,7 +14,7 @@ export function rolesOf(runtime: { entityDefs: readonly EntityDef[]; entityRoles
     r.add(role);
   };
   for (const d of runtime.entityDefs) {
-    if (!d.pickup && !d.projectile && (d.fsm !== undefined || (d.contactDamage ?? 0) > 0)) add(d.type, 'hostile');
+    if (isHostileDef(d)) add(d.type, 'hostile');
     if (d.pickup) add(d.type, 'collectible');
   }
   for (const [type, roles] of Object.entries(runtime.entityRoles ?? {})) for (const role of roles) add(type, role);
