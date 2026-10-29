@@ -1,7 +1,7 @@
 import { pickups, pickupsMeta, type GenreRuntime } from '@gg/template-core';
 import { platformerRuntime } from '@gg/template-platformer';
 import { DEFAULT_BEHAVIOURS, VOCAB } from './behaviours.js';
-import { COLLECTIBLE_TYPES, ENTITY_DEFS, PLAYER } from './entities.js';
+import { COLLECTIBLE_TYPES, DOOR_TYPE, ENTITY_DEFS, KEY_TYPE, PLAYER, RELIC_ABILITY } from './entities.js';
 import { DEFAULT_FEEL, FEEL } from './feel.js';
 import { meta as movementMeta, movement } from './movement.js';
 import { meta as relicsMeta, relics } from './systems/relics.js';
@@ -37,4 +37,5 @@ export const metroidvaniaRuntime: GenreRuntime = {
   defaultRules: [],
   collectibleTypes: COLLECTIBLE_TYPES,
   feedbackExtras: [{ event: 'custom:door_open', channels: ['sfx', 'shake'] }],
+  entityRoles: { ...Object.fromEntries(Object.keys(RELIC_ABILITY).map((t) => [t, ['relic' as const]])), [KEY_TYPE]: ['key'], [DOOR_TYPE]: ['door'] },
 };

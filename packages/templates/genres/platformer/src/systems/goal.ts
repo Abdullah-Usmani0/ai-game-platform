@@ -24,4 +24,5 @@ export const meta = {
   params: { bonus: { type: 'number', min: 0, max: 100, default: 10, affects: 'none' } },
   emits: ['level_complete'],
   feedbackFor: ['level_complete'],
+  provides: { win: 'reach_goal' },
 } as const;

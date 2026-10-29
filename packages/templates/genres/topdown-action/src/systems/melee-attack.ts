@@ -123,7 +123,9 @@ export const meta = {
     dashStrike: { type: 'boolean', default: true, affects: 'levels' },
     finisherBonus: { type: 'number', min: 0, max: 5, default: 1, affects: 'levels' },
   },
-  emits: ['hit', 'death', 'despawn', 'custom:swing', 'custom:finisher'],
+  emits: ['hit', 'damage', 'death', 'despawn', 'custom:swing', 'custom:finisher'],
   feedbackFor: ['hit', 'custom:finisher'],
   controls: { action: 'attack', left: 'aim', right: 'aim', up: 'aim', down: 'aim' },
+  provides: { combat: 'melee' },
+  requires: { movement: ['topdown'], roles: ['hostile'] },
 } as const;

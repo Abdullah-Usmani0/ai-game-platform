@@ -9,6 +9,44 @@ export interface CatalogParam {
   default: number | string | boolean;
   /** What a change invalidates: levels (re-validate), assets (regenerate), none. */
   affects: 'levels' | 'assets' | 'none';
+  /**
+   * The value names an entity type of the game (the drop a kill leaves, the crate a board pushes). The game's
+   * composition sets it when its entities are renamed; it is not a tuning knob, so models and panels never see it.
+   */
+  entity?: boolean;
+}
+
+/** How the player moves. Every game has exactly one system that provides it. */
+export type MovementKind = 'platformer' | 'topdown' | 'grid';
+
+/** How a level is won: reach the goal, survive the clock, clear the hostiles then exit, put every crate on a target. */
+export type WinKind = 'reach_goal' | 'survive' | 'clear_room' | 'place_crates';
+
+/** What entities in a game are for, whatever their type is called: what systems need to find in a level. */
+export type EntityRole = 'hostile' | 'collectible' | 'relic' | 'key' | 'door' | 'crate' | 'target';
+
+/** What a system owns in a game. The composition rules allow one movement, one win and one death owner per game. */
+export interface SystemProvides {
+  /** The player's movement. */
+  movement?: MovementKind;
+  /** How the level is won (the system sets the won flag). */
+  win?: WinKind;
+  /** What the player's death does: respawn at the checkpoint, or end the run (the system sets the game-over flag). */
+  death?: 'respawn' | 'game_over';
+  /** How the player deals damage. */
+  combat?: 'stomp' | 'melee' | 'shoot' | 'aura';
+  /** Entity types the system spawns while the game runs; 'waves' stands for the types its waves content names. */
+  spawns?: string[];
+}
+
+/** What a system needs from the rest of the game to do its job. */
+export interface SystemRequires {
+  /** Movement it works with. */
+  movement?: MovementKind[];
+  /** Entity roles the game must have (a room to clear needs hostiles). */
+  roles?: EntityRole[];
+  /** Content files the game must ship (waves.json). */
+  content?: string[];
 }
 
 export interface CatalogSystem {
@@ -25,6 +63,12 @@ export interface CatalogSystem {
    * that explore leave alone the keys marked 'undo' or 'restart' (a save point does that job better).
    */
   controls?: Partial<Record<'left' | 'right' | 'up' | 'down' | 'jump' | 'dash' | 'action' | 'pause', string>>;
+  /** What the system owns in a game (movement, the win, the death rule, combat, spawns); checked against its runs. */
+  provides?: SystemProvides;
+  /** What it needs from the rest of the game. */
+  requires?: SystemRequires;
+  /** Systems it cannot share a game with. */
+  conflicts?: string[];
 }
 
 export type SystemsCatalog = Record<string, CatalogSystem>;
@@ -47,7 +91,8 @@ export function checkSystems(systems: SystemsJson, catalog: SystemsCatalog, gdd?
         issues.push(err('unknown_param', `system '${s.id}' has no parameter '${k}'`, { path: `${s.id}.${k}` }));
         continue;
       }
-      if (typeof v !== p.type) issues.push(err('param_type', `${s.id}.${k} should be ${p.type}`, { path: `${s.id}.${k}` }));
+      if (p.entity && v !== p.default) issues.push(err('entity_param', `${s.id}.${k} names an entity type; the game's composition sets it, not systems.json`, { path: `${s.id}.${k}` }));
+      else if (typeof v !== p.type) issues.push(err('param_type', `${s.id}.${k} should be ${p.type}`, { path: `${s.id}.${k}` }));
       else if (p.type === 'number' && typeof v === 'number' && ((p.min !== undefined && v < p.min) || (p.max !== undefined && v > p.max))) issues.push(err('param_range', `${s.id}.${k}=${v} outside [${p.min ?? '-inf'}, ${p.max ?? 'inf'}]`, { path: `${s.id}.${k}` }));
       else if (p.type === 'string' && p.values && typeof v === 'string' && !p.values.includes(v)) issues.push(err('param_enum', `${s.id}.${k}='${v}' not one of ${p.values.join('|')}`, { path: `${s.id}.${k}` }));
     }

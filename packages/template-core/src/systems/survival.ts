@@ -34,6 +34,7 @@ export const meta = {
     winAtS: { type: 'number', min: 20, max: 900, default: 60, affects: 'none' },
     winBonus: { type: 'number', min: 0, max: 500, default: 50, affects: 'none' },
   },
-  emits: ['level_complete'],
+  emits: ['level_complete', 'custom:game_over'],
   feedbackFor: ['level_complete'],
+  provides: { win: 'survive', death: 'game_over' },
 } as const;

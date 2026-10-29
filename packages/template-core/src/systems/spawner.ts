@@ -59,4 +59,6 @@ export const meta = {
   params: { maxAlive: { type: 'number', min: 10, max: 200, default: 80, affects: 'none' } },
   emits: ['spawn'],
   feedbackFor: [],
+  provides: { spawns: ['waves'] },
+  requires: { content: ['waves'] },
 } as const;

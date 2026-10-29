@@ -32,6 +32,8 @@ export const meta = {
   required: true,
   summary: 'Hazard tiles and falling off the map kill; the player respawns at the checkpoint after a short delay.',
   params: { respawnDelayTicks: { type: 'number', min: 0, max: 120, default: 30, affects: 'none' } },
-  emits: ['death', 'spawn'],
+  emits: ['hit', 'damage', 'death', 'spawn'],
   feedbackFor: ['death'],
+  provides: { death: 'respawn', spawns: ['player'] },
+  requires: { movement: ['platformer'] },
 } as const;

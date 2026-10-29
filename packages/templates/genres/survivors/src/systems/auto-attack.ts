@@ -46,7 +46,7 @@ export const autoAttack = defineSystem<AttackState>({
     p.facing = target.x >= p.x ? 1 : -1;
   },
   onEvent(s, ev, ctx) {
-    if (ev.name === 'pickup' && ev.payload['type'] === 'xp') {
+    if (ev.name === 'pickup' && ev.payload['type'] === String(ctx.params['dropType'] ?? 'xp')) {
       s.xp++;
       const per = Number(ctx.params['xpPerLevel'] ?? 6);
       if (s.xp >= per * (s.level + 1)) {
@@ -61,7 +61,7 @@ export const autoAttack = defineSystem<AttackState>({
     ctx.world.hud['kills'] = s.kills;
     const x = Number(ev.payload['x'] ?? 0);
     const y = Number(ev.payload['y'] ?? 0);
-    ctx.spawn('xp', x + 2, y + 2);
+    ctx.spawn(String(ctx.params['dropType'] ?? 'xp'), x + 2, y + 2);
   },
 });
 
@@ -75,7 +75,10 @@ export const meta = {
     damage: { type: 'number', min: 1, max: 20, default: 1, affects: 'none' },
     cooldownTicks: { type: 'number', min: 5, max: 120, default: 30, affects: 'none' },
     xpPerLevel: { type: 'number', min: 2, max: 50, default: 6, affects: 'levels' },
+    dropType: { type: 'string', default: 'xp', affects: 'none', entity: true },
   },
-  emits: ['hit', 'death', 'spawn'],
+  emits: ['hit', 'damage', 'death', 'spawn', 'custom:level_up'],
   feedbackFor: ['hit'],
+  provides: { combat: 'aura', spawns: ['xp'] },
+  requires: { roles: ['hostile'] },
 } as const;

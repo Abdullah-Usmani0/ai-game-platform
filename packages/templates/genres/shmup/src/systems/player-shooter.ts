@@ -19,12 +19,13 @@ export const playerShooter = defineSystem<ShooterState>({
     if (!p.alive) return;
     if (s.cooldown > 0) s.cooldown--;
     const damage = Number(ctx.params['damage'] ?? 1);
+    const shotType = String(ctx.params['shotType'] ?? 'shot');
     if (input.action && s.cooldown === 0) {
       s.cooldown = Math.max(1, Math.round(Number(ctx.params['fireCooldownTicks'] ?? 8)));
       const speed = Number(ctx.params['shotSpeed'] ?? 220);
       const spread = Math.max(1, Math.min(3, Math.round(Number(ctx.params['spread'] ?? 1))));
       for (let i = 0; i < spread; i++) {
-        const shot = ctx.spawn('shot', centerX(p) - 1.5, p.y - 6);
+        const shot = ctx.spawn(shotType, centerX(p) - 1.5, p.y - 6);
         const lateral = spread === 1 ? 0 : (i - (spread - 1) / 2) * 40;
         shot.vx = lateral;
         shot.vy = -speed;
@@ -34,12 +35,12 @@ export const playerShooter = defineSystem<ShooterState>({
       ctx.emit('custom:fire', { x: p.x, y: p.y });
     }
     for (const shot of ctx.world.entities) {
-      if (shot.type !== 'shot' || !shot.alive) continue;
+      if (shot.type !== shotType || !shot.alive) continue;
       for (const e of ctx.world.entities) {
         if (e.isPlayer || !e.alive || e.isProjectile || e.pickup || e.contactDamage <= 0) continue;
         if (!overlaps(shot, e)) continue;
         shot.alive = false;
-        ctx.emit('despawn', { entity: shot.id, type: 'shot' });
+        ctx.emit('despawn', { entity: shot.id, type: shotType });
         ctx.damage(e, damage, p);
         if (!e.alive) {
           s.kills++;
@@ -62,8 +63,11 @@ export const meta = {
     damage: { type: 'number', min: 1, max: 5, default: 1, affects: 'levels' },
     spread: { type: 'number', min: 1, max: 3, default: 1, affects: 'levels' },
     killScore: { type: 'number', min: 0, max: 100, default: 10, affects: 'none' },
+    shotType: { type: 'string', default: 'shot', affects: 'none', entity: true },
   },
-  emits: ['hit', 'death', 'despawn', 'spawn'],
+  emits: ['hit', 'damage', 'death', 'despawn', 'spawn', 'custom:fire'],
   feedbackFor: ['hit', 'death'],
   controls: { action: 'shoot' },
+  provides: { combat: 'shoot', spawns: ['shot'] },
+  requires: { movement: ['topdown'], roles: ['hostile'] },
 } as const;

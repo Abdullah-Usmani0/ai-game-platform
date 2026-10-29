@@ -29,6 +29,8 @@ export const meta = {
     bounceVy: { type: 'number', min: -200, max: -20, default: -70, affects: 'none' },
     stompScore: { type: 'number', min: 0, max: 50, default: 5, affects: 'none' },
   },
-  emits: ['hit', 'death'],
+  emits: ['hit', 'damage', 'death'],
   feedbackFor: ['hit'],
+  provides: { combat: 'stomp' },
+  requires: { movement: ['platformer'], roles: ['hostile'] },
 } as const;

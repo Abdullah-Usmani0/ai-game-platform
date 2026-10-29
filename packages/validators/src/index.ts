@@ -5,3 +5,4 @@ export * from './behaviour.js';
 export * from './gdd.js';
 export * from './systems.js';
 export * from './juice.js';
+export * from './composition.js';

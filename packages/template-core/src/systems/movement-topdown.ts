@@ -53,4 +53,5 @@ export const meta = {
   emits: ['dash'],
   feedbackFor: ['dash'],
   controls: { left: 'move', right: 'move', up: 'move', down: 'move', dash: 'dash' },
+  provides: { movement: 'topdown' },
 } as const;

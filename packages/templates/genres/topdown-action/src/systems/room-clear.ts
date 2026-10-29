@@ -44,7 +44,7 @@ export const roomClear = defineSystem<RoomClearState>({
     }
   },
   onEvent(s, ev, ctx) {
-    if (ev.name === 'pickup' && ev.payload['type'] === 'gem') {
+    if (ev.name === 'pickup' && ev.payload['type'] === String(ctx.params['healType'] ?? 'gem')) {
       const p = ctx.world.player;
       p.hp = Math.min(p.maxHp, p.hp + Number(ctx.params['gemHeal'] ?? 1));
       return;
@@ -73,7 +73,10 @@ export const meta = {
     bonus: { type: 'number', min: 0, max: 100, default: 20, affects: 'none' },
     killScore: { type: 'number', min: 0, max: 50, default: 5, affects: 'none' },
     gemHeal: { type: 'number', min: 0, max: 5, default: 1, affects: 'levels' },
+    healType: { type: 'string', default: 'gem', affects: 'none', entity: true },
   },
-  emits: ['level_complete'],
+  emits: ['level_complete', 'custom:room_clear', 'custom:game_over'],
   feedbackFor: ['level_complete'],
+  provides: { win: 'clear_room', death: 'game_over' },
+  requires: { roles: ['hostile'] },
 } as const;

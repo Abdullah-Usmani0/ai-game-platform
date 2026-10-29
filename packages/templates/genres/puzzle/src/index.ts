@@ -1,6 +1,6 @@
 import type { GenreRuntime } from '@gg/template-core';
 import { DEFAULT_BEHAVIOURS, VOCAB } from './behaviours.js';
-import { COLLECTIBLE_TYPES, ENTITY_DEFS, PLAYER } from './entities.js';
+import { COLLECTIBLE_TYPES, CRATE_TYPE, ENTITY_DEFS, PLAYER, TARGET_TYPE } from './entities.js';
 import { DEFAULT_FEEL, FEEL } from './feel.js';
 import { gridPush, meta as gridPushMeta } from './systems/grid-push.js';
 
@@ -27,4 +27,5 @@ export const puzzleRuntime: GenreRuntime = {
   defaultBehaviours: DEFAULT_BEHAVIOURS,
   defaultRules: [],
   collectibleTypes: COLLECTIBLE_TYPES,
+  entityRoles: { [CRATE_TYPE]: ['crate'], [TARGET_TYPE]: ['target'] },
 };

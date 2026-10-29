@@ -183,9 +183,11 @@ export const gridPush = defineSystem<GridPushState>({
   init(ctx) {
     const ts = ctx.map.tileSize;
     const player = tileOf(ctx.world.player, ts);
-    const crates = ctx.world.entities.filter((e) => e.type === CRATE_TYPE).map((e) => ({ id: e.id, ...tileOf(e, ts) }));
-    const targets = ctx.world.entities.filter((e) => e.type === TARGET_TYPE).map((e) => tileOf(e, ts));
-    for (const e of ctx.world.entities) if (e.type === TARGET_TYPE) place(e, tileOf(e, ts), ts);
+    const crateType = String(ctx.params['crateType'] ?? CRATE_TYPE);
+    const targetType = String(ctx.params['targetType'] ?? TARGET_TYPE);
+    const crates = ctx.world.entities.filter((e) => e.type === crateType).map((e) => ({ id: e.id, ...tileOf(e, ts) }));
+    const targets = ctx.world.entities.filter((e) => e.type === targetType).map((e) => tileOf(e, ts));
+    for (const e of ctx.world.entities) if (e.type === targetType) place(e, tileOf(e, ts), ts);
     const s: GridPushState = {
       player,
       crates,
@@ -257,8 +259,12 @@ export const meta = {
     repeatTicks: { type: 'number', min: 2, max: 30, default: 6, affects: 'none' },
     allowUndo: { type: 'boolean', default: true, affects: 'none' },
     bonus: { type: 'number', min: 0, max: 100, default: 10, affects: 'none' },
+    crateType: { type: 'string', default: CRATE_TYPE, affects: 'none', entity: true },
+    targetType: { type: 'string', default: TARGET_TYPE, affects: 'none', entity: true },
   },
-  emits: ['move', 'push', 'undo', 'level_complete'],
+  emits: ['move', 'push', 'undo', 'level_complete', 'custom:bump'],
   feedbackFor: ['move', 'push', 'undo', 'level_complete'],
   controls: { left: 'step', right: 'step', up: 'step', down: 'step', action: 'undo', dash: 'restart' },
+  provides: { movement: 'grid', win: 'place_crates' },
+  requires: { roles: ['crate', 'target'] },
 } as const;

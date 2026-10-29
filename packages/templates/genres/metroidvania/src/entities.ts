@@ -1,8 +1,11 @@
 import type { EntityDef } from '@gg/sdk';
 import { ABILITY_DASH, ABILITY_DOUBLE_JUMP, ENTITY_DEFS as PLATFORMER_DEFS, PLAYER as PLATFORMER_PLAYER } from '@gg/template-platformer';
 
+export { ABILITY_DASH, ABILITY_DOUBLE_JUMP };
+export const WINGS_TYPE = 'wings';
+export const BOOTS_TYPE = 'boots';
 /** Relic entity types and the ability flag each one grants on the player (the gated movement reads them). */
-export const RELIC_ABILITY: Readonly<Record<string, string>> = { wings: ABILITY_DOUBLE_JUMP, boots: ABILITY_DASH };
+export const RELIC_ABILITY: Readonly<Record<string, string>> = { [WINGS_TYPE]: ABILITY_DOUBLE_JUMP, [BOOTS_TYPE]: ABILITY_DASH };
 export const KEY_TYPE = 'key';
 export const DOOR_TYPE = 'door';
 /** Everything the relics system collects: the ability relics and keys. */

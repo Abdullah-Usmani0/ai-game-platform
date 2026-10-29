@@ -48,7 +48,9 @@ export function systemsJsonFor(runtime: GenreRuntime, ids: readonly string[] = [
     systems: ids.map((id) => {
       const mod = runtime.systems[id];
       if (!mod) throw new Error(`genre ${runtime.id} has no system '${id}'`);
-      return { id, params: { ...Object.fromEntries(Object.entries(mod.meta.params).map(([k, p]) => [k, p.default])), ...(runtime.paramDefaults?.[id] ?? {}) } };
+      // Entity-type params are left out: their defaults apply, and only a composition that renames types sets them.
+      const tunable = Object.entries(mod.meta.params).filter(([, p]) => !p.entity);
+      return { id, params: { ...Object.fromEntries(tunable.map(([k, p]) => [k, p.default])), ...(runtime.paramDefaults?.[id] ?? {}) } };
     }),
   };
 }

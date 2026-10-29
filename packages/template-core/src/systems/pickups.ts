@@ -25,4 +25,5 @@ export const meta = {
   params: { value: { type: 'number', min: 1, max: 100, default: 1, affects: 'none' } },
   emits: ['pickup', 'despawn'],
   feedbackFor: ['pickup'],
+  requires: { roles: ['collectible'] },
 } as const;

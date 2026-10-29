@@ -1,6 +1,6 @@
 import type { BehaviourFsm, EcaRule, FeedbackChannel, GddFrontmatter, LevelJson, ParamValue, PlayableGenre, ScopeTier } from '@gg/schemas';
 import type { EntityDef, FeelPreset, InputState, Sim, SystemDef } from '@gg/sdk';
-import type { CatalogSystem, ValidationReport } from '@gg/validators';
+import type { CatalogSystem, EntityRole, ValidationReport } from '@gg/validators';
 
 /** A system plus its catalog metadata. Params arrive at runtime through ctx.params from systems.json. */
 export interface SystemModule {
@@ -89,6 +89,12 @@ export interface GenreRuntime {
    * top-down genres do not), applied over the catalog's own defaults wherever a systems.json is drafted.
    */
   paramDefaults?: Record<string, Record<string, ParamValue>>;
+  /**
+   * Roles entity types fill beyond what their definitions say (hostile and collectible are read from the definitions):
+   * the metroidvania's relics, keys and doors, the puzzle's crates and targets. Composition checks systems' needs
+   * against them.
+   */
+  entityRoles?: Record<string, EntityRole[]>;
 }
 
 /**
