@@ -30,7 +30,7 @@ Customization model:
 - **Style card** (`style.json`): canvas resolution and scale, pixel/painted flag, named palette roles, outline rule, animation fps per category, camera params, typography, UI tokens, audio mood, post-fx, references, negative list. Form-editable; changes regenerate only assets whose prompt hash changed, then re-run gates, no code edit.
 - **Systems config** (`systems.json`): which catalog systems are on and their typed parameters. Exposed as parameter panels with ranges and `affects` metadata; live-tunable in preview via the bridge.
 - **Behaviour and content as data**: enemy/interactable FSMs, event-condition-action rules, wave tables, upgrade pools, dialogue trees, levels. Level editor and data tables; every save runs the validator.
-- **Code**: bespoke mechanics via chat in a restricted TypeScript subset; full gate loop. Code view for advanced users in phase 3.
+- **Code**: bespoke mechanics via chat in a restricted TypeScript subset; full gate loop. Code view for advanced users in phase 3 (built: the workspace lists a version's source from its checkpoint with what each edit changed, owner and moderators only; edits still go through the chat and the code route).
 - **Checkpoints**: every accepted build is a version; rewind or branch (self-remix).
 
 ## Model-agnostic quality strategy

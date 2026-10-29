@@ -1,7 +1,9 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { GameWorkspace } from '@/components/GameWorkspace';
 import type { PanelItem } from '@/components/ParamPanel';
 import type { StyleLike } from '@/components/StyleEditor';
+import { canSeeWorkspace } from '@/lib/access';
+import { viewerId } from '@/lib/identity';
 import { bundleBaseUrl, getStore } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
@@ -11,13 +13,17 @@ interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-/** The creator's workspace: progress of the active job, playable preview of the head version, evidence, edit chat. */
+/**
+ * The creator's workspace: progress of the active job, playable preview of the head version, evidence, edit chat, code.
+ * Only the owner (and moderators) see it; anyone else is sent to the play page.
+ */
 export default async function GamePage({ params, searchParams }: Props) {
   const { gameId } = await params;
   const q = await searchParams;
   const store = getStore();
   const game = await store.getGame(gameId);
   if (!game) notFound();
+  if (!(await canSeeWorkspace(store, game, await viewerId()))) redirect(`/play/${game.id}`);
   const [versions, jobs] = await Promise.all([store.listVersions(gameId), store.listJobs(gameId)]);
   const head = versions.find((v) => v.isHead) ?? null;
   const running = jobs.find((j) => j.status === 'queued' || j.status === 'running');

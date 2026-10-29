@@ -1,6 +1,7 @@
 export * from './types';
 export * from './ranking';
 export * from './heatmap';
+export * from './source';
 export * from './file-store';
 export * from './supabase-store';
 

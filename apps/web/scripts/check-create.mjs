@@ -78,6 +78,26 @@ try {
     const editJob = view.jobs[0];
     result.editorJob = { kind: editJob?.kind, status: editJob?.status, levels: editJob?.input?.content?.levels?.map((l) => `${l.id}:${l.entities.length}`) };
   }
+  // 2c. Code view: the head's source opens in the workspace without the private concept, build output or reports, a
+  // file shows its lines, and "Ask for a change" starts an edit about it.
+  await page.click('[data-testid="code-open"]');
+  await page.waitForSelector('[data-testid="code-loaded"]', { timeout: 20000 });
+  const files = await page.$$eval('[data-testid="code-file"]', (els) => els.map((e) => e.getAttribute('data-path')));
+  await page.click('[data-testid="code-file"][data-path="src/game.ts"]');
+  await page.waitForSelector('[data-testid="code-path"]:has-text("src/game.ts")', { timeout: 5000 });
+  const codeLines = await page.$$eval('[data-testid="code-text"] .line', (els) => els.length);
+  await page.click('[data-testid="code-ask"]');
+  result.code = { files: files.length, game: files.includes('src/game.ts'), lines: codeLines, asked: await page.inputValue('[data-testid="edit-message"]'), leaks: files.filter((f) => f === 'design/concept.md' || /^(bundle|reports)\//.test(f)) };
+  // The demo's level-editor edit: its head marks the edited level as changed against the version it was built on.
+  const edited = (state.games ?? []).find((g) => {
+    const v = (state.versions ?? []).find((x) => x.id === g.headVersionId);
+    return g.ownerId === 'local-dev' && (state.jobs ?? []).find((j) => j.id === v?.jobId)?.kind === 'edit_content';
+  });
+  if (edited) {
+    const src = await (await fetch(`${url}/api/games/${edited.id}/source`)).json();
+    const level = src.files?.find((f) => f.path.startsWith('content/levels/') && f.status === 'changed');
+    result.code.edit = { previous: src.previous?.number ?? null, level: level?.path ?? null, added: level?.diff?.filter((d) => d.op === '+').length ?? 0, unchanged: src.files?.filter((f) => f.status === 'same').length ?? 0 };
+  }
   // 3. The new game's workspace shows the queued job.
   await page.goto(`${url}/games/${createdJson.gameId}?job=${createdJson.jobId}`, { waitUntil: 'load', timeout: 30000 });
   await page.waitForSelector('[data-testid="no-preview"]', { timeout: 10000 });
@@ -95,7 +115,7 @@ try {
   result.training = { optedOut, optedBackIn: (await (await fetch(`${url}/api/me`)).json()).trainingOptOut === false };
   const wantPanels = process.env.GG_EXPECT_PANELS === '1';
   const editorOk = !wantPanels || (result.editor && result.editorCheck === 'yes' && result.editorJob?.kind === 'edit_content' && result.editorJob?.status === 'queued' && result.editorJob?.levels?.length === 1);
-  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor)) && editorOk && result.remix.status === 201 && result.remix.playable === 'playable' && result.remix.headShared && result.training.optedOut === true && result.training.optedBackIn;
+  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor)) && editorOk && result.remix.status === 201 && result.remix.playable === 'playable' && result.remix.headShared && result.training.optedOut === true && result.training.optedBackIn && result.code.game && result.code.lines > 5 && result.code.leaks.length === 0 && result.code.asked === 'In src/game.ts: ' && Boolean(result.code.edit && result.code.edit.previous !== null && result.code.edit.level !== null && result.code.edit.added > 0 && result.code.edit.unchanged > 0);
   console.log(JSON.stringify({ ok, ...result, errors }, null, 2));
 } catch (e) {
   console.error('check-create failed:', e.message, JSON.stringify(result));

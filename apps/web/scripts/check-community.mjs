@@ -59,8 +59,19 @@ try {
     if (r.gameId === game.id) await api(`/api/reports/${r.id}/resolve`, 'moderator', { resolution: 'dismiss', note: 'check-community reset' });
   }
 
-  // 1. The owner publishes the game from the workspace panel; a non-owner may not.
+  // 1. The owner publishes the game from the workspace panel; a non-owner may not. The workspace (jobs with their inputs,
+  // the source) is the owner's: a stranger gets 404 from its API and the play page instead of the page.
   result.strangerPublish = (await api(`/api/games/${game.id}/publish`, 'player-a', { listed: true })).status;
+  const strangerPage = await pageAs('player-a');
+  await strangerPage.goto(`${url}/games/${game.id}`, { waitUntil: 'load', timeout: 30000 });
+  result.workspace = {
+    stranger: (await api(`/api/games/${game.id}`, 'player-a')).status,
+    strangerSource: (await api(`/api/games/${game.id}/source`, 'player-a')).status,
+    moderator: (await api(`/api/games/${game.id}`, 'moderator')).status,
+    owner: (await api(`/api/games/${game.id}/source`, 'local-dev')).status,
+    strangerLandsOn: new URL(strangerPage.url()).pathname,
+  };
+  await strangerPage.context().close();
   const owner = await pageAs('local-dev');
   await owner.goto(`${url}/games/${game.id}`, { waitUntil: 'load', timeout: 30000 });
   await owner.waitForSelector('[data-testid="community"]', { timeout: 20000 });
@@ -239,6 +250,11 @@ try {
 
   ok =
     result.strangerPublish === 403 &&
+    result.workspace.stranger === 404 &&
+    result.workspace.strangerSource === 404 &&
+    result.workspace.moderator === 200 &&
+    result.workspace.owner === 200 &&
+    result.workspace.strangerLandsOn === `/play/${game.id}` &&
     result.listed &&
     result.afterPlay.players >= 1 &&
     result.afterPlay.fun >= 1 &&

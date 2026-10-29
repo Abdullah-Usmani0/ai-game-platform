@@ -1,13 +1,15 @@
+import { canSeeWorkspace } from '@/lib/access';
+import { viewerId } from '@/lib/identity';
 import { bundleBaseUrl, getStore } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
-/** A game with its versions (newest first) and jobs, as the workspace page shows them. */
+/** A game with its versions (newest first) and jobs, as the workspace page shows them: its owner and moderators only. */
 export async function GET(_req: Request, ctx: { params: Promise<{ gameId: string }> }): Promise<Response> {
   const { gameId } = await ctx.params;
   const store = getStore();
   const game = await store.getGame(gameId);
-  if (!game) return Response.json({ error: 'not found' }, { status: 404 });
+  if (!game || !(await canSeeWorkspace(store, game, await viewerId()))) return Response.json({ error: 'not found' }, { status: 404 });
   const [versions, jobs] = await Promise.all([store.listVersions(gameId), store.listJobs(gameId)]);
   const head = versions.find((v) => v.isHead) ?? null;
   return Response.json({

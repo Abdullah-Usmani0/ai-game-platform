@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LevelJson } from '@gg/schemas';
+import { CodeView } from '@/components/CodeView';
 import { CommunityPanel } from '@/components/CommunityPanel';
 import { LevelEditor } from '@/components/LevelEditor';
 import { ParamPanel, type PanelItem } from '@/components/ParamPanel';
@@ -77,6 +78,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [frameKey, setFrameKey] = useState(0);
+  const editBox = useRef<HTMLTextAreaElement>(null);
   const lastStatus = useRef<string | null>(null);
 
   const refreshGame = useCallback(async () => {
@@ -178,6 +180,15 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
             </div>
           </div>
         ) : null}
+        <CodeView
+          gameId={game.id}
+          headId={head?.id ?? null}
+          versions={gameView?.versions ?? []}
+          onAsk={(path) => {
+            setMessage(`In ${path}: `);
+            editBox.current?.focus();
+          }}
+        />
       </section>
       <section className="col">
         <div className="panel" data-testid="progress" data-status={status}>
@@ -209,7 +220,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
         <div className="panel">
           <h2>Edit</h2>
           <p className="muted">Describe a change. Parameter, style, behaviour and level edits run in minutes without regenerating the game; anything else goes through a full code session and the whole gate.</p>
-          <textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder='e.g. "make the walker chase more aggressively" or "set hazards.respawnDelayTicks=20"' disabled={active || !game.headVersionId} data-testid="edit-message" />
+          <textarea ref={editBox} rows={3} value={message} onChange={(e) => setMessage(e.target.value)} placeholder='e.g. "make the walker chase more aggressively" or "set hazards.respawnDelayTicks=20"' disabled={active || !game.headVersionId} data-testid="edit-message" />
           <label className="check">
             <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} /> dry run
           </label>
