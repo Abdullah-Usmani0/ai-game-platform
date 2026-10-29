@@ -1,11 +1,15 @@
 import type { LevelJson, TileKind } from '@gg/schemas';
 
-/** Read-only tile grid built from a LevelJson. Coordinates in tiles unless suffixed Px. */
+/**
+ * Tile grid built from a LevelJson. Coordinates in tiles unless suffixed Px. Levels are data; systems may change a
+ * tile at runtime (a door opening) through setKind, and every change bumps `version` so views know to redraw.
+ */
 export class Tilemap {
   readonly width: number;
   readonly height: number;
   readonly tileSize: number;
   private readonly kinds: TileKind[];
+  private changes = 0;
 
   constructor(public readonly level: LevelJson) {
     this.width = level.width;
@@ -19,6 +23,20 @@ export class Tilemap {
         this.kinds[y * this.width + x] = level.legend[ch] ?? 'air';
       }
     }
+  }
+
+  /** Number of runtime tile changes since the level loaded (0 for a level as authored). */
+  get version(): number {
+    return this.changes;
+  }
+
+  /** Change one tile at runtime. Out-of-bounds and no-op changes are ignored. Deterministic: systems call it from fixedUpdate. */
+  setKind(tx: number, ty: number, kind: TileKind): void {
+    if (tx < 0 || ty < 0 || tx >= this.width || ty >= this.height) return;
+    const i = ty * this.width + tx;
+    if (this.kinds[i] === kind) return;
+    this.kinds[i] = kind;
+    this.changes++;
   }
 
   get pixelWidth(): number {

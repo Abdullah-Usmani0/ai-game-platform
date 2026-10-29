@@ -150,3 +150,38 @@ describe('sim', () => {
     expect(sim.world.player.alive).toBe(true);
   });
 });
+
+describe('runtime tile changes', () => {
+  it('setKind changes a tile, bumps the version once per real change and ignores out-of-bounds', () => {
+    const map = new Tilemap(level);
+    expect(map.version).toBe(0);
+    expect(map.kindAt(14, 4)).toBe('solid');
+    map.setKind(14, 4, 'air');
+    map.setKind(14, 4, 'air');
+    map.setKind(-1, 4, 'air');
+    map.setKind(14, 99, 'air');
+    expect(map.kindAt(14, 4)).toBe('air');
+    expect(map.version).toBe(1);
+  });
+  it('a system that opens a wall lets the player through, and a reset restores the level as authored', () => {
+    const walled: LevelJson = { ...level, rows: level.rows.map((r, y) => (y >= 3 && y <= 5 ? r.slice(0, 5) + '#' + r.slice(6) : r)), entities: [] };
+    const opener = defineSystem<{ opened: boolean }>({
+      id: 'opener',
+      init: () => ({ opened: false }),
+      fixedUpdate(s, _input, ctx) {
+        if (!s.opened && ctx.tick === 60) {
+          for (let y = 3; y <= 5; y++) ctx.map.setKind(5, y, 'air');
+          s.opened = true;
+        }
+      },
+    });
+    const sim = createSim({ ...options, level: walled, systems: [...options.systems, opener] });
+    sim.run([{ from: 0, to: 59, input: { right: true } }], 59);
+    expect(sim.world.player.x).toBeLessThan(5 * 8);
+    sim.run([{ from: 59, to: 140, input: { right: true } }], 81);
+    expect(sim.world.player.x).toBeGreaterThan(5 * 8);
+    sim.reset();
+    expect(sim.map.kindAt(5, 4)).toBe('solid');
+    expect(sim.map.version).toBe(0);
+  });
+});

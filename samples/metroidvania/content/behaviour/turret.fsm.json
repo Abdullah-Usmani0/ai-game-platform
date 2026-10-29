@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "id": "turret",
+  "designNotes": "Stationary; fires a bolt at the player every second while they are in range.",
+  "initial": "idle",
+  "states": {
+    "idle": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "fire",
+          "when": {
+            "kind": "player_within",
+            "px": 96
+          }
+        }
+      ]
+    },
+    "fire": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bolt",
+          "speed": 90,
+          "cooldownMs": 1000
+        }
+      ],
+      "transitions": [
+        {
+          "to": "idle",
+          "when": {
+            "kind": "player_beyond",
+            "px": 128
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import type { GenreCheck } from '@gg/template-core';
+import { metroidvaniaCheck } from '@gg/template-metroidvania/check';
 import { platformerCheck } from '@gg/template-platformer/check';
 import { shmupCheck } from '@gg/template-shmup/check';
 import { survivorsCheck } from '@gg/template-survivors/check';
@@ -10,6 +11,7 @@ export const CHECKS: Record<string, GenreCheck> = {
   survivors: survivorsCheck,
   'topdown-action': topdownActionCheck,
   shmup: shmupCheck,
+  metroidvania: metroidvaniaCheck,
 };
 
 export function checkKit(genreId: string): GenreCheck {

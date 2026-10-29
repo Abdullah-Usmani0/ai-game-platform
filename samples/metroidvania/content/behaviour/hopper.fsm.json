@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "id": "hopper",
+  "designNotes": "Waits, then hops toward the player in short bursts.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "hop",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 700
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "hop": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 60
+        },
+        {
+          "kind": "jump",
+          "vy": -120
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "wait",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 300
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

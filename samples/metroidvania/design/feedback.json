@@ -1,0 +1,10 @@
+[
+  { "event": "jump", "channels": ["sfx"] },
+  { "event": "land", "channels": ["sfx"] },
+  { "event": "dash", "channels": ["sfx", "particle"] },
+  { "event": "hit", "channels": ["shake", "flash", "sfx"] },
+  { "event": "death", "channels": ["flash", "sfx"] },
+  { "event": "pickup", "channels": ["sfx", "particle", "flash"] },
+  { "event": "checkpoint", "channels": ["sfx"] },
+  { "event": "level_complete", "channels": ["sfx", "particle"] }
+]

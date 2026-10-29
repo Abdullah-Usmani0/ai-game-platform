@@ -254,6 +254,9 @@ importers:
       '@gg/template-core':
         specifier: workspace:*
         version: link:../template-core
+      '@gg/template-metroidvania':
+        specifier: workspace:*
+        version: link:../templates/genres/metroidvania
       '@gg/template-platformer':
         specifier: workspace:*
         version: link:../templates/genres/platformer
@@ -405,6 +408,9 @@ importers:
       '@gg/template-core':
         specifier: workspace:*
         version: link:../template-core
+      '@gg/template-metroidvania':
+        specifier: workspace:*
+        version: link:genres/metroidvania
       '@gg/template-platformer':
         specifier: workspace:*
         version: link:genres/platformer
@@ -430,6 +436,43 @@ importers:
       eslint:
         specifier: 10.13.0
         version: 10.13.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/templates/genres/metroidvania:
+    dependencies:
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../../../schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../../../sdk
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../../../template-core
+      '@gg/template-platformer':
+        specifier: workspace:*
+        version: link:../platformer
+      '@gg/validators':
+        specifier: workspace:*
+        version: link:../../../validators
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../../../config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -591,6 +634,49 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  samples/metroidvania:
+    dependencies:
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@gg/template-metroidvania':
+        specifier: workspace:*
+        version: link:../../packages/templates/genres/metroidvania
+      '@gg/template-platformer':
+        specifier: workspace:*
+        version: link:../../packages/templates/genres/platformer
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@gg/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../../packages/template-core
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vite:
+        specifier: 8.3.5
+        version: 8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)
       vitest:
         specifier: 5.0.5
         version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))

@@ -170,3 +170,23 @@ describe('juiceLint', () => {
     expect(r.issues[0]?.code).toBe('feedback_missing');
   });
 });
+
+describe('jump envelope options', () => {
+  it('the default envelope is the plain held jump, unchanged', () => {
+    const e = jumpEnvelope(CELESTE_CLASS, 8);
+    expect(e.jumpUpTiles).toBe(3);
+    expect(e.maxDx.get(0)).toBe(11);
+    expect(e.maxDx.get(-3)).toBe(9);
+  });
+  it('exact air speed is tighter; an air jump doubles the height; the dash reaches furthest', () => {
+    const exact = jumpEnvelope(CELESTE_CLASS, 8, 12, { exactAir: true });
+    const double = jumpEnvelope(CELESTE_CLASS, 8, 12, { exactAir: true, airJumps: 1 });
+    const dash = jumpEnvelope(CELESTE_CLASS, 8, 12, { exactAir: true, dash: true });
+    const both = jumpEnvelope(CELESTE_CLASS, 8, 12, { exactAir: true, airJumps: 1, dash: true });
+    expect(exact.maxDx.get(0)!).toBeLessThan(jumpEnvelope(CELESTE_CLASS, 8).maxDx.get(0)!);
+    expect(double.jumpUpTiles).toBeGreaterThanOrEqual(6);
+    expect(dash.jumpUpTiles).toBe(exact.jumpUpTiles);
+    expect(dash.maxDx.get(0)!).toBeGreaterThan(double.maxDx.get(0)!);
+    expect(both.maxDx.get(0)!).toBeGreaterThan(dash.maxDx.get(0)!);
+  });
+});

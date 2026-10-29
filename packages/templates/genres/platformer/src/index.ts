@@ -11,6 +11,7 @@ export * from './feel.js';
 export * from './entities.js';
 export * from './behaviours.js';
 export { movement, hazards, combat, pickups, goal };
+export { createMovement, ABILITY_DASH, ABILITY_DOUBLE_JUMP, type MovementOptions, type MovementState } from './systems/movement.js';
 
 /** Browser-safe runtime description of the platformer genre. */
 export const platformerRuntime: GenreRuntime = {

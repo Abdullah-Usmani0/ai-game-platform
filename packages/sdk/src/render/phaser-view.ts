@@ -27,6 +27,8 @@ export class MainScene extends Phaser.Scene {
   private followTarget = { x: 0, y: 0 };
   private unsubs: Array<() => void> = [];
   private levelDirty = true;
+  /** Tilemap version the tiles were last drawn at (doors opening change tiles at runtime). */
+  private drawnVersion = -1;
   private hitstopUntil = 0;
 
   constructor(
@@ -109,10 +111,11 @@ export class MainScene extends Phaser.Scene {
       }
     }
     this.levelDirty = false;
+    this.drawnVersion = map.version;
   }
 
   private colorFor(e: Entity): number {
-    const key = ENTITY_COLORS[e.type] ?? (e.pickup ? 'accent' : 'danger');
+    const key = e.tint ?? ENTITY_COLORS[e.type] ?? (e.pickup ? 'accent' : 'danger');
     return hex(this.style.palette[key]);
   }
 
@@ -123,7 +126,7 @@ export class MainScene extends Phaser.Scene {
       return;
     }
     this.controller.frame(delta);
-    if (this.levelDirty) this.drawTiles();
+    if (this.levelDirty || this.controller.sim.map.version !== this.drawnVersion) this.drawTiles();
     const w = this.controller.sim.world;
     const p = w.player;
     this.followTarget.x = Math.round(p.x + p.w / 2);

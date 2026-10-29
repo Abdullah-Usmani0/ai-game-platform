@@ -29,7 +29,12 @@ export interface Entity extends Body {
   /** Visual-only squash/stretch scale, written by systems, read by the renderer. */
   scaleX: number;
   scaleY: number;
+  /** Palette role the placeholder renderer draws this entity with (null: the renderer's default by kind). */
+  tint: EntityTint | null;
 }
+
+/** Palette roles an entity type may ask the renderer for. */
+export type EntityTint = 'foreground' | 'accent' | 'danger' | 'ui' | 'mid';
 
 /** Static definition of an entity type (from the genre template or the sample game). */
 export interface EntityDef {
@@ -42,6 +47,8 @@ export interface EntityDef {
   contactDamage?: number;
   pickup?: boolean;
   projectile?: boolean;
+  /** Placeholder render colour by palette role, for items that are neither enemies nor plain pickups (relics, doors). */
+  tint?: EntityTint;
 }
 
 export interface WorldFlags {
@@ -92,6 +99,7 @@ export function makeEntity(id: number, def: EntityDef, x: number, y: number): En
     tookDamageTick: -1,
     scaleX: 1,
     scaleY: 1,
+    tint: def.tint ?? null,
   };
 }
 

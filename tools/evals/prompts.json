@@ -162,6 +162,24 @@
       "genre": "shmup",
       "scopeTier": "small",
       "prompt": "A paper plane dodging crumpled-ball drones and heavy staplers in a classroom sky; hold to fire pencils."
+    },
+    {
+      "id": "m01",
+      "genre": "metroidvania",
+      "scopeTier": "small",
+      "prompt": "A lantern-bearing moth exploring a flooded cave: wings let it double-jump the old cliffs, a rusty key opens the sluice gate, and dash boots carry it over the spike pit to the exit."
+    },
+    {
+      "id": "m02",
+      "genre": "metroidvania",
+      "scopeTier": "small",
+      "prompt": "A tiny robot waking in an abandoned mine, backtracking for a jump booster and a dash module to reach the elevator, with crawlers patrolling the tunnels."
+    },
+    {
+      "id": "m03",
+      "genre": "metroidvania",
+      "scopeTier": "medium",
+      "prompt": "Two caverns beneath a ruined monastery: find the feather to climb, the bronze key for the crypt door and the wind boots to cross the chasm, past hopping spores and sentries."
     }
   ]
 }
