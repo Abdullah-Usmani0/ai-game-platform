@@ -243,6 +243,7 @@ export const gridPush = defineSystem<GridPushState>({
     s.queued = null;
     if (next) tryStep(s, ctx, next);
   },
+  progress: (s) => (s.targets.length === 0 ? 0 : s.targets.filter((t) => s.crates.some((c) => c.x === t.x && c.y === t.y)).length / s.targets.length),
 });
 
 export const meta = {
@@ -259,4 +260,5 @@ export const meta = {
   },
   emits: ['move', 'push', 'undo', 'level_complete'],
   feedbackFor: ['move', 'push', 'undo', 'level_complete'],
+  controls: { left: 'step', right: 'step', up: 'step', down: 'step', action: 'undo', dash: 'restart' },
 } as const;

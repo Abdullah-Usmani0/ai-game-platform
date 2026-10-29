@@ -1,4 +1,4 @@
-import { defineSystem } from '@gg/sdk';
+import { defineSystem, goalCloseness } from '@gg/sdk';
 
 export const goal = defineSystem<{ done: boolean }>({
   id: 'goal',
@@ -13,6 +13,7 @@ export const goal = defineSystem<{ done: boolean }>({
       ctx.emit('level_complete', { level: ctx.world.levelId, score: ctx.world.score, deaths: ctx.world.deaths });
     }
   },
+  progress: (s, ctx) => (s.done ? 1 : goalCloseness(ctx.map, ctx.world.player)),
 });
 
 export const meta = {

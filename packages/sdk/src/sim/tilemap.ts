@@ -25,6 +25,16 @@ export class Tilemap {
     }
   }
 
+  /** The tiles as they stand (with their change count), for a sim save point. */
+  saveTiles(): { kinds: TileKind[]; changes: number } {
+    return { kinds: [...this.kinds], changes: this.changes };
+  }
+
+  restoreTiles(saved: { kinds: readonly TileKind[]; changes: number }): void {
+    for (let i = 0; i < this.kinds.length; i++) this.kinds[i] = saved.kinds[i] ?? 'air';
+    this.changes = saved.changes;
+  }
+
   /** Number of runtime tile changes since the level loaded (0 for a level as authored). */
   get version(): number {
     return this.changes;

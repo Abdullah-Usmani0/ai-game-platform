@@ -35,6 +35,17 @@ export class EventBus {
     return () => hs?.delete(handler);
   }
 
+  /** The event counts, for a sim save point (the history ring is introspection only, so a save leaves it out). */
+  saveCounts(): Array<[string, number]> {
+    return [...this.counts];
+  }
+
+  /** Back to saved counts; the history ring starts again from here. */
+  restoreCounts(saved: ReadonlyArray<readonly [string, number]>): void {
+    this.counts = new Map(saved);
+    this.ring = [];
+  }
+
   history(): readonly GameEventRecord[] {
     return this.ring;
   }

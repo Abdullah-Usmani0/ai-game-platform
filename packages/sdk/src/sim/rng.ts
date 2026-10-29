@@ -42,6 +42,15 @@ export class Rng {
     return item;
   }
 
+  /** The generator's full state, for a sim save point. */
+  getState(): [number, number, number, number, number] {
+    return [this.a, this.b, this.c, this.d, this.calls];
+  }
+
+  setState(state: readonly [number, number, number, number, number]): void {
+    [this.a, this.b, this.c, this.d, this.calls] = state;
+  }
+
   private next(): number {
     const t = (((this.a + this.b) | 0) + this.d) | 0;
     this.d = (this.d + 1) | 0;

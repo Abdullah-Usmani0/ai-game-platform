@@ -1,4 +1,4 @@
-import { defineSystem } from '@gg/sdk';
+import { defineSystem, goalCloseness } from '@gg/sdk';
 import { isHostile } from '../entities.js';
 
 interface RoomClearState {
@@ -52,6 +52,14 @@ export const roomClear = defineSystem<RoomClearState>({
     if (ev.name !== 'death' || ev.payload['type'] === 'player') return;
     s.kills++;
     ctx.world.score += Number(ctx.params['killScore'] ?? 5);
+  },
+  // Most of the way is the fight; the walk to the opened exit is the rest.
+  progress: (s, ctx) => {
+    if (s.done) return ctx.world.flags.won ? 1 : 0;
+    // Before the first tick nothing is counted yet: no progress.
+    if (s.total < 0) return 0;
+    const fought = s.total > 0 ? s.kills / s.total : 1;
+    return 0.75 * fought + (s.cleared || s.total <= 0 ? 0.25 * goalCloseness(ctx.map, ctx.world.player) : 0);
   },
 });
 

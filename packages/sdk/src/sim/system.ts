@@ -53,6 +53,11 @@ export interface SystemDef<S> {
   init(ctx: SimCtx): S;
   fixedUpdate(state: S, input: InputState, ctx: SimCtx): void;
   onEvent?(state: S, ev: GameEventRecord, ctx: SimCtx): void;
+  /**
+   * How close this system's win condition is, from 0 to 1 (kills of the total, time survived, crates placed). Bots and
+   * analytics read it; it never changes the game. The universal explorer bot steers by it.
+   */
+  progress?(state: S, ctx: SimCtx): number;
 }
 
 /** Author a simulation system. Pure data in, pure data out; the only API GlueTS code sees. */

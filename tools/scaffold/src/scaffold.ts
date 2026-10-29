@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { GddFrontmatter, type LevelJson, type StyleCard, type SystemsJson } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
-import { type GenreManifest, type LevelGenParams, runBot, simOptionsFor } from '@gg/template-core';
+import { type GenreManifest, type LevelGenParams, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { CATALOG, genre as genreOf } from '@gg/templates/node';
 import { checkSystems, parseFrontmatter } from '@gg/validators';
 import * as F from './files.js';
@@ -185,13 +185,7 @@ export function linkGameBase(gameDir: string): void {
 /** Minimal systems.json for a genre: every required system plus the listed optional ones, default params. */
 export function defaultSystems(genreId: string, optional: string[] = []): SystemsJson {
   const g = genreOf(genreId);
-  const ids = [...g.requiredSystems, ...optional.filter((o) => g.optionalSystems.includes(o))];
-  return {
-    version: 1,
-    genre: g.id,
-    feelPreset: g.defaultFeel,
-    systems: ids.map((id) => ({ id, params: { ...Object.fromEntries(Object.entries(g.systems[id]!.meta.params).map(([k, p]) => [k, p.default])), ...(g.paramDefaults?.[id] ?? {}) } })),
-  };
+  return systemsJsonFor(g, [...g.requiredSystems, ...optional.filter((o) => g.optionalSystems.includes(o))]);
 }
 
 export function readJson<T>(path: string): T {

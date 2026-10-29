@@ -22,6 +22,7 @@ export const survival = defineSystem<{ done: boolean }>({
       ctx.emit('level_complete', { level: w.levelId, score: w.score, deaths: w.deaths });
     }
   },
+  progress: (_s, ctx) => (ctx.world.player.alive ? ctx.tick / Math.round(Number(ctx.params['winAtS'] ?? 60) * 60) : 0),
 });
 
 export const meta = {

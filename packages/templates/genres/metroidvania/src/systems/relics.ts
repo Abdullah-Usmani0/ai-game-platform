@@ -2,6 +2,10 @@ import { defineSystem, overlaps, type Entity } from '@gg/sdk';
 import { DOOR_TYPE, KEY_TYPE, RELIC_ABILITY } from '../entities.js';
 
 interface RelicsState {
+  /** Relics, keys and doors on the level as it loaded: what there is to find and open. */
+  total: number;
+  /** Relics and keys taken plus doors opened so far. */
+  done: number;
   keys: number;
   /** A relic was picked up; the checkpoint moves to the next spot the player stands on. */
   checkpointPending: boolean;
@@ -19,7 +23,7 @@ function touching(p: Entity, door: Entity): boolean {
  */
 export const relics = defineSystem<RelicsState>({
   id: 'relics',
-  init: () => ({ keys: 0, checkpointPending: false, found: [] }),
+  init: (ctx) => ({ total: ctx.world.entities.filter((e) => RELIC_ABILITY[e.type] !== undefined || e.type === KEY_TYPE || e.type === DOOR_TYPE).length, done: 0, keys: 0, checkpointPending: false, found: [] }),
   fixedUpdate(s, _input, ctx) {
     const p = ctx.world.player;
     if (p.alive) {
@@ -33,6 +37,7 @@ export const relics = defineSystem<RelicsState>({
             s.found.push(e.type);
           } else s.keys++;
           ctx.world.score += Number(ctx.params['relicScore'] ?? 25);
+          s.done++;
           s.checkpointPending = true;
           ctx.emit('pickup', { entity: e.id, type: e.type });
           ctx.emit('despawn', { entity: e.id, type: e.type });
@@ -42,6 +47,7 @@ export const relics = defineSystem<RelicsState>({
           const tx = Math.floor((e.x + e.w / 2) / ts);
           for (let ty = Math.floor(e.y / ts + 1e-6); ty <= Math.floor((e.y + e.h - 1e-6) / ts); ty++) ctx.map.setKind(tx, ty, 'air');
           e.alive = false;
+          s.done++;
           ctx.emit('custom:door_open', { entity: e.id, x: tx });
           ctx.emit('despawn', { entity: e.id, type: e.type });
         }
@@ -55,6 +61,7 @@ export const relics = defineSystem<RelicsState>({
     ctx.world.hud['keys'] = s.keys;
     ctx.world.hud['relics'] = s.found.length > 0 ? s.found.join('+') : '-';
   },
+  progress: (s) => (s.total > 0 ? s.done / s.total : 1),
 });
 
 export const meta = {

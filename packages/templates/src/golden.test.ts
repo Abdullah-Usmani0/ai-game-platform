@@ -7,10 +7,10 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { LevelJson, SystemsJson } from '@gg/schemas';
+import type { LevelJson } from '@gg/schemas';
 import { createSim, hashValue, Tilemap, type FeelPreset } from '@gg/sdk';
 import { artPalette, paintFrames, paintRegion, prepareLevelArt, PixelCanvas, RECIPES, SETTING_BY_GENRE, SFX_PRESETS, type PaletteRoles } from '@gg/sdk/art';
-import { runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
+import { runBot, simOptionsFor, systemsJsonFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import { GENRES } from './node.js';
 
@@ -38,19 +38,6 @@ function check(name: string, actual: Golden): void {
       for (const sub of new Set([...Object.keys(e), ...Object.keys(a)])) expect(a[sub], `${name}: ${key}.${sub}`).toEqual(e[sub]);
     } else expect(a, `${name}: ${key}`).toEqual(e);
   }
-}
-
-/** Every required and optional system with its catalog defaults and the genre's own defaults, as the scaffold drafts it. */
-function systemsFor(g: GenreManifest): SystemsJson {
-  return {
-    version: 1,
-    genre: g.id,
-    feelPreset: g.defaultFeel,
-    systems: [...g.requiredSystems, ...g.optionalSystems].map((id) => ({
-      id,
-      params: { ...Object.fromEntries(Object.entries(g.systems[id]!.meta.params).map(([k, p]) => [k, p.default])), ...(g.paramDefaults?.[id] ?? {}) },
-    })),
-  };
 }
 
 /** The levels each genre is pinned on: two seeds at three difficulties, plus boss floors where the generator has them. */
@@ -92,7 +79,7 @@ describe('golden lock: curated genres', () => {
         solverBot: g.solverBot,
         bots: Object.keys(g.bots).sort(),
       };
-      const systems = systemsFor(g);
+      const systems = systemsJsonFor(g);
       const feel: FeelPreset = g.feelPresets[g.defaultFeel]!;
       const levels: Record<string, string> = {};
       const runs: Record<string, unknown> = {};

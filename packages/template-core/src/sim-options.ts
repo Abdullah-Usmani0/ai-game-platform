@@ -35,3 +35,20 @@ export function simOptionsFor(runtime: GenreRuntime, systems: SystemsJson, input
     movementMode: runtime.movementMode,
   };
 }
+
+/**
+ * A systems.json drafted from a genre: the named systems (by default every required and optional one), each with the
+ * catalog's default parameters under the genre's own (paramDefaults). The scaffold, the golden lock and the sweeps use it.
+ */
+export function systemsJsonFor(runtime: GenreRuntime, ids: readonly string[] = [...runtime.requiredSystems, ...runtime.optionalSystems]): SystemsJson {
+  return {
+    version: 1,
+    genre: runtime.id,
+    feelPreset: runtime.defaultFeel,
+    systems: ids.map((id) => {
+      const mod = runtime.systems[id];
+      if (!mod) throw new Error(`genre ${runtime.id} has no system '${id}'`);
+      return { id, params: { ...Object.fromEntries(Object.entries(mod.meta.params).map(([k, p]) => [k, p.default])), ...(runtime.paramDefaults?.[id] ?? {}) } };
+    }),
+  };
+}

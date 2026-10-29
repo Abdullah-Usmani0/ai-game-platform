@@ -1,10 +1,11 @@
 import type { BehaviourFsm, LevelJson } from '@gg/schemas';
 import { describe, expect, it } from 'vitest';
 import { CELESTE_CLASS } from './feel.js';
+import { emptyInput } from './input.js';
 import { moveBody } from './physics.js';
 import { Rng } from './rng.js';
-import { createSim, replay, type SimOptions } from './sim.js';
-import { defineSystem, type MenuSpec } from './system.js';
+import { createSim, goalCloseness, replay, type SimOptions } from './sim.js';
+import { defineSystem, type MenuSpec, type SimCtx } from './system.js';
 import { Tilemap } from './tilemap.js';
 
 const level: LevelJson = {
@@ -348,5 +349,122 @@ describe('behaviour conditions', () => {
     expect(e.fsm?.state).toBe('calm');
     sim.run([], 2);
     expect(e.fsm?.state).toBe('angry');
+  });
+});
+
+describe('save points', () => {
+  // Opens a menu on tick 40 (picked on 70) and knocks a hole in the floor on tick 90: state beyond the world itself.
+  const events = defineSystem<{ opened: boolean }>({
+    id: 'events',
+    init: () => ({ opened: false }),
+    fixedUpdate(s, _input, ctx) {
+      if (ctx.tick === 40 && !s.opened) {
+        s.opened = true;
+        ctx.openMenu({ id: 'm', title: 'M', options: [{ id: 'a', label: 'A' }] });
+      }
+      if (ctx.tick === 90) ctx.map.setKind(12, 6, 'air');
+      if (ctx.tick % 25 === 0) ctx.emit('custom:tick', { r: ctx.rng.int(1000) });
+    },
+  });
+  const opts = { ...options, systems: [mover, events] };
+  const script = [
+    { from: 0, to: 60, input: { right: true } },
+    { from: 60, to: 62, input: { action: true } },
+    { from: 62, to: 64, input: {} },
+    { from: 64, to: 66, input: { action: true } },
+    { from: 66, to: 140, input: { right: true, jump: true } },
+    { from: 140, to: 300, input: { left: true } },
+  ];
+
+  it('loading a save and replaying the same inputs reaches the same states, as often as asked', () => {
+    const straight = createSim(opts);
+    straight.run(script, 300);
+    const sim = createSim(opts);
+    sim.run(script, 50);
+    expect(sim.world.menu).not.toBeNull();
+    const at50 = sim.save();
+    const hash50 = sim.hash();
+    sim.run(script, 250);
+    expect(sim.hash()).toBe(straight.hash());
+    for (let i = 0; i < 2; i++) {
+      sim.load(at50);
+      expect(sim.tick).toBe(50);
+      expect(sim.hash()).toBe(hash50);
+      expect(sim.world.menu?.id).toBe('m');
+      sim.run(script, 250);
+      expect(sim.hash()).toBe(straight.hash());
+      expect(sim.map.kindAt(12, 6)).toBe('air');
+      expect(sim.events.count('custom:tick')).toBe(straight.events.count('custom:tick'));
+    }
+  });
+
+  it('branches: a different future from a save leaves the save untouched', () => {
+    const sim = createSim(opts);
+    sim.run(script, 100);
+    const at100 = sim.save();
+    const hash100 = sim.hash();
+    sim.run([{ from: 100, to: 200, input: { right: true } }], 100);
+    const right = sim.hash();
+    sim.load(at100);
+    sim.run([{ from: 100, to: 200, input: { left: true } }], 100);
+    expect(sim.hash()).not.toBe(right);
+    sim.load(at100);
+    expect(sim.hash()).toBe(hash100);
+    expect(sim.map.kindAt(12, 6)).toBe('air');
+  });
+});
+
+describe('progress', () => {
+  const fixed = (id: string, value: () => number) => defineSystem<null>({ id, init: () => null, fixedUpdate: () => {}, progress: value });
+
+  it('without hooks it is how much closer to the goal the player is than at the spawn, and 1 once won', () => {
+    const sim = createSim(options);
+    expect(sim.progress()).toBeCloseTo(goalCloseness(sim.map, sim.world.player));
+    const start = sim.progress();
+    expect(start).toBeLessThan(0.1);
+    sim.run([{ from: 0, to: 40, input: { right: true } }], 40);
+    expect(sim.progress()).toBeGreaterThan(start);
+    sim.world.flags.won = true;
+    expect(sim.progress()).toBe(1);
+  });
+
+  it('is the mean of the hooks, each clamped to 0..1, ignoring values that are not finite', () => {
+    const sim = createSim({ ...options, systems: [mover, fixed('a', () => 0.2), fixed('b', () => 0.6), fixed('c', () => 7), fixed('d', () => Number.NaN), fixed('e', () => -1)] });
+    expect(sim.progress()).toBeCloseTo((0.2 + 0.6 + 1 + 0) / 4);
+  });
+
+  it('reading it never changes the game: hooks may read, but the rng and every action throw', () => {
+    const reader = fixed('reader', () => 0.5);
+    const a = createSim({ ...options, systems: [mover, reader] });
+    const b = createSim({ ...options, systems: [mover, reader] });
+    for (let t = 0; t < 120; t++) {
+      const input = { ...emptyInput(), right: true, jump: t % 30 === 0 };
+      a.step(input);
+      b.step(input);
+      a.progress();
+    }
+    expect(a.hash()).toBe(b.hash());
+    // Reading events is fine: a hook may count what happened.
+    const c = createSim({ ...options, systems: [mover, fixed('jumps', () => 0)] });
+    const counter = defineSystem<null>({ id: 'counter', init: () => null, fixedUpdate: () => {}, progress: (_s, ctx) => ctx.events.count('jump') / 10 });
+    const d = createSim({ ...options, systems: [mover, counter] });
+    d.run([{ from: 0, to: 60, input: { right: true, jump: true } }], 60);
+    c.run([{ from: 0, to: 60, input: { right: true, jump: true } }], 60);
+    expect(d.events.count('jump')).toBeGreaterThan(0);
+    expect(d.progress()).toBeCloseTo(d.events.count('jump') / 10);
+    expect(d.hash()).toBe(c.hash());
+    const cheats: Array<[string, (ctx: SimCtx) => unknown]> = [
+      ['rng', (ctx) => ctx.rng.int(10)],
+      ['emit', (ctx) => ctx.emit('x')],
+      ['bus', (ctx) => ctx.events.emit(0, 'x')],
+      ['spawn', (ctx) => ctx.spawn('walker', 0, 0)],
+      ['damage', (ctx) => ctx.damage(ctx.world.player, 1, null)],
+      ['move', (ctx) => ctx.move(ctx.world.player, 1, 0)],
+      ['menu', (ctx) => ctx.openMenu({ id: 'm', title: 'M', options: [{ id: 'a', label: 'A' }] })],
+    ];
+    for (const [name, cheat] of cheats) {
+      const sim = createSim({ ...options, systems: [mover, defineSystem<null>({ id: `cheat-${name}`, init: () => null, fixedUpdate: () => {}, progress: (_s, ctx) => Number(cheat(ctx)) })] });
+      expect(() => sim.progress(), name).toThrow(/progress\(\) only reads the game/);
+    }
   });
 });

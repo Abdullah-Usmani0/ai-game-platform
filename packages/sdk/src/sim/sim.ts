@@ -36,6 +36,23 @@ export interface SimOptions {
   carry?: Readonly<Record<string, ParamValue>>;
 }
 
+/** A save point: everything the steps after it depend on, as plain data (see Sim.save). */
+export interface SimSave {
+  readonly tick: number;
+  readonly data: unknown;
+}
+
+interface SaveData {
+  world: World;
+  states: Array<[string, unknown]>;
+  pending: GameEventRecord[];
+  tiles: ReturnType<Tilemap['saveTiles']>;
+  rng: ReturnType<Rng['getState']>;
+  events: ReturnType<EventBus['saveCounts']>;
+  lastInput: InputState;
+  prevInput: InputState;
+}
+
 export interface Sim {
   readonly options: SimOptions;
   readonly world: World;
@@ -51,6 +68,16 @@ export interface Sim {
   hash(): string;
   inputLog(): readonly InputFrame[];
   reset(seed?: number): void;
+  /**
+   * A save point at this tick. load() returns the sim to it exactly: the same inputs from there give the same states
+   * and hashes as the run it was taken from, so bots can branch (the explorer's checkpoints). A save can be loaded
+   * any number of times. Event counts carry over; the input log and the event history ring restart at a load (they
+   * record one continuous run, and no system reads them).
+   */
+  save(): SimSave;
+  load(save: SimSave): void;
+  /** How close the level is to being won, 0 to 1: the mean of what its systems report, or the closeness to the goal tile. */
+  progress(): number;
 }
 
 class SimImpl implements Sim {
@@ -153,6 +180,43 @@ class SimImpl implements Sim {
       respawnPlayer: () => this.respawnPlayer(),
       move: (e, dx, dy) => moveBody(this.map, e, dx, dy),
       openMenu: (menu) => this.openMenu(menu),
+    };
+  }
+
+  /**
+   * A progress hook's view of the game: every read a system has, but the game's rng and every action throw, so reading
+   * progress (bots do, at every step) can never change what happens next.
+   */
+  private readCtx(systemId: string): SimCtx {
+    const deny = (what: string) => (): never => {
+      throw new Error(`system '${systemId}': progress() only reads the game; it cannot ${what}`);
+    };
+    const guard = <T extends object>(target: T, what: string, allowed: ReadonlySet<string>): T =>
+      new Proxy(target, {
+        get(t, key, receiver) {
+          const v: unknown = Reflect.get(t, key, receiver);
+          if (typeof v !== 'function') return v;
+          return typeof key === 'string' && allowed.has(key) ? (v as (...a: unknown[]) => unknown).bind(t) : deny(what);
+        },
+      });
+    const ctx = this.ctx(systemId);
+    return {
+      tick: this.tick,
+      dt: DT,
+      rng: guard(this.rng, 'draw from the rng', new Set()),
+      events: guard(this.events, 'emit or subscribe to events', new Set(['count', 'history'])),
+      world: this.world,
+      map: this.map,
+      feel: ctx.feel,
+      params: ctx.params,
+      content: ctx.content,
+      movementMode: ctx.movementMode,
+      emit: deny('emit events'),
+      spawn: deny('spawn entities'),
+      damage: deny('deal damage'),
+      respawnPlayer: deny('respawn the player'),
+      move: deny('move bodies'),
+      openMenu: deny('open menus'),
     };
   }
 
@@ -345,6 +409,59 @@ class SimImpl implements Sim {
   inputLog(): readonly InputFrame[] {
     return this.log;
   }
+
+  progress(): number {
+    if (this.world.flags.won) return 1;
+    let sum = 0;
+    let n = 0;
+    for (const s of this.options.systems) {
+      if (!s.progress) continue;
+      const v = s.progress(this.states.get(s.id), this.readCtx(s.id));
+      if (!Number.isFinite(v)) continue;
+      sum += Math.max(0, Math.min(1, v));
+      n++;
+    }
+    return n > 0 ? sum / n : goalCloseness(this.map, this.world.player);
+  }
+
+  save(): SimSave {
+    // One clone for the world and the system states keeps references between them (a state holding an entity) intact.
+    const live = structuredClone({ world: this.world, states: [...this.states.entries()], pending: this.pendingEvents });
+    const data: SaveData = {
+      ...live,
+      tiles: this.map.saveTiles(),
+      rng: this.rng.getState(),
+      events: this.events.saveCounts(),
+      lastInput: { ...this.lastInput },
+      prevInput: { ...this.prevInput },
+    };
+    return { tick: this.tick, data };
+  }
+
+  load(save: SimSave): void {
+    const d = save.data as SaveData;
+    // Clone again on the way in, so the save stays untouched for the next load.
+    const live = structuredClone({ world: d.world, states: d.states, pending: d.pending });
+    this.world = live.world;
+    this.states = new Map(live.states);
+    this.pendingEvents = live.pending;
+    this.map.restoreTiles(d.tiles);
+    this.rng.setState(d.rng);
+    this.events.restoreCounts(d.events);
+    this.lastInput = { ...d.lastInput };
+    this.prevInput = { ...d.prevInput };
+    this.tick = save.tick;
+    this.log = [];
+  }
+}
+
+/** 1 at the goal tile, 0 as far from it as the spawn is (or further). */
+export function goalCloseness(map: Tilemap, p: Entity): number {
+  const ts = map.tileSize;
+  const lvl = map.level;
+  const start = Math.hypot(lvl.spawn.x - lvl.goal.x, lvl.spawn.y - lvl.goal.y) || 1;
+  const d = Math.hypot((p.x + p.w / 2) / ts - (lvl.goal.x + 0.5), (p.y + p.h / 2) / ts - (lvl.goal.y + 0.5));
+  return Math.max(0, Math.min(1, 1 - d / start));
 }
 
 export function createSim(options: SimOptions): Sim {

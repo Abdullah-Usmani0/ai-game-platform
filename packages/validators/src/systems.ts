@@ -20,6 +20,11 @@ export interface CatalogSystem {
   emits: string[];
   /** Feedback events this system can bind channels for. */
   feedbackFor: string[];
+  /**
+   * What the system does with each key it reads (action: 'attack', dash: 'restart'). The play page lists them; bots
+   * that explore leave alone the keys marked 'undo' or 'restart' (a save point does that job better).
+   */
+  controls?: Partial<Record<'left' | 'right' | 'up' | 'down' | 'jump' | 'dash' | 'action' | 'pause', string>>;
 }
 
 export type SystemsCatalog = Record<string, CatalogSystem>;
