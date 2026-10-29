@@ -1,4 +1,4 @@
-import { emptyInput, Rng, type InputFrame, type InputSegment, type InputState, type Sim, type SimSave } from '@gg/sdk';
+import { compactScript, emptyInput, Rng, type InputFrame, type InputSegment, type InputState, type Sim, type SimSave } from '@gg/sdk';
 
 export interface ExploreOptions {
   /** Simulated ticks to spend before giving up (default 150 000, about 40 minutes of play). */
@@ -195,7 +195,8 @@ export function explore(make: () => Sim, opts: ExploreOptions = {}): ExploreResu
     const chain: InputFrame[][] = [tail];
     for (let c: Cell | undefined = cell; c && c.parent >= 0; c = cells[c.parent]) chain.push(c.frames);
     const frames = chain.reverse().flat();
-    return frames.map((f, i) => ({ from: f.tick, to: frames[i + 1]?.tick ?? endTick, input: { ...f.input } }));
+    // A cell's last frame and its child's first can share a tick (the child's input is the one in force).
+    return compactScript(frames.map((f, i) => ({ from: f.tick, to: frames[i + 1]?.tick ?? endTick, input: { ...f.input } })));
   };
 
   let explored = 0;

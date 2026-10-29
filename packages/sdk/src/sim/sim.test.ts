@@ -1,7 +1,7 @@
 import type { BehaviourFsm, LevelJson } from '@gg/schemas';
 import { describe, expect, it } from 'vitest';
 import { CELESTE_CLASS } from './feel.js';
-import { emptyInput } from './input.js';
+import { compactScript, emptyInput, inputAtTick } from './input.js';
 import { moveBody } from './physics.js';
 import { Rng } from './rng.js';
 import { createSim, goalCloseness, replay, type SimOptions } from './sim.js';
@@ -74,6 +74,25 @@ const options: SimOptions = {
   player: { w: 8, h: 11, hp: 3 },
   behaviours: [walker],
 };
+
+describe('compactScript', () => {
+  it('drops segments that hold for no tick and merges neighbours holding the same keys, the input at every tick unchanged', () => {
+    const script = [
+      { from: 0, to: 10, input: { right: true } },
+      { from: 10, to: 10, input: { left: true } },
+      { from: 10, to: 20, input: { right: true, jump: false } },
+      { from: 20, to: 25, input: { right: true, jump: true } },
+      { from: 25, to: 25, input: {} },
+    ];
+    const compact = compactScript(script);
+    expect(compact).toEqual([
+      { from: 0, to: 20, input: { right: true } },
+      { from: 20, to: 25, input: { right: true, jump: true } },
+    ]);
+    for (let t = 0; t <= 26; t++) expect(inputAtTick(compact, t), `tick ${t}`).toEqual(inputAtTick(script, t));
+    expect(script[0]!.to).toBe(10);
+  });
+});
 
 describe('Rng', () => {
   it('is deterministic per seed and counts calls', () => {

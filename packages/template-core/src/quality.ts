@@ -36,14 +36,23 @@ function wins(make: () => Sim, script: readonly InputSegment[], ticks: number): 
  * Share of jittered replays of a winning script that still win: how much slack the proof's timing has. The replay is
  * open-loop, so over a long reactive run (a minute among swarming enemies) small shifts compound and robustness comes
  * out low even on fair levels, where a player would react instead: compare a game with its own genre's band.
+ *
+ * A shift that only makes the run arrive later is no timing failure: each replay holds its last keys for as long as
+ * its shifts could have cost (a moved change point trades at most `amount` ticks of one input for its neighbour's,
+ * twice over to walk back), so a wandering run (the explorer's) is judged on what it hits, not on when it gets there.
  */
 export function jitterRobustness(make: () => Sim, script: readonly InputSegment[], ticks: number, opts: { runs?: number; amount?: number; seed?: number } = {}): number {
   const runs = opts.runs ?? 12;
+  const amount = opts.amount ?? 2;
   const rng = new Rng(opts.seed ?? 11);
-  // A little room past the proof's end: a later change point may finish a few ticks later.
-  const room = ticks + 4 * (opts.amount ?? 2);
+  const slack = 4 * amount + 2 * amount * Math.max(0, script.length - 1);
   let won = 0;
-  for (let i = 0; i < runs; i++) if (wins(make, jitterScript(script, opts.amount ?? 2, rng), room)) won++;
+  for (let i = 0; i < runs; i++) {
+    const jittered = jitterScript(script, amount, rng);
+    const last = jittered[jittered.length - 1];
+    if (last) last.to += slack;
+    if (wins(make, jittered, ticks + slack)) won++;
+  }
   return won / runs;
 }
 

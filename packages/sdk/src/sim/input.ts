@@ -42,6 +42,22 @@ export function inputAtTick(script: readonly InputSegment[], tick: number): Inpu
   return state;
 }
 
+/**
+ * The same run with no segment that holds for no tick (where two frames share a tick, the later one is in force) and
+ * neighbours holding the same keys merged: `inputAtTick` gives the same input at every tick, and a recorded proof stays
+ * within the schema.
+ */
+export function compactScript(script: readonly InputSegment[]): InputSegment[] {
+  const out: InputSegment[] = [];
+  for (const seg of script) {
+    if (seg.to <= seg.from) continue;
+    const last = out[out.length - 1];
+    if (last && last.to === seg.from && inputEquals({ ...emptyInput(), ...last.input }, { ...emptyInput(), ...seg.input })) last.to = seg.to;
+    else out.push({ from: seg.from, to: seg.to, input: { ...seg.input } });
+  }
+  return out;
+}
+
 export function logToScript(log: readonly InputFrame[], endTick: number): InputSegment[] {
   const out: InputSegment[] = [];
   for (let i = 0; i < log.length; i++) {

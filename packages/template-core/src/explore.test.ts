@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { explore, explorerKeys, explorerOptionsFor, type ExploreOptions } from './explore.js';
 import { board, platformer, room, survival } from './test-games.js';
 
-/** The proof holds: the script wins again on a fresh sim, in the reported number of ticks. */
+/** The proof holds: the script wins again on a fresh sim, in the reported number of ticks, and every segment of it holds. */
 function provenOn(make: () => Sim, opts: ExploreOptions) {
   const r = explore(make, opts);
   expect(r.completed, JSON.stringify(r.best)).toBe(true);
+  // A stored proof's segments each hold for a tick at least (the LevelProof schema): the explorer joins its cells' runs without empty ones.
+  for (const seg of r.script!) expect(seg.to).toBeGreaterThan(seg.from);
   const again = make();
   again.run(r.script!, r.ticks);
   expect(again.world.flags.won).toBe(true);
