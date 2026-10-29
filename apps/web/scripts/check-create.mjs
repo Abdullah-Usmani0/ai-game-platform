@@ -82,9 +82,20 @@ try {
   await page.goto(`${url}/games/${createdJson.gameId}?job=${createdJson.jobId}`, { waitUntil: 'load', timeout: 30000 });
   await page.waitForSelector('[data-testid="no-preview"]', { timeout: 10000 });
   await page.waitForSelector('[data-testid="job-status"]:has-text("queued")', { timeout: 10000 });
+  // 4. Training consent on the create page: on by default; unchecking opts the player out (the API reports it, and the
+  // store deletes their recorded pairs), checking it again opts back in.
+  await fetch(`${url}/api/me/training`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ optOut: false }) });
+  await page.goto(`${url}/create`, { waitUntil: 'load', timeout: 30000 });
+  await page.waitForSelector('[data-testid="training-consent"][data-opt-out="false"]', { timeout: 10000 });
+  await page.click('[data-testid="training-consent-box"]');
+  await page.waitForSelector('[data-testid="training-consent"][data-opt-out="true"]', { timeout: 10000 });
+  const optedOut = (await (await fetch(`${url}/api/me`)).json()).trainingOptOut;
+  await page.click('[data-testid="training-consent-box"]');
+  await page.waitForSelector('[data-testid="training-consent"][data-opt-out="false"]', { timeout: 10000 });
+  result.training = { optedOut, optedBackIn: (await (await fetch(`${url}/api/me`)).json()).trainingOptOut === false };
   const wantPanels = process.env.GG_EXPECT_PANELS === '1';
   const editorOk = !wantPanels || (result.editor && result.editorCheck === 'yes' && result.editorJob?.kind === 'edit_content' && result.editorJob?.status === 'queued' && result.editorJob?.levels?.length === 1);
-  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor)) && editorOk && result.remix.status === 201 && result.remix.playable === 'playable' && result.remix.headShared;
+  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor)) && editorOk && result.remix.status === 201 && result.remix.playable === 'playable' && result.remix.headShared && result.training.optedOut === true && result.training.optedBackIn;
   console.log(JSON.stringify({ ok, ...result, errors }, null, 2));
 } catch (e) {
   console.error('check-create failed:', e.message, JSON.stringify(result));

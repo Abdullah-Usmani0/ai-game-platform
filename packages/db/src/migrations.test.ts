@@ -83,6 +83,7 @@ beforeAll(async () => {
   await db.exec(migration('0004_moderation.sql'));
   await db.exec(migration('0005_play_events.sql'));
   await db.exec(migration('0006_appeals.sql'));
+  await db.exec(migration('0007_training_pairs.sql'));
   for (const [i, id] of [OWNER, ...PLAYERS, ...TESTERS, MODERATOR, OWNER2, TESTER2].entries()) {
     await db.query('insert into auth.users (id) values ($1)', [id]);
     await db.query('insert into profiles (id, handle) values ($1, $2)', [id, `user_${i}`]);
@@ -446,5 +447,42 @@ describe('appeals migration', () => {
     await db.query(`select * from decide_appeal($1, $2, 'reinstate')`, [MODERATOR, a2.id]);
     expect(await state(other.gameId)).toBe('playable');
     await expectError(db.query('select * from appeal_takedown($1, $2, $3, $4, $5)', [OWNER2, other.gameId, statement, 'Owner Two', 'two@example.com']), /only a removed game/);
+  });
+});
+
+describe('training pairs migration', () => {
+  const pairsNaming = async (id: string) => (await one<{ n: number }>('select count(*)::int as n from training_pairs where $1 = any(contributors)', [id])).n;
+  const insertPair = (contributors: string[]) =>
+    db.query<{ id: string }>(`insert into training_pairs (stage, artifact, input, output, input_hash, contributors) values ('systems', 'SystemsJson', '{"system":"s","prompt":"p"}', '{}', 'h1', $1::uuid[]) returning id`, [contributors]);
+
+  it('opting out deletes the pairs a user is in and keeps new ones from being stored; clients cannot read pairs', async () => {
+    const fan = PLAYERS[5]!;
+    expect((await insertPair([OWNER2, fan])).rows).toHaveLength(1);
+    expect((await insertPair([OWNER2])).rows).toHaveLength(1);
+    await asClient(fan);
+    await expectError(db.query('select count(*) from training_pairs'), /permission denied/);
+    await expectError(db.query(`insert into training_pairs (stage, input, contributors) values ('systems', '{}', '{}')`), /permission denied/);
+    // The client updates its own profile; the security-definer trigger reaches the service-only table.
+    await db.query('update profiles set training_opt_out = true where id = $1', [fan]);
+    await asServer();
+    expect(await pairsNaming(fan)).toBe(0);
+    expect(await pairsNaming(OWNER2)).toBe(1);
+    expect((await insertPair([OWNER2, fan])).rows).toHaveLength(0);
+    await db.query('update profiles set training_opt_out = false where id = $1', [fan]);
+    expect((await insertPair([fan])).rows).toHaveLength(1);
+  });
+
+  it('deleting a profile deletes the pairs it is in, and a game going deletes its pairs', async () => {
+    const gone = uuid(41);
+    await db.query('insert into auth.users (id) values ($1)', [gone]);
+    await db.query(`insert into profiles (id, handle) values ($1, 'leaver')`, [gone]);
+    await insertPair([gone, OWNER2]);
+    await db.query('delete from profiles where id = $1', [gone]);
+    expect(await pairsNaming(gone)).toBe(0);
+    const { gameId } = await makeGame('distilled-game', { owner: OWNER2 });
+    await db.query(`insert into training_pairs (stage, input, game_id, contributors) values ('behaviour', '{}', $1, array[$2]::uuid[])`, [gameId, OWNER2]);
+    const before = await pairsNaming(OWNER2);
+    await db.query('delete from games where id = $1', [gameId]);
+    expect(await pairsNaming(OWNER2)).toBe(before - 1);
   });
 });

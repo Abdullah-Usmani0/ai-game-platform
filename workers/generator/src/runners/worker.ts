@@ -10,7 +10,7 @@ import { checkLevel, runBot, simOptionsFor, type GenreManifest, type LevelGenPar
 import { CATALOG, genre as genreOf } from '@gg/templates/node';
 import { checkGdd, checkSystems, impact, parseFrontmatter, validateBehaviour } from '@gg/validators';
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
-import type { Runner, StageContext, StageOutcome } from './types.js';
+import type { PairDraft, Runner, StageContext, StageOutcome } from './types.js';
 
 type StageFn = (ctx: StageContext) => Promise<StageOutcome>;
 
@@ -107,19 +107,20 @@ const gdd: StageFn = async (ctx) => {
   let cost = 0;
   let turns = 0;
 
+  const fmPrompt = [
+    `Concept:\n${clean.text}`,
+    styleNotes.length ? `Art direction (from the style card): ${styleNotes.join('; ')}.` : '',
+    `Genre: ${g.name} (${g.id}). Scope tier '${req.scopeTier}' budget: ${JSON.stringify(budget)} (scope must not exceed it).`,
+    `Verbs available in this genre: ${g.gddDefaults.verbs.join(', ')}. Enemy types: ${g.entityDefs.filter((e) => e.fsm).map((e) => e.type).join(', ')}. Items: ${g.collectibleTypes.join(', ')}.`,
+    `Genre guidance:\n${g.gddFragment}`,
+    `Starting point (keep the shape; adapt title, pillars, scope and targets to the concept):\n${JSON.stringify(draft)}`,
+  ].join('\n\n');
   const fmRes = await generateArtifact<GddFrontmatter>({
     provider,
     model: ctx.model,
     artifact: 'GddFrontmatter',
     system: GDD_SYSTEM,
-    prompt: [
-      `Concept:\n${clean.text}`,
-      styleNotes.length ? `Art direction (from the style card): ${styleNotes.join('; ')}.` : '',
-      `Genre: ${g.name} (${g.id}). Scope tier '${req.scopeTier}' budget: ${JSON.stringify(budget)} (scope must not exceed it).`,
-      `Verbs available in this genre: ${g.gddDefaults.verbs.join(', ')}. Enemy types: ${g.entityDefs.filter((e) => e.fsm).map((e) => e.type).join(', ')}. Items: ${g.collectibleTypes.join(', ')}.`,
-      `Genre guidance:\n${g.gddFragment}`,
-      `Starting point (keep the shape; adapt title, pillars, scope and targets to the concept):\n${JSON.stringify(draft)}`,
-    ].join('\n\n'),
+    prompt: fmPrompt,
     k: ctx.policy?.k ?? 1,
     repairRounds: ctx.policy?.repairRounds ?? 1,
     verify: (v) => {
@@ -137,6 +138,7 @@ const gdd: StageFn = async (ctx) => {
   cost += fmRes.totalCostUsd;
   turns += fmRes.samples.length;
   let fm = fmRes.selected?.value;
+  const fmWritten = fm !== undefined;
   if (!fm) {
     fm = draft;
     notes.push(`front matter: ${fmRes.samples.length} samples rejected (${fmRes.samples[0]?.issues?.[0] ?? 'provider error'}); using the drafted front matter`);
@@ -167,12 +169,16 @@ const gdd: StageFn = async (ctx) => {
       break;
     }
   }
+  const bodyWritten = body !== null;
   if (!body) {
     body = draftBody(cleanReq, g, fm);
     notes.push('body: drafted deterministically');
   }
   fm = { ...fm, title: sanitize(fm.title, blocked).text.slice(0, 80) || fm.title };
   writeFileSync(join(design, 'gdd.md'), renderGdd(fm, body));
+  const pairs: PairDraft[] = [];
+  if (fmWritten) pairs.push({ artifact: 'GddFrontmatter', system: GDD_SYSTEM, prompt: fmPrompt, output: fm });
+  if (bodyWritten) pairs.push({ artifact: 'GddBody', system: GDD_SYSTEM, prompt: bodyPrompt, output: body });
   const stylePath = join(design, 'style.json');
   const style = StyleCard.parse(readJson(stylePath));
   if (style.name === 'style' || style.name === 'reference-style') writeJson(stylePath, { ...style, name: `${slugify(fm.title)}-style` });
@@ -185,6 +191,7 @@ const gdd: StageFn = async (ctx) => {
     turns,
     artifactPath: join(design, 'gdd.md'),
     promptHash: fmRes.selected?.promptHash,
+    pairs,
   };
 };
 
@@ -203,17 +210,18 @@ const systems: StageFn = async (ctx) => {
   if (!gddInfo) return fail('design/gdd.md missing or invalid', 'spec_violation');
   const catalog = Object.values(CATALOG).filter((c) => c.genres === '*' || c.genres.includes(g.id));
   const exemplar = g.exemplars.find((e) => e.kind === 'systems')?.artifact;
+  const prompt = [
+    `GDD front matter: ${JSON.stringify(gddInfo.fm)}`,
+    `Genre '${g.id}'. Required systems: ${g.requiredSystems.join(', ')}. Optional: ${g.optionalSystems.join(', ')}. Feel presets: ${Object.keys(g.feelPresets).join(', ')} (default ${g.defaultFeel}).`,
+    `Catalog: ${JSON.stringify(catalog.map((c) => ({ id: c.id, summary: c.summary, params: c.params, feedbackFor: c.feedbackFor })))}`,
+    exemplar ? `Example for a similar game: ${JSON.stringify(exemplar)}` : '',
+  ].join('\n\n');
   const res = await generateArtifact<SystemsJson>({
     provider: providerFor(ctx.provider),
     model: ctx.model,
     artifact: 'SystemsJson',
     system: SYSTEMS_SYSTEM,
-    prompt: [
-      `GDD front matter: ${JSON.stringify(gddInfo.fm)}`,
-      `Genre '${g.id}'. Required systems: ${g.requiredSystems.join(', ')}. Optional: ${g.optionalSystems.join(', ')}. Feel presets: ${Object.keys(g.feelPresets).join(', ')} (default ${g.defaultFeel}).`,
-      `Catalog: ${JSON.stringify(catalog.map((c) => ({ id: c.id, summary: c.summary, params: c.params, feedbackFor: c.feedbackFor })))}`,
-      exemplar ? `Example for a similar game: ${JSON.stringify(exemplar)}` : '',
-    ].join('\n\n'),
+    prompt,
     k: ctx.policy?.k ?? 1,
     repairRounds: ctx.policy?.repairRounds ?? 1,
     verify: (v) => {
@@ -232,7 +240,8 @@ const systems: StageFn = async (ctx) => {
     notes.push(`${res.samples.length} samples rejected (${res.samples[0]?.issues?.[0] ?? 'provider error'}); using the genre defaults`);
   }
   writeJson(join(ctx.gameDir, 'design', 'systems.json'), value);
-  return { ok: true, summary: `wrote design/systems.json (${value.systems.map((s) => s.id).join(', ')}; feel ${value.feelPreset})${notes.length ? `; ${notes.join('; ')}` : ''}`, usage: sumUsage(res), costUsd: res.totalCostUsd, durationMs: Date.now() - t0, turns: res.samples.length, artifactPath: join(ctx.gameDir, 'design', 'systems.json'), promptHash: res.selected?.promptHash };
+  const pairs: PairDraft[] = res.selected ? [{ artifact: 'SystemsJson', system: SYSTEMS_SYSTEM, prompt, output: value }] : [];
+  return { ok: true, summary: `wrote design/systems.json (${value.systems.map((s) => s.id).join(', ')}; feel ${value.feelPreset})${notes.length ? `; ${notes.join('; ')}` : ''}`, usage: sumUsage(res), costUsd: res.totalCostUsd, durationMs: Date.now() - t0, turns: res.samples.length, artifactPath: join(ctx.gameDir, 'design', 'systems.json'), promptHash: res.selected?.promptHash, pairs };
 };
 
 // ---------------------------------------------------------------- scaffold
@@ -279,21 +288,23 @@ const behaviour: StageFn = async (ctx) => {
   let turns = 0;
   const notes: string[] = [];
   let promptHash: string | undefined;
+  const pairs: PairDraft[] = [];
   for (const id of ids) {
     const entities = g.entityDefs.filter((e) => e.fsm === id);
     const exemplar = g.defaultBehaviours.find((b) => b.id === id) ?? (g.exemplars.find((e) => e.kind === 'behaviour')?.artifact as BehaviourFsm | undefined);
+    const prompt = [
+      `Behaviour id: ${id}`,
+      `Entity types using it: ${entities.map((e) => `${e.type} (hp ${e.hp ?? 1}, contact damage ${e.contactDamage ?? 0}, ${e.gravity ? 'gravity' : 'free-moving'})`).join('; ')}`,
+      `Game: "${gddInfo.fm.title}". Pillars: ${gddInfo.fm.pillars.join(' / ')}. Player verbs: ${gddInfo.fm.verbs.join(', ')}.${ctx.route ? ` Edit request: ${ctx.route.designNotes}` : ''}`,
+      `Vocabulary: conditions ${g.behaviourVocab.conditions.join(', ')}; actions ${g.behaviourVocab.actions.join(', ')}.`,
+      exemplar ? `Reference FSM for this id (adapt it to the game; keep the id):\n${JSON.stringify(exemplar)}` : '',
+    ].join('\n\n');
     const res = await generateArtifact<BehaviourFsm>({
       provider,
       model: ctx.model,
       artifact: 'BehaviourFsm',
       system: BEHAVIOUR_SYSTEM,
-      prompt: [
-        `Behaviour id: ${id}`,
-        `Entity types using it: ${entities.map((e) => `${e.type} (hp ${e.hp ?? 1}, contact damage ${e.contactDamage ?? 0}, ${e.gravity ? 'gravity' : 'free-moving'})`).join('; ')}`,
-        `Game: "${gddInfo.fm.title}". Pillars: ${gddInfo.fm.pillars.join(' / ')}. Player verbs: ${gddInfo.fm.verbs.join(', ')}.${ctx.route ? ` Edit request: ${ctx.route.designNotes}` : ''}`,
-        `Vocabulary: conditions ${g.behaviourVocab.conditions.join(', ')}; actions ${g.behaviourVocab.actions.join(', ')}.`,
-        exemplar ? `Reference FSM for this id (adapt it to the game; keep the id):\n${JSON.stringify(exemplar)}` : '',
-      ].join('\n\n'),
+      prompt,
       k: ctx.policy?.k ?? 1,
       repairRounds: ctx.policy?.repairRounds ?? 1,
       verify: (v) => {
@@ -316,10 +327,12 @@ const behaviour: StageFn = async (ctx) => {
       if (!exemplar) return fail(`no behaviour accepted for '${id}' and no exemplar to fall back on`, 'semantic_invalid', { usage, costUsd: cost, turns, durationMs: Date.now() - t0 });
       value = exemplar;
       notes.push(`${id}: ${res.samples.length} samples rejected (${res.samples[0]?.issues?.[0] ?? 'provider error'}); using the reference FSM`);
+    } else {
+      pairs.push({ artifact: 'BehaviourFsm', system: BEHAVIOUR_SYSTEM, prompt, output: value });
     }
     writeJson(join(ctx.gameDir, 'content', 'behaviour', `${id}.fsm.json`), value);
   }
-  return { ok: true, summary: `wrote ${ids.length} behaviour(s): ${ids.join(', ')}${notes.length ? `; ${notes.join('; ')}` : ''}`, usage, costUsd: cost, durationMs: Date.now() - t0, turns, artifactPath: join(ctx.gameDir, 'content', 'behaviour'), promptHash };
+  return { ok: true, summary: `wrote ${ids.length} behaviour(s): ${ids.join(', ')}${notes.length ? `; ${notes.join('; ')}` : ''}`, usage, costUsd: cost, durationMs: Date.now() - t0, turns, artifactPath: join(ctx.gameDir, 'content', 'behaviour'), promptHash, pairs };
 };
 
 // ---------------------------------------------------------------- levels

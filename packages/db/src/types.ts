@@ -284,6 +284,38 @@ export interface AppealRow {
 }
 
 /**
+ * A verified (input -> artifact) pair from a model-written stage artifact, recorded once the stage's gate passed: the
+ * raw data of the distillation flywheel (tools/distill exports it per stage as chat-format JSONL).
+ */
+export interface TrainingPairRow {
+  id: string;
+  /** The stage that wrote it (gdd, systems, behaviour, a structured stage), or 'route' for the edit router. */
+  stage: string;
+  genre: string | null;
+  /** The schema it follows (an ArtifactName), or GddBody for the GDD's markdown body. */
+  artifact: string;
+  /** What the model was asked: the stage's system prompt and its first prompt (never a repair prompt). */
+  input: { system: string; prompt: string };
+  /** The artifact as it was written: JSON for a schema artifact, a string for a text one. */
+  output: unknown;
+  /** promptHash(system, prompt, artifact): exports keep one pair per input. */
+  inputHash: string;
+  model: string;
+  provider: string;
+  jobId: string | null;
+  gameId: string | null;
+  /** Everyone whose content the pair carries (the requester, the game's owner, the owners of games it was remixed from). */
+  contributors: string[];
+  /** The gate report that verified it. */
+  verifiedBy: string | null;
+  policyVersion: number | null;
+  /** Set by the first export that included the pair. */
+  exportedAt: string | null;
+  createdAt: string;
+}
+export type NewTrainingPair = Omit<TrainingPairRow, 'id' | 'exportedAt' | 'createdAt'>;
+
+/**
  * The only persistence surface workers use. Two implementations: Supabase (production)
  * and a JSON file store (local development, demos, tests without credentials).
  */
@@ -372,4 +404,15 @@ export interface Store {
    * uphold closes the appeal.
    */
   decideAppeal(appealId: string, moderatorId: string, decision: AppealDecision): Promise<{ appeal: AppealRow; games: GameRow[] }>;
+
+  // ---- distillation (phase 3) ----
+  /** Records a verified pair; returns null (and stores nothing) when any contributor opted out of training. */
+  insertTrainingPair(pair: NewTrainingPair): Promise<TrainingPairRow | null>;
+  /** Oldest first. exported: true for pairs an export already included, false for the rest. */
+  listTrainingPairs(opts?: { stage?: string; exported?: boolean; limit?: number }): Promise<TrainingPairRow[]>;
+  /** Stamps the pairs an export included; pairs exported before keep their first date. Returns how many were stamped. */
+  markTrainingPairsExported(ids: readonly string[], at?: string): Promise<number>;
+  trainingOptOut(userId: string): Promise<boolean>;
+  /** Opting out deletes every recorded pair the user contributed to, and no new ones are recorded. */
+  setTrainingOptOut(userId: string, optOut: boolean): Promise<void>;
 }

@@ -20,6 +20,8 @@ apps/web/public/bundles/
 apps/web/next-env.d.ts
 .gg-work*/
 .gg-store*/
+# distillation exports hold user prompts
+.gg-distill*/
 
 # generated per job by the systems-select skill
 harness/.agents/skills/systems-select/catalog.json

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { TrainingConsent } from '@/components/TrainingConsent';
 import { viewerId } from '@/lib/identity';
 import { getStore } from '@/lib/store';
 
@@ -22,6 +23,8 @@ export default async function GamesPage() {
           </li>
         ))}
       </ul>
+      <h2>Training data</h2>
+      <TrainingConsent />
     </main>
   );
 }

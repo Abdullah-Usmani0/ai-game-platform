@@ -24,11 +24,12 @@ export class StructuredRunner implements Runner {
     const gddPath = join(ctx.gameDir, 'design', 'gdd.md');
     const context = existsSync(gddPath) ? readFileSync(gddPath, 'utf8').slice(0, 6000) : '';
     const prompt = [ctx.spec.task ?? `Produce the ${art.name} artifact.`, context ? `\n# Game design document\n${context}` : ''].join('\n');
+    const system = art.system ?? DEFAULT_SYSTEM;
     const res = await generateArtifact<unknown>({
       provider: providerFor(ctx.provider),
       model: ctx.model,
       artifact: art.name as ArtifactName,
-      system: art.system ?? DEFAULT_SYSTEM,
+      system,
       prompt,
       k: ctx.policy?.k ?? 1,
       repairRounds: ctx.policy?.repairRounds ?? 1,
@@ -44,6 +45,6 @@ export class StructuredRunner implements Runner {
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify(res.selected.value, null, 2) + '\n');
     ctx.log(`wrote ${art.name} -> ${art.outPath} (selected sample ${res.selected.index} of ${res.samples.length})`);
-    return { ok: true, summary: `wrote ${art.outPath}`, usage, costUsd: res.totalCostUsd, durationMs: Date.now() - t0, turns: res.samples.length, artifactPath: out, promptHash: res.selected.promptHash };
+    return { ok: true, summary: `wrote ${art.outPath}`, usage, costUsd: res.totalCostUsd, durationMs: Date.now() - t0, turns: res.samples.length, artifactPath: out, promptHash: res.selected.promptHash, pairs: [{ artifact: art.name, system, prompt, output: res.selected.value }] };
   }
 }

@@ -25,6 +25,8 @@ textarea, input[type="text"], input:not([type]), select { background: #11111f; c
 .genre.selected { border-color: var(--accent); }
 .genre input { display: none; }
 .check { display: flex; gap: 6px; align-items: center; }
+.training-consent .check { align-items: flex-start; max-width: 720px; }
+.training-consent .check input { margin-top: 3px; }
 .workspace { display: grid; grid-template-columns: minmax(320px, 3fr) minmax(280px, 2fr); gap: 16px; }
 .workspace .col { display: grid; gap: 12px; align-content: start; }
 .workspace .play { grid-template-columns: 1fr; }

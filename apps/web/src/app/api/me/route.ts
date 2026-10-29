@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(): Promise<Response> {
   const me = await viewerId();
   const store = getStore();
-  const [credits, strikes, moderator] = await Promise.all([store.creditBalance(me), store.activeStrikes(me), store.isModerator(me)]);
-  return Response.json({ userId: me, credits, strikes, moderator });
+  const [credits, strikes, moderator, trainingOptOut] = await Promise.all([store.creditBalance(me), store.activeStrikes(me), store.isModerator(me), store.trainingOptOut(me)]);
+  return Response.json({ userId: me, credits, strikes, moderator, trainingOptOut });
 }
 
 /** Local development only: act as another user (testers, players) by name. */

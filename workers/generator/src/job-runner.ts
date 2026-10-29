@@ -18,6 +18,7 @@ import { OpenRunner } from './runners/open.js';
 import { StructuredRunner } from './runners/structured.js';
 import type { Runner, StageContext, StageOutcome, StageSpec } from './runners/types.js';
 import { WorkerRunner, genreOfGame } from './runners/worker.js';
+import { recordPairs, type VerifiedPair } from './training.js';
 
 /** Legacy explicit plan (the demo's gate-only job over an existing game package). */
 export interface JobPlan {
@@ -94,15 +95,24 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
   let stages: StageSpec[];
   let gameDir: string;
   let dryRun = dryRunEnv;
+  let genreId: string | null;
+  // Model-written artifacts of passed stages; recorded as training pairs only if the whole job succeeds.
+  const verified: VerifiedPair[] = [];
 
   const legacy = job.input as Partial<JobPlan>;
   if (typeof legacy.gameSource === 'string' && Array.isArray(legacy.stages)) {
     // Explicit plan over an existing game package (the demo's gate-only smoke job and regression runs).
     ({ gameDir } = materialize({ templateDir: opts.templateDir, workDir, gameSource: legacy.gameSource }));
     stages = legacy.stages.map((s) => applyPreset(s, presets));
+    try {
+      genreId = genreOfGame({ request: null, gameDir }).id;
+    } catch {
+      genreId = null;
+    }
   } else if (job.kind === 'create') {
     request = CreateRequest.parse(job.input);
     dryRun = dryRun || request.dryRun;
+    genreId = request.genre;
     ({ gameDir } = materialize({ templateDir: opts.templateDir, workDir }));
     stages = createPlan(presets);
     if (dryRun) registerProvider('fake', new FakeProvider({ genre: genreOf(request.genre), request }));
@@ -117,6 +127,7 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
     const tgz = await store.getObject(base.sourcePath.slice(0, slash), base.sourcePath.slice(slash + 1));
     ({ gameDir } = materialize({ templateDir: opts.templateDir, workDir, checkpoint: tgz }));
     const g = genreOfGame({ request: null, gameDir });
+    genreId = g.id;
     if (dryRun) registerProvider('fake', new FakeProvider({ genre: g, request: null }));
     const stored = job.input['route'] as EditRoute | undefined;
     if (edit.content) {
@@ -126,10 +137,14 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
     } else if (stored) {
       route = EditRoute.parse(stored);
     } else {
+      // The routing tier: the review stage's model and its provider (one structured call, no stage of its own).
       const r = resolveStage(policy, { stage: 'route', gate: [], runner: 'structured' }, dryRun);
+      const tier = dryRun ? null : policy?.stages.review;
+      const routeModel = tier?.model ?? r.model;
+      const routeProvider = tier?.provider ?? r.provider;
       const routed = await routeEdit({
-        provider: providerFor(r.provider),
-        model: dryRun ? 'fake' : (policy?.stages.review?.model ?? r.model),
+        provider: providerFor(routeProvider),
+        model: routeModel,
         message: edit.message,
         genre: g,
         systems: readSystems(gameDir),
@@ -137,6 +152,8 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
         behaviourIds: listIds(join(gameDir, 'content', 'behaviour'), '.fsm.json'),
       });
       route = routed.route;
+      // Verified only by the edit job succeeding; the gate of the stage that ran last is its report.
+      if (routed.pair) verified.push({ ...routed.pair, stage: 'route', model: routeModel, provider: routeProvider, verifiedBy: null });
       await store.updateJob(job.id, { costUsd: job.costUsd + routed.costUsd });
       job.costUsd += routed.costUsd;
     }
@@ -152,6 +169,7 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
   let totalCost = job.costUsd;
   let totalTurns = job.turns;
   let lastVersionId: string | null = job.baseVersionId;
+  let lastGate: string | null = null;
   const finishFailed = async (status: 'failed' | 'needs_human', stage: string, reason: string) => {
     await store.updateJob(job.id, { status, finishedAt: new Date().toISOString(), error: { stage, reason } });
     await store.appendEvent(job.id, status === 'failed' ? 'finished' : 'needs_human', { status, stage, reason }, stage);
@@ -246,6 +264,8 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
           policyVersion: policy?.version ?? null,
         });
         lastVersionId = version.id;
+        lastGate = gateObject;
+        for (const p of outcome.pairs ?? []) verified.push({ ...p, stage: spec.stage, model: resolved.model, provider: resolved.provider, verifiedBy: gateObject });
         await store.appendEvent(job.id, 'gate_passed', { attempt, checks: gate.report.checks.map((c) => c.name), versionId: version.id }, spec.stage);
         await store.appendEvent(job.id, 'checkpoint', { versionId: version.id, path: cp.path, bytes: cp.bytes }, spec.stage);
         log(`stage ${spec.stage} passed on attempt ${attempt} (${outcome.costUsd.toFixed(4)} USD, ${Math.round((outcome.durationMs + gate.report.durationMs) / 1000)} s)`);
@@ -260,8 +280,10 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
     if (!passed) return finishFailed('failed', spec.stage, 'gate never passed');
   }
   if (lastVersionId && lastVersionId !== job.baseVersionId) await store.acceptVersion(lastVersionId);
+  const pairs = await recordPairs({ store, job, game, genre: genreId, dryRun, policyVersion: policy?.version ?? null }, verified.map((p) => ({ ...p, verifiedBy: p.verifiedBy ?? lastGate })));
+  if (pairs.recorded > 0 || (pairs.skipped && !dryRun)) log(`training pairs: ${pairs.recorded} recorded${pairs.skipped ? ` (${pairs.skipped})` : ''}`);
   await store.updateJob(job.id, { status: 'succeeded', resultVersionId: lastVersionId, finishedAt: new Date().toISOString(), stage: null });
-  await store.appendEvent(job.id, 'finished', { status: 'succeeded', versionId: lastVersionId, totalCost });
+  await store.appendEvent(job.id, 'finished', { status: 'succeeded', versionId: lastVersionId, totalCost, trainingPairs: pairs.recorded });
   return 'succeeded';
 }
 

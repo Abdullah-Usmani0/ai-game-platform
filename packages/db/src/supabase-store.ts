@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { ModelPolicy, PLAY_EVENT_LIMITS, type AppealDecision, type AppealInput, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
 import { quarantinePath } from './ranking';
 import { checkCell, HEAT_CELL, heatmapFrom, type HeatRow } from './heatmap';
-import type { AppealRow, FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
+import type { AppealRow, FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewTrainingPair, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, TrainingPairRow, VersionRow } from './types';
 
 function snake(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -15,6 +15,15 @@ function camel<T>(row: Record<string, unknown>): T {
   for (const [k, v] of Object.entries(row)) out[k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())] = v;
   return out as T;
 }
+
+function pairRow(r: Record<string, unknown>): TrainingPairRow {
+  const row = camel<TrainingPairRow & { outputPath?: unknown }>(r);
+  delete row.outputPath;
+  return row;
+}
+
+/** PostgREST returns at most this many rows per request (the Supabase default max-rows). */
+const PAGE = 1000;
 
 /** Production store over Supabase with the service-role key (workers only; never ship this key to a browser). */
 export class SupabaseStore implements Store {
@@ -439,5 +448,48 @@ export class SupabaseStore implements Store {
   async listTakedowns(gameId: string): Promise<TakedownRow[]> {
     const res = await this.client.from('takedowns').select('*').eq('game_id', gameId).order('created_at');
     return (this.unwrap(res, 'listTakedowns') as Record<string, unknown>[]).map((r) => camel<TakedownRow>(r));
+  }
+
+  async insertTrainingPair(pair: NewTrainingPair): Promise<TrainingPairRow | null> {
+    // The consent trigger (0007) drops the row when a contributor opted out, so the insert can come back empty.
+    const res = await this.client.from('training_pairs').insert(snake({ ...pair, contributors: [...new Set(pair.contributors)] })).select();
+    const rows = this.unwrap(res, 'insertTrainingPair') as Record<string, unknown>[];
+    return rows[0] ? pairRow(rows[0]) : null;
+  }
+
+  async listTrainingPairs(opts: { stage?: string; exported?: boolean; limit?: number } = {}): Promise<TrainingPairRow[]> {
+    const out: TrainingPairRow[] = [];
+    for (let from = 0; opts.limit === undefined || out.length < opts.limit; from += PAGE) {
+      let q = this.client.from('training_pairs').select('*');
+      if (opts.stage) q = q.eq('stage', opts.stage);
+      if (opts.exported === true) q = q.not('exported_at', 'is', null);
+      if (opts.exported === false) q = q.is('exported_at', null);
+      const rows = this.unwrap(await q.order('created_at').order('id').range(from, from + PAGE - 1), 'listTrainingPairs') as Record<string, unknown>[];
+      out.push(...rows.map(pairRow));
+      if (rows.length < PAGE) break;
+    }
+    return opts.limit === undefined ? out : out.slice(0, opts.limit);
+  }
+
+  async markTrainingPairsExported(ids: readonly string[], at = new Date().toISOString()): Promise<number> {
+    let n = 0;
+    // Batches keep the id list inside a request URL.
+    for (let i = 0; i < ids.length; i += 100) {
+      const res = await this.client.from('training_pairs').update({ exported_at: at }).in('id', ids.slice(i, i + 100)).is('exported_at', null).select('id');
+      n += (this.unwrap(res, 'markTrainingPairsExported') as unknown[]).length;
+    }
+    return n;
+  }
+
+  async trainingOptOut(userId: string): Promise<boolean> {
+    const res = await this.client.from('profiles').select('training_opt_out').eq('id', userId).maybeSingle();
+    if (res.error) throw new Error(`trainingOptOut: ${res.error.message}`);
+    return (res.data as { training_opt_out?: boolean } | null)?.training_opt_out === true;
+  }
+
+  async setTrainingOptOut(userId: string, optOut: boolean): Promise<void> {
+    // Opting out fires the profiles trigger (0007) that deletes the user's recorded pairs.
+    const res = await this.client.from('profiles').update({ training_opt_out: optOut }).eq('id', userId);
+    if (res.error) throw new Error(`setTrainingOptOut: ${res.error.message}`);
   }
 }

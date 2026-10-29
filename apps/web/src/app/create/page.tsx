@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { TrainingConsent } from '@/components/TrainingConsent';
 
 const GENRES = [
   { id: 'platformer', label: 'Precision platformer', hint: 'Celeste-class feel: coyote time, jump buffer, dash, stomp.' },
@@ -78,6 +79,7 @@ export default function CreatePage() {
         <label className="check">
           <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} /> Dry run (no model calls: exemplar design, real gates; needs no API key)
         </label>
+        <TrainingConsent />
         {error ? <p className="err">{error}</p> : null}
         <button type="submit" disabled={busy} data-testid="create">
           {busy ? 'Creating…' : 'Create'}

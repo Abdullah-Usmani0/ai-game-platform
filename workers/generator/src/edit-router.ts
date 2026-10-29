@@ -3,6 +3,7 @@ import { EditRoute, type SystemsJson } from '@gg/schemas';
 import type { GenreManifest } from '@gg/template-core';
 import { CATALOG } from '@gg/templates/node';
 import { heuristicRoute } from './fake-provider.js';
+import type { PairDraft } from './runners/types.js';
 
 export interface RouteInputs {
   provider: Provider;
@@ -22,8 +23,11 @@ const SYSTEM = [
   'code (a new mechanic or anything you are not sure about). Set confidence honestly; under 0.7 the platform uses the code route.',
 ].join('\n');
 
-/** One structured call (routing tier). Falls back to keyword routing when the model fails; low confidence becomes code. */
-export async function routeEdit(inp: RouteInputs): Promise<{ route: EditRoute; usage: Usage; costUsd: number; promptHash?: string }> {
+/**
+ * One structured call (routing tier). Falls back to keyword routing when the model fails; low confidence becomes code.
+ * `pair` is the model's route when it was used as given (not a fallback, not overridden for low confidence).
+ */
+export async function routeEdit(inp: RouteInputs): Promise<{ route: EditRoute; usage: Usage; costUsd: number; promptHash?: string; pair?: PairDraft }> {
   const catalog = inp.systems?.systems.map((s) => {
     const c = CATALOG[s.id];
     return { id: s.id, params: Object.fromEntries(Object.entries(c?.params ?? {}).map(([k, p]) => [k, { current: s.params[k] ?? p.default, min: p.min, max: p.max, type: p.type }])) };
@@ -59,7 +63,10 @@ export async function routeEdit(inp: RouteInputs): Promise<{ route: EditRoute; u
     },
   });
   const usage = res.samples.reduce<Usage>((a, s) => ({ inputTokens: a.inputTokens + s.usage.inputTokens, outputTokens: a.outputTokens + s.usage.outputTokens }), { inputTokens: 0, outputTokens: 0 });
-  let route = res.selected?.value ?? heuristicRoute(inp.message);
-  if (route.confidence < 0.7 && route.route !== 'code') route = { ...route, route: 'code', designNotes: `${route.designNotes} (confidence ${route.confidence} < 0.7, code route)` };
-  return { route: EditRoute.parse(route), usage, costUsd: res.totalCostUsd || costUsd(inp.model, usage), promptHash: res.selected?.promptHash };
+  const selected = res.selected?.value;
+  let route = selected ?? heuristicRoute(inp.message);
+  const lowConfidence = route.confidence < 0.7 && route.route !== 'code';
+  if (lowConfidence) route = { ...route, route: 'code', designNotes: `${route.designNotes} (confidence ${route.confidence} < 0.7, code route)` };
+  const pair = selected && !lowConfidence ? { artifact: 'EditRoute', system: SYSTEM, prompt, output: selected } : undefined;
+  return { route: EditRoute.parse(route), usage, costUsd: res.totalCostUsd || costUsd(inp.model, usage), promptHash: res.selected?.promptHash, pair };
 }

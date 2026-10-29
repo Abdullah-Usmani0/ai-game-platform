@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { ModelPolicy, PLAY_EVENT_LIMITS, type AppealDecision, type AppealInput, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
 import { checkCell, HEAT_CELL, heatmapFrom, heatRows } from './heatmap';
 import { computeStats, feedEligible, headPlaytestPassed, MODERATION, quarantinePath, RANKING, testOutcome } from './ranking';
-import type { AppealRow, CreditEntry, FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayEventRow, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
+import type { AppealRow, CreditEntry, FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewTrainingPair, NewVersion, PlayEventRow, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, TrainingPairRow, VersionRow } from './types';
 
 interface FileState {
   games: GameRow[];
@@ -26,6 +26,9 @@ interface FileState {
   appeals: AppealRow[];
   /** Local moderators by user id (Supabase: profiles.is_moderator). */
   moderators: string[];
+  trainingPairs: TrainingPairRow[];
+  /** Users who opted out of training (Supabase: profiles.training_opt_out). */
+  trainingOptOut: string[];
 }
 
 /** How long a claimed test stays reserved for its tester. */
@@ -60,7 +63,7 @@ export class FileStore implements Store {
   constructor(private readonly dir: string) {
     mkdirSync(dir, { recursive: true });
     this.file = join(dir, 'store.json');
-    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], playEvents: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], appeals: [], moderators: ['moderator'] };
+    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], playEvents: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], appeals: [], moderators: ['moderator'], trainingPairs: [], trainingOptOut: [] };
     this.load();
   }
 
@@ -88,6 +91,8 @@ export class FileStore implements Store {
       takedowns: (parsed.takedowns ?? []).map((t) => ({ ...t, revertedAt: t.revertedAt ?? null })),
       appeals: parsed.appeals ?? [],
       moderators: parsed.moderators ?? ['moderator'],
+      trainingPairs: parsed.trainingPairs ?? [],
+      trainingOptOut: parsed.trainingOptOut ?? [],
     };
     this.mtime = m;
   }
@@ -670,5 +675,53 @@ export class FileStore implements Store {
     Object.assign(a, { status: input.decision === 'reinstate' ? 'reinstated' : 'upheld', decidedAt: now.toISOString(), decidedBy: moderatorId, decisionNote: input.note });
     this.save();
     return { appeal: { ...a }, games };
+  }
+
+  async insertTrainingPair(pair: NewTrainingPair): Promise<TrainingPairRow | null> {
+    this.load();
+    const contributors = [...new Set(pair.contributors)];
+    if (contributors.some((u) => this.state.trainingOptOut.includes(u))) return null;
+    const row: TrainingPairRow = { ...pair, contributors, id: randomUUID(), exportedAt: null, createdAt: new Date().toISOString() };
+    this.state.trainingPairs.push(row);
+    this.save();
+    return structuredClone(row);
+  }
+
+  async listTrainingPairs(opts: { stage?: string; exported?: boolean; limit?: number } = {}): Promise<TrainingPairRow[]> {
+    this.load();
+    return this.state.trainingPairs
+      .filter((p) => (!opts.stage || p.stage === opts.stage) && (opts.exported === undefined || (p.exportedAt !== null) === opts.exported))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+      .slice(0, opts.limit ?? Infinity)
+      .map((p) => structuredClone(p));
+  }
+
+  async markTrainingPairsExported(ids: readonly string[], at = new Date().toISOString()): Promise<number> {
+    this.load();
+    const wanted = new Set(ids);
+    let n = 0;
+    for (const p of this.state.trainingPairs) {
+      if (wanted.has(p.id) && p.exportedAt === null) {
+        p.exportedAt = at;
+        n++;
+      }
+    }
+    if (n > 0) this.save();
+    return n;
+  }
+
+  async trainingOptOut(userId: string): Promise<boolean> {
+    this.load();
+    return this.state.trainingOptOut.includes(userId);
+  }
+
+  async setTrainingOptOut(userId: string, optOut: boolean): Promise<void> {
+    this.load();
+    this.state.trainingOptOut = this.state.trainingOptOut.filter((u) => u !== userId);
+    if (optOut) {
+      this.state.trainingOptOut.push(userId);
+      this.state.trainingPairs = this.state.trainingPairs.filter((p) => !p.contributors.includes(userId));
+    }
+    this.save();
   }
 }

@@ -36,6 +36,8 @@ const policy = values.policy ? ModelPolicy.parse(JSON.parse(readFileSync(resolve
 rmSync(values.store, { recursive: true, force: true });
 rmSync(values['work-root'], { recursive: true, force: true });
 const store = new FileStore(values.store);
+// Bench prompts are the eval set a distilled model is promoted on: live runs must never turn them into training pairs.
+await store.setTrainingOptOut('bench', true);
 mkdirSync(values.out, { recursive: true });
 
 interface Run {

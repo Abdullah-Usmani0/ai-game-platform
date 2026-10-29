@@ -47,6 +47,17 @@ export interface StageContext {
   versionId: string;
 }
 
+/** A model-written artifact of a stage: recorded as a training pair when the job finishes with every gate passed. */
+export interface PairDraft {
+  /** An ArtifactName, or GddBody for the GDD's markdown body. */
+  artifact: string;
+  system: string;
+  /** The stage's first prompt: a sample accepted after a repair round is recorded against it, never the repair prompt. */
+  prompt: string;
+  /** The artifact as it was written to the game. */
+  output: unknown;
+}
+
 export interface StageOutcome {
   ok: boolean;
   summary: string;
@@ -57,6 +68,8 @@ export interface StageOutcome {
   failureMode?: FailureMode;
   artifactPath?: string;
   promptHash?: string;
+  /** Model-written artifacts (none when the stage fell back to a default, an exemplar or a drafted design). */
+  pairs?: PairDraft[];
   /** Fields the version row records when the stage passes (the publisher fills them). */
   version?: { bundlePath?: string | null; manifest?: Record<string, unknown> | null; design?: Record<string, unknown>; contentHash?: string | null };
 }
