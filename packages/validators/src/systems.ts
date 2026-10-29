@@ -10,10 +10,12 @@ export interface CatalogParam {
   /** What a change invalidates: levels (re-validate), assets (regenerate), none. */
   affects: 'levels' | 'assets' | 'none';
   /**
-   * The value names an entity type of the game (the drop a kill leaves, the crate a board pushes). The game's
-   * composition sets it when its entities are renamed; it is not a tuning knob, so models and panels never see it.
+   * Set by the game's composition, not a tuning knob: models and panels never see it, and systems.json keeps the
+   * default. 'entity': the value names an entity type of the game (the drop a kill leaves, the crate a board pushes),
+   * set when the roster renames it. 'switch': it turns off a duty another system of the game owns (hazards' respawn,
+   * when the objectives decide what a death does).
    */
-  entity?: boolean;
+  composed?: 'entity' | 'switch';
 }
 
 /** How the player moves. Every game has exactly one system that provides it. */
@@ -39,6 +41,11 @@ export interface SystemProvides {
    * respawn until the lives run out, then end it.
    */
   death?: 'respawn' | 'game_over' | 'lives';
+  /**
+   * The boolean parameter that turns the death rule off while the system goes on hurting (hazards' respawn): such a rule
+   * yields to another system's, and the composition switches it off.
+   */
+  deathSwitch?: string;
   /** How the player deals damage. */
   combat?: 'stomp' | 'melee' | 'shoot' | 'aura';
   /** Entity types the system spawns while the game runs; 'waves' stands for the types its waves content names. */
@@ -97,7 +104,7 @@ export function checkSystems(systems: SystemsJson, catalog: SystemsCatalog, gdd?
         issues.push(err('unknown_param', `system '${s.id}' has no parameter '${k}'`, { path: `${s.id}.${k}` }));
         continue;
       }
-      if (p.entity && v !== p.default) issues.push(err('entity_param', `${s.id}.${k} names an entity type; the game's composition sets it, not systems.json`, { path: `${s.id}.${k}` }));
+      if (p.composed && v !== p.default) issues.push(err('composed_param', `${s.id}.${k} is set by the game's composition (${p.composed === 'entity' ? 'an entity type' : 'a switch'}), not systems.json`, { path: `${s.id}.${k}` }));
       else if (typeof v !== p.type) issues.push(err('param_type', `${s.id}.${k} should be ${p.type}`, { path: `${s.id}.${k}` }));
       else if (p.type === 'number' && typeof v === 'number' && ((p.min !== undefined && v < p.min) || (p.max !== undefined && v > p.max))) issues.push(err('param_range', `${s.id}.${k}=${v} outside [${p.min ?? '-inf'}, ${p.max ?? 'inf'}]`, { path: `${s.id}.${k}` }));
       else if (p.type === 'string' && p.values && typeof v === 'string' && !p.values.includes(v)) issues.push(err('param_enum', `${s.id}.${k}='${v}' not one of ${p.values.join('|')}`, { path: `${s.id}.${k}` }));

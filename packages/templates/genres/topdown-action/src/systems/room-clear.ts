@@ -72,7 +72,7 @@ export const meta = {
     bonus: { type: 'number', min: 0, max: 100, default: 20, affects: 'none' },
     killScore: { type: 'number', min: 0, max: 50, default: 5, affects: 'none' },
     gemHeal: { type: 'number', min: 0, max: 5, default: 1, affects: 'levels' },
-    healType: { type: 'string', default: 'gem', affects: 'none', entity: true },
+    healType: { type: 'string', default: 'gem', affects: 'none', composed: 'entity' },
   },
   emits: ['level_complete', 'custom:room_clear', 'custom:game_over'],
   feedbackFor: ['level_complete'],

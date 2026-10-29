@@ -216,7 +216,7 @@ const systems: StageFn = async (ctx) => {
   const prompt = [
     `GDD front matter: ${JSON.stringify(gddInfo.fm)}`,
     `Genre '${g.id}'. Required systems: ${g.requiredSystems.join(', ')}. Optional: ${g.optionalSystems.join(', ')}. Feel presets: ${Object.keys(g.feelPresets).join(', ')} (default ${g.defaultFeel}).`,
-    `Catalog: ${JSON.stringify(catalog.map((c) => ({ id: c.id, summary: c.summary, params: Object.fromEntries(Object.entries(c.params).filter(([, p]) => !p.entity)), feedbackFor: c.feedbackFor })))}`,
+    `Catalog: ${JSON.stringify(catalog.map((c) => ({ id: c.id, summary: c.summary, params: Object.fromEntries(Object.entries(c.params).filter(([, p]) => !p.composed)), feedbackFor: c.feedbackFor })))}`,
     exemplar ? `Example for a similar game: ${JSON.stringify(exemplar)}` : '',
   ].join('\n\n');
   const res = await generateArtifact<SystemsJson>({

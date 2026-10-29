@@ -75,7 +75,7 @@ export const meta = {
     damage: { type: 'number', min: 1, max: 20, default: 1, affects: 'none' },
     cooldownTicks: { type: 'number', min: 5, max: 120, default: 30, affects: 'none' },
     xpPerLevel: { type: 'number', min: 2, max: 50, default: 6, affects: 'levels' },
-    dropType: { type: 'string', default: 'xp', affects: 'none', entity: true },
+    dropType: { type: 'string', default: 'xp', affects: 'none', composed: 'entity' },
   },
   emits: ['hit', 'damage', 'death', 'spawn', 'custom:level_up'],
   feedbackFor: ['hit'],

@@ -57,7 +57,7 @@ describe('renamed entity types play the same', () => {
     const g = GENRES['survivors']!;
     expect(systemsJsonFor(g).systems.find((s) => s.id === 'auto-attack')!.params).not.toHaveProperty('dropType');
     const set = withParams(systemsJsonFor(g), { 'auto-attack': { dropType: 'nectar' } });
-    expect(checkSystems(set, CATALOG).issues.map((i) => i.code)).toEqual(['entity_param']);
+    expect(checkSystems(set, CATALOG).issues.map((i) => i.code)).toEqual(['composed_param']);
     expect(checkSystems(withParams(systemsJsonFor(g), { 'auto-attack': { dropType: 'xp' } }), CATALOG).ok).toBe(true);
   });
 });

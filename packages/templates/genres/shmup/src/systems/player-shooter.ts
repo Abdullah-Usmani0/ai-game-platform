@@ -62,7 +62,7 @@ export const meta = {
     damage: { type: 'number', min: 1, max: 5, default: 1, affects: 'levels' },
     spread: { type: 'number', min: 1, max: 3, default: 1, affects: 'levels' },
     killScore: { type: 'number', min: 0, max: 100, default: 10, affects: 'none' },
-    shotType: { type: 'string', default: 'shot', affects: 'none', entity: true },
+    shotType: { type: 'string', default: 'shot', affects: 'none', composed: 'entity' },
   },
   emits: ['hit', 'damage', 'death', 'despawn', 'spawn', 'custom:fire'],
   feedbackFor: ['hit', 'death'],

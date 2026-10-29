@@ -13,9 +13,26 @@ export interface CompositionContext {
 const SHARED_USES = new Set(['aim']);
 
 /**
+ * Who decides what a death does: the one system whose rule stands. A rule with a switch (provides.deathSwitch, as
+ * hazards' respawn has) yields to one without, and the composition turns it off; two rules without a switch clash.
+ */
+export function deathRule(systems: ReadonlyArray<CatalogSystem>): { owner: CatalogSystem | null; yielding: CatalogSystem[]; clashing: CatalogSystem[] } {
+  const rules = systems.filter((s) => s.provides?.death !== undefined);
+  const fixed = rules.filter((s) => s.provides!.deathSwitch === undefined);
+  const owner = fixed[0] ?? rules[0] ?? null;
+  return { owner, yielding: rules.filter((s) => s !== owner && s.provides!.deathSwitch !== undefined), clashing: fixed.length > 1 ? fixed : [] };
+}
+
+/** The parameters that switch the yielding death rules off ({ hazards: { respawn: false } }). */
+export function deathSwitches(systems: ReadonlyArray<CatalogSystem>): Record<string, Record<string, boolean>> {
+  return Object.fromEntries(deathRule(systems).yielding.map((s) => [s.id, { [s.provides!.deathSwitch!]: false }]));
+}
+
+/**
  * The rules that make a set of systems one coherent game, whatever genres its systems come from:
  * - exactly one system provides the player's movement, and exactly one owns the win;
- * - at most one decides what a death does, and one must when anything in the game can hurt the player (a hostile);
+ * - one rule decides what a death does (a switchable one yields to another), and there must be one when anything in the
+ *   game can hurt the player (a hostile);
  * - every requirement is met: the movement a system works with, the entity roles and content files it needs;
  * - no key has two uses (aiming may share the movement keys), and no listed conflict is selected.
  */
@@ -35,9 +52,9 @@ export function checkComposition(systems: ReadonlyArray<CatalogSystem>, ctx: Com
   if (winners.length === 0) issues.push(err('no_win', 'no system decides how a level is won'));
   if (winners.length > 1) issues.push(err('two_wins', `${winners.map((s) => s.id).join(' and ')} both decide how a level is won`));
 
-  const deaths = owners((s) => s.provides?.death);
-  if (deaths.length > 1) issues.push(err('two_death_rules', `${deaths.map((s) => `${s.id} (${s.provides!.death})`).join(' and ')} both decide what a death does`));
-  if (deaths.length === 0 && roles.has('hostile')) issues.push(err('no_death_rule', 'hostiles can hurt the player, but no system decides what a death does (respawn or end the run)'));
+  const death = deathRule(systems);
+  if (death.clashing.length) issues.push(err('two_death_rules', `${death.clashing.map((s) => `${s.id} (${s.provides!.death})`).join(' and ')} both decide what a death does`));
+  if (!death.owner && roles.has('hostile')) issues.push(err('no_death_rule', 'hostiles can hurt the player, but no system decides what a death does (respawn or end the run)'));
 
   for (const s of systems) {
     const r = s.requires;

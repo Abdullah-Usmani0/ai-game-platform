@@ -4,7 +4,10 @@ interface HazardState {
   respawnAt: number;
 }
 
-/** Hazard tiles and the bottom of the map kill; the player respawns at the checkpoint after a beat. */
+/**
+ * Hazard tiles and the bottom of the map kill; the player respawns at the checkpoint after a beat. In a game whose
+ * objectives decide what a death does (lives), the composition switches the respawn off and hazards only hurt.
+ */
 export const hazards = defineSystem<HazardState>({
   id: 'hazards',
   init: () => ({ respawnAt: -1 }),
@@ -22,7 +25,7 @@ export const hazards = defineSystem<HazardState>({
     }
   },
   onEvent(s, ev, ctx) {
-    if (ev.name === 'death' && ev.payload['type'] === 'player') s.respawnAt = ctx.tick + Number(ctx.params['respawnDelayTicks'] ?? 30);
+    if (ev.name === 'death' && ev.payload['type'] === 'player' && ctx.params['respawn'] !== false) s.respawnAt = ctx.tick + Number(ctx.params['respawnDelayTicks'] ?? 30);
   },
 });
 
@@ -31,9 +34,12 @@ export const meta = {
   genres: ['platformer', 'metroidvania'],
   required: true,
   summary: 'Hazard tiles and falling off the map kill; the player respawns at the checkpoint after a short delay.',
-  params: { respawnDelayTicks: { type: 'number', min: 0, max: 120, default: 30, affects: 'none' } },
+  params: {
+    respawnDelayTicks: { type: 'number', min: 0, max: 120, default: 30, affects: 'none' },
+    respawn: { type: 'boolean', default: true, affects: 'none', composed: 'switch' },
+  },
   emits: ['hit', 'damage', 'death', 'spawn'],
   feedbackFor: ['death'],
-  provides: { death: 'respawn', spawns: ['player'] },
+  provides: { death: 'respawn', deathSwitch: 'respawn', spawns: ['player'] },
   requires: { movement: ['platformer'] },
 } as const;

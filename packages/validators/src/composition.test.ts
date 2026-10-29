@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkComposition } from './composition.js';
+import { checkComposition, deathRule, deathSwitches } from './composition.js';
 import type { CatalogSystem } from './systems.js';
 
 const sys = (id: string, over: Partial<CatalogSystem> = {}): CatalogSystem => ({ id, genres: '*', summary: id, params: {}, emits: [], feedbackFor: [], ...over });
@@ -33,6 +33,18 @@ describe('checkComposition', () => {
     expect(codes([walk, goal])).toEqual(['no_death_rule']);
     expect(codes([walk, goal], { roles: [], content: [] })).toEqual([]);
     expect(codes([run, clock, spikes])).toEqual(['two_death_rules']);
+  });
+
+  it('lets a death rule with a switch yield to one without, and names the switches to turn off', () => {
+    const pits = sys('pits', { provides: { death: 'respawn', deathSwitch: 'respawn' }, requires: { movement: ['platformer'] } });
+    const lives = sys('lives', { provides: { win: 'objectives', death: 'lives' } });
+    expect(codes([run, lives, pits, stomp])).toEqual([]);
+    expect(deathRule([run, lives, pits]).owner?.id).toBe('lives');
+    expect(deathSwitches([run, lives, pits, stomp])).toEqual({ pits: { respawn: false } });
+    // Alone, a switchable rule stands; two rules without switches still clash.
+    expect(deathRule([run, goal, pits]).owner?.id).toBe('pits');
+    expect(deathSwitches([run, goal, pits])).toEqual({});
+    expect(codes([run, clock, lives, pits])).toEqual(['two_death_rules', 'two_wins']);
   });
 
   it("checks each system's needs: its movement, the roles and content it uses, its conflicts", () => {
