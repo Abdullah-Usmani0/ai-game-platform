@@ -141,6 +141,45 @@ try {
     stranger: (await api(`/api/games/${game.id}/heatmap`, 'player-a')).status,
   };
 
+  // 3c. A jam: a moderator opens one that started before this game was made; the owner enters the game from the jam
+  //     page; voting opens; a player who played the entry 30 s votes from the page, one who did not is refused, the
+  //     owner cannot vote on their own entry, two more vote through the API; results rank the entry once voting closes.
+  const jamNow = Date.now();
+  const jamSlug = `check-jam-${jamNow.toString(36)}`;
+  const jamBody = { slug: jamSlug, title: 'Check Jam', theme: 'one room', startsAt: new Date(Date.parse(game.createdAt) - 60_000).toISOString(), submissionsClose: new Date(jamNow + 3_600_000).toISOString(), votingClose: new Date(jamNow + 7_200_000).toISOString() };
+  result.jam = { strangerCreate: (await api('/api/jams', 'player-a', jamBody)).status };
+  const jamCreated = await api('/api/jams', 'moderator', jamBody);
+  result.jam.created = jamCreated.status;
+  const jamId = jamCreated.json.jam?.id;
+  await owner.goto(`${url}/jams/${jamSlug}`, { waitUntil: 'load', timeout: 30000 });
+  await owner.waitForSelector('[data-testid="jam"][data-phase="open"]', { timeout: 15000 });
+  await owner.selectOption('[data-testid="jam-pick"]', game.id);
+  await owner.click('[data-testid="jam-submit"]');
+  await owner.waitForSelector(`[data-testid="jam-entry"][data-game="${game.id}"]`, { timeout: 10000 });
+  result.jam.strangerEntry = (await api(`/api/jams/${jamId}/entries`, 'player-a', { gameId: game.id })).status;
+  result.jam.earlyVote = (await api(`/api/jams/${jamId}/votes`, 'player-b', { gameId: game.id, fun: 4, theme: 4, look: 4 })).status;
+  result.jam.openVoting = (await api(`/api/jams/${jamId}/schedule`, 'moderator', { submissionsClose: new Date().toISOString() })).status;
+  const jamVoter = await pageAs('player-b');
+  await jamVoter.goto(`${url}/jams/${jamSlug}`, { waitUntil: 'load', timeout: 30000 });
+  await jamVoter.waitForSelector('[data-testid="jam"][data-phase="voting"]', { timeout: 15000 });
+  const voteForm = `[data-testid="jam-vote"][data-game="${game.id}"]`;
+  for (const [k, v] of [['fun', '5'], ['theme', '4'], ['look', '4']]) await jamVoter.selectOption(`${voteForm} [data-testid="jam-vote-${k}"]`, v);
+  await jamVoter.click(`${voteForm} [data-testid="jam-vote-save"]`);
+  await jamVoter.waitForSelector(`${voteForm}[data-voted="yes"]`, { timeout: 10000 });
+  const unplayed = await api(`/api/jams/${jamId}/votes`, 'player-a', { gameId: game.id, fun: 1, theme: 1, look: 1 });
+  result.jam.unplayed = { status: unplayed.status, error: unplayed.json.error };
+  result.jam.own = (await api(`/api/jams/${jamId}/votes`, 'local-dev', { gameId: game.id, fun: 5, theme: 5, look: 5 })).status;
+  await api('/api/plays', 'player-d', { gameId: game.id, versionId: game.headVersionId, source: 'featured', durationS: 40, completed: false, levelsCompleted: 0, deaths: 0, events: [] });
+  result.jam.votes = [(await api(`/api/jams/${jamId}/votes`, 'player-c', { gameId: game.id, fun: 4, theme: 3, look: 4 })).status, (await api(`/api/jams/${jamId}/votes`, 'player-d', { gameId: game.id, fun: 5, theme: 5, look: 4 })).status];
+  result.jam.resultsDuringVoting = (await api(`/api/jams/${jamId}`, 'player-b')).json.results;
+  result.jam.publish = (await api(`/api/jams/${jamId}/schedule`, 'moderator', { votingClose: new Date().toISOString() })).status;
+  await jamVoter.goto(`${url}/jams/${jamSlug}`, { waitUntil: 'load', timeout: 30000 });
+  await jamVoter.waitForSelector('[data-testid="jam-results"]', { timeout: 15000 });
+  result.jam.rankShown = await jamVoter.getAttribute(`[data-testid="jam-result"][data-game="${game.id}"]`, 'data-rank');
+  result.jam.result = ((await api(`/api/jams/${jamId}`, 'player-b')).json.results ?? []).find((r) => r.gameId === game.id) ?? null;
+  result.jam.listed = (await api('/api/jams', 'player-b')).json.jams?.find((j) => j.slug === jamSlug)?.phase;
+  await jamVoter.context().close();
+
   // 4. The owner asks for one tester; the tester claims it, plays 30 s, reports and is paid.
   const ask = await api(`/api/games/${game.id}/tests`, 'local-dev', { needed: 1, rewardCredits: 5 });
   result.ask = ask.status;
@@ -216,15 +255,18 @@ try {
   //    for 14 days. A second fan's remix removed for abuse is appealed and reinstated at once from the queue.
   const fanPage = await pageAs(fan);
   await fanPage.goto(`${url}/games/${remix.gameId}`, { waitUntil: 'load', timeout: 30000 });
-  await fanPage.waitForSelector('[data-testid="appeal-form"]', { timeout: 20000 });
-  await fanPage.fill('[data-testid="appeal-statement"]', 'I state under penalty of perjury that this remix was removed by mistake: the sprites are my own.');
-  await fanPage.fill('[data-testid="appeal-name"]', 'Fan One');
-  await fanPage.fill('[data-testid="appeal-email"]', 'fan@example.com');
-  await fanPage.click('[data-testid="appeal-consent"]');
-  // Debug aid: if the form does not accept the input, record what the page holds before the click times out.
-  if (!(await fanPage.waitForSelector('[data-testid="appeal-send"]:not([disabled])', { timeout: 5000 }).then(() => true, () => false))) {
-    const value = (id) => fanPage.inputValue(`[data-testid="${id}"]`).catch(() => 'missing');
-    result.appealForm = { statement: (await value('appeal-statement')).length, name: await value('appeal-name'), email: await value('appeal-email'), consent: await fanPage.isChecked('[data-testid="appeal-consent"]').catch(() => 'missing'), forms: await fanPage.locator('[data-testid="appeal-form"]').count() };
+  await fanPage.waitForSelector('[data-testid="appeal-form"][data-ready="yes"]', { timeout: 20000 });
+  // Typing that lands before React takes the first keystrokes is reset by the panel's next refresh (the field is
+  // controlled), so fill until Send is enabled; attempts above 1 are recorded.
+  const value = (id) => fanPage.inputValue(`[data-testid="${id}"]`).catch(() => 'missing');
+  let sendable = false;
+  for (let attempt = 1; attempt <= 3 && !sendable; attempt++) {
+    await fanPage.fill('[data-testid="appeal-statement"]', 'I state under penalty of perjury that this remix was removed by mistake: the sprites are my own.');
+    await fanPage.fill('[data-testid="appeal-name"]', 'Fan One');
+    await fanPage.fill('[data-testid="appeal-email"]', 'fan@example.com');
+    if (!(await fanPage.isChecked('[data-testid="appeal-consent"]'))) await fanPage.click('[data-testid="appeal-consent"]');
+    sendable = await fanPage.waitForSelector('[data-testid="appeal-send"]:not([disabled])', { timeout: 3000 }).then(() => true, () => false);
+    if (!sendable || attempt > 1) result.appealForm = { attempt, sendable, statement: (await value('appeal-statement')).length, name: await value('appeal-name'), email: await value('appeal-email') };
   }
   await fanPage.click('[data-testid="appeal-send"]');
   await fanPage.waitForSelector('[data-testid="appeal-status"][data-status="open"]', { timeout: 15000 });
@@ -255,6 +297,21 @@ try {
     result.workspace.moderator === 200 &&
     result.workspace.owner === 200 &&
     result.workspace.strangerLandsOn === `/play/${game.id}` &&
+    result.jam.strangerCreate === 403 &&
+    result.jam.created === 201 &&
+    result.jam.strangerEntry === 404 &&
+    result.jam.earlyVote === 409 &&
+    result.jam.openVoting === 200 &&
+    result.jam.unplayed.status === 409 &&
+    /play the entry/.test(result.jam.unplayed.error ?? '') &&
+    result.jam.own === 409 &&
+    result.jam.votes.every((s) => s === 200) &&
+    result.jam.resultsDuringVoting === null &&
+    result.jam.publish === 200 &&
+    result.jam.rankShown === '1' &&
+    result.jam.result?.votes === 3 &&
+    result.jam.result?.rank === 1 &&
+    result.jam.listed === 'closed' &&
     result.listed &&
     result.afterPlay.players >= 1 &&
     result.afterPlay.fun >= 1 &&

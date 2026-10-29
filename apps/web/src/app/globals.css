@@ -98,3 +98,15 @@ pre.code .del { background: rgba(248, 81, 73, 0.18); }
 pre.code .folded { color: var(--muted, #8a8f98); font-style: italic; }
 @media (max-width: 720px) { .code-layout { grid-template-columns: 1fr; } }
 
+/* jams */
+.jams, .jam-entries { list-style: none; padding: 0; margin: 8px 0; }
+.jams li, .jam-entries li { padding: 6px 0; border-bottom: 1px solid #26263d; }
+.jam-theme { font-size: 18px; }
+.jam-vote { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 6px; }
+.jam-vote label { display: inline-flex; gap: 4px; align-items: center; font-size: 13px; }
+.jam-vote select, .jam select { width: auto; }
+.create label.check { display: inline-flex; gap: 6px; align-items: center; }
+.jam table { border-collapse: collapse; }
+.jam th, .jam td { text-align: left; padding: 4px 12px 4px 0; }
+.jam th:nth-child(n + 3), .jam td:nth-child(n + 3) { text-align: right; font-variant-numeric: tabular-nums; }
+

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Genre } from './common';
 
 /** One-tag ratings: a player picks the single word that fits best. Broken games never stay in the feed. */
 export const RATING_TAGS = ['fun', 'confusing', 'broken', 'ugly'] as const;
@@ -122,3 +123,39 @@ export const AppealDecision = z.object({
   note: z.string().max(1000).default(''),
 });
 export type AppealDecision = z.infer<typeof AppealDecision>;
+
+/**
+ * A jam: a theme and three moments. Entries open at startsAt (only games made after it count), submissions close and
+ * voting starts at submissionsClose, results are published at votingClose. genres empty means any genre.
+ */
+export const JamInput = z
+  .object({
+    slug: z.string().regex(/^[a-z0-9][a-z0-9-]{2,39}$/, 'slug: 3-40 of a-z, 0-9 and -'),
+    title: z.string().min(3).max(80),
+    theme: z.string().min(2).max(80),
+    description: z.string().max(2000).default(''),
+    genres: z.array(Genre).max(9).default([]),
+    startsAt: z.iso.datetime({ offset: true }),
+    submissionsClose: z.iso.datetime({ offset: true }),
+    votingClose: z.iso.datetime({ offset: true }),
+  })
+  .refine((j) => Date.parse(j.startsAt) < Date.parse(j.submissionsClose) && Date.parse(j.submissionsClose) < Date.parse(j.votingClose), 'the jam must start, close submissions and close voting in that order');
+export type JamInput = z.infer<typeof JamInput>;
+
+/** A moderator moves a jam's moments (extend submissions, close voting early); omitted ones stay. */
+export const JamSchedule = z.object({
+  startsAt: z.iso.datetime({ offset: true }).optional(),
+  submissionsClose: z.iso.datetime({ offset: true }).optional(),
+  votingClose: z.iso.datetime({ offset: true }).optional(),
+});
+export type JamSchedule = z.infer<typeof JamSchedule>;
+
+/** What a jam entry is scored on, 1 to 5 each: is it fun, does it use the theme, how does it look and sound. */
+export const JAM_CRITERIA = ['fun', 'theme', 'look'] as const;
+export const JamVote = z.object({
+  fun: z.int().min(1).max(5),
+  theme: z.int().min(1).max(5),
+  look: z.int().min(1).max(5),
+});
+export type JamVote = z.infer<typeof JamVote>;
+

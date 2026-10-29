@@ -16,8 +16,9 @@ interface Props {
 const MODES = new Set(['play', 'preview', 'test']);
 
 /**
- * Plays a game's head version from the store; the sample bundle under /public/bundles/sample stays reachable by id.
- * A suspended game plays only for its owner and moderators (without a recorded session); a removed game for nobody.
+ * Plays a game's head version from the store, or with ?version= one of its earlier accepted versions (a jam links the
+ * version that was entered); the sample bundle under /public/bundles/sample stays reachable by id. A suspended game
+ * plays only for its owner and moderators (without a recorded session); a removed game for nobody.
  */
 export default async function PlayPage({ params, searchParams }: Props) {
   const { gameId } = await params;
@@ -34,8 +35,11 @@ export default async function PlayPage({ params, searchParams }: Props) {
   let session: { versionId: string; levels: number } | null = null;
   const store = getStore();
   const game = await store.getGame(safeId).catch(() => null);
+  const asked = typeof q['version'] === 'string' ? q['version'] : null;
   if (game?.headVersionId) {
-    const head = await store.getVersion(game.headVersionId);
+    const pick = asked ? await store.getVersion(asked).catch(() => null) : null;
+    // Only an accepted version of this game; anything else plays the head.
+    const head = pick && pick.gameId === game.id && pick.kind !== 'stage' ? pick : await store.getVersion(game.headVersionId);
     const base = bundleBaseUrl(head?.bundlePath ?? null);
     if (base && head) {
       bundleUrl = `${base}/index.html`;

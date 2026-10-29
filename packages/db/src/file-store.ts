@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { ModelPolicy, PLAY_EVENT_LIMITS, type AppealDecision, type AppealInput, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
+import { ModelPolicy, PLAY_EVENT_LIMITS, type AppealDecision, type AppealInput, type JamInput, type JamSchedule, type JamVote, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
 import { checkCell, HEAT_CELL, heatmapFrom, heatRows } from './heatmap';
-import { computeStats, feedEligible, headPlaytestPassed, MODERATION, quarantinePath, RANKING, testOutcome } from './ranking';
-import type { AppealRow, CreditEntry, FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewTrainingPair, NewVersion, PlayEventRow, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, TrainingPairRow, VersionRow } from './types';
+import { computeStats, feedEligible, headPlaytestPassed, JAM, jamPhase, MODERATION, quarantinePath, RANKING, rankJam, testOutcome } from './ranking';
+import type { AppealRow, CreditEntry, FeedItem, GameRow, GameStats, Heatmap, JamEntryRow, JamResult, JamRow, JamVoteRow, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewTrainingPair, NewVersion, PlayEventRow, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, TrainingPairRow, VersionRow } from './types';
 
 interface FileState {
   games: GameRow[];
@@ -29,6 +29,9 @@ interface FileState {
   trainingPairs: TrainingPairRow[];
   /** Users who opted out of training (Supabase: profiles.training_opt_out). */
   trainingOptOut: string[];
+  jams: JamRow[];
+  jamEntries: JamEntryRow[];
+  jamVotes: JamVoteRow[];
 }
 
 /** How long a claimed test stays reserved for its tester. */
@@ -63,7 +66,7 @@ export class FileStore implements Store {
   constructor(private readonly dir: string) {
     mkdirSync(dir, { recursive: true });
     this.file = join(dir, 'store.json');
-    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], playEvents: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], appeals: [], moderators: ['moderator'], trainingPairs: [], trainingOptOut: [] };
+    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], playEvents: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], appeals: [], moderators: ['moderator'], trainingPairs: [], trainingOptOut: [], jams: [], jamEntries: [], jamVotes: [] };
     this.load();
   }
 
@@ -93,6 +96,9 @@ export class FileStore implements Store {
       moderators: parsed.moderators ?? ['moderator'],
       trainingPairs: parsed.trainingPairs ?? [],
       trainingOptOut: parsed.trainingOptOut ?? [],
+      jams: parsed.jams ?? [],
+      jamEntries: parsed.jamEntries ?? [],
+      jamVotes: parsed.jamVotes ?? [],
     };
     this.mtime = m;
   }
@@ -723,5 +729,128 @@ export class FileStore implements Store {
       this.state.trainingPairs = this.state.trainingPairs.filter((p) => !p.contributors.includes(userId));
     }
     this.save();
+  }
+
+  // ---------------------------------------------------------------- jams
+
+  private jam(jamIdOrSlug: string): JamRow {
+    const j = this.state.jams.find((x) => x.id === jamIdOrSlug || x.slug === jamIdOrSlug);
+    if (!j) throw new Error('jam not found');
+    return j;
+  }
+
+  /** Still in the jam: the entry's game is listed and neither suspended nor removed. */
+  private entryStands(e: JamEntryRow): boolean {
+    const g = this.state.games.find((x) => x.id === e.gameId);
+    return Boolean(g && g.visibility === 'listed' && (g.state === 'playable' || g.state === 'published'));
+  }
+
+  async createJam(moderatorId: string, input: JamInput): Promise<JamRow> {
+    this.load();
+    if (!this.state.moderators.includes(moderatorId)) throw new Error('only moderators can create jams');
+    const [startsAt, submissionsClose, votingClose] = [input.startsAt, input.submissionsClose, input.votingClose].map((t) => new Date(t).toISOString()) as [string, string, string];
+    if (!(startsAt < submissionsClose && submissionsClose < votingClose)) throw new Error('the jam must start, close submissions and close voting in that order');
+    if (this.state.jams.some((j) => j.slug === input.slug)) throw new Error(`a jam called '${input.slug}' exists`);
+    const row: JamRow = { id: randomUUID(), slug: input.slug, title: input.title, theme: input.theme, description: input.description, genres: [...input.genres], startsAt, submissionsClose, votingClose, createdBy: moderatorId, createdAt: new Date().toISOString() };
+    this.state.jams.push(row);
+    this.save();
+    return structuredClone(row);
+  }
+
+  async listJams(): Promise<JamRow[]> {
+    this.load();
+    return [...this.state.jams].sort((a, b) => b.startsAt.localeCompare(a.startsAt)).map((j) => structuredClone(j));
+  }
+
+  async getJam(jamIdOrSlug: string): Promise<JamRow | null> {
+    this.load();
+    const j = this.state.jams.find((x) => x.id === jamIdOrSlug || x.slug === jamIdOrSlug);
+    return j ? structuredClone(j) : null;
+  }
+
+  async setJamSchedule(jamId: string, moderatorId: string, schedule: JamSchedule): Promise<JamRow> {
+    this.load();
+    if (!this.state.moderators.includes(moderatorId)) throw new Error('only moderators can change a jam');
+    const j = this.jam(jamId);
+    const next = { startsAt: j.startsAt, submissionsClose: j.submissionsClose, votingClose: j.votingClose };
+    for (const k of ['startsAt', 'submissionsClose', 'votingClose'] as const) if (schedule[k]) next[k] = new Date(schedule[k]).toISOString();
+    if (!(next.startsAt < next.submissionsClose && next.submissionsClose < next.votingClose)) throw new Error('the jam must start, close submissions and close voting in that order');
+    Object.assign(j, next);
+    this.save();
+    return structuredClone(j);
+  }
+
+  async submitToJam(jamId: string, gameId: string, userId: string): Promise<JamEntryRow> {
+    this.load();
+    const j = this.jam(jamId);
+    const phase = jamPhase(j);
+    if (phase !== 'open') throw new Error(phase === 'upcoming' ? 'the jam has not started' : 'submissions are closed');
+    const g = this.state.games.find((x) => x.id === gameId);
+    if (!g || g.ownerId !== userId) throw new Error('game not found');
+    if (g.state === 'removed' || g.state === 'suspended') throw new Error(`the game is ${g.state}; it cannot be entered`);
+    const head = g.headVersionId ? (this.state.versions.find((v) => v.id === g.headVersionId) ?? null) : null;
+    if (g.visibility !== 'listed' || !head || !headPlaytestPassed(head)) throw new Error('publish the game to the feed (a version whose playtest passed) before entering it');
+    if (j.genres.length && !j.genres.includes(g.genre)) throw new Error(`this jam takes ${j.genres.join(', ')} games`);
+    const root = g.rootGameId ? this.state.games.find((x) => x.id === g.rootGameId) : null;
+    if (g.createdAt < j.startsAt || (root && root.createdAt < j.startsAt)) throw new Error('only games made after the jam started can be entered (for a remix, its original too)');
+    const mine = this.state.jamEntries.find((e) => e.jamId === j.id && e.ownerId === userId);
+    if (mine && mine.gameId !== gameId) throw new Error('you already entered another game in this jam; withdraw it first');
+    if (mine) mine.versionId = head.id;
+    else this.state.jamEntries.push({ jamId: j.id, gameId, ownerId: userId, versionId: head.id, submittedAt: new Date().toISOString() });
+    this.save();
+    return { ...this.state.jamEntries.find((e) => e.jamId === j.id && e.gameId === gameId)! };
+  }
+
+  async withdrawFromJam(jamId: string, gameId: string, userId: string): Promise<void> {
+    this.load();
+    const j = this.jam(jamId);
+    if (jamPhase(j) !== 'open') throw new Error('entries can be withdrawn only while submissions are open');
+    const e = this.state.jamEntries.find((x) => x.jamId === j.id && x.gameId === gameId);
+    if (!e || e.ownerId !== userId) throw new Error('not your entry');
+    this.state.jamEntries = this.state.jamEntries.filter((x) => x !== e);
+    this.save();
+  }
+
+  async listJamEntries(jamId: string): Promise<JamEntryRow[]> {
+    this.load();
+    const j = this.jam(jamId);
+    return this.state.jamEntries.filter((e) => e.jamId === j.id && this.entryStands(e)).sort((a, b) => a.submittedAt.localeCompare(b.submittedAt)).map((e) => ({ ...e }));
+  }
+
+  async voteInJam(jamId: string, gameId: string, voterId: string, vote: JamVote): Promise<JamVoteRow> {
+    this.load();
+    const j = this.jam(jamId);
+    const phase = jamPhase(j);
+    if (phase !== 'voting') throw new Error(phase === 'closed' ? 'voting is closed' : 'voting opens when submissions close');
+    const e = this.state.jamEntries.find((x) => x.jamId === j.id && x.gameId === gameId);
+    if (!e || !this.entryStands(e)) throw new Error('not an entry of this jam');
+    if (e.ownerId === voterId) throw new Error('you cannot vote on your own entry');
+    const played = this.state.plays.some((p) => p.userId === voterId && p.versionId === e.versionId && p.durationS >= JAM.votePlayS && !JAM.voteExcludedSources.includes(p.source));
+    if (!played) throw new Error(`play the entry for ${JAM.votePlayS} seconds before voting`);
+    const now = new Date().toISOString();
+    let v = this.state.jamVotes.find((x) => x.jamId === j.id && x.gameId === gameId && x.voterId === voterId);
+    if (v) Object.assign(v, { fun: vote.fun, theme: vote.theme, look: vote.look, updatedAt: now });
+    else {
+      v = { jamId: j.id, gameId, voterId, fun: vote.fun, theme: vote.theme, look: vote.look, createdAt: now, updatedAt: now };
+      this.state.jamVotes.push(v);
+    }
+    this.save();
+    return { ...v };
+  }
+
+  async listJamVotes(jamId: string, voterId: string): Promise<JamVoteRow[]> {
+    this.load();
+    const j = this.jam(jamId);
+    return this.state.jamVotes.filter((v) => v.jamId === j.id && v.voterId === voterId).map((v) => ({ ...v }));
+  }
+
+  async jamResults(jamId: string): Promise<JamResult[]> {
+    this.load();
+    const j = this.jam(jamId);
+    if (jamPhase(j) !== 'closed') throw new Error('results are published when voting closes');
+    return rankJam(
+      this.state.jamEntries.filter((e) => e.jamId === j.id && this.entryStands(e)),
+      this.state.jamVotes.filter((v) => v.jamId === j.id),
+    );
   }
 }

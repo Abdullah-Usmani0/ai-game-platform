@@ -4,8 +4,8 @@ import { PGlite } from '@electric-sql/pglite';
 import type { PlaySource, RatingTag } from '@gg/schemas';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { heatmapFrom, heatRows, type HeatRow } from './heatmap';
-import { computeStats } from './ranking';
-import type { GameRow, PlayEventRow, PlayRow, RatingRow } from './types';
+import { computeStats, rankJam } from './ranking';
+import type { GameRow, JamEntryRow, JamVoteRow, PlayEventRow, PlayRow, RatingRow } from './types';
 
 /**
  * Runs the Supabase migrations on an embedded Postgres (PGlite) and exercises the SQL functions: the core job and
@@ -84,6 +84,7 @@ beforeAll(async () => {
   await db.exec(migration('0005_play_events.sql'));
   await db.exec(migration('0006_appeals.sql'));
   await db.exec(migration('0007_training_pairs.sql'));
+  await db.exec(migration('0008_jams.sql'));
   for (const [i, id] of [OWNER, ...PLAYERS, ...TESTERS, MODERATOR, OWNER2, TESTER2].entries()) {
     await db.query('insert into auth.users (id) values ($1)', [id]);
     await db.query('insert into profiles (id, handle) values ($1, $2)', [id, `user_${i}`]);
@@ -486,3 +487,89 @@ describe('training pairs migration', () => {
     expect(await pairsNaming(OWNER2)).toBe(before - 1);
   });
 });
+
+describe('jams migration', () => {
+  const [MAKER, RIVAL, THIRD, V1, V2] = [61, 62, 63, 64, 65].map(uuid) as [string, string, string, string, string];
+  const submit = (user: string, jamId: string, gameId: string) => db.query('select * from submit_to_jam($1, $2, $3)', [user, jamId, gameId]);
+  const vote = (user: string, jamId: string, gameId: string, fun: number, theme: number, look: number) => db.query('select * from vote_in_jam($1, $2, $3, $4, $5, $6)', [user, jamId, gameId, fun, theme, look]);
+  const played = (user: string, g: { gameId: string; versionId: string }, seconds: number, source = 'feed') => db.query('select record_play($1, $2, $3, $4, $5, false, 0, 0)', [user, g.gameId, g.versionId, source, seconds]);
+  const listed = async (slug: string, owner: string, daysOld = 3) => {
+    const g = await makeGame(slug, { owner, daysOld });
+    await db.query('select set_listed($1, $2, true)', [owner, g.gameId]);
+    return g;
+  };
+
+  it('runs a jam through entries and play-gated votes to results that rank like rankJam; clients cannot write', async () => {
+    for (const [i, id] of [MAKER, RIVAL, THIRD, V1, V2].entries()) {
+      await db.query('insert into auth.users (id) values ($1)', [id]);
+      await db.query('insert into profiles (id, handle) values ($1, $2)', [id, `jammer_${i}`]);
+    }
+    const create = (user: string, slug: string, vote = "now() + interval '2 days'") => db.query(`select * from create_jam($1, $2, 'SQL Jam', 'tiny worlds', '', '{}', now() - interval '10 days', now() + interval '1 day', ${vote})`, [user, slug]);
+    await expectError(create(MAKER, 'sql-jam'), /only moderators/);
+    const jam = (await create(MODERATOR, 'sql-jam')).rows[0] as { id: string };
+    await expectError(create(MODERATOR, 'sql-jam'), /exists/);
+    await expectError(create(MODERATOR, 'sql-bad', "now() + interval '12 hours'"), /in that order/);
+    const old = await listed('jam-old', MAKER, 20);
+    await expectError(submit(MAKER, jam.id, old.gameId), /made after the jam started/);
+    const mine = await listed('jam-mine', MAKER);
+    const rival = await listed('jam-rival', RIVAL);
+    const third = await listed('jam-third', THIRD);
+    await expectError(submit(RIVAL, jam.id, mine.gameId), /game not found/);
+    expect((await submit(MAKER, jam.id, mine.gameId)).rows[0]).toMatchObject({ version_id: mine.versionId, owner_id: MAKER });
+    const second = await listed('jam-mine-2', MAKER);
+    await expectError(submit(MAKER, jam.id, second.gameId), /already entered another game/);
+    await expectError(db.query('select withdraw_from_jam($1, $2, $3)', [RIVAL, jam.id, mine.gameId]), /not your entry/);
+    await db.query('select withdraw_from_jam($1, $2, $3)', [MAKER, jam.id, mine.gameId]);
+    for (const [owner, g] of [[MAKER, mine], [RIVAL, rival], [THIRD, third]] as const) await submit(owner, jam.id, g.gameId);
+    await expectError(vote(V1, jam.id, mine.gameId, 5, 5, 5), /voting opens when submissions close/);
+
+    await db.query(`select * from set_jam_schedule($1, $2, null, now() - interval '1 minute')`, [MODERATOR, jam.id]);
+    await expectError(submit(MAKER, jam.id, second.gameId), /submissions are closed/);
+    await played(V1, mine, 29);
+    await played(V2, mine, 120, 'workspace');
+    await expectError(vote(V1, jam.id, mine.gameId, 5, 4, 4), /play the entry for 30 seconds/);
+    await expectError(vote(V2, jam.id, mine.gameId, 5, 4, 4), /play the entry for 30 seconds/);
+    await expectError(vote(MAKER, jam.id, mine.gameId, 5, 5, 5), /your own entry/);
+    for (const u of [V1, V2, RIVAL]) await played(u, mine, 45, 'featured');
+    for (const u of [V1, V2, MAKER]) await played(u, rival, 45);
+    await played(V1, third, 45);
+    await vote(V1, jam.id, mine.gameId, 1, 1, 1);
+    await vote(V1, jam.id, mine.gameId, 5, 4, 4);
+    await vote(V2, jam.id, mine.gameId, 4, 4, 5);
+    await vote(RIVAL, jam.id, mine.gameId, 5, 5, 3);
+    await vote(V1, jam.id, rival.gameId, 3, 3, 4);
+    await vote(V2, jam.id, rival.gameId, 4, 2, 3);
+    await vote(MAKER, jam.id, rival.gameId, 3, 4, 3);
+    await vote(V1, jam.id, third.gameId, 5, 5, 5);
+    await expectError(db.query('select * from jam_results($1)', [jam.id]), /when voting closes/);
+
+    await db.query(`select * from set_jam_schedule($1, $2, null, null, now() - interval '1 second')`, [MODERATOR, jam.id]);
+    await expectError(vote(V2, jam.id, third.gameId, 5, 5, 5), /voting is closed/);
+    const sql = (await db.query<{ game_id: string; rank: number | null; votes: number; fun: number | null; theme: number | null; look: number | null; score: number }>('select * from jam_results($1)', [jam.id])).rows;
+    const iso = (t: unknown) => new Date(t as string).toISOString();
+    const entries = (await db.query<Record<string, unknown>>('select * from jam_entries where jam_id = $1', [jam.id])).rows.map((r): JamEntryRow => ({ jamId: r['jam_id'] as string, gameId: r['game_id'] as string, ownerId: r['owner_id'] as string, versionId: r['version_id'] as string, submittedAt: iso(r['submitted_at']) }));
+    const votes = (await db.query<Record<string, unknown>>('select * from jam_votes where jam_id = $1', [jam.id])).rows.map((r): JamVoteRow => ({ jamId: r['jam_id'] as string, gameId: r['game_id'] as string, voterId: r['voter_id'] as string, fun: Number(r['fun']), theme: Number(r['theme']), look: Number(r['look']), createdAt: iso(r['created_at']), updatedAt: iso(r['updated_at']) }));
+    const ts = rankJam(entries, votes);
+    expect(sql.map((r) => [r.game_id, r.rank, r.votes])).toEqual([
+      [mine.gameId, 1, 3],
+      [rival.gameId, 2, 3],
+      [third.gameId, null, 1],
+    ]);
+    expect(sql.map((r) => [r.game_id, r.rank, r.votes])).toEqual(ts.map((r) => [r.gameId, r.rank, r.votes]));
+    sql.forEach((r, i) => {
+      expect(r.score).toBeCloseTo(ts[i]!.score, 6);
+      for (const k of ['fun', 'theme', 'look'] as const) expect(r[k]).toBeCloseTo(ts[i]![k]!, 6);
+    });
+
+    // An unlisted game leaves the jam; clients read jams and entries, only their own votes, and write nothing directly.
+    await db.query('select set_listed($1, $2, false)', [RIVAL, rival.gameId]);
+    expect((await db.query<{ game_id: string }>('select game_id from jam_results($1)', [jam.id])).rows.map((r) => r.game_id)).toEqual([mine.gameId, third.gameId]);
+    await asClient(V1);
+    expect((await one<{ n: number }>('select count(*)::int as n from jam_votes')).n).toBe(3);
+    expect((await one<{ n: number }>('select count(*)::int as n from jam_entries where jam_id = $1', [jam.id])).n).toBe(3);
+    await expectError(db.query(`update jam_votes set fun = 1 where voter_id = $1`, [V1]), /permission denied/);
+    await expectError(db.query(`insert into jams (slug, title, theme, starts_at, submissions_close, voting_close, created_by) values ('sneaky', 'Sneaky', 'x', now(), now() + interval '1 day', now() + interval '2 days', $1)`, [V1]), /permission denied/);
+    await asServer();
+  });
+});
+

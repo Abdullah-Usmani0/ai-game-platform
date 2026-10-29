@@ -1,5 +1,5 @@
 import type { RatingTag } from '@gg/schemas';
-import type { GameRow, GameStats, PlayRow, RatingRow, VersionRow } from './types';
+import type { GameRow, GameStats, JamEntryRow, JamPhase, JamResult, JamRow, JamVoteRow, PlayRow, RatingRow, VersionRow } from './types';
 
 /**
  * The ranking contract. supabase/migrations/0003_community.sql implements the same formula in SQL (refresh_game_stats)
@@ -121,3 +121,42 @@ export const MODERATION = {
 
 /** Where a removed game's bundles wait in the private checkpoints bucket until an appeal decides them. */
 export const quarantinePath = (reportId: string, gameId: string): string => `takedowns/${reportId}/g/${gameId}`;
+
+/** Jam rules; 0008_jams.sql uses the same numbers and rankJam's formula. */
+export const JAM = {
+  /** A voter needs one play of the entered version at least this long, outside workspace and test traffic. */
+  votePlayS: 30,
+  voteExcludedSources: ['workspace', 'test'] as readonly string[],
+  /** Votes an entry needs to be ranked. */
+  minVotes: 3,
+  /** Each criterion starts from this many votes of this score, so a handful of fives cannot top the jam. */
+  priorVotes: 3,
+  priorScore: 3,
+} as const;
+
+export function jamPhase(jam: Pick<JamRow, 'startsAt' | 'submissionsClose' | 'votingClose'>, now = new Date()): JamPhase {
+  const t = now.getTime();
+  return t < Date.parse(jam.startsAt) ? 'upcoming' : t < Date.parse(jam.submissionsClose) ? 'open' : t < Date.parse(jam.votingClose) ? 'voting' : 'closed';
+}
+
+/**
+ * Jam standings. Per criterion the shown value is the plain mean of the votes; the score an entry ranks by is the mean
+ * over fun, theme and look of (sum + priorScore * priorVotes) / (votes + priorVotes). Entries with JAM.minVotes votes
+ * or more are ranked by score, then votes, then who entered first; the rest follow unranked.
+ */
+export function rankJam(entries: readonly JamEntryRow[], votes: readonly JamVoteRow[]): JamResult[] {
+  const rows = entries.map((e) => {
+    const vs = votes.filter((v) => v.jamId === e.jamId && v.gameId === e.gameId);
+    const sum = (k: 'fun' | 'theme' | 'look') => vs.reduce((n, v) => n + v[k], 0);
+    const plain = (k: 'fun' | 'theme' | 'look') => (vs.length ? round6(sum(k) / vs.length) : null);
+    const shrunk = (k: 'fun' | 'theme' | 'look') => (sum(k) + JAM.priorScore * JAM.priorVotes) / (vs.length + JAM.priorVotes);
+    const result: JamResult = { gameId: e.gameId, versionId: e.versionId, ownerId: e.ownerId, votes: vs.length, fun: plain('fun'), theme: plain('theme'), look: plain('look'), score: round6((shrunk('fun') + shrunk('theme') + shrunk('look')) / 3), rank: null };
+    return { result, submittedAt: e.submittedAt };
+  });
+  const order = (a: (typeof rows)[number], b: (typeof rows)[number]) => b.result.score - a.result.score || b.result.votes - a.result.votes || a.submittedAt.localeCompare(b.submittedAt);
+  const ranked = rows.filter((r) => r.result.votes >= JAM.minVotes).sort(order);
+  ranked.forEach((r, i) => (r.result.rank = i + 1));
+  const unranked = rows.filter((r) => r.result.votes < JAM.minVotes).sort((a, b) => b.result.votes - a.result.votes || a.submittedAt.localeCompare(b.submittedAt));
+  return [...ranked, ...unranked].map((r) => r.result);
+}
+

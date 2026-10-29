@@ -1,8 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { ModelPolicy, PLAY_EVENT_LIMITS, type AppealDecision, type AppealInput, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
+import { ModelPolicy, PLAY_EVENT_LIMITS, type AppealDecision, type AppealInput, type JamInput, type JamSchedule, type JamVote, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
 import { quarantinePath } from './ranking';
 import { checkCell, HEAT_CELL, heatmapFrom, type HeatRow } from './heatmap';
-import type { AppealRow, FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewTrainingPair, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, TrainingPairRow, VersionRow } from './types';
+import type { AppealRow, FeedItem, GameRow, GameStats, Heatmap, JamEntryRow, JamResult, JamRow, JamVoteRow, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewTrainingPair, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, TrainingPairRow, VersionRow } from './types';
 
 function snake(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -21,6 +21,8 @@ function pairRow(r: Record<string, unknown>): TrainingPairRow {
   delete row.outputPath;
   return row;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** PostgREST returns at most this many rows per request (the Supabase default max-rows). */
 const PAGE = 1000;
@@ -491,5 +493,62 @@ export class SupabaseStore implements Store {
     // Opting out fires the profiles trigger (0007) that deletes the user's recorded pairs.
     const res = await this.client.from('profiles').update({ training_opt_out: optOut }).eq('id', userId);
     if (res.error) throw new Error(`setTrainingOptOut: ${res.error.message}`);
+  }
+
+  // ---------------------------------------------------------------- jams
+
+  async createJam(moderatorId: string, input: JamInput): Promise<JamRow> {
+    const row = await this.rpcRow<JamRow>('create_jam', { p_user_id: moderatorId, p_slug: input.slug, p_title: input.title, p_theme: input.theme, p_description: input.description, p_genres: input.genres, p_starts_at: input.startsAt, p_submissions_close: input.submissionsClose, p_voting_close: input.votingClose });
+    if (!row) throw new Error('create_jam: no row');
+    return row;
+  }
+
+  async listJams(): Promise<JamRow[]> {
+    const res = await this.client.from('jams').select('*').order('starts_at', { ascending: false });
+    return (this.unwrap(res, 'listJams') as Record<string, unknown>[]).map((r) => camel<JamRow>(r));
+  }
+
+  async getJam(jamIdOrSlug: string): Promise<JamRow | null> {
+    const res = await this.client.from('jams').select('*').eq(UUID.test(jamIdOrSlug) ? 'id' : 'slug', jamIdOrSlug).maybeSingle();
+    if (res.error) throw new Error(`getJam: ${res.error.message}`);
+    return res.data ? camel<JamRow>(res.data as Record<string, unknown>) : null;
+  }
+
+  async setJamSchedule(jamId: string, moderatorId: string, schedule: JamSchedule): Promise<JamRow> {
+    const row = await this.rpcRow<JamRow>('set_jam_schedule', { p_user_id: moderatorId, p_jam_id: jamId, p_starts_at: schedule.startsAt ?? null, p_submissions_close: schedule.submissionsClose ?? null, p_voting_close: schedule.votingClose ?? null });
+    if (!row) throw new Error('set_jam_schedule: no row');
+    return row;
+  }
+
+  async submitToJam(jamId: string, gameId: string, userId: string): Promise<JamEntryRow> {
+    const row = await this.rpcRow<JamEntryRow>('submit_to_jam', { p_user_id: userId, p_jam_id: jamId, p_game_id: gameId });
+    if (!row) throw new Error('submit_to_jam: no row');
+    return row;
+  }
+
+  async withdrawFromJam(jamId: string, gameId: string, userId: string): Promise<void> {
+    const res = await this.client.rpc('withdraw_from_jam', { p_user_id: userId, p_jam_id: jamId, p_game_id: gameId });
+    if (res.error) throw new Error(`withdraw_from_jam: ${res.error.message}`);
+  }
+
+  async listJamEntries(jamId: string): Promise<JamEntryRow[]> {
+    const res = await this.client.rpc('list_jam_entries', { p_jam_id: jamId });
+    return (this.unwrap(res, 'list_jam_entries') as Record<string, unknown>[]).map((r) => camel<JamEntryRow>(r));
+  }
+
+  async voteInJam(jamId: string, gameId: string, voterId: string, vote: JamVote): Promise<JamVoteRow> {
+    const row = await this.rpcRow<JamVoteRow>('vote_in_jam', { p_user_id: voterId, p_jam_id: jamId, p_game_id: gameId, p_fun: vote.fun, p_theme: vote.theme, p_look: vote.look });
+    if (!row) throw new Error('vote_in_jam: no row');
+    return row;
+  }
+
+  async listJamVotes(jamId: string, voterId: string): Promise<JamVoteRow[]> {
+    const res = await this.client.from('jam_votes').select('*').eq('jam_id', jamId).eq('voter_id', voterId);
+    return (this.unwrap(res, 'listJamVotes') as Record<string, unknown>[]).map((r) => camel<JamVoteRow>(r));
+  }
+
+  async jamResults(jamId: string): Promise<JamResult[]> {
+    const res = await this.client.rpc('jam_results', { p_jam_id: jamId });
+    return (this.unwrap(res, 'jam_results') as Record<string, unknown>[]).map((r) => camel<JamResult>(r));
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * The owner's appeal of a removal. For an ip takedown it is a DMCA counter-notice: a statement under penalty of
@@ -13,6 +13,9 @@ export function AppealForm({ gameId, counterNotice, onSent }: { gameId: string; 
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Set once the form is mounted and its handlers are live (the check waits for it before typing).
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   async function send() {
     setBusy(true);
@@ -28,7 +31,7 @@ export function AppealForm({ gameId, counterNotice, onSent }: { gameId: string; 
   }
 
   return (
-    <div className="appeal" data-testid="appeal-form">
+    <div className="appeal" data-testid="appeal-form" data-ready={ready ? 'yes' : 'no'}>
       <h3>{counterNotice ? 'Counter-notice' : 'Appeal the removal'}</h3>
       <p className="muted small">
         {counterNotice

@@ -1,4 +1,4 @@
-import type { AppealDecision, AppealInput, ModelPolicy, PlayEvent, PlaySource, RatingTag, ReportInput, ReportKind, ReportResolution, ResolveInput, TestSubmission, TestVerdict, Trajectory } from '@gg/schemas';
+import type { AppealDecision, AppealInput, JamInput, JamSchedule, JamVote, ModelPolicy, PlayEvent, PlaySource, RatingTag, ReportInput, ReportKind, ReportResolution, ResolveInput, TestSubmission, TestVerdict, Trajectory } from '@gg/schemas';
 
 export type JobKind = 'create' | 'edit_parameter' | 'edit_style' | 'edit_behaviour' | 'edit_content' | 'edit_code' | 'remix' | 'republish';
 export type JobStatus = 'queued' | 'running' | 'waiting_assets' | 'needs_human' | 'succeeded' | 'failed' | 'cancelled';
@@ -283,6 +283,58 @@ export interface AppealRow {
   decisionNote: string;
 }
 
+export type JamPhase = 'upcoming' | 'open' | 'voting' | 'closed';
+
+/** A jam: a theme and three moments (entries open, submissions close and voting starts, results are published). */
+export interface JamRow {
+  id: string;
+  slug: string;
+  title: string;
+  theme: string;
+  description: string;
+  /** Genres entries may be in; empty means any. */
+  genres: string[];
+  startsAt: string;
+  submissionsClose: string;
+  votingClose: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+/** A game in a jam, frozen at the version that was its head when it was entered. */
+export interface JamEntryRow {
+  jamId: string;
+  gameId: string;
+  ownerId: string;
+  versionId: string;
+  submittedAt: string;
+}
+
+export interface JamVoteRow {
+  jamId: string;
+  gameId: string;
+  voterId: string;
+  fun: number;
+  theme: number;
+  look: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** An entry once voting closed: raw means per criterion (null without votes), the score it ranks by, and its rank. */
+export interface JamResult {
+  gameId: string;
+  versionId: string;
+  ownerId: string;
+  votes: number;
+  fun: number | null;
+  theme: number | null;
+  look: number | null;
+  score: number;
+  /** null below JAM.minVotes. */
+  rank: number | null;
+}
+
 /**
  * A verified (input -> artifact) pair from a model-written stage artifact, recorded once the stage's gate passed: the
  * raw data of the distillation flywheel (tools/distill exports it per stage as chat-format JSONL).
@@ -404,6 +456,33 @@ export interface Store {
    * uphold closes the appeal.
    */
   decideAppeal(appealId: string, moderatorId: string, decision: AppealDecision): Promise<{ appeal: AppealRow; games: GameRow[] }>;
+
+  // ---- jams (phase 3) ----
+  /** Moderators only; slugs are unique and the three moments in order. */
+  createJam(moderatorId: string, input: JamInput): Promise<JamRow>;
+  /** Latest start first. */
+  listJams(): Promise<JamRow[]>;
+  getJam(jamIdOrSlug: string): Promise<JamRow | null>;
+  /** Moderators only: move a jam's moments (extend submissions, open voting or publish results early); order holds. */
+  setJamSchedule(jamId: string, moderatorId: string, schedule: JamSchedule): Promise<JamRow>;
+  /**
+   * While submissions are open, the owner enters a listed, unmoderated game whose head passed its playtest, made after
+   * the jam started (for a remix, its original too), in one of the jam's genres; one entry per owner. Entering the same
+   * game again re-freezes its current head.
+   */
+  submitToJam(jamId: string, gameId: string, userId: string): Promise<JamEntryRow>;
+  /** The owner, while submissions are open. */
+  withdrawFromJam(jamId: string, gameId: string, userId: string): Promise<void>;
+  /** Entries whose games are still listed and unmoderated, earliest first. */
+  listJamEntries(jamId: string): Promise<JamEntryRow[]>;
+  /**
+   * While voting is open: 1-5 on fun, theme and look for an entry the voter did not make, once they played its entered
+   * version for JAM.votePlayS seconds; voting again replaces the vote.
+   */
+  voteInJam(jamId: string, gameId: string, voterId: string, vote: JamVote): Promise<JamVoteRow>;
+  listJamVotes(jamId: string, voterId: string): Promise<JamVoteRow[]>;
+  /** Once voting closed: the entries still listed and unmoderated, ranked by rankJam (ranking.ts). */
+  jamResults(jamId: string): Promise<JamResult[]>;
 
   // ---- distillation (phase 3) ----
   /** Records a verified pair; returns null (and stores nothing) when any contributor opted out of training. */
