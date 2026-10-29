@@ -1,6 +1,5 @@
-import { centerX, centerY, emptyInput, type Entity, type InputState, type Sim, type Tilemap } from '@gg/sdk';
+import { centerX, centerY, emptyInput, isHostile, type Entity, type InputState, type Sim, type Tilemap } from '@gg/sdk';
 import { botRandom, type BotPolicy } from '@gg/template-core';
-import { isHostile } from './entities.js';
 
 const hostile = (e: Entity) => isHostile(e);
 

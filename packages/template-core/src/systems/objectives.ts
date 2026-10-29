@@ -1,5 +1,5 @@
 import type { LoseClause, Objectives, WinClause } from '@gg/schemas';
-import { defineSystem, goalCloseness, isHostileDef, type Entity, type SimCtx } from '@gg/sdk';
+import { defineSystem, goalCloseness, isHostile, isHostileDef, type SimCtx } from '@gg/sdk';
 
 interface ObjectivesState {
   /** Ticks the level has run (menus and pause hold it, since systems do not run then). */
@@ -22,9 +22,6 @@ function rulesOf(ctx: SimCtx): Objectives {
   return o?.win && Array.isArray(o.win.clauses) && o.win.clauses.length > 0 ? { version: 1, win: { mode: o.win.mode === 'any' ? 'any' : 'all', clauses: o.win.clauses }, lose: Array.isArray(o.lose) ? o.lose : [] } : DEFAULT;
 }
 
-/** A live hostile (of one type, or any): hostility is read from the definition, as the composition reads roles. */
-const hostile = (ctx: SimCtx, e: Entity, type?: string) => !e.isPlayer && e.alive && (type === undefined || e.type === type) && isHostileDef(ctx.defOf(e.type));
-
 /** Whether a clause holds now, and how far along it is (0 to 1). */
 function clause(c: WinClause, s: ObjectivesState, ctx: SimCtx): { met: boolean; progress: number } {
   switch (c.kind) {
@@ -40,7 +37,7 @@ function clause(c: WinClause, s: ObjectivesState, ctx: SimCtx): { met: boolean; 
     case 'defeat': {
       const kills = s.kills[c.type ?? ALL] ?? 0;
       if (c.count !== 'all') return { met: kills >= c.count, progress: kills / c.count };
-      const left = ctx.world.entities.filter((e) => hostile(ctx, e, c.type)).length;
+      const left = ctx.world.entities.filter((e) => isHostile(e) && (c.type === undefined || e.type === c.type)).length;
       return { met: left === 0, progress: kills / Math.max(1, kills + left) };
     }
     case 'collect': {

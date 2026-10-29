@@ -1,4 +1,4 @@
-import { centerX, defineSystem, overlaps } from '@gg/sdk';
+import { centerX, defineSystem, isHostile, overlaps } from '@gg/sdk';
 
 interface ShooterState {
   cooldown: number;
@@ -37,8 +37,7 @@ export const playerShooter = defineSystem<ShooterState>({
     for (const shot of ctx.world.entities) {
       if (shot.type !== shotType || !shot.alive) continue;
       for (const e of ctx.world.entities) {
-        if (e.isPlayer || !e.alive || e.isProjectile || e.pickup || e.contactDamage <= 0) continue;
-        if (!overlaps(shot, e)) continue;
+        if (!isHostile(e) || !overlaps(shot, e)) continue;
         shot.alive = false;
         ctx.emit('despawn', { entity: shot.id, type: shotType });
         ctx.damage(e, damage, p);

@@ -15,8 +15,3 @@ export const PLAYER = { w: 8, h: 10, hp: 7 } as const;
 export const COLLECTIBLE_TYPES = ['gem'];
 export const HOSTILE_TYPES = ['grunt', 'archer', 'brute', 'warden'];
 export const BOSS_TYPES = ['warden'];
-
-/** A hostile is any living non-player entity that is neither a pickup nor a projectile. */
-// A hostile has a behaviour or deals contact damage: a prop (a crate, a relic) in a mixed game is not one to fight.
-export const isHostile = (e: { isPlayer: boolean; alive: boolean; pickup: boolean; isProjectile: boolean; fsm: unknown; contactDamage: number }): boolean =>
-  !e.isPlayer && e.alive && !e.pickup && !e.isProjectile && (e.fsm !== null || e.contactDamage > 0);

@@ -1,10 +1,10 @@
-import { defineSystem, type Entity } from '@gg/sdk';
+import { defineSystem, isHostile, type Entity } from '@gg/sdk';
 
 function nearestEnemy(entities: Entity[], px: number, py: number, range: number): Entity | null {
   let best: Entity | null = null;
   let bestD = range;
   for (const e of entities) {
-    if (e.isPlayer || !e.alive || e.contactDamage <= 0 || e.isProjectile) continue;
+    if (!isHostile(e)) continue;
     const d = Math.hypot(e.x + e.w / 2 - px, e.y + e.h / 2 - py);
     if (d < bestD) {
       bestD = d;

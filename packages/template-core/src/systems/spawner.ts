@@ -1,5 +1,5 @@
 import type { WaveTable } from '@gg/schemas';
-import { defineSystem } from '@gg/sdk';
+import { defineSystem, isHostile } from '@gg/sdk';
 
 /** Spawns enemies from content.waves at their scheduled time using ring / edge / random / line / top patterns. Shared by every wave-driven genre. */
 export const spawner = defineSystem<{ next: number; spawned: number }>({
@@ -14,7 +14,7 @@ export const spawner = defineSystem<{ next: number; spawned: number }>({
       const wave = waves[s.next]!;
       for (const spawn of wave.spawns) {
         for (let i = 0; i < spawn.count; i++) {
-          const alive = ctx.world.entities.filter((e) => !e.isPlayer && e.alive && e.contactDamage > 0).length;
+          const alive = ctx.world.entities.filter(isHostile).length;
           if (alive >= maxAlive) break;
           let x: number;
           let y: number;

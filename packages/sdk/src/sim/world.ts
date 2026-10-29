@@ -98,7 +98,16 @@ export interface World {
   menu: Menu | null;
 }
 
-/** Whether a type is hostile by its definition: it has a behaviour or deals contact damage, and is neither a pickup nor a projectile. */
+/**
+ * The one rule for what a system may fight, whichever genre it or the entity comes from: a living entity that has a
+ * behaviour or deals contact damage, and is neither the player, a pickup nor a projectile. Top-down action enemies hurt
+ * by what they do (a bite, an arrow), not by touch, and are hostile all the same.
+ */
+export function isHostile(e: Pick<Entity, 'isPlayer' | 'alive' | 'pickup' | 'isProjectile' | 'fsm' | 'contactDamage'>): boolean {
+  return !e.isPlayer && e.alive && !e.pickup && !e.isProjectile && (e.fsm !== null || e.contactDamage > 0);
+}
+
+/** Whether a type is hostile by its definition (the same rule, for a type whose entities may be gone). */
 export function isHostileDef(def: Readonly<EntityDef> | undefined): boolean {
   return def !== undefined && !def.pickup && !def.projectile && (def.fsm !== undefined || (def.contactDamage ?? 0) > 0);
 }

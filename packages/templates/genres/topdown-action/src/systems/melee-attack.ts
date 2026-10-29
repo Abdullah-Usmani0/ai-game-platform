@@ -1,5 +1,4 @@
-import { centerX, centerY, defineSystem, overlaps, type Entity } from '@gg/sdk';
-import { isHostile } from '../entities.js';
+import { centerX, centerY, defineSystem, isHostile, overlaps, type Entity } from '@gg/sdk';
 
 interface MeleeState {
   cooldown: number;

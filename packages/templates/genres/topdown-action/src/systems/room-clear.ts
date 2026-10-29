@@ -1,5 +1,4 @@
-import { defineSystem, goalCloseness } from '@gg/sdk';
-import { isHostile } from '../entities.js';
+import { defineSystem, goalCloseness, isHostile } from '@gg/sdk';
 
 interface RoomClearState {
   done: boolean;
