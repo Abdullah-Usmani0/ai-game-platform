@@ -42,3 +42,20 @@ export function scriptFromLog(sim: Sim, endTick: number): InputSegment[] {
   }
   return out;
 }
+
+/**
+ * A bot's own random numbers, kept in its memory and seeded from the game's seed. Bots never draw from the game's rng
+ * (sim.rng): that would change what the game does next (where waves spawn, which boons are offered), so the game would
+ * play differently for the bot than for a person pressing the same keys, and the bot's input log would not replay.
+ */
+export function botRandom(sim: Sim, mem: Record<string, number>): { int(n: number): number; chance(p: number): boolean } {
+  const next = (): number => {
+    // mulberry32 over a 32-bit state in mem['_rng'].
+    const a = ((mem['_rng'] ?? Math.imul(sim.rng.seed | 0, 0x9e3779b1) ^ 0x2545f491) + 0x6d2b79f5) | 0;
+    mem['_rng'] = a;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  return { int: (n) => Math.floor(next() * n), chance: (p) => next() < p };
+}

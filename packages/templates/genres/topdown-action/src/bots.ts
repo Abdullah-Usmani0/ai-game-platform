@@ -1,5 +1,5 @@
 import { centerX, centerY, emptyInput, type Entity, type InputState, type Sim, type Tilemap } from '@gg/sdk';
-import type { BotPolicy } from '@gg/template-core';
+import { botRandom, type BotPolicy } from '@gg/template-core';
 import { isHostile } from './entities.js';
 
 const hostile = (e: Entity) => isHostile(e);
@@ -232,8 +232,9 @@ export const afk: BotPolicy = () => emptyInput();
 export const chaos: BotPolicy = (sim: Sim, tick, mem) => {
   const input = emptyInput();
   if (tick % 15 === 0) {
-    mem['dx'] = sim.rng.int(3) - 1;
-    mem['dy'] = sim.rng.int(3) - 1;
+    const rnd = botRandom(sim, mem);
+    mem['dx'] = rnd.int(3) - 1;
+    mem['dy'] = rnd.int(3) - 1;
   }
   if ((mem['dx'] ?? 0) > 0) input.right = true;
   if ((mem['dx'] ?? 0) < 0) input.left = true;

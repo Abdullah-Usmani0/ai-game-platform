@@ -75,19 +75,19 @@
     },
     "seed1-difficulty0.2:chaos": {
       "completed": false,
-      "ticks": 586,
+      "ticks": 882,
       "deaths": 1,
-      "finalHash": "54794a7e1e963edc",
+      "finalHash": "69c0cba274b57386",
       "events": {
         "jump": 0,
         "land": 0,
-        "hit": 5,
-        "death": 2,
+        "hit": 3,
+        "death": 1,
         "pickup": 0,
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 76,
+        "spawn": 127,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -136,19 +136,19 @@
     },
     "seed2-difficulty0.2:chaos": {
       "completed": false,
-      "ticks": 586,
+      "ticks": 882,
       "deaths": 1,
-      "finalHash": "714005ab1f41b4bb",
+      "finalHash": "4697a046f3f13881",
       "events": {
         "jump": 0,
         "land": 0,
-        "hit": 5,
-        "death": 2,
+        "hit": 3,
+        "death": 1,
         "pickup": 0,
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 76,
+        "spawn": 127,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -197,19 +197,19 @@
     },
     "seed1-difficulty0.5:chaos": {
       "completed": false,
-      "ticks": 770,
+      "ticks": 963,
       "deaths": 1,
-      "finalHash": "512e17d80c8fd6c7",
+      "finalHash": "878d0fdda5b4694e",
       "events": {
         "jump": 0,
         "land": 0,
-        "hit": 7,
-        "death": 3,
+        "hit": 3,
+        "death": 1,
         "pickup": 0,
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 119,
+        "spawn": 154,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -258,19 +258,19 @@
     },
     "seed2-difficulty0.5:chaos": {
       "completed": false,
-      "ticks": 770,
+      "ticks": 963,
       "deaths": 1,
-      "finalHash": "a83059235a11ebbe",
+      "finalHash": "cbdd220b9c673dc5",
       "events": {
         "jump": 0,
         "land": 0,
-        "hit": 7,
-        "death": 3,
+        "hit": 3,
+        "death": 1,
         "pickup": 0,
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 119,
+        "spawn": 154,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -319,19 +319,19 @@
     },
     "seed1-difficulty0.75:chaos": {
       "completed": false,
-      "ticks": 452,
+      "ticks": 448,
       "deaths": 1,
-      "finalHash": "1442fa3e8598fa78",
+      "finalHash": "220ff188840e211d",
       "events": {
         "jump": 0,
         "land": 0,
-        "hit": 5,
-        "death": 2,
+        "hit": 4,
+        "death": 1,
         "pickup": 0,
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 71,
+        "spawn": 74,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -380,19 +380,19 @@
     },
     "seed2-difficulty0.75:chaos": {
       "completed": false,
-      "ticks": 452,
+      "ticks": 448,
       "deaths": 1,
-      "finalHash": "71a304b5a04bb32d",
+      "finalHash": "af6930fc52d4f424",
       "events": {
         "jump": 0,
         "land": 0,
-        "hit": 5,
-        "death": 2,
+        "hit": 4,
+        "death": 1,
         "pickup": 0,
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 71,
+        "spawn": 74,
         "menu_open": 0,
         "menu_choose": 0
       }

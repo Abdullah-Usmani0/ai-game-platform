@@ -1,5 +1,5 @@
 import { emptyInput, type InputState, type Sim } from '@gg/sdk';
-import type { BotPolicy } from '@gg/template-core';
+import { botRandom, type BotPolicy } from '@gg/template-core';
 
 /** Greedy runner: hold right; hold jump for 12 ticks when blocked or when a pit or hazard is ahead. */
 export const walker: BotPolicy = (sim: Sim, _tick, mem) => {
@@ -20,11 +20,12 @@ export const walker: BotPolicy = (sim: Sim, _tick, mem) => {
 /** Coverage explorer: random direction changes every ~20 ticks, random jumps and dashes. */
 export const chaos: BotPolicy = (sim: Sim, tick, mem) => {
   const input = emptyInput();
-  if (tick % 20 === 0) mem['dir'] = sim.rng.int(3) - 1;
+  const rnd = botRandom(sim, mem);
+  if (tick % 20 === 0) mem['dir'] = rnd.int(3) - 1;
   const dir = mem['dir'] ?? 1;
   if (dir > 0) input.right = true;
   if (dir < 0) input.left = true;
-  if (tick % 7 === 0 && sim.rng.chance(0.5)) mem['jumpUntil'] = tick + 10;
+  if (tick % 7 === 0 && rnd.chance(0.5)) mem['jumpUntil'] = tick + 10;
   if ((mem['jumpUntil'] ?? 0) > tick) input.jump = true;
   if (tick % 53 === 0) input.dash = true;
   return input;
