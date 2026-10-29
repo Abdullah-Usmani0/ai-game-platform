@@ -962,6 +962,15 @@ importers:
       '@gg/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../../packages/template-core
+      '@gg/templates':
+        specifier: workspace:*
+        version: link:../../packages/templates
       '@gg/worker-generator':
         specifier: workspace:*
         version: link:../../workers/generator

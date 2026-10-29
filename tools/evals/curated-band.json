@@ -1,0 +1,507 @@
+{
+  "$comment": "Curated calibration: the genre-free quality measures over the levels curated games get. Regenerate with `pnpm --filter @gg/evals quality`.",
+  "method": {
+    "explorerBudget": 60000,
+    "jitter": {
+      "runs": 12,
+      "amountTicks": 2
+    },
+    "random": {
+      "runs": 8
+    },
+    "tiers": [
+      "small",
+      "medium",
+      "large"
+    ],
+    "arenaGamesPerTier": 4,
+    "levelGamesPerTier": 1
+  },
+  "overall": {
+    "levels": 80,
+    "rates": {
+      "explorerFound": 0.7,
+      "afkWins": 0
+    },
+    "metrics": {
+      "proofTicks": {
+        "n": 80,
+        "p5": 161.65,
+        "p50": 487.5,
+        "p95": 3601
+      },
+      "explorerEffort": {
+        "n": 56,
+        "p5": 985.75,
+        "p50": 20497,
+        "p95": 45206.75
+      },
+      "explorerEffortPerProofTick": {
+        "n": 56,
+        "p5": 2.923,
+        "p50": 6.863,
+        "p95": 77.256
+      },
+      "jitter": {
+        "n": 80,
+        "p5": 0,
+        "p50": 0.833,
+        "p95": 1
+      },
+      "randomWins": {
+        "n": 80,
+        "p5": 0,
+        "p50": 0,
+        "p95": 0
+      },
+      "verbsNeeded": {
+        "n": 56,
+        "p5": 1,
+        "p50": 1,
+        "p95": 3
+      },
+      "verbsNeededShare": {
+        "n": 56,
+        "p5": 0.333,
+        "p50": 0.333,
+        "p95": 1
+      },
+      "feedbackAnswered": {
+        "n": 80,
+        "p5": 1,
+        "p50": 1,
+        "p95": 1
+      },
+      "unboundSalientEvents": {
+        "n": 80,
+        "p5": 0,
+        "p50": 0,
+        "p95": 0
+      },
+      "rampEffort": {
+        "n": 9,
+        "p5": 0,
+        "p50": 0.377,
+        "p95": 0.597
+      },
+      "rampProofTicks": {
+        "n": 9,
+        "p5": 0.783,
+        "p50": 0.994,
+        "p95": 1
+      }
+    }
+  },
+  "genres": {
+    "platformer": {
+      "levels": 19,
+      "rates": {
+        "explorerFound": 1,
+        "afkWins": 0
+      },
+      "metrics": {
+        "proofTicks": {
+          "n": 19,
+          "p5": 293,
+          "p50": 362,
+          "p95": 428.4
+        },
+        "explorerEffort": {
+          "n": 19,
+          "p5": 971,
+          "p50": 2219,
+          "p95": 6976.6
+        },
+        "explorerEffortPerProofTick": {
+          "n": 19,
+          "p5": 2.848,
+          "p50": 6.682,
+          "p95": 19.452
+        },
+        "jitter": {
+          "n": 19,
+          "p5": 0.808,
+          "p50": 1,
+          "p95": 1
+        },
+        "randomWins": {
+          "n": 19,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0.125
+        },
+        "verbsNeeded": {
+          "n": 19,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "verbsNeededShare": {
+          "n": 19,
+          "p5": 0.333,
+          "p50": 0.333,
+          "p95": 0.333
+        },
+        "feedbackAnswered": {
+          "n": 19,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "unboundSalientEvents": {
+          "n": 19,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "rampEffort": {
+          "n": 3,
+          "p5": 0.383,
+          "p50": 0.5,
+          "p95": 0.539
+        },
+        "rampProofTicks": {
+          "n": 3,
+          "p5": 0.995,
+          "p50": 1,
+          "p95": 1
+        }
+      }
+    },
+    "survivors": {
+      "levels": 12,
+      "rates": {
+        "explorerFound": 1,
+        "afkWins": 0
+      },
+      "metrics": {
+        "proofTicks": {
+          "n": 12,
+          "p5": 3601,
+          "p50": 3601,
+          "p95": 3601
+        },
+        "explorerEffort": {
+          "n": 12,
+          "p5": 19667.75,
+          "p50": 25046,
+          "p95": 32255.5
+        },
+        "explorerEffortPerProofTick": {
+          "n": 12,
+          "p5": 5.462,
+          "p50": 6.955,
+          "p95": 8.957
+        },
+        "jitter": {
+          "n": 12,
+          "p5": 0,
+          "p50": 0.083,
+          "p95": 0.417
+        },
+        "randomWins": {
+          "n": 12,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "verbsNeeded": {
+          "n": 12,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "verbsNeededShare": {
+          "n": 12,
+          "p5": 0.5,
+          "p50": 0.5,
+          "p95": 0.5
+        },
+        "feedbackAnswered": {
+          "n": 12,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "unboundSalientEvents": {
+          "n": 12,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "rampEffort": null,
+        "rampProofTicks": null
+      }
+    },
+    "topdown-action": {
+      "levels": 12,
+      "rates": {
+        "explorerFound": 0.583,
+        "afkWins": 0
+      },
+      "metrics": {
+        "proofTicks": {
+          "n": 12,
+          "p5": 471,
+          "p50": 1175,
+          "p95": 4075.95
+        },
+        "explorerEffort": {
+          "n": 7,
+          "p5": 2711,
+          "p50": 28804,
+          "p95": 49174.6
+        },
+        "explorerEffortPerProofTick": {
+          "n": 7,
+          "p5": 5.756,
+          "p50": 21.56,
+          "p95": 63.62
+        },
+        "jitter": {
+          "n": 12,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "randomWins": {
+          "n": 12,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "verbsNeeded": {
+          "n": 7,
+          "p5": 2,
+          "p50": 2,
+          "p95": 3
+        },
+        "verbsNeededShare": {
+          "n": 7,
+          "p5": 0.667,
+          "p50": 0.667,
+          "p95": 1
+        },
+        "feedbackAnswered": {
+          "n": 12,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "unboundSalientEvents": {
+          "n": 12,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "rampEffort": {
+          "n": 2,
+          "p5": 0.39,
+          "p50": 0.505,
+          "p95": 0.62
+        },
+        "rampProofTicks": {
+          "n": 2,
+          "p5": 0.773,
+          "p50": 0.786,
+          "p95": 0.799
+        }
+      }
+    },
+    "shmup": {
+      "levels": 12,
+      "rates": {
+        "explorerFound": 1,
+        "afkWins": 0
+      },
+      "metrics": {
+        "proofTicks": {
+          "n": 12,
+          "p5": 3601,
+          "p50": 3601,
+          "p95": 3601
+        },
+        "explorerEffort": {
+          "n": 12,
+          "p5": 17496,
+          "p50": 24039,
+          "p95": 24715
+        },
+        "explorerEffortPerProofTick": {
+          "n": 12,
+          "p5": 4.859,
+          "p50": 6.676,
+          "p95": 6.863
+        },
+        "jitter": {
+          "n": 12,
+          "p5": 0.083,
+          "p50": 0.25,
+          "p95": 0.833
+        },
+        "randomWins": {
+          "n": 12,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "verbsNeeded": {
+          "n": 12,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "verbsNeededShare": {
+          "n": 12,
+          "p5": 0.333,
+          "p50": 0.333,
+          "p95": 0.333
+        },
+        "feedbackAnswered": {
+          "n": 12,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "unboundSalientEvents": {
+          "n": 12,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "rampEffort": null,
+        "rampProofTicks": null
+      }
+    },
+    "metroidvania": {
+      "levels": 6,
+      "rates": {
+        "explorerFound": 1,
+        "afkWins": 0
+      },
+      "metrics": {
+        "proofTicks": {
+          "n": 6,
+          "p5": 504,
+          "p50": 594,
+          "p95": 652.5
+        },
+        "explorerEffort": {
+          "n": 6,
+          "p5": 40831,
+          "p50": 43704.5,
+          "p95": 45890
+        },
+        "explorerEffortPerProofTick": {
+          "n": 6,
+          "p5": 66.285,
+          "p50": 77.256,
+          "p95": 81.014
+        },
+        "jitter": {
+          "n": 6,
+          "p5": 0.521,
+          "p50": 0.625,
+          "p95": 0.667
+        },
+        "randomWins": {
+          "n": 6,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "verbsNeeded": {
+          "n": 6,
+          "p5": 2,
+          "p50": 3,
+          "p95": 3
+        },
+        "verbsNeededShare": {
+          "n": 6,
+          "p5": 0.667,
+          "p50": 1,
+          "p95": 1
+        },
+        "feedbackAnswered": {
+          "n": 6,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "unboundSalientEvents": {
+          "n": 6,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "rampEffort": {
+          "n": 1,
+          "p5": 0.5,
+          "p50": 0.5,
+          "p95": 0.5
+        },
+        "rampProofTicks": {
+          "n": 1,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        }
+      }
+    },
+    "puzzle": {
+      "levels": 19,
+      "rates": {
+        "explorerFound": 0,
+        "afkWins": 0
+      },
+      "metrics": {
+        "proofTicks": {
+          "n": 19,
+          "p5": 99,
+          "p50": 218,
+          "p95": 472.8
+        },
+        "explorerEffort": null,
+        "explorerEffortPerProofTick": null,
+        "jitter": {
+          "n": 19,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "randomWins": {
+          "n": 19,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "verbsNeeded": null,
+        "verbsNeededShare": null,
+        "feedbackAnswered": {
+          "n": 19,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "unboundSalientEvents": {
+          "n": 19,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "rampEffort": {
+          "n": 3,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "rampProofTicks": {
+          "n": 3,
+          "p5": 0.974,
+          "p50": 0.986,
+          "p95": 0.999
+        }
+      }
+    }
+  }
+}

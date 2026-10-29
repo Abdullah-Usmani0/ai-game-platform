@@ -7,11 +7,15 @@
     "bench": "node --import tsx src/bench.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "quality": "node --import tsx src/quality.ts"
   },
   "dependencies": {
     "@gg/db": "workspace:*",
     "@gg/schemas": "workspace:*",
+    "@gg/sdk": "workspace:*",
+    "@gg/template-core": "workspace:*",
+    "@gg/templates": "workspace:*",
     "@gg/worker-generator": "workspace:*",
     "tsx": "4.23.15"
   },

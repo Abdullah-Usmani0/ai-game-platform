@@ -10,3 +10,4 @@ export { validateArena, validateWaves } from './level/arena.js';
 export * from './sim-options.js';
 export * from './check.js';
 export * from './level-plan.js';
+export * from './quality.js';
