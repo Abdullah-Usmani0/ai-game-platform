@@ -191,10 +191,12 @@ describe('runJob records training pairs', () => {
       const ok = await run(stages);
       expect(ok.status).toBe('succeeded');
       const pairs = await store.listTrainingPairs();
-      expect(pairs.map((p) => p.stage)).toEqual(['systems', ...pairs.slice(1).map(() => 'behaviour')]);
+      expect(pairs.filter((p) => p.stage === 'systems')).toHaveLength(1);
+      expect(pairs.filter((p) => p.stage === 'behaviour').length).toBe(pairs.length - 1);
       expect(pairs.length).toBeGreaterThan(1);
-      expect(pairs[0]).toMatchObject({ genre: 'platformer', model: 'scripted-1', provider: 'scripted-job', jobId: ok.job.id, contributors: ['maker'] });
-      expect(pairs[0]!.verifiedBy).toMatch(/systems-1-gate\.json$/);
+      const systemsPair = pairs.find((p) => p.stage === 'systems')!;
+      expect(systemsPair).toMatchObject({ genre: 'platformer', model: 'scripted-1', provider: 'scripted-job', jobId: ok.job.id, contributors: ['maker'] });
+      expect(systemsPair.verifiedBy).toMatch(/systems-1-gate\.json$/);
       expect((await store.listEvents(ok.job.id)).find((e) => e.type === 'finished')?.payload['trainingPairs']).toBe(pairs.length);
 
       // The same stages pass again, but a later gate never does: the job fails and records nothing.

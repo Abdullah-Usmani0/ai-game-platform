@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { FileStore } from './file-store';
 import { SupabaseStore } from './supabase-store';
 import type { NewTrainingPair } from './types';
@@ -50,6 +50,18 @@ describe('FileStore training pairs', () => {
       [b!.id, '2026-12-01T00:00:00.000Z'],
     ]);
     expect(await store.listTrainingPairs({ exported: false })).toEqual([]);
+  });
+
+  it('pairs recorded in the same millisecond keep the order they were recorded in', async () => {
+    vi.useFakeTimers({ now: new Date('2026-11-01T00:00:00Z') });
+    try {
+      const store = fileStore();
+      const ids: string[] = [];
+      for (let i = 0; i < 20; i++) ids.push((await store.insertTrainingPair(pair({ inputHash: `same-ms-${i}` })))!.id);
+      expect((await store.listTrainingPairs()).map((p) => p.id)).toEqual(ids);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('opting out deletes every pair the user is in and keeps new ones out until they opt back in', async () => {

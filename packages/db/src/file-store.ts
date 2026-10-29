@@ -697,7 +697,8 @@ export class FileStore implements Store {
     this.load();
     return this.state.trainingPairs
       .filter((p) => (!opts.stage || p.stage === opts.stage) && (opts.exported === undefined || (p.exportedAt !== null) === opts.exported))
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+      // Stable: pairs recorded in the same millisecond keep the order they were recorded in.
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
       .slice(0, opts.limit ?? Infinity)
       .map((p) => structuredClone(p));
   }
