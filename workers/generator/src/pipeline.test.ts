@@ -4,7 +4,7 @@ import { ARTIFACT_SCHEMAS, CreateRequest, GddFrontmatter } from '@gg/schemas';
 import { GENRES } from '@gg/templates/node';
 import { checkGdd } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
-import { FakeProvider, heuristicRoute } from './fake-provider.js';
+import { FakeProvider, heuristicRoute, routeVocabulary } from './fake-provider.js';
 import { draftBody, draftFrontmatter, renderGdd, slugify, titleFromPrompt } from './gdd-draft.js';
 import { AUTHORED_CONTENT_PLAN, CREATE_STAGES, createPlan, editPlan } from './plan.js';
 import { loadPresets } from './presets.js';
@@ -81,19 +81,37 @@ describe('fake provider', () => {
 });
 
 describe('heuristic edit routing', () => {
+  const vocab = (id: string) => routeVocabulary(GENRES[id]!);
   it('routes explicit assignments to parameter or style with a patch', () => {
-    const p = heuristicRoute('set hazards.respawnDelayTicks=20 and combat-stomp.bounceVy=-120');
+    const p = heuristicRoute('set hazards.respawnDelayTicks=20 and combat-stomp.bounceVy=-120', vocab('platformer'));
     expect(p.route).toBe('parameter');
     expect(p.paramPatch).toEqual([
       { key: 'hazards.respawnDelayTicks', value: 20 },
       { key: 'combat-stomp.bounceVy', value: -120 },
     ]);
-    expect(heuristicRoute('set palette.accent=#ff8800').route).toBe('style');
+    expect(heuristicRoute('set palette.accent=#ff8800', vocab('platformer')).route).toBe('style');
   });
   it('routes wording to behaviour, content or code', () => {
-    expect(heuristicRoute('make the walker chase more aggressively')).toMatchObject({ route: 'behaviour', targets: ['walker'] });
-    expect(heuristicRoute('make level 2 harder')).toMatchObject({ route: 'content', targets: ['l02'] });
-    expect(heuristicRoute('add a grappling hook').route).toBe('code');
-    expect(heuristicRoute('add a grappling hook').confidence).toBeLessThan(0.7);
+    expect(heuristicRoute('make the walker chase more aggressively', vocab('platformer'))).toMatchObject({ route: 'behaviour', targets: ['walker'] });
+    expect(heuristicRoute('make level 2 harder', vocab('platformer'))).toMatchObject({ route: 'content', targets: ['l02'] });
+    expect(heuristicRoute('add a grappling hook', vocab('platformer')).route).toBe('code');
+    expect(heuristicRoute('add a grappling hook', vocab('platformer')).confidence).toBeLessThan(0.7);
+  });
+  it("names the behaviour the game's own enemy runs, by type or behaviour id, singular or plural", () => {
+    // A top-down brute runs its own behaviour; a survivors brute runs the chaser's.
+    expect(heuristicRoute('the brute should wind up longer', vocab('topdown-action')).targets).toEqual(['brute']);
+    expect(heuristicRoute('make the brutes slower', vocab('survivors')).targets).toEqual(['chaser']);
+    expect(heuristicRoute("the archer's arrows come too fast", vocab('topdown-action')).targets).toEqual(['archer']);
+    expect(heuristicRoute('the warden slams too often', vocab('topdown-action')).targets).toEqual(['warden']);
+    expect(heuristicRoute('drones should weave more', vocab('shmup')).targets).toEqual(['drone']);
+    // An enemy this game does not have is not a target: the route stays generic.
+    expect(heuristicRoute('make the enemies like the turret in my other game', vocab('survivors'))).toMatchObject({ route: 'behaviour', targets: [] });
+    // Items run behaviours too (the shmup's power-up drifts), but naming one is not an edit to enemy behaviour.
+    expect(heuristicRoute('give the player more power', vocab('shmup')).route).toBe('code');
+  });
+  it("the fake router reads the game's behaviours from the routing prompt", async () => {
+    const g = GENRES['topdown-action']!;
+    const res = await new FakeProvider({ genre: g, request: null }).structured({ model: 'fake', system: '', schemaName: 'EditRoute', schema: {}, prompt: 'Message: slow the brute down\n\nGenre: topdown-action. Levels: l01. Behaviours: grunt, brute, warden.' });
+    expect((res.data as { targets: string[] }).targets).toEqual(['brute']);
   });
 });

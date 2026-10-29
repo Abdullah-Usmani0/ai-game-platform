@@ -2,7 +2,7 @@ import { costUsd, generateArtifact, type Provider, type Usage } from '@gg/llm';
 import { EditRoute, type SystemsJson } from '@gg/schemas';
 import type { GenreManifest } from '@gg/template-core';
 import { CATALOG } from '@gg/templates/node';
-import { heuristicRoute } from './fake-provider.js';
+import { heuristicRoute, routeVocabulary } from './fake-provider.js';
 import type { PairDraft } from './runners/types.js';
 
 export interface RouteInputs {
@@ -64,7 +64,7 @@ export async function routeEdit(inp: RouteInputs): Promise<{ route: EditRoute; u
   });
   const usage = res.samples.reduce<Usage>((a, s) => ({ inputTokens: a.inputTokens + s.usage.inputTokens, outputTokens: a.outputTokens + s.usage.outputTokens }), { inputTokens: 0, outputTokens: 0 });
   const selected = res.selected?.value;
-  let route = selected ?? heuristicRoute(inp.message);
+  let route = selected ?? heuristicRoute(inp.message, routeVocabulary(inp.genre, inp.behaviourIds));
   const lowConfidence = route.confidence < 0.7 && route.route !== 'code';
   if (lowConfidence) route = { ...route, route: 'code', designNotes: `${route.designNotes} (confidence ${route.confidence} < 0.7, code route)` };
   const pair = selected && !lowConfidence ? { artifact: 'EditRoute', system: SYSTEM, prompt, output: selected } : undefined;
