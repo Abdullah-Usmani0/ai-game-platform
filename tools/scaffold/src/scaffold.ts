@@ -42,7 +42,7 @@ const DEFAULT_STYLE: StyleCard = {
   camera: { follow: 'lerp', lerp: 0.12, deadzone: { w: 48, h: 24 }, maxShake: 0.5, zoom: 1 },
   typography: { font: 'press-start-2p', size: 8 },
   audioMood: ['chiptune'],
-  postFx: { vignette: false, bloom: false, crt: false },
+  postFx: { vignette: true, bloom: true, crt: false },
   references: [],
   negative: [],
 };
@@ -97,7 +97,7 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   write(files, out, 'eslint.config.js', F.ESLINT_CONFIG);
   write(files, out, 'vitest.config.ts', F.VITEST_CONFIG);
   write(files, out, 'scripts/finish-build.mjs', F.FINISH_BUILD);
-  write(files, out, 'src/main.ts', F.MAIN_TS(opts.gameId));
+  write(files, out, 'src/main.ts', F.MAIN_TS(opts.gameId, g.id, opts.title));
   write(files, out, 'src/game.ts', F.GAME_TS(g.id, runtimeImport, runtimeName));
   write(files, out, 'src/systems/index.ts', F.SYSTEMS_INDEX);
   write(files, out, 'tests/unit/bots.ts', F.BOTS_TS(`${runtimeImport}/node`, manifestName));

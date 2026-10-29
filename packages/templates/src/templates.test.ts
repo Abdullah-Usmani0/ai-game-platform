@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ARTIFACT_SCHEMAS } from '@gg/schemas';
 import { createSim } from '@gg/sdk';
+import { SETTING_BY_GENRE, TYPE_RECIPES } from '@gg/sdk/art';
 import { checkSystems } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
 import { runBot } from '@gg/template-core';
@@ -28,6 +29,10 @@ describe('genre manifests', () => {
         expect(g.gddDefaults.verbs.length).toBeGreaterThan(0);
         for (const s of g.samples) expect(existsSync(resolve(root, s, 'package.json'))).toBe(true);
         for (const p of g.panels) expect(g.systems[p.systemId]?.meta.params[p.param]).toBeDefined();
+      });
+      it('has a setting to be drawn in and hand-made art for every entity type', () => {
+        expect(SETTING_BY_GENRE[id], 'add the genre to SETTING_BY_GENRE in the SDK art kit').toBeDefined();
+        for (const d of g.entityDefs) expect(TYPE_RECIPES[d.type], `no sprite recipe for entity type '${d.type}'`).toBeDefined();
       });
       it('exemplars validate against their schemas and the catalog', () => {
         for (const ex of g.exemplars) {

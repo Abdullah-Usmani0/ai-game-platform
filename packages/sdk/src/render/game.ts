@@ -3,7 +3,7 @@ import type { SimOptions } from '../sim/sim.js';
 import { BridgeGuest } from './bridge-guest.js';
 import { GameController, type GameBuild } from './controller.js';
 import type { RunMode } from './driver.js';
-import { createPhaserGame, type ViewStyle } from './phaser-view.js';
+import { createPhaserGame, type MainScene, type ViewStyle } from './phaser-view.js';
 import { installTestSeam, type TestSeam } from './test-seam.js';
 
 export interface GameOptions {
@@ -43,6 +43,7 @@ export async function createGame(opts: GameOptions): Promise<GameHandle> {
   controller.keyboard.attach(window);
 
   let phaser: Phaser.Game | null = null;
+  let view: MainScene | null = null;
   const screenshot = async (): Promise<string> => {
     const canvas = phaser?.canvas;
     if (!canvas) return '';
@@ -52,13 +53,16 @@ export async function createGame(opts: GameOptions): Promise<GameHandle> {
   const { seam, markReady } = installTestSeam(controller, opts.build, screenshot);
 
   const ready = new Promise<void>((resolve) => {
-    phaser = createPhaserGame(controller, opts.style, opts.parent, () => {
+    // The host's preferences: shake off when the player asked for less motion, sound off when they muted the site.
+    const style = init?.prefs.reduceShake ? { ...opts.style, camera: { ...opts.style.camera, maxShake: 0 } } : opts.style;
+    ({ game: phaser, scene: view } = createPhaserGame(controller, style, opts.parent, () => {
+      if (init?.prefs.mute && view) view.sfx.muted = true;
       if (mode === 'manual' || query.autoplay || init?.mode === 'preview') controller.setScene('play');
       else controller.setScene('title');
       markReady();
       bridge.send({ type: 'ready', scenes: ['title', 'play', 'results'], levels: opts.levels.map((l) => l.id) });
       resolve();
-    });
+    }));
   });
 
   bridge.on((msg) => {
@@ -68,6 +72,9 @@ export async function createGame(opts: GameOptions): Promise<GameHandle> {
         return;
       case 'resume':
         controller.sim.world.flags.paused = false;
+        return;
+      case 'mute':
+        if (view) view.sfx.muted = msg.muted;
         return;
       case 'request_state':
         bridge.send({ type: 'state', state: controller.snapshot() });

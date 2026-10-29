@@ -1,0 +1,69 @@
+/**
+ * Procedural sound effects (no files): square, triangle, sawtooth and filtered-noise voices with pitch sweeps and short
+ * envelopes, one preset per gameplay event. The presets are data; render/sfx.ts plays them through WebAudio.
+ */
+
+export type Wave = 'square' | 'triangle' | 'sawtooth' | 'sine' | 'noise';
+export interface Voice {
+  wave: Wave;
+  /** Start and end frequency in Hz (for noise, the low-pass cutoff). */
+  from: number;
+  to: number;
+  dur: number;
+  vol: number;
+  delay?: number;
+}
+
+const arp = (notes: number[], step: number, dur: number, vol: number, wave: Wave = 'square'): Voice[] => notes.map((f, i) => ({ wave, from: f, to: f, dur, vol, delay: i * step }));
+
+export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
+  jump: [{ wave: 'square', from: 300, to: 620, dur: 0.11, vol: 0.13 }],
+  land: [{ wave: 'noise', from: 700, to: 160, dur: 0.06, vol: 0.12 }],
+  dash: [{ wave: 'noise', from: 3000, to: 500, dur: 0.16, vol: 0.13 }],
+  pickup: arp([988, 1319], 0.055, 0.08, 0.1),
+  hit: [
+    { wave: 'noise', from: 3200, to: 400, dur: 0.08, vol: 0.16 },
+    { wave: 'square', from: 220, to: 90, dur: 0.09, vol: 0.09 },
+  ],
+  damage: [{ wave: 'sawtooth', from: 280, to: 70, dur: 0.24, vol: 0.13 }],
+  death: [
+    { wave: 'square', from: 440, to: 50, dur: 0.55, vol: 0.13 },
+    { wave: 'noise', from: 1400, to: 90, dur: 0.45, vol: 0.1 },
+  ],
+  enemyDeath: [{ wave: 'noise', from: 2000, to: 140, dur: 0.2, vol: 0.12 }],
+  shoot: [{ wave: 'square', from: 1100, to: 330, dur: 0.06, vol: 0.05 }],
+  swing: [{ wave: 'noise', from: 4200, to: 900, dur: 0.1, vol: 0.1 }],
+  push: [{ wave: 'triangle', from: 140, to: 80, dur: 0.12, vol: 0.18 }],
+  move: [{ wave: 'triangle', from: 640, to: 600, dur: 0.025, vol: 0.04 }],
+  undo: [{ wave: 'square', from: 520, to: 300, dur: 0.07, vol: 0.06 }],
+  bump: [{ wave: 'triangle', from: 95, to: 70, dur: 0.06, vol: 0.12 }],
+  door: [
+    { wave: 'triangle', from: 150, to: 55, dur: 0.32, vol: 0.18 },
+    { wave: 'noise', from: 1200, to: 140, dur: 0.28, vol: 0.09 },
+    { wave: 'square', from: 880, to: 880, dur: 0.05, vol: 0.05, delay: 0.02 },
+  ],
+  checkpoint: arp([659, 988], 0.08, 0.12, 0.09, 'triangle'),
+  level_start: arp([523, 784], 0.07, 0.1, 0.07, 'triangle'),
+  level_complete: arp([523, 659, 784, 1047], 0.09, 0.16, 0.1),
+  select: [{ wave: 'square', from: 660, to: 660, dur: 0.04, vol: 0.06 }],
+};
+
+/** What each gameplay event sounds like (the feedback table decides whether it sounds at all). */
+export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer: (id: unknown) => boolean): string | null {
+  switch (event) {
+    case 'death':
+      return isPlayer(payload['entity']) ? 'death' : 'enemyDeath';
+    case 'damage':
+      return isPlayer(payload['target']) ? 'damage' : null;
+    case 'custom:fire':
+      return 'shoot';
+    case 'custom:swing':
+      return 'swing';
+    case 'custom:bump':
+      return 'bump';
+    case 'custom:door_open':
+      return 'door';
+    default:
+      return SFX_PRESETS[event] ? event : null;
+  }
+}

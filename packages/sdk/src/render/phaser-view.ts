@@ -1,35 +1,122 @@
 import Phaser from 'phaser';
 import type { Entity } from '../sim/world.js';
+import { sfxFor } from './art/audio.js';
+import { mix, toInt, type RGB } from './art/color.js';
+import { textImage } from './art/font.js';
+import { artPalette, type ArtPalette, type OutlineMode } from './art/palette.js';
+import { PixelCanvas, hash2 } from './art/pixels.js';
+import { FLAG, PARTICLES, TORCH, paintClouds, paintGlow, paintNebula, paintParticle, paintPlanet, paintRidge, paintScanlines, paintShadow, paintSky, paintSkyOrb, paintStars, paintVignette, paintVoid } from './art/scenery.js';
+import { RECIPES, TYPE_RECIPES, frameSize, legendFor, paintFrames, type Anchor, type Recipe } from './art/sprites.js';
+import { paintRegion, prepareLevelArt, settingFor, torchSpots, type Setting } from './art/terrain.js';
+import { toCanvas } from './canvas.js';
 import type { GameController } from './controller.js';
+import { Sfx } from './sfx.js';
 
 export interface ViewStyle {
   canvas: { w: number; h: number };
   pixelArt: boolean;
   palette: { background: string; mid: string; foreground: string; accent: string; danger: string; ui: string };
   camera: { lerp: number; maxShake: number; deadzone: { w: number; h: number } };
+  /** From the style card; optional so bundles built before them still boot. */
+  outline?: OutlineMode;
+  postFx?: { vignette: boolean; bloom: boolean; crt: boolean };
+  animationFps?: { character: number; effects: number };
+  /** The genre picks the setting (side, dungeon, field, space) and the player's look. */
+  genre?: string;
+  /** Shown on the title screen. */
+  title?: string;
 }
 
-function hex(color: string): number {
-  return parseInt(color.replace('#', ''), 16);
+const ANIM_ALIASES: Record<string, string> = { walk: 'run', fly: 'run', chase: 'run', move: 'run', patrol: 'run', hop: 'jump', shoot: 'aim', charge: 'windup' };
+/** Fallback colours by the palette role an entity type asks for: light, base, dark template letters. */
+const TINT_LETTERS: Record<string, [string, string, string]> = { accent: ['b', 'A', 'a'], ui: ['I', 'i', 't'], danger: ['e', 'D', 'd'], foreground: ['5', '4', '3'], mid: ['u', 'T', 't'] };
+const CHUNK_TILES = 64;
+const HUD_H = 14;
+/** How long the level name stays up after a level loads, in ticks. */
+const BANNER_TICKS = 110;
+
+interface Sheet {
+  key: string;
+  w: number;
+  h: number;
+  anchor: Anchor;
+  anims: Map<string, string[]>;
+  directional: boolean;
 }
 
-const ENTITY_COLORS: Record<string, keyof ViewStyle['palette']> = {
-  player: 'foreground',
-  projectile: 'danger',
-};
+interface Shown {
+  img: Phaser.GameObjects.Image;
+  shadow: Phaser.GameObjects.Image | null;
+  glow: Phaser.GameObjects.Image | null;
+  sheet: Sheet;
+  dir: 'down' | 'up' | 'side';
+}
 
-/** The only Phaser code in the SDK: draws the sim state, forwards frames, binds feedback. */
+interface Particle {
+  img: Phaser.GameObjects.Image;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  ay: number;
+  life: number;
+  max: number;
+  /** Fades out with its life (afterimages, glows and slashes fade; dust just ends). */
+  fade: boolean;
+}
+
+interface Layer {
+  obj: Phaser.GameObjects.TileSprite;
+  fx: number;
+  fy: number;
+  driftX: number;
+  driftY: number;
+  /** Ridges and clouds sit on the horizon: they tile across but rise and sink with the camera instead of wrapping. */
+  horizon: boolean;
+}
+
+/** The only Phaser code in the SDK: draws the sim state with the art kit, plays its sounds, binds feedback. */
 export class MainScene extends Phaser.Scene {
-  private tiles!: Phaser.GameObjects.Graphics;
-  private gfx!: Phaser.GameObjects.Graphics;
-  private hud!: Phaser.GameObjects.Text;
-  private overlay!: Phaser.GameObjects.Text;
+  private pal!: ArtPalette;
+  private setting: Setting = 'side';
+  private fx = { vignette: true, bloom: true, crt: false };
+  private fps = { character: 10, effects: 15 };
+  private sheets = new Map<string, Sheet>();
+  private shown = new Map<number, Shown>();
+  private lastSeen = new Map<number, { cx: number; cy: number }>();
+  private lastEvent = new Map<string, Record<string, unknown>>();
+  private particles: Particle[] = [];
+  private pool: Phaser.GameObjects.Image[] = [];
+  private levelObjects: Phaser.GameObjects.GameObject[] = [];
+  private levelTextures: string[] = [];
+  private chunks: Phaser.GameObjects.Image[] = [];
+  private chunkTextures: string[] = [];
+  private layers: Layer[] = [];
+  private motes: Array<{ img: Phaser.GameObjects.Image; x: number; y: number; vx: number; vy: number; phase: number }> = [];
+  private decor: Array<{ img: Phaser.GameObjects.Image; frames: string[]; glow: Phaser.GameObjects.Image | null; phase: number }> = [];
+  private icons = new Map<string, PixelCanvas>();
+  private texts = new Map<string, PixelCanvas>();
+  private hudTex: Phaser.Textures.CanvasTexture | null = null;
+  private hudImg!: Phaser.GameObjects.Image;
+  private hudSig = '';
+  private overlayTex: Phaser.Textures.CanvasTexture | null = null;
+  private overlayImg!: Phaser.GameObjects.Image;
+  private overlaySig = '';
+  private fadeImg!: Phaser.GameObjects.Image;
+  private bannerImg: Phaser.GameObjects.Image | null = null;
   private followTarget = { x: 0, y: 0 };
   private unsubs: Array<() => void> = [];
-  private levelDirty = true;
-  /** Tilemap version the tiles were last drawn at (doors opening change tiles at runtime). */
   private drawnVersion = -1;
+  private drawnExitLocked = false;
+  private horizonY = 0;
   private hitstopUntil = 0;
+  private dashUntilTick = -1;
+  private swingTick = -100;
+  private lastGhostTick = -1;
+  private lastTick = 0;
+  /** Decorations (flags, torches) keep moving on the title screen, when the sim is not ticking. */
+  private animTick = 0;
+  readonly sfx = new Sfx();
 
   constructor(
     private readonly controller: GameController,
@@ -40,90 +127,739 @@ export class MainScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { palette, canvas } = this.style;
-    this.cameras.main.setBackgroundColor(palette.background);
-    this.cameras.main.setRoundPixels(true);
-    this.tiles = this.add.graphics();
-    this.gfx = this.add.graphics();
-    this.hud = this.add
-      .text(2, 2, '', { fontFamily: 'monospace', fontSize: '8px', color: palette.ui })
-      .setScrollFactor(0)
-      .setDepth(10);
-    this.overlay = this.add
-      .text(canvas.w / 2, canvas.h / 2, '', { fontFamily: 'monospace', fontSize: '10px', color: palette.ui, align: 'center' })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(11);
+    this.pal = artPalette(this.style.palette, this.style.outline ?? 'dark');
+    this.fx = { ...this.fx, ...(this.style.postFx ?? {}) };
+    this.fps = { ...this.fps, ...(this.style.animationFps ?? {}) };
+    this.setting = settingFor(this.style.genre, this.controller.sim.options.movementMode);
+    const { w, h } = this.style.canvas;
+    const cam = this.cameras.main;
+    cam.setBackgroundColor(this.setting === 'side' ? this.style.palette.background : toInt(this.pal.ink));
+    cam.setRoundPixels(true);
+    this.buildSheets();
+    this.buildEffectTextures();
+    this.addScreenEffects();
+    // Bloom: the brightest pixels (sparks, coins, torches, the moon) bleed a little light. WebGL only (no filters on canvas).
+    if (this.fx.bloom && this.game.renderer.type === Phaser.WEBGL) {
+      const bloom = cam.filters.internal.addParallelFilters();
+      bloom.top.addThreshold(0.6, 0.95);
+      bloom.top.addBlur(1, 1.2, 1.2, 1);
+      bloom.blend.blendMode = Phaser.BlendModes.ADD;
+      bloom.blend.amount = 0.4;
+    }
+    this.hudTex = this.textures.createCanvas('gg-hud', w, HUD_H);
+    this.hudImg = this.add.image(0, 0, 'gg-hud').setOrigin(0).setScrollFactor(0).setDepth(10_000).setVisible(false);
+    this.overlayTex = this.textures.createCanvas('gg-overlay', w, h);
+    this.overlayImg = this.add.image(0, 0, 'gg-overlay').setOrigin(0).setScrollFactor(0).setDepth(11_000).setVisible(false);
+    this.fadeImg = this.add.image(0, 0, 'gg-px').setOrigin(0).setScrollFactor(0).setDisplaySize(w, h).setTint(toInt(this.pal.ink)).setDepth(12_000).setAlpha(0);
     this.unsubs.push(this.controller.onLevelChange(() => this.bindLevel()));
-    this.unsubs.push(this.controller.onSceneChange(() => this.refreshOverlay()));
+    this.unsubs.push(this.controller.onSceneChange(() => (this.overlaySig = '')));
     this.bindLevel();
-    this.refreshOverlay();
     this.input.keyboard?.on('keydown', (e: KeyboardEvent) => {
-      if (this.controller.scene === 'title' && (e.code === 'Enter' || e.code === 'Space')) this.controller.setScene('play');
-      else if (this.controller.scene === 'results' && (e.code === 'Enter' || e.code === 'Space')) this.controller.reset();
+      this.sfx.unlock();
+      if (e.code !== 'Enter' && e.code !== 'Space') return;
+      const scene = this.controller.scene;
+      if (scene === 'title') {
+        this.sfx.play('select');
+        this.controller.setScene('play');
+      } else if (scene === 'results') {
+        this.sfx.play('select');
+        this.controller.reset();
+      } else if (scene === 'play' && this.controller.sim.world.flags.gameOver && this.controller.mode === 'realtime') {
+        this.sfx.play('select');
+        this.controller.loadLevel(this.controller.levelIndex);
+      }
     });
+    this.input.on('pointerdown', () => this.sfx.unlock());
     this.onCreated();
+  }
+
+  // ---------------------------------------------------------------- textures
+
+  private addCanvasTexture(key: string, pc: PixelCanvas): Phaser.Textures.CanvasTexture | null {
+    if (this.textures.exists(key)) this.textures.remove(key);
+    return this.textures.addCanvas(key, toCanvas(pc));
+  }
+
+  /** Repaints a persistent canvas texture in place (the HUD and the overlay change often; their textures never move). */
+  private repaint(tex: Phaser.Textures.CanvasTexture | null, pc: PixelCanvas): void {
+    if (!tex) return;
+    tex.context.putImageData(new ImageData(new Uint8ClampedArray(pc.data), pc.w, pc.h), 0, 0);
+    tex.refresh();
+  }
+
+  private sheetFromRecipe(name: string, recipe: Recipe): Sheet {
+    const frames = paintFrames(recipe, this.pal);
+    const { w, h } = frameSize(recipe);
+    const pc = new PixelCanvas(w * frames.length, h);
+    frames.forEach((f, i) => pc.blit(f.pc, i * w, 0));
+    const key = `gg-sheet-${name}`;
+    const tex = this.addCanvasTexture(key, pc);
+    const anims = new Map<string, string[]>();
+    frames.forEach((f, i) => {
+      const frame = `${f.anim}:${f.frame}`;
+      tex?.add(frame, 0, i * w, 0, w, h);
+      anims.set(f.anim, [...(anims.get(f.anim) ?? []), frame]);
+    });
+    const sheet: Sheet = { key, w, h, anchor: recipe.anchor, anims, directional: anims.has('down-idle') };
+    this.sheets.set(name, sheet);
+    return sheet;
+  }
+
+  private buildSheets(): void {
+    for (const [name, recipe] of Object.entries(RECIPES)) this.sheetFromRecipe(name, recipe);
+    this.sheetFromRecipe('flag', FLAG);
+    this.sheetFromRecipe('torch', TORCH);
+  }
+
+  /** A round creature, a gem or a block, sized to an entity type no recipe knows (bespoke systems add their own types). */
+  private fallbackSheet(e: Entity): Sheet {
+    const name = `fallback-${e.type}`;
+    const known = this.sheets.get(name);
+    if (known) return known;
+    const w = Math.max(3, Math.round(e.w));
+    const h = Math.max(3, Math.round(e.h));
+    const hostile = e.contactDamage > 0 || e.fsm !== null;
+    const role = e.tint ?? (e.pickup ? 'accent' : hostile ? 'danger' : 'mid');
+    const [lit, base, dark] = TINT_LETTERS[role] ?? TINT_LETTERS['mid']!;
+    const gem = e.pickup || role === 'accent';
+    const rows: string[] = [];
+    for (let y = 0; y < h; y++) {
+      let row = '';
+      for (let x = 0; x < w; x++) {
+        const dx = (x + 0.5 - w / 2) / (w / 2);
+        const dy = (y + 0.5 - h / 2) / (h / 2);
+        const inside = gem ? Math.abs(dx) + Math.abs(dy) <= 1.05 : hostile ? dx * dx + dy * dy <= 1.08 : true;
+        const eye = hostile && w >= 6 && y === Math.floor(h * 0.4) && (x === Math.floor(w * 0.3) || x === Math.floor(w * 0.65));
+        row += !inside ? '.' : eye ? 'k' : dx + dy < -0.5 ? lit : dx + dy > 0.6 ? dark : base;
+      }
+      rows.push(row);
+    }
+    return this.sheetFromRecipe(name, { anchor: e.gravity ? 'feet' : 'center', anims: { idle: [rows] } });
+  }
+
+  private buildEffectTextures(): void {
+    const px = new PixelCanvas(4, 4);
+    px.fillRect(0, 0, 4, 4, [255, 255, 255]);
+    this.addCanvasTexture('gg-px', px);
+    this.addCanvasTexture('gg-glow', paintGlow(16, [255, 255, 255]));
+    this.addCanvasTexture('gg-shadow', paintShadow(10, 4, this.pal.ink));
+    for (const [name, shape] of Object.entries(PARTICLES)) this.addCanvasTexture(`gg-p-${name}`, paintParticle(shape, [255, 255, 255]));
+    // A crescent for melee swings, pointing right; it is rotated toward the swing.
+    const slash = new PixelCanvas(16, 16);
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const r = Math.hypot(x - 4, y - 7.5);
+        const a = Math.atan2(y - 7.5, x - 4);
+        if (r > 6.5 && r < 9.5 && Math.abs(a) < 1.15) slash.set(x, y, [255, 255, 255], r > 8.3 ? 255 : 150);
+      }
+    }
+    this.addCanvasTexture('gg-slash', slash);
+    const legend = legendFor(this.pal);
+    for (const [key, tpl] of Object.entries(HUD_ICONS)) {
+      const pc = new PixelCanvas(tpl[0]!.length + 2, tpl.length + 2);
+      pc.stamp(tpl, legend, 1, 1);
+      pc.outline('dark', this.pal.ink);
+      this.icons.set(key, pc);
+    }
+  }
+
+  private addScreenEffects(): void {
+    const { w, h } = this.style.canvas;
+    if (this.fx.vignette) {
+      this.addCanvasTexture('gg-vignette', paintVignette(w, h, this.pal.ink, this.setting === 'side' ? 0.45 : 0.62));
+      this.add.image(0, 0, 'gg-vignette').setOrigin(0).setScrollFactor(0).setDepth(9_000);
+    }
+    if (this.fx.crt) {
+      this.addCanvasTexture('gg-scan', paintScanlines(w, h, this.pal.ink));
+      this.add.image(0, 0, 'gg-scan').setOrigin(0).setScrollFactor(0).setDepth(9_500);
+    }
+  }
+
+  /** A line of pixel text, outlined in ink (cached: HUD values repeat). */
+  private text(text: string, color: RGB, scale = 1, lower?: RGB): PixelCanvas {
+    const key = `${text}|${color.join(',')}|${scale}|${lower?.join(',') ?? ''}`;
+    let pc = this.texts.get(key);
+    if (!pc) {
+      if (this.texts.size > 400) this.texts.clear();
+      pc = textImage(text, { color, ink: this.pal.ink, scale, lower });
+      this.texts.set(key, pc);
+    }
+    return pc;
+  }
+
+  // ---------------------------------------------------------------- the level
+
+  private clearLevel(): void {
+    for (const o of [...this.levelObjects, ...this.chunks]) o.destroy();
+    for (const k of [...this.levelTextures, ...this.chunkTextures]) if (this.textures.exists(k)) this.textures.remove(k);
+    this.levelObjects = [];
+    this.levelTextures = [];
+    this.chunks = [];
+    this.chunkTextures = [];
+    this.layers = [];
+    this.motes = [];
+    this.decor = [];
+    for (const s of this.shown.values()) this.dropShown(s);
+    this.shown.clear();
+    this.lastSeen.clear();
+    for (const p of this.particles) this.release(p.img);
+    this.particles = [];
+    this.bannerImg?.destroy();
+    this.bannerImg = null;
   }
 
   private bindLevel(): void {
     for (const u of this.unsubs.splice(2)) u();
+    this.clearLevel();
     const sim = this.controller.sim;
     const map = sim.map;
-    // A level smaller than the view sits in its middle: grow the bounds evenly around it instead of pinning it top-left.
     const cam = this.cameras.main;
+    // A level smaller than the view sits in its middle: grow the bounds evenly around it instead of pinning it top-left.
     const viewW = cam.width / cam.zoom;
     const viewH = cam.height / cam.zoom;
     const bw = Math.max(map.pixelWidth, viewW);
     const bh = Math.max(map.pixelHeight, viewH);
-    cam.setBounds(-(bw - map.pixelWidth) / 2, -(bh - map.pixelHeight) / 2, bw, bh);
-    const lerp = this.style.camera.lerp;
-    this.cameras.main.startFollow(this.followTarget, true, lerp, lerp);
-    this.cameras.main.setDeadzone(this.style.camera.deadzone.w, this.style.camera.deadzone.h);
-    this.levelDirty = true;
+    const by = -(bh - map.pixelHeight) / 2;
+    cam.setBounds(-(bw - map.pixelWidth) / 2, by, bw, bh);
+    this.horizonY = by + bh - viewH;
+    cam.startFollow(this.followTarget, true, this.style.camera.lerp, this.style.camera.lerp);
+    cam.setDeadzone(this.style.camera.deadzone.w, this.style.camera.deadzone.h);
+    const p = sim.world.player;
+    this.followTarget.x = Math.round(p.x + p.w / 2);
+    this.followTarget.y = Math.round(p.y + p.h / 2);
+    cam.centerOn(this.followTarget.x, this.followTarget.y);
+    this.lastTick = sim.tick;
+    this.buildBackdrop();
+    this.buildTiles();
+    this.buildDecor();
+    this.buildMotes();
+    this.showBanner();
     const maxShake = this.style.camera.maxShake;
-    // The sim decides *that* feedback happens (feedback-binder); the view decides *how* each channel looks.
+    // The sim decides *that* feedback happens (feedback-binder); the view decides *how* each channel looks and sounds.
     this.unsubs.push(
-      sim.events.on('feedback', (ev) => {
-        const channel = String(ev.payload['channel']);
-        if (channel === 'shake' && maxShake > 0) this.cameras.main.shake(120, 0.004 * maxShake);
-        else if (channel === 'flash') this.cameras.main.flash(120, 255, 255, 255);
-        else if (channel === 'hitstop') this.hitstopUntil = performance.now() + 50;
+      sim.events.on('*', (ev) => {
+        this.lastEvent.set(ev.name, ev.payload);
+        if (ev.name === 'feedback') {
+          const channel = String(ev.payload['channel']);
+          if (channel === 'shake' && maxShake > 0) cam.shake(140, 0.0045 * maxShake);
+          else if (channel === 'flash') cam.flash(80, ...this.pal.white);
+          else if (channel === 'hitstop') this.hitstopUntil = performance.now() + 60;
+          else if (channel === 'particle') this.celebrate(String(ev.payload['source']));
+        } else if (ev.name === 'audio_play') {
+          const source = String(ev.payload['sfx'] ?? ev.payload['source']);
+          const name = sfxFor(source, this.lastEvent.get(source) ?? {}, (id) => id === this.controller.sim.world.player.id);
+          if (name) this.sfx.play(name);
+        } else {
+          this.animateEvent(ev.name, ev.payload);
+        }
       }),
-      sim.events.on('level_complete', () => this.refreshOverlay()),
     );
   }
 
-  private refreshOverlay(): void {
-    const scene = this.controller.scene;
-    if (scene === 'title') this.overlay.setText(['', 'PRESS ENTER'].join('\n'));
-    else if (scene === 'results') this.overlay.setText('ALL LEVELS CLEAR\nENTER TO RESTART');
-    else this.overlay.setText('');
+  private buildBackdrop(): void {
+    const { w, h } = this.style.canvas;
+    const add = (key: string, pc: PixelCanvas, depth: number, layer: Omit<Layer, 'obj'>) => {
+      this.addCanvasTexture(key, pc);
+      this.levelTextures.push(key);
+      const obj = this.add.tileSprite(0, 0, w, pc.h, key).setOrigin(0).setScrollFactor(0).setDepth(depth);
+      this.levelObjects.push(obj);
+      this.layers.push({ obj, ...layer });
+    };
+    const image = (key: string, pc: PixelCanvas, x: number, y: number, depth: number) => {
+      this.addCanvasTexture(key, pc);
+      this.levelTextures.push(key);
+      this.levelObjects.push(this.add.image(Math.round(x), Math.round(y), key).setScrollFactor(0).setDepth(depth));
+    };
+    const still = { fx: 0, fy: 0, driftX: 0, driftY: 0, horizon: false };
+    if (this.setting === 'side') {
+      add('gg-sky', paintSky(this.pal, w, h), -100, still);
+      image('gg-orb', paintSkyOrb(this.pal, 9), w * 0.76, h * 0.2, -98);
+      add('gg-far', paintRidge(256, h, this.pal.far, { seed: 1, base: 0.74, height: 0.3, jag: 0.8 }), -95, { fx: 0.1, fy: 0.05, driftX: 0, driftY: 0, horizon: true });
+      add('gg-clouds', paintClouds(this.pal, 320, h, 3), -93, { fx: 0.16, fy: 0.03, driftX: 0.05, driftY: 0, horizon: true });
+      add('gg-near', paintRidge(320, h, this.pal.near, { seed: 2, base: 0.92, height: 0.26, jag: 0.35 }), -90, { fx: 0.3, fy: 0.12, driftX: 0, driftY: 0, horizon: true });
+    } else if (this.setting === 'space') {
+      add('gg-sky', paintSky(this.pal, w, h, 3), -100, still);
+      add('gg-nebula', paintNebula(this.pal, 256, 7), -98, { fx: 0.05, fy: 0.05, driftX: 0, driftY: -0.05, horizon: false });
+      add('gg-stars1', paintStars(this.pal, 160, 160, 51, 0.0035, false), -96, { fx: 0.1, fy: 0.1, driftX: 0, driftY: -0.12, horizon: false });
+      image('gg-planet', paintPlanet(this.pal, 22), w * 0.82, h * 0.3, -95);
+      add('gg-stars2', paintStars(this.pal, 200, 200, 53, 0.002, true), -94, { fx: 0.25, fy: 0.25, driftX: 0, driftY: -0.35, horizon: false });
+      add('gg-stars3', paintStars(this.pal, 240, 240, 57, 0.0009, true), -92, { fx: 0.5, fy: 0.5, driftX: 0, driftY: -0.8, horizon: false });
+    } else {
+      // Rock around a level smaller than the view (puzzle boards); it moves with the world.
+      const map = this.controller.sim.map;
+      this.addCanvasTexture('gg-void', paintVoid(this.pal));
+      this.levelTextures.push('gg-void');
+      const pad = Math.max(w, h);
+      this.levelObjects.push(this.add.tileSprite(-pad, -pad, map.pixelWidth + pad * 2, map.pixelHeight + pad * 2, 'gg-void').setOrigin(0).setDepth(-100));
+    }
   }
 
-  private drawTiles(): void {
+  /** The level's tiles as chunks of canvas texture; rebuilt when tiles change (doors) or a dungeon exit unlocks. */
+  private buildTiles(): void {
+    for (const c of this.chunks) c.destroy();
+    for (const k of this.chunkTextures) if (this.textures.exists(k)) this.textures.remove(k);
+    this.chunks = [];
+    this.chunkTextures = [];
     const map = this.controller.sim.map;
-    const { palette } = this.style;
     const ts = map.tileSize;
-    this.tiles.clear();
-    for (let ty = 0; ty < map.height; ty++) {
-      for (let tx = 0; tx < map.width; tx++) {
-        const kind = map.kindAt(tx, ty);
-        if (kind === 'air') continue;
-        const color = kind === 'solid' ? palette.mid : kind === 'hazard' ? palette.danger : kind === 'goal' ? palette.accent : palette.mid;
-        this.tiles.fillStyle(hex(color), kind === 'oneway' ? 0.6 : 1);
-        if (kind === 'oneway') this.tiles.fillRect(tx * ts, ty * ts, ts, Math.max(1, ts / 4));
-        else if (kind === 'hazard') this.tiles.fillRect(tx * ts + 1, ty * ts + ts / 2, ts - 2, ts / 2);
-        else this.tiles.fillRect(tx * ts, ty * ts, ts, ts);
+    const exitLocked = this.exitLocked();
+    const art = prepareLevelArt(this.pal, this.setting, map, exitLocked);
+    if (this.setting !== 'space') {
+      for (let cy = 0; cy < map.height; cy += CHUNK_TILES) {
+        for (let cx = 0; cx < map.width; cx += CHUNK_TILES) {
+          const pc = new PixelCanvas(Math.min(CHUNK_TILES, map.width - cx) * ts, Math.min(CHUNK_TILES, map.height - cy) * ts);
+          paintRegion(art, pc, cx * ts, cy * ts);
+          const key = `gg-chunk-${cx}-${cy}`;
+          this.addCanvasTexture(key, pc);
+          this.chunkTextures.push(key);
+          this.chunks.push(this.add.image(cx * ts, cy * ts, key).setOrigin(0).setDepth(0));
+        }
       }
     }
-    this.levelDirty = false;
     this.drawnVersion = map.version;
+    this.drawnExitLocked = exitLocked;
   }
 
-  private colorFor(e: Entity): number {
-    const key = e.tint ?? ENTITY_COLORS[e.type] ?? (e.pickup ? 'accent' : 'danger');
-    return hex(this.style.palette[key]);
+  private exitLocked(): boolean {
+    return String(this.controller.sim.world.hud['exit'] ?? '').toLowerCase() === 'locked';
   }
+
+  private buildDecor(): void {
+    const map = this.controller.sim.map;
+    const ts = map.tileSize;
+    if (this.setting === 'side') {
+      for (let ty = 0; ty < map.height; ty++) {
+        for (let tx = 0; tx < map.width; tx++) {
+          if (map.kindAt(tx, ty) === 'goal' && (ty + 1 >= map.height || map.kindAt(tx, ty + 1) !== 'goal')) this.addDecor('flag', tx * ts + Math.floor(ts / 2), (ty + 1) * ts, 'feet', this.pal.accent[3], tx);
+        }
+      }
+    }
+    // Torches hang where the floor's light was baked from.
+    if (this.setting === 'dungeon') for (const s of torchSpots(map)) this.addDecor('torch', s.tx * ts + ts / 2, s.ty * ts + ts * 0.62, 'center', this.pal.accent[3], s.tx + s.ty);
+  }
+
+  /** Ambient motes drifting across the view: fireflies under a night sky, embers in a dungeon, pollen over a field. */
+  private buildMotes(): void {
+    if (this.setting === 'space') return;
+    const { w, h } = this.style.canvas;
+    const night = this.pal.sky[0][0] + this.pal.sky[0][1] + this.pal.sky[0][2] < 150;
+    const kind = this.setting === 'dungeon' ? 'ember' : this.setting === 'field' ? 'pollen' : night ? 'firefly' : 'pollen';
+    const color = kind === 'ember' ? this.pal.accent[4] : kind === 'firefly' ? mix(this.pal.rim[4], this.pal.accent[4], 0.5) : this.pal.white;
+    for (let i = 0; i < 14; i++) {
+      const img = this.add.image(0, 0, 'gg-p-dot').setScrollFactor(0).setDepth(kind === 'ember' ? 350 : 95).setTint(toInt(color)).setBlendMode(Phaser.BlendModes.ADD);
+      this.levelObjects.push(img);
+      this.motes.push({
+        img,
+        x: hash2(i, 1, 151) * w,
+        y: hash2(i, 2, 151) * h,
+        vx: kind === 'ember' ? (hash2(i, 3, 151) - 0.5) * 0.1 : (hash2(i, 3, 151) - 0.35) * 0.18,
+        vy: kind === 'ember' ? -0.12 - hash2(i, 4, 151) * 0.15 : (hash2(i, 4, 151) - 0.5) * 0.08,
+        phase: hash2(i, 5, 151) * Math.PI * 2,
+      });
+    }
+  }
+
+  private addDecor(name: string, x: number, y: number, anchor: Anchor, glowColor: RGB, phase: number): void {
+    const sheet = this.sheets.get(name)!;
+    const frames = [...sheet.anims.values()][0]!;
+    const img = this.add.image(Math.round(x), Math.round(y), sheet.key, frames[0]).setOrigin(0.5, anchor === 'feet' ? 1 : 0.5).setDepth(5);
+    const glowY = Math.round(y - (anchor === 'feet' ? sheet.h * 0.75 : 1));
+    const glow = this.fx.bloom
+      ? this.add
+          .image(Math.round(x), glowY, 'gg-glow')
+          .setBlendMode(Phaser.BlendModes.ADD)
+          .setTint(toInt(glowColor))
+          .setScale(name === 'torch' ? 1.5 : 2)
+          .setDepth(4)
+      : null;
+    this.levelObjects.push(img);
+    if (glow) this.levelObjects.push(glow);
+    this.decor.push({ img, frames, glow, phase });
+  }
+
+  // ---------------------------------------------------------------- entities
+
+  private recipeName(e: Entity): string | null {
+    if (e.isPlayer) {
+      if (this.setting === 'side') return 'hero-side';
+      if (this.setting === 'space') return 'ship';
+      return e.w >= 12 ? 'keeper' : 'hero-topdown';
+    }
+    return TYPE_RECIPES[e.type] ?? (e.isProjectile ? 'orb' : null);
+  }
+
+  private sheetFor(e: Entity): Sheet {
+    const name = this.recipeName(e);
+    return (name && this.sheets.get(name)) || this.fallbackSheet(e);
+  }
+
+  private animFor(e: Entity, s: Shown, tick: number): string {
+    const has = (a: string) => s.sheet.anims.has(a);
+    const hurt = e.tookDamageTick >= 0 && tick - e.tookDamageTick < 14;
+    if (s.sheet.directional) {
+      if (Math.abs(e.vy) > Math.abs(e.vx) + 0.05) s.dir = e.vy < 0 ? 'up' : 'down';
+      else if (Math.abs(e.vx) > 0.05) s.dir = 'side';
+      const moving = Math.abs(e.vx) + Math.abs(e.vy) > 0.05 || e.anim === 'run';
+      const attacking = e.anim === 'attack' || (e.isPlayer && tick - this.swingTick < 8);
+      const base = hurt ? 'hurt' : attacking ? 'attack' : moving ? 'run' : 'idle';
+      return has(`${s.dir}-${base}`) ? `${s.dir}-${base}` : `${s.dir}-idle`;
+    }
+    if (hurt && has('hurt')) return 'hurt';
+    if (e.isPlayer && this.setting === 'side') {
+      if (tick <= this.dashUntilTick && has('dash')) return 'dash';
+      if (!e.grounded) return e.vy < 0 ? 'jump' : 'fall';
+      return Math.abs(e.vx) > 0.15 ? 'run' : 'idle';
+    }
+    if (has('lit') && (e.flags['onTarget'] || e.flags['lit'] || e.anim === 'lit')) return 'lit';
+    const asked = ANIM_ALIASES[e.anim] ?? e.anim;
+    if (asked && has(asked)) return asked;
+    if (e.gravity && !e.grounded && has('jump')) return 'jump';
+    if ((Math.abs(e.vx) > 0.05 || Math.abs(e.vy) > 0.05) && has('run')) return 'run';
+    return has('idle') ? 'idle' : has('run') ? 'run' : s.sheet.anims.keys().next().value!;
+  }
+
+  private dropShown(s: Shown): void {
+    s.img.destroy();
+    s.shadow?.destroy();
+    s.glow?.destroy();
+  }
+
+  private syncEntities(): void {
+    const sim = this.controller.sim;
+    const tick = sim.tick;
+    const seen = new Set<number>();
+    const ysort = this.setting !== 'side';
+    const shadows = this.setting === 'dungeon' || this.setting === 'field';
+    for (const e of sim.world.entities) {
+      if (!e.alive) continue;
+      seen.add(e.id);
+      let s = this.shown.get(e.id);
+      if (!s) {
+        const sheet = this.sheetFor(e);
+        const img = this.add.image(0, 0, sheet.key, sheet.anims.values().next().value![0]);
+        img.setOrigin(0.5, sheet.anchor === 'feet' ? 1 : 0.5);
+        const grounded = !e.isProjectile && (sheet.anchor === 'feet' || e.pickup || e.fsm !== null);
+        const shadow = shadows && grounded && e.type !== 'target' ? this.add.image(0, 0, 'gg-shadow') : null;
+        const glow = this.fx.bloom && (e.pickup || e.isProjectile) ? this.add.image(0, 0, 'gg-glow').setBlendMode(Phaser.BlendModes.ADD) : null;
+        s = { img, shadow, glow, sheet, dir: 'down' };
+        this.shown.set(e.id, s);
+      }
+      const anim = this.animFor(e, s, tick);
+      const frames = s.sheet.anims.get(anim) ?? [...s.sheet.anims.values()][0]!;
+      const fps = e.pickup || e.isProjectile ? this.fps.effects : this.fps.character;
+      s.img.setFrame(frames[Math.floor((tick * fps) / 60) % frames.length]!);
+      const cx = e.x + e.w / 2;
+      const cy = e.y + e.h / 2;
+      const feet = e.y + e.h;
+      // Pickups bob gently; everything else sits where the sim puts it.
+      const bob = e.pickup ? Math.round(Math.sin((tick + e.id * 13) / 9) * 1.2) : 0;
+      if (s.sheet.anchor === 'feet') s.img.setPosition(Math.round(cx), Math.round(feet) + 1);
+      else s.img.setPosition(Math.round(cx), Math.round(cy) + bob);
+      s.img.setScale(e.scaleX, e.scaleY);
+      const flips = this.setting === 'side' ? true : s.sheet.directional ? s.dir === 'side' : this.setting !== 'space' && !e.pickup;
+      s.img.setFlipX(flips && e.facing < 0);
+      if (e.type === 'arrow') s.img.setRotation(Math.atan2(e.vy, e.vx));
+      const blink = e.isPlayer && e.invulnTicks > 0 && Math.floor(e.invulnTicks / 4) % 2 === 0;
+      s.img.setAlpha(blink ? 0.35 : 1);
+      if (e.tookDamageTick >= 0 && tick - e.tookDamageTick < 4) s.img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+      else s.img.clearTint();
+      const depth = ysort ? 100 + feet : e.isPlayer ? 120 : e.pickup ? 90 : e.isProjectile ? 115 : 110;
+      s.img.setDepth(depth);
+      if (s.shadow) s.shadow.setPosition(Math.round(cx), Math.round(feet)).setScale(Math.max(0.5, e.w / 9), 1).setDepth(50);
+      if (s.glow) {
+        const c = e.pickup ? this.pal.accent[3] : e.contactDamage > 0 ? this.pal.danger[3] : this.pal.accent[4];
+        s.glow
+          .setPosition(Math.round(cx), Math.round(cy) + bob)
+          .setTint(toInt(c))
+          .setAlpha(0.34 + 0.1 * Math.sin(tick / 7 + e.id))
+          .setScale(Math.max(0.35, (e.w + 4) / 16))
+          .setDepth(depth - 1);
+      }
+      this.lastSeen.set(e.id, { cx, cy });
+    }
+    for (const [id, s] of this.shown) {
+      if (seen.has(id)) continue;
+      this.dropShown(s);
+      this.shown.delete(id);
+    }
+    if (this.lastSeen.size > 1024) for (const id of [...this.lastSeen.keys()]) if (!seen.has(id)) this.lastSeen.delete(id);
+    // Dash afterimages: a fading copy of the player every other tick while the dash lasts.
+    const p = sim.world.player;
+    const ps = this.shown.get(p.id);
+    if (ps && tick <= this.dashUntilTick && tick % 2 === 0 && tick !== this.lastGhostTick) {
+      this.lastGhostTick = tick;
+      const ghost = this.take(ps.sheet.key, ps.img.frame.name);
+      ghost.setOrigin(ps.img.originX, ps.img.originY).setFlipX(ps.img.flipX).setTint(toInt(this.pal.garment[3])).setDepth(ps.img.depth - 1);
+      this.particles.push({ img: ghost, x: ps.img.x, y: ps.img.y, vx: 0, vy: 0, ay: 0, life: 12, max: 12, fade: true });
+    }
+  }
+
+  // ---------------------------------------------------------------- particles and event effects
+
+  private take(key: string, frame?: string | number): Phaser.GameObjects.Image {
+    const img = this.pool.pop() ?? this.add.image(0, 0, key);
+    img.setTexture(key, frame).setVisible(true).setActive(true).setOrigin(0.5).setScale(1).setRotation(0).setFlipX(false).setAlpha(1).setBlendMode(Phaser.BlendModes.NORMAL).clearTint();
+    return img;
+  }
+
+  private release(img: Phaser.GameObjects.Image): void {
+    img.setVisible(false).setActive(false);
+    this.pool.push(img);
+  }
+
+  private burst(shape: keyof typeof PARTICLES, x: number, y: number, colors: readonly RGB[], n: number, opts: { speed: number; angle?: number; spread?: number; ay?: number; life?: number; add?: boolean }): void {
+    const tick = this.controller.sim.tick;
+    for (let i = 0; i < n; i++) {
+      const r1 = hash2(tick, i, 89 + n);
+      const r2 = hash2(i, tick, 97 + n);
+      const ang = (opts.angle ?? -Math.PI / 2) + (r1 - 0.5) * (opts.spread ?? Math.PI * 2);
+      const sp = opts.speed * (0.45 + r2 * 0.55);
+      const img = this.take(`gg-p-${shape}`).setTint(toInt(colors[i % colors.length]!)).setDepth(300);
+      if (opts.add) img.setBlendMode(Phaser.BlendModes.ADD);
+      const life = Math.max(2, Math.round((opts.life ?? 24) * (0.7 + r2 * 0.6)));
+      this.particles.push({ img, x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, ay: opts.ay ?? 0, life, max: life, fade: shape === 'ring' || opts.add === true });
+    }
+  }
+
+  /** Particles move in sim ticks, so they freeze with hitstop and a manually stepped game shows the same frame each run. */
+  private stepParticles(ticks: number): void {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i]!;
+      for (let t = 0; t < ticks; t++) {
+        p.vy += p.ay;
+        p.x += p.vx;
+        p.y += p.vy;
+      }
+      p.life -= ticks;
+      if (p.life <= 0) {
+        this.release(p.img);
+        this.particles.splice(i, 1);
+        continue;
+      }
+      const k = p.life / p.max;
+      p.img.setPosition(Math.round(p.x), Math.round(p.y));
+      if (p.fade) p.img.setAlpha(Math.min(1, k * 1.3) * 0.85);
+      if (p.img.texture.key === 'gg-p-ring') p.img.setScale(1 + (1 - k) * 2.2);
+    }
+  }
+
+  private where(payload: Record<string, unknown>): { x: number; y: number } {
+    const ts = this.controller.sim.map.tileSize;
+    const id = payload['entity'] ?? payload['target'] ?? payload['crate'];
+    const seen = typeof id === 'number' ? this.lastSeen.get(id) : undefined;
+    if (seen) return { x: seen.cx, y: seen.cy };
+    const x = Number(payload['x']);
+    const y = Number(payload['y']);
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      // Grid games report tiles; everything else reports pixels.
+      return this.style.genre === 'puzzle' ? { x: x * ts + ts / 2, y: y * ts + ts / 2 } : { x: x + 4, y: y + 4 };
+    }
+    const p = this.controller.sim.world.player;
+    return { x: p.x + p.w / 2, y: p.y + p.h / 2 };
+  }
+
+  /** Effects that are part of how things move, shown whatever the feedback table says. */
+  private animateEvent(name: string, payload: Record<string, unknown>): void {
+    const sim = this.controller.sim;
+    const p = sim.world.player;
+    const feet = { x: p.x + p.w / 2, y: p.y + p.h };
+    const dust = [this.pal.rim[3], this.pal.terrain[3], this.pal.white];
+    switch (name) {
+      case 'jump':
+        this.burst('dot', feet.x, feet.y, dust, 5, { speed: 0.7, angle: Math.PI / 2, spread: 2.6, ay: 0.02, life: 14 });
+        break;
+      case 'land':
+        this.burst('dot', feet.x - 3, feet.y, dust, 3, { speed: 0.6, angle: Math.PI, spread: 0.7, life: 12 });
+        this.burst('dot', feet.x + 3, feet.y, dust, 3, { speed: 0.6, angle: 0, spread: 0.7, life: 12 });
+        break;
+      case 'dash':
+        this.dashUntilTick = sim.tick + 10;
+        this.burst('chunk', feet.x, feet.y - 3, [this.pal.garment[3], this.pal.white], 6, { speed: 0.9, angle: p.facing < 0 ? 0 : Math.PI, spread: 1, life: 14 });
+        break;
+      case 'hit': {
+        const at = this.where(payload);
+        this.burst('spark', at.x, at.y, [this.pal.white, this.pal.danger[4], this.pal.accent[4]], 6, { speed: 1.6, life: 10, add: true });
+        break;
+      }
+      case 'death': {
+        const at = this.where(payload);
+        const player = payload['entity'] === p.id;
+        const colors = player ? [this.pal.hero[4], this.pal.garment[3], this.pal.accent[3]] : [this.pal.danger[3], this.pal.danger[1], this.pal.white];
+        this.burst('chunk', at.x, at.y, colors, player ? 16 : 9, { speed: player ? 1.8 : 1.3, ay: 0.06, life: player ? 34 : 22 });
+        this.burst('ring', at.x, at.y, [this.pal.white], 1, { speed: 0, life: 10, add: true });
+        break;
+      }
+      case 'pickup': {
+        const at = this.where(payload);
+        this.burst('star', at.x, at.y, [this.pal.accent[4], this.pal.white], 3, { speed: 0.9, life: 16, add: true });
+        break;
+      }
+      case 'checkpoint':
+        this.burst('ring', feet.x, feet.y - 4, [this.pal.accent[4]], 1, { speed: 0, life: 14, add: true });
+        this.burst('star', feet.x, feet.y - 4, [this.pal.accent[4], this.pal.white], 5, { speed: 1, angle: -Math.PI / 2, spread: 2.4, life: 18, add: true });
+        break;
+      case 'custom:door_open': {
+        const at = this.where(payload);
+        this.burst('chunk', at.x, at.y, [this.pal.wood[2], this.pal.wood[3], this.pal.terrain[3]], 14, { speed: 1.4, ay: 0.07, life: 30 });
+        this.burst('dot', at.x, at.y + 8, dust, 8, { speed: 0.8, life: 18 });
+        break;
+      }
+      case 'custom:swing': {
+        this.swingTick = sim.tick;
+        const dx = Number(payload['dirX'] ?? p.facing);
+        const dy = Number(payload['dirY'] ?? 0);
+        const img = this.take('gg-slash').setRotation(Math.atan2(dy, dx)).setDepth(400).setTint(toInt(this.pal.white)).setBlendMode(Phaser.BlendModes.ADD);
+        this.particles.push({ img, x: p.x + p.w / 2 + dx * 4, y: p.y + p.h / 2 + dy * 4, vx: dx * 0.3, vy: dy * 0.3, ay: 0, life: 7, max: 7, fade: true });
+        break;
+      }
+      case 'custom:fire':
+        this.burst('dot', p.x + p.w / 2, p.y, [this.pal.accent[4], this.pal.white], 2, { speed: 0.6, angle: -Math.PI / 2, spread: 0.8, life: 6, add: true });
+        break;
+      case 'push': {
+        const at = this.where(payload);
+        this.burst('dot', at.x, at.y + 6, dust, 4, { speed: 0.5, angle: Math.PI / 2, spread: 2.6, life: 14 });
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  /** The feedback table's particle channel: the big bursts (pickups, wins, dashes, pushes). */
+  private celebrate(source: string): void {
+    const at = this.where(this.lastEvent.get(source) ?? {});
+    switch (source) {
+      case 'pickup':
+        this.burst('star', at.x, at.y, [this.pal.accent[4], this.pal.white, this.pal.accent[3]], 8, { speed: 1.4, life: 20, add: true });
+        this.burst('ring', at.x, at.y, [this.pal.accent[4]], 1, { speed: 0, life: 12, add: true });
+        break;
+      case 'level_complete': {
+        const p = this.controller.sim.world.player;
+        this.burst('chunk', p.x + p.w / 2, p.y, [this.pal.accent[3], this.pal.danger[3], this.pal.garment[3], this.pal.white], 28, { speed: 2.4, angle: -Math.PI / 2, spread: 2.2, ay: 0.07, life: 50 });
+        break;
+      }
+      case 'dash':
+        this.burst('spark', at.x, at.y, [this.pal.garment[4], this.pal.white], 6, { speed: 1.1, life: 12, add: true });
+        break;
+      default:
+        this.burst('spark', at.x, at.y, [this.pal.white, this.pal.accent[3]], 6, { speed: 1.2, life: 14, add: true });
+        break;
+    }
+  }
+
+  // ---------------------------------------------------------------- HUD, banners, screens
+
+  private drawHud(): void {
+    const w = this.controller.sim.world;
+    const p = w.player;
+    const levels = this.controller.options.levels.length;
+    const entries: Array<{ icon?: string; text: string }> = [];
+    for (const [k, v] of Object.entries(w.hud)) {
+      const key = k.toLowerCase();
+      if (key === 'hp') continue;
+      const icon = HUD_KEY_ICONS[key];
+      entries.push({ icon, text: icon ? String(v).toUpperCase() : `${k.toUpperCase()} ${String(v).toUpperCase()}` });
+    }
+    if (w.score > 0 || entries.length === 0) entries.unshift({ icon: 'star', text: String(w.score) });
+    const sig = JSON.stringify([p.hp, p.maxHp, entries, this.controller.levelIndex, levels]);
+    if (sig === this.hudSig) return;
+    this.hudSig = sig;
+    const pc = new PixelCanvas(this.style.canvas.w, HUD_H);
+    let x = 3;
+    if (p.maxHp > 1) {
+      for (let i = 0; i < p.maxHp; i++) {
+        const heart = this.icons.get(i < p.hp ? 'heart' : 'heart0')!;
+        pc.blit(heart, x, 2);
+        x += heart.w - 1;
+      }
+      x += 4;
+    }
+    for (const e of entries) {
+      const icon = e.icon ? this.icons.get(e.icon) : undefined;
+      if (icon) {
+        pc.blit(icon, x, 2 + Math.floor((9 - icon.h) / 2));
+        x += icon.w;
+      }
+      const t = this.text(e.text, this.pal.white);
+      pc.blit(t, x, 2);
+      x += t.w + 5;
+    }
+    if (levels > 1) {
+      const t = this.text(`${this.controller.levelIndex + 1}/${levels}`, this.pal.ui[3]);
+      pc.blit(t, this.style.canvas.w - t.w - 3, 2);
+    }
+    this.repaint(this.hudTex, pc);
+    this.hudImg.setVisible(true);
+  }
+
+  private showBanner(): void {
+    const name = (this.controller.level.name ?? '').toUpperCase();
+    const levels = this.controller.options.levels.length;
+    const named = name !== '' && !/^LEVEL \d+$/.test(name);
+    const text = levels > 1 ? `LEVEL ${this.controller.levelIndex + 1}${named ? ` · ${name}` : ''}` : named ? name : '';
+    if (!text) return;
+    const pc = this.text(text, this.pal.white);
+    this.addCanvasTexture('gg-banner', pc);
+    this.bannerImg = this.add.image(Math.round((this.style.canvas.w - pc.w) / 2), 20, 'gg-banner').setOrigin(0).setScrollFactor(0).setDepth(10_500).setAlpha(0);
+  }
+
+  /** Banner and fade-in follow the level's ticks, so a screenshot at a given tick always looks the same. */
+  private updateIntro(tick: number): void {
+    this.fadeImg.setAlpha(this.controller.scene === 'play' ? Math.max(0, 1 - tick / 16) : 0);
+    if (!this.bannerImg) return;
+    const shown = this.controller.scene === 'play' && tick < BANNER_TICKS;
+    const a = !shown ? 0 : tick < 15 ? tick / 15 : tick > BANNER_TICKS - 20 ? (BANNER_TICKS - tick) / 20 : 1;
+    this.bannerImg.setAlpha(a).setY(Math.round(16 + 4 * (1 - Math.min(1, tick / 15))));
+  }
+
+  private drawOverlay(): void {
+    const scene = this.controller.scene;
+    const w = this.controller.sim.world;
+    const blink = Math.floor(performance.now() / 500) % 2 === 0;
+    const title = (this.style.title ?? '').toUpperCase();
+    const lines: Array<{ text: string; scale: number; color: RGB; gap?: number }> = [];
+    let dim = 0;
+    if (scene === 'title') {
+      dim = 0.55;
+      if (title) lines.push({ text: title, scale: title.length > 18 ? 1 : 2, color: this.pal.accent[4], gap: 10 });
+      lines.push({ text: blink ? 'PRESS ENTER' : '', scale: 1, color: this.pal.white });
+    } else if (scene === 'results') {
+      dim = 0.6;
+      lines.push({ text: 'ALL CLEAR!', scale: 2, color: this.pal.accent[4], gap: 8 });
+      lines.push({ text: `SCORE ${w.score}${w.deaths ? ` · DEATHS ${w.deaths}` : ''}`, scale: 1, color: this.pal.white, gap: 10 });
+      lines.push({ text: blink ? 'PRESS ENTER TO PLAY AGAIN' : '', scale: 1, color: this.pal.ui[3] });
+    } else if (w.flags.won) {
+      lines.push({ text: 'LEVEL CLEAR', scale: 2, color: this.pal.accent[4] });
+    } else if (w.flags.gameOver) {
+      dim = 0.5;
+      lines.push({ text: 'GAME OVER', scale: 2, color: this.pal.danger[3], gap: 8 });
+      if (this.controller.mode === 'realtime') lines.push({ text: blink ? 'PRESS ENTER TO RETRY' : '', scale: 1, color: this.pal.white });
+    } else if (w.flags.paused) {
+      dim = 0.45;
+      lines.push({ text: 'PAUSED', scale: 2, color: this.pal.white });
+    }
+    const sig = JSON.stringify([dim, lines]);
+    if (sig === this.overlaySig) return;
+    this.overlaySig = sig;
+    if (lines.length === 0) {
+      this.overlayImg.setVisible(false);
+      return;
+    }
+    const { w: cw, h: ch } = this.style.canvas;
+    const pc = new PixelCanvas(cw, ch);
+    if (dim > 0) pc.fillRect(0, 0, cw, ch, this.pal.ink, Math.round(dim * 255));
+    const images = lines.map((l) => (l.text ? this.text(l.text, l.color, l.scale, l.scale > 1 ? mix(l.color, this.pal.accent[1], 0.4) : undefined) : null));
+    const height = (img: PixelCanvas | null, i: number) => (img?.h ?? 9) + (i < lines.length - 1 ? (lines[i]!.gap ?? 4) : 0);
+    let y = Math.round((ch - images.reduce((n, img, i) => n + height(img, i), 0)) / 2);
+    images.forEach((img, i) => {
+      if (img) pc.blit(img, Math.round((cw - img.w) / 2), y);
+      y += height(img, i);
+    });
+    this.repaint(this.overlayTex, pc);
+    this.overlayImg.setVisible(true);
+  }
+
+  // ---------------------------------------------------------------- frame
 
   override update(_time: number, delta: number): void {
     // Hitstop is a render-side pause: realtime frames are skipped while it lasts; manual stepping is unaffected.
@@ -132,34 +868,81 @@ export class MainScene extends Phaser.Scene {
       return;
     }
     this.controller.frame(delta);
-    if (this.levelDirty || this.controller.sim.map.version !== this.drawnVersion) this.drawTiles();
-    const w = this.controller.sim.world;
-    const p = w.player;
+    const sim = this.controller.sim;
+    const tick = sim.tick;
+    if (sim.map.version !== this.drawnVersion || (this.setting === 'dungeon' && this.exitLocked() !== this.drawnExitLocked)) this.buildTiles();
+    const p = sim.world.player;
     this.followTarget.x = Math.round(p.x + p.w / 2);
     this.followTarget.y = Math.round(p.y + p.h / 2);
-    this.gfx.clear();
-    for (const e of w.entities) {
-      if (!e.alive) continue;
-      const blink = e.isPlayer && e.invulnTicks > 0 && Math.floor(e.invulnTicks / 4) % 2 === 0;
-      this.gfx.fillStyle(this.colorFor(e), blink ? 0.4 : 1);
-      const dw = e.w * e.scaleX;
-      const dh = e.h * e.scaleY;
-      this.gfx.fillRect(e.x + (e.w - dw) / 2, e.y + (e.h - dh), dw, dh);
+    this.syncEntities();
+    this.stepParticles(Math.min(60, Math.max(0, tick - this.lastTick)));
+    this.lastTick = tick;
+    this.animTick = this.controller.mode === 'realtime' ? this.animTick + delta / (1000 / 60) : tick;
+    const cam = this.cameras.main;
+    for (const l of this.layers) {
+      l.obj.tilePositionX = Math.round(cam.scrollX * l.fx + this.animTick * l.driftX);
+      if (l.horizon) l.obj.setY(Math.round((this.horizonY - cam.scrollY) * l.fy));
+      else l.obj.tilePositionY = Math.round(cam.scrollY * l.fy + this.animTick * l.driftY);
     }
-    if (this.controller.scene === 'play') {
-      const won = w.flags.won ? '  LEVEL COMPLETE' : w.flags.gameOver ? '  GAME OVER' : w.flags.paused ? '  PAUSED' : '';
-      const extra = Object.entries(w.hud).map(([k, v]) => `  ${k.toUpperCase()} ${v}`).join('');
-      // HP only matters with more than one hit point, deaths once there has been one (a puzzle board has neither).
-      const hp = p.maxHp > 1 ? `HP ${p.hp}  ` : '';
-      const deaths = w.deaths > 0 ? `  DEATHS ${w.deaths}` : '';
-      this.hud.setText(`${hp}SCORE ${w.score}${deaths}${extra}${won}`);
-    } else {
-      this.hud.setText('');
+    const { w: vw, h: vh } = this.style.canvas;
+    for (const m of this.motes) {
+      const t = this.animTick;
+      const x = (((m.x + t * m.vx + Math.sin(t / 50 + m.phase) * 6 - cam.scrollX * 0.6) % vw) + vw) % vw;
+      const y = (((m.y + t * m.vy + Math.cos(t / 63 + m.phase) * 4 - cam.scrollY * 0.6) % vh) + vh) % vh;
+      m.img.setPosition(Math.round(x), Math.round(y)).setAlpha(0.25 + 0.45 * (0.5 + 0.5 * Math.sin(t / 23 + m.phase * 3)));
     }
+    for (const d of this.decor) {
+      d.img.setFrame(d.frames[Math.floor(((this.animTick + d.phase * 7) * this.fps.effects) / 60) % d.frames.length]!);
+      d.glow?.setAlpha(0.3 + 0.08 * Math.sin(this.animTick / 5 + d.phase));
+    }
+    if (this.controller.scene === 'play') this.drawHud();
+    else this.hudImg.setVisible(false);
+    this.updateIntro(tick);
+    this.drawOverlay();
   }
 }
 
-export function createPhaserGame(controller: GameController, style: ViewStyle, parent: HTMLElement | string | undefined, onCreated: () => void): Phaser.Game {
+/** HUD icons, keyed by the names games give their HUD values. */
+const HUD_ICONS: Record<string, readonly string[]> = {
+  heart: ['.ee.ee.', 'eEEeDDd', 'eEDDDDd', '.dDDDd.', '..dDd..', '...d...'],
+  heart0: ['.tt.tt.', 't..t..t', 't.....t', '.t...t.', '..t.t..', '...t...'],
+  star: ['..b..', '.bBb.', 'bBBBb', '.AbA.', 'A...A'],
+  coin: ['.bAa.', 'bBAAa', 'bAbAa', 'bAAAa', '.aAa.'],
+  gem: ['..b..', '.bBA.', 'bBAAa', '.AAa.', '..a..'],
+  crystal: ['.nN.', 'nNMm', '.Mm.', '.m..'],
+  skull: ['.www.', 'wwwww', 'wkwkw', '.www.', '.w.w.'],
+  door: ['.TTT.', 'TtttT', 'TtAtT', 'TtttT', 'TtttT'],
+  clock: ['.www.', 'w.k.w', 'w.kkw', 'w...w', '.www.'],
+  flag: ['UAAA', 'UAbA', 'UAAA', 'U...', 'U...'],
+  crate: ['qqqqq', 'qRrRq', 'qrQrq', 'qRrRq', 'qqqqq'],
+  target: ['.bbb.', 'b...b', 'b.A.b', 'b...b', '.bbb.'],
+  foot: ['.ww.', '.ww.', 'www.', 'www.', '.w..'],
+  bolt: ['..bB', '.bB.', 'bBBb', '.bB.', 'bB..'],
+  key: ['.bA..', 'b.aA.', '.aA..', '..AA.', '..Aa.'],
+};
+const HUD_KEY_ICONS: Record<string, string> = {
+  coins: 'coin',
+  coin: 'coin',
+  gems: 'gem',
+  gem: 'gem',
+  xp: 'crystal',
+  level: 'crystal',
+  enemies: 'skull',
+  kills: 'skull',
+  exit: 'door',
+  time: 'clock',
+  timer: 'clock',
+  wave: 'flag',
+  pushes: 'crate',
+  placed: 'target',
+  moves: 'foot',
+  power: 'bolt',
+  relics: 'gem',
+  keys: 'key',
+};
+
+export function createPhaserGame(controller: GameController, style: ViewStyle, parent: HTMLElement | string | undefined, onCreated: () => void): { game: Phaser.Game; scene: MainScene } {
+  const scene = new MainScene(controller, style, onCreated);
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     width: style.canvas.w,
@@ -170,7 +953,7 @@ export function createPhaserGame(controller: GameController, style: ViewStyle, p
     backgroundColor: style.palette.background,
     banner: false,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: [new MainScene(controller, style, onCreated)],
+    scene: [scene],
   };
-  return new Phaser.Game(config);
+  return { game: new Phaser.Game(config), scene };
 }

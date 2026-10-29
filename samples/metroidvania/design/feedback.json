@@ -6,5 +6,6 @@
   { "event": "death", "channels": ["flash", "sfx"] },
   { "event": "pickup", "channels": ["sfx", "particle", "flash"] },
   { "event": "checkpoint", "channels": ["sfx"] },
+  { "event": "custom:door_open", "channels": ["sfx", "shake"] },
   { "event": "level_complete", "channels": ["sfx", "particle"] }
 ]

@@ -29,7 +29,7 @@ export interface Entity extends Body {
   /** Visual-only squash/stretch scale, written by systems, read by the renderer. */
   scaleX: number;
   scaleY: number;
-  /** Palette role the placeholder renderer draws this entity with (null: the renderer's default by kind). */
+  /** Palette role the renderer draws this entity with when its type has no sprite recipe (null: chosen by kind). */
   tint: EntityTint | null;
 }
 

@@ -113,7 +113,10 @@ export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = {
 };
 `;
 
-export const MAIN_TS = (gameId: string) => `import type { StyleCard } from '@gg/schemas';
+/** A single-quoted TypeScript string literal (the generated code follows the repo's prettier style). */
+const tsString = (s: string) => `'${JSON.stringify(s).slice(1, -1).replace(/\\"/g, '"').replace(/'/g, "\\'")}'`;
+
+export const MAIN_TS = (gameId: string, genre: string, title: string) => `import type { StyleCard } from '@gg/schemas';
 import { createGame } from '@gg/sdk/render';
 import styleJson from '../design/style.json';
 import { LEVELS, SIM_OPTIONS } from './game.js';
@@ -129,6 +132,11 @@ void createGame({
     pixelArt: style.pixelArt,
     palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
     camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: '${genre}',
+    title: ${tsString(title)},
   },
   parent: 'game',
   defaultSeed: 1,
