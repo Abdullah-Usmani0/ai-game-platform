@@ -1,4 +1,4 @@
-import type { BehaviourFsm, EcaRule, GddFrontmatter, Genre, LevelJson, ScopeTier } from '@gg/schemas';
+import type { BehaviourFsm, EcaRule, FeedbackChannel, GddFrontmatter, Genre, LevelJson, ParamValue, ScopeTier } from '@gg/schemas';
 import type { EntityDef, FeelPreset, InputState, Sim, SystemDef } from '@gg/sdk';
 import type { CatalogSystem, ValidationReport } from '@gg/validators';
 
@@ -18,8 +18,11 @@ export interface BotResult {
   events: Record<string, number>;
 }
 
-/** A Node-side bot policy over the sim: returns the input for the current tick. */
-export type BotPolicy = (sim: Sim, tick: number, memory: Record<string, number>) => InputState;
+/**
+ * A Node-side bot policy over the sim: returns the input for the current tick. While an in-game menu is open the
+ * runner picks the highlighted option for it, unless the policy says it drives menus itself (`menus: true`).
+ */
+export type BotPolicy = ((sim: Sim, tick: number, memory: Record<string, number>) => InputState) & { menus?: boolean };
 
 export interface LevelGenParams {
   seed: number;
@@ -76,6 +79,16 @@ export interface GenreRuntime {
   defaultBehaviours: BehaviourFsm[];
   defaultRules: EcaRule[];
   collectibleTypes: string[];
+  /**
+   * Feedback for the genre's own custom events (a finisher, a boss slam, a door opening). The GDD's table names only
+   * the fixed events; the scaffold appends these to design/feedback.json so every generated game binds them.
+   */
+  feedbackExtras?: Array<{ event: string; channels: FeedbackChannel[] }>;
+  /**
+   * This genre's defaults for parameters of shared catalog systems (top-down action dashes through attacks, other
+   * top-down genres do not), applied over the catalog's own defaults wherever a systems.json is drafted.
+   */
+  paramDefaults?: Record<string, Record<string, ParamValue>>;
 }
 
 /**

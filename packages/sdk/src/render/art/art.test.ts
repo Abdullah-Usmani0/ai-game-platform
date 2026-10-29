@@ -18,6 +18,7 @@ import {
   sfxFor,
   textImage,
   torchSpots,
+  wrapText,
   type ArtPalette,
   type PaletteRoles,
   type TerrainMap,
@@ -108,6 +109,25 @@ describe('font', () => {
     expect(img.w).toBe(measure('SCORE 10') + 2);
     expect(img.h).toBe(9);
     expect(img.get(1, 1)).toEqual([...pal.ink]);
+  });
+
+  it('wraps words into lines that fit, keeping a too-long word on a line of its own', () => {
+    const lines = wrapText('STRIKES DEAL ONE MORE DAMAGE.', 60);
+    expect(lines.join(' ')).toBe('STRIKES DEAL ONE MORE DAMAGE.');
+    for (const l of lines) expect(measure(l), l).toBeLessThanOrEqual(60);
+    expect(lines.length).toBeGreaterThan(1);
+    expect(wrapText('UNBREAKABLEWORD', 10)).toEqual(['UNBREAKABLEWORD']);
+    expect(wrapText('  ', 50)).toEqual([]);
+  });
+
+  it('scaled blits turn each pixel into a block and skip transparency', () => {
+    const src = new PixelCanvas(2, 1);
+    src.set(0, 0, [255, 0, 0]);
+    const dst = new PixelCanvas(6, 4);
+    dst.blitScaled(src, 1, 1, 2);
+    for (const [x, y] of [[1, 1], [2, 1], [1, 2], [2, 2]] as const) expect(dst.get(x, y)).toEqual([255, 0, 0]);
+    expect(dst.alpha(3, 1)).toBe(0);
+    expect(dst.alpha(0, 0)).toBe(0);
   });
 });
 

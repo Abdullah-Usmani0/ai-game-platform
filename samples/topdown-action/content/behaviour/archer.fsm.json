@@ -20,7 +20,7 @@
         {
           "to": "attack",
           "when": {
-            "kind": "player_within",
+            "kind": "player_in_sight",
             "px": 100
           }
         },

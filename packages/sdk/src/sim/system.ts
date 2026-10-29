@@ -4,7 +4,19 @@ import type { FeelPreset } from './feel.js';
 import type { InputState } from './input.js';
 import type { Rng } from './rng.js';
 import type { Tilemap } from './tilemap.js';
-import type { Entity, World } from './world.js';
+import type { Entity, MenuOption, World } from './world.js';
+
+/** What a system asks for when it opens a menu (ctx.openMenu). */
+export interface MenuSpec {
+  id: string;
+  title: string;
+  /** One to four options; more are cut. */
+  options: MenuOption[];
+  /** The dash key closes the menu without a choice (default false). */
+  cancellable?: boolean;
+  /** The option highlighted first (default the first one that is not disabled). */
+  selected?: number;
+}
 
 /** Everything a system may touch. Nothing else exists for simulation code. */
 export interface SimCtx {
@@ -27,6 +39,13 @@ export interface SimCtx {
   respawnPlayer(): void;
   /** Physics helper: move a body with tile collisions. */
   move(e: Entity, dx: number, dy: number): void;
+  /**
+   * Open a menu (boons, upgrades, a shop). The world freezes (systems, entities and behaviour timers stop) until the
+   * player moves the highlight with the arrows and picks with action or jump, which emits
+   * menu_choose { menu, option, index }; a cancellable menu also closes on dash with option null. Picks are ignored
+   * for MENU_GRACE_TICKS after opening, so a held or mashed key never chooses unread. Replaces an open menu.
+   */
+  openMenu(menu: MenuSpec): void;
 }
 
 export interface SystemDef<S> {

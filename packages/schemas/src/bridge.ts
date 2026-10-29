@@ -12,6 +12,8 @@ export const StateSnapshot = z.object({
   hud: z.record(z.string(), z.unknown()),
   rng: z.object({ seed: z.int(), calls: z.int().nonnegative() }),
   flags: z.object({ paused: z.boolean(), gameOver: z.boolean(), won: z.boolean() }),
+  /** Present only while an in-game menu is open: its id, the highlighted option and the option ids. */
+  menu: z.object({ id: z.string(), selected: z.int(), options: z.array(z.string()) }).optional(),
   hash: z.string(),
 });
 export type StateSnapshot = z.infer<typeof StateSnapshot>;

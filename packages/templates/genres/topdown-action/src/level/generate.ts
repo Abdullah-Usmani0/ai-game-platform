@@ -10,11 +10,13 @@ interface Cell {
 /**
  * Rooms grammar: a grid of rectangular rooms joined by three-wide doors along a randomised spanning tree
  * (plus a loop at higher difficulty). The spawn room is empty; enemies scale with difficulty and depth;
- * the goal sits in the deepest room. Everything is a plain tilemap, so the runtime and the solver stay generic.
+ * the goal sits in the deepest room. With `boss: 1` the deepest room is the warden's lair instead: the boss
+ * alone above the exit, two healing gems. Everything is a plain tilemap, so the runtime and the solver stay generic.
  */
 export function generateRooms(params: LevelGenParams): LevelJson {
   const rng = new Rng(params.seed);
   const d = Math.max(0, Math.min(1, params.difficulty));
+  const boss = (params['boss'] ?? 0) > 0;
   const cols = Math.max(2, Math.min(5, Math.round(params['rooms'] ?? 2 + Math.round(d * 2))));
   const rows = 2;
   const rw = 12 + rng.int(4);
@@ -63,7 +65,8 @@ export function generateRooms(params: LevelGenParams): LevelJson {
     carveDoor(cur, next);
     stack.push(next);
   }
-  if (d > 0.5 && cols >= 2) {
+  // A boss floor keeps the plain spanning tree: its deepest room, the lair, is then a dead end nobody passes through.
+  if (d > 0.5 && cols >= 2 && !boss) {
     // One loop: join two horizontally adjacent rooms that are not yet connected.
     for (let tries = 0; tries < 8; tries++) {
       const c = rng.int(cols - 1);
@@ -146,6 +149,12 @@ export function generateRooms(params: LevelGenParams): LevelJson {
         if (t) entities.push({ type: 'gem', x: t.x, y: t.y, props: {} });
       }
       if (dep === 0) continue;
+      if (boss && c === goalCell.c && r === goalCell.r) {
+        // The lair: the warden waits three tiles above the exit (its 2x2 body clear of walls and the door lanes' ends).
+        entities.push({ type: 'warden', x: goal.x, y: Math.max(y0(r) + 2, goal.y - 3), props: {} });
+        placed++;
+        continue;
+      }
       const count = Math.min(4, 1 + Math.round(d * 2) + (dep >= 2 ? 1 : 0), enemyBudget - placed);
       let archerHere = false;
       for (let i = 0; i < count; i++) {
@@ -164,8 +173,8 @@ export function generateRooms(params: LevelGenParams): LevelJson {
   }
   return {
     version: 1,
-    id: `rooms-${params.seed}`,
-    name: `Rooms ${params.seed}`,
+    id: `rooms-${params.seed}${boss ? '-boss' : ''}`,
+    name: boss ? `Lair ${params.seed}` : `Rooms ${params.seed}`,
     tileSize: 8,
     width,
     height,

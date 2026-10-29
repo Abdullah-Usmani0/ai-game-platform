@@ -1,4 +1,4 @@
-import type { LevelJson, StateSnapshot } from '@gg/schemas';
+import type { LevelJson, ParamValue, StateSnapshot } from '@gg/schemas';
 import { emptyInput, inputAtTick, type InputSegment, type InputState } from '../sim/input.js';
 import { createSim, type Sim, type SimOptions } from '../sim/sim.js';
 import { Driver, type RunMode } from './driver.js';
@@ -35,6 +35,8 @@ export class GameController {
   scene: SceneKey = 'boot';
   levelIndex = 0;
   seed: number;
+  /** Player props the current level started with: carried from the level before it, empty after a reset. */
+  carry: Record<string, ParamValue> = {};
   private held: InputState = emptyInput();
   private script: { segments: InputSegment[]; until: number; resolve: () => void } | null = null;
   /** Set when a script has run to its target tick: the sim holds there until a step, script or reset. */
@@ -63,7 +65,7 @@ export class GameController {
   private makeSim(levelIndex: number, seed: number): Sim {
     const level = this.options.levels[levelIndex];
     if (!level) throw new Error(`level index ${levelIndex} out of range`);
-    return createSim({ ...this.options.simOptions, level, seed: seed + levelIndex });
+    return createSim({ ...this.options.simOptions, level, seed: seed + levelIndex, carry: this.carry });
   }
 
   private provideInput(tick: number): InputState {
@@ -123,7 +125,8 @@ export class GameController {
   private afterSteps(): void {
     const w = this.sim.world;
     if (!w.flags.won) return;
-    if (this.winTick < 0) this.winTick = this.sim.tick;
+    // The wait for the next level starts once no menu is open (a choice made as the level ends still carries).
+    if (this.winTick < 0 || w.menu) this.winTick = this.sim.tick;
     // Level sequencing is free-play only: a scripted run (the determinism oracle) and a frozen sim hold the won
     // level and keep ticking it, so manual, realtime and in-page replay hashes agree whatever the level count.
     if (this.script || this.frozen) return;
@@ -132,13 +135,16 @@ export class GameController {
 
   nextLevel(): void {
     this.winTick = -1;
-    if (this.levelIndex + 1 < this.options.levels.length) this.loadLevel(this.levelIndex + 1);
+    // What the player earned on this level (boons, upgrades in its props) comes along to the next one.
+    if (this.levelIndex + 1 < this.options.levels.length) this.loadLevel(this.levelIndex + 1, this.seed, { ...this.sim.world.player.props });
     else this.setScene('results');
   }
 
-  loadLevel(index: number, seed = this.seed): void {
+  /** Load a level. `carry` is the player props it starts with (by default what the current level started with, so a retry keeps them). */
+  loadLevel(index: number, seed = this.seed, carry: Record<string, ParamValue> = this.carry): void {
     this.levelIndex = index;
     this.seed = seed;
+    this.carry = carry;
     this.sim = this.makeSim(index, seed);
     this.driver = new Driver(this.sim, this.driver.mode, (tick) => this.provideInput(tick));
     this.winTick = -1;
@@ -148,7 +154,7 @@ export class GameController {
   }
 
   reset(seed = this.options.seed): void {
-    this.loadLevel(0, seed);
+    this.loadLevel(0, seed, {});
   }
 
   setInput(partial: Partial<InputState>): void {
@@ -195,6 +201,7 @@ export class GameController {
       `tick=${s.tick} scene=${s.scene} level=${s.level} hash=${s.hash}`,
       `player x=${p.x} y=${p.y} vx=${p.vx} vy=${p.vy} hp=${p.hp} grounded=${p.grounded} alive=${p.alive}`,
       `hud ${JSON.stringify(s.hud)} flags ${JSON.stringify(s.flags)} rng ${JSON.stringify(s.rng)}`,
+      ...(s.menu ? [`menu ${s.menu.id} selected=${s.menu.options[s.menu.selected] ?? s.menu.selected} options=${s.menu.options.join(',')}`] : []),
       ...s.entities.map((e) => `  ${String(e.type)}#${String(e.id)} x=${String(e.x)} y=${String(e.y)} hp=${String(e.hp)} state=${String(e.state)}`),
     ];
     return lines.join('\n');

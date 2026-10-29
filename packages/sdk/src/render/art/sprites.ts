@@ -242,10 +242,47 @@ const DRONE: Recipe = {
 const GUNSHIP_BASE: Template = ['..tt....tt..', '.tTTt..tTTt.', '.tTDDDDDDTt.', 'tTDDEEEEDDTt', 'tTDEwkkwEDTt', 'tTDDEEEEDDTt', '.tTDDDDDDTt.', '..tTTDDTTt..', '...tTDDTt...', '....tDDt....', '.....dd.....', '.....kk.....'];
 const GUNSHIP: Recipe = { anchor: 'center', anims: { run: [GUNSHIP_BASE, withRows(GUNSHIP_BASE, { 11: '.....EE.....' })], hurt: [GUNSHIP_BASE.map((r) => r.replace(/[tTdD]/g, 'E'))] } };
 
+// ---------------------------------------------------------------- bosses
+
+/** The warden (16 x 16): a horned, armoured hulk with an ember core that flares when it winds up a slam. */
+const WARDEN_BASE: Template = [
+  '..u..........u..',
+  '.uUt........tUu.',
+  '.tUTt.tttt.tTUt.',
+  '..tTTtTTTTtTTt..',
+  '...tTTTTTTTTt...',
+  '..dtTkbTTbkTtd..',
+  '.dDtTTTTTTTTtDd.',
+  'dDDdtTTkkTTtdDDd',
+  'dDDDdtTTTTtdDDDd',
+  'dDEDDdBbbBdDDEDd',
+  '.dDDDDbAAbDDDDd.',
+  '.dDDDDDbbDDDDDd.',
+  '..dDDDDDDDDDDd..',
+  '..xdDDd..dDDdx..',
+  '..kxxd....dxxk..',
+  '.kkk........kkk.',
+];
+const WARDEN: Recipe = {
+  anchor: 'feet',
+  anims: {
+    idle: [WARDEN_BASE, withRows(WARDEN_BASE, { 9: 'dDEDDdBBbBdDDEDd', 10: '.dDDDDbAAbDDDDd.' })],
+    run: [WARDEN_BASE, withRows(WARDEN_BASE, { 13: '...xdDDd.dDDdx..', 14: '...kxxd...dxxk..', 15: '..kkk......kkk..' })],
+    // The slam: crouched a pixel lower, fists on the floor either side.
+    slam: [withRows(down(WARDEN_BASE, 1), { 12: 'dD.dDDDDDDDDd.Dd', 13: 'dDxdDDd..dDDdxDd', 14: 'kkkxxd....dxxkkk', 15: 'kkk..........kkk' })],
+    // Fists raised over the head, the core white-hot: the slam is coming.
+    windup: [withRows(WARDEN_BASE, { 0: 'dDu..........uDd', 1: 'DDUt........tUDD', 6: '..dtTTTTTTTTtd..', 7: '..dDtTTkkTTtDd..', 9: 'dDEDDdBwwBdDDEDd', 10: '.dDDDDwBBwDDDDd.' })],
+    aim: [withRows(WARDEN_BASE, { 5: '..dtTkBTTBkTtd..', 9: 'dDEDDdBBBBdDDEDd' })],
+    hurt: [WARDEN_BASE.map((r) => r.replace(/[dDxtTuU]/g, 'E'))],
+  },
+};
+
 // ---------------------------------------------------------------- projectiles
 
 const ORB: Recipe = { anchor: 'center', anims: { run: [['.EE.', 'EwwE', 'EwwE', '.EE.'], ['.ee.', 'eEEe', 'eEEe', '.ee.']] } };
 const ARROW: Recipe = { anchor: 'center', anims: { run: [['q...', 'qqqw', 'q...', '....']] } };
+/** A boss's ember: a hot core that flickers between white and gold inside a red shell. */
+const EMBER: Recipe = { anchor: 'center', anims: { run: [['.eE.', 'eBwE', 'EwBe', '.Ee.'], ['.Ee.', 'EwBe', 'eBwE', '.eE.']] } };
 const LASER: Recipe = { anchor: 'center', anims: { run: [['.w.', 'bwb', 'bwb', '.b.', '.a.', '.a.'], ['.w.', 'BwB', 'bwb', '.b.', '.b.', '.a.']] } };
 
 // ---------------------------------------------------------------- pickups and relics
@@ -298,10 +335,12 @@ export const RECIPES: Record<string, Recipe> = {
   brute: BRUTE,
   grunt: GRUNT,
   archer: ARCHER,
+  warden: WARDEN,
   drone: DRONE,
   gunship: GUNSHIP,
   orb: ORB,
   arrow: ARROW,
+  ember: EMBER,
   laser: LASER,
   coin: COIN,
   gem: GEM,
@@ -328,6 +367,8 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   grunt: 'grunt',
   archer: 'archer',
   arrow: 'arrow',
+  warden: 'warden',
+  ember: 'ember',
   gem: 'gem',
   drone: 'drone',
   tank: 'gunship',

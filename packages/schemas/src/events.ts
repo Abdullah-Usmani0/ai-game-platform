@@ -23,6 +23,9 @@ export const GAME_EVENTS = [
   'move',
   'push',
   'undo',
+  // In-game menus (boons, upgrades, shops): opened by a system, closed by the player's pick.
+  'menu_open',
+  'menu_choose',
 ] as const;
 export const GameEventName = z.enum(GAME_EVENTS);
 export type GameEventName = z.infer<typeof GameEventName>;

@@ -69,9 +69,12 @@ export const clearer: BotPolicy = (sim: Sim, tick, mem) => {
     }
   }
   if (target) best = Math.hypot(centerX(target) - px, centerY(target) - py);
-  // Between fights, heal on a nearby gem before heading for the exit.
+  // Between fights, heal on a nearby gem before heading for the exit. A gem once chosen is kept until it is taken or a
+  // fight comes close: along a winding path the straight-line distances come and go, and re-deciding made the bot dither.
   let gem: Entity | null = null;
-  if (p.hp < p.maxHp && (!target || best > 100)) {
+  const kept = sim.world.entities.find((e) => e.id === mem['gem'] && e.alive && e.pickup) ?? null;
+  if (p.hp < p.maxHp && kept && (!target || best > 40)) gem = kept;
+  else if (p.hp < p.maxHp && (!target || best > 100)) {
     let gd = 120;
     for (const e of sim.world.entities) {
       if (!e.alive || !e.pickup) continue;
@@ -82,6 +85,7 @@ export const clearer: BotPolicy = (sim: Sim, tick, mem) => {
       }
     }
   }
+  mem['gem'] = gem ? gem.id : -1;
   const goal = map.level.goal;
   const dest = gem ?? target;
   const tx = dest ? Math.floor(centerX(dest) / ts) : goal.x;
@@ -99,22 +103,25 @@ export const clearer: BotPolicy = (sim: Sim, tick, mem) => {
     mem['recalcAt'] = tick + 30;
   }
   const reach = 16;
-  // Crowds and brutes are fought at the player's pace: approach on the first half of the swing cycle, step
+  // Crowds, brutes and bosses are fought at the player's pace: approach on the first half of the swing cycle, step
   // away on the second half so only the front enemy connects (the swing auto-aims anyway).
-  const close = hostiles.filter((e) => Math.hypot(centerX(e) - px, centerY(e) - py) < 18);
-  const windingUp = close.filter((e) => e.fsm?.state === 'windup' || e.fsm?.state === 'bite');
-  const kite = close.length >= 2 || close.some((e) => e.type === 'brute');
-  if (target && best <= reach && !gem) {
-    if (windingUp.length > 0) {
-      // A telegraphed bite: step out of its reach while still swinging (a hit interrupts the wind-up).
-      let ax = 0;
-      let ay = 0;
-      for (const e of windingUp) {
-        ax += px - centerX(e);
-        ay += py - centerY(e);
-      }
-      pressToward(input, ax, ay, 0.01);
-    } else if (kite && tick % 18 >= 9) {
+  const dist = (e: Entity) => Math.hypot(centerX(e) - px, centerY(e) - py);
+  const close = hostiles.filter((e) => dist(e) < 18);
+  // A telegraphed attack (a bite, or a boss's slam, which reaches further) is stepped out of.
+  const windingUp = hostiles.filter((e) => /^(windup|bite)/.test(e.fsm?.state ?? '') && dist(e) < (e.flags['boss'] ? 34 : 18));
+  const kite = close.length >= 2 || close.some((e) => e.type === 'brute' || e.flags['boss'] === true);
+  if (windingUp.length > 0 && !gem) {
+    // A telegraphed bite or slam: step out of its reach while still swinging (a hit interrupts a grunt's wind-up).
+    let ax = 0;
+    let ay = 0;
+    for (const e of windingUp) {
+      ax += px - centerX(e);
+      ay += py - centerY(e);
+    }
+    pressToward(input, ax, ay, 0.01);
+    input.action = true;
+  } else if (target && best <= reach && !gem) {
+    if (kite && tick % 18 >= 9) {
       let ax = 0;
       let ay = 0;
       for (const e of close) {
@@ -153,30 +160,45 @@ export const clearer: BotPolicy = (sim: Sim, tick, mem) => {
       input.right = sign > 0;
     }
   }
-  // Arrows: parry when one is about to arrive, dash sideways when one is closing and the dash is ready.
+  // Projectiles: the one that will pass closest soonest. About to land, it is parried (a swing destroys it); on its
+  // way, it is sidestepped across its path; dead on and close, a dash takes the player through it.
   let threat: Entity | null = null;
-  let threatDist = Infinity;
+  let threatT = Infinity;
+  let sideX = 0;
+  let sideY = 0;
   for (const e of sim.world.entities) {
     if (!e.alive || !e.isProjectile) continue;
-    const dx = px - centerX(e);
-    const dy = py - centerY(e);
-    const d = Math.hypot(dx, dy);
-    if (d < threatDist && dx * e.vx + dy * e.vy > 0) {
-      threat = e;
-      threatDist = d;
-    }
+    const rx = px - centerX(e);
+    const ry = py - centerY(e);
+    const v2 = e.vx * e.vx + e.vy * e.vy;
+    if (v2 < 1) continue;
+    const tc = (rx * e.vx + ry * e.vy) / v2;
+    if (tc <= 0 || tc > 0.6) continue;
+    const mx = rx - e.vx * tc;
+    const my = ry - e.vy * tc;
+    const miss = Math.hypot(mx, my);
+    if (miss > 8 || tc >= threatT) continue;
+    threat = e;
+    threatT = tc;
+    // Step to the side the miss already leans to (the left of its path when it is dead on).
+    const v = Math.sqrt(v2);
+    sideX = miss > 0.5 ? mx / miss : -e.vy / v;
+    sideY = miss > 0.5 ? my / miss : e.vx / v;
   }
-  if (threat && threatDist < 18) {
+  const threatDist = threat ? Math.hypot(centerX(threat) - px, centerY(threat) - py) : Infinity;
+  if (threat) {
     input.left = input.right = input.up = input.down = false;
-    pressToward(input, centerX(threat) - px, centerY(threat) - py, 0.01);
-    input.action = true;
+    if (threatDist < 16) {
+      pressToward(input, centerX(threat) - px, centerY(threat) - py, 0.01);
+      input.action = true;
+    } else pressToward(input, sideX, sideY, 0.01);
   }
   const lastDash = mem['lastDash'] ?? -100;
   if (tick - lastDash > 40) {
     const crowded = hostiles.filter((e) => Math.hypot(centerX(e) - px, centerY(e) - py) < 14).length >= 2;
-    if ((threat && threatDist < 30) || (p.hp <= 2 && crowded)) {
-      const ax = threat ? -threat.vy : px - (target ? centerX(target) : px);
-      const ay = threat ? threat.vx : py - (target ? centerY(target) : py);
+    if ((threat && threatT < 0.2 && threatDist >= 16) || (p.hp <= 2 && crowded)) {
+      const ax = threat ? sideX : px - (target ? centerX(target) : px);
+      const ay = threat ? sideY : py - (target ? centerY(target) : py);
       input.left = input.right = input.up = input.down = false;
       pressToward(input, ax, ay, 0.01);
       input.dash = true;

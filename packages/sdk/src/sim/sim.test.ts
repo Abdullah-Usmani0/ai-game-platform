@@ -4,7 +4,7 @@ import { CELESTE_CLASS } from './feel.js';
 import { moveBody } from './physics.js';
 import { Rng } from './rng.js';
 import { createSim, replay, type SimOptions } from './sim.js';
-import { defineSystem } from './system.js';
+import { defineSystem, type MenuSpec } from './system.js';
 import { Tilemap } from './tilemap.js';
 
 const level: LevelJson = {
@@ -187,5 +187,166 @@ describe('runtime tile changes', () => {
     sim.reset();
     expect(sim.map.kindAt(5, 4)).toBe('solid');
     expect(sim.map.version).toBe(0);
+  });
+});
+
+describe('in-game menus', () => {
+  const flat: LevelJson = { ...level, entities: [{ type: 'sleeper', x: 16, y: 5, props: {} }] };
+  // Wakes after half a second, so a test can see whether its timer ran while the world was frozen.
+  const sleeper: BehaviourFsm = {
+    version: 1,
+    id: 'sleeper',
+    designNotes: '',
+    initial: 'sleep',
+    states: { sleep: { onEnter: [], update: [], transitions: [{ to: 'awake', when: { kind: 'timer_elapsed', ms: 500 } }] }, awake: { onEnter: [], update: [], transitions: [] } },
+  };
+  const opener = (at: number, spec: Partial<MenuSpec> = {}) =>
+    defineSystem<null>({
+      id: 'opener',
+      init: () => null,
+      fixedUpdate(_s, _input, ctx) {
+        if (ctx.tick === at) ctx.openMenu({ id: 'boon', title: 'Choose a boon', options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B', disabled: true }, { id: 'c', label: 'C' }], ...spec });
+      },
+    });
+  const make = (at = 10, spec = {}) =>
+    createSim({ ...options, level: flat, systems: [mover, opener(at, spec)], entityDefs: [{ type: 'sleeper', w: 8, h: 8, hp: 1, fsm: 'sleeper' }], behaviours: [sleeper] });
+  const idle = { left: false, right: false, up: false, down: false, jump: false, dash: false, action: false, pause: false };
+  const tap = (sim: ReturnType<typeof make>, key: keyof typeof idle) => {
+    sim.step({ ...idle, [key]: true });
+    sim.step(idle);
+  };
+
+  it('freezes the world while open: the player does not move and the tick still counts', () => {
+    const sim = make();
+    sim.run([{ from: 0, to: 11, input: {} }], 11);
+    expect(sim.world.menu?.id).toBe('boon');
+    expect(sim.events.history().find((e) => e.name === 'menu_open')?.payload).toEqual({ menu: 'boon', options: ['a', 'b', 'c'] });
+    const x = sim.world.player.x;
+    sim.run([{ from: 11, to: 60, input: { right: true } }], 49);
+    expect(sim.world.player.x).toBe(x);
+    expect(sim.tick).toBe(60);
+    // Holding right moved the highlight once (one press), past the disabled option.
+    expect(sim.snapshot().menu).toEqual({ id: 'boon', selected: 2, options: ['a', 'b', 'c'] });
+  });
+
+  it('moves the highlight over disabled options, wraps, and picks only after the grace period with a fresh press', () => {
+    const sim = make();
+    sim.run([{ from: 0, to: 11, input: { action: true } }], 11);
+    // Held from before the menu opened: never a pick.
+    for (let i = 0; i < 30; i++) sim.step({ ...idle, action: true });
+    expect(sim.world.menu).not.toBeNull();
+    tap(sim, 'right');
+    expect(sim.world.menu?.selected).toBe(2);
+    tap(sim, 'right');
+    expect(sim.world.menu?.selected).toBe(0);
+    tap(sim, 'left');
+    expect(sim.world.menu?.selected).toBe(2);
+    tap(sim, 'action');
+    expect(sim.world.menu).toBeNull();
+    expect(sim.events.history().find((e) => e.name === 'menu_choose')?.payload).toEqual({ menu: 'boon', option: 'c', index: 2 });
+    expect(sim.snapshot().menu).toBeUndefined();
+  });
+
+  it('ignores a press inside the grace period', () => {
+    const sim = make();
+    sim.run([{ from: 0, to: 11, input: {} }], 11);
+    tap(sim, 'action');
+    expect(sim.world.menu).not.toBeNull();
+  });
+
+  it('holds behaviour timers while a menu is open', () => {
+    const wokeAt = (sim: ReturnType<typeof make>) => {
+      for (let t = 0; t < 400; t++) {
+        // Pick as soon as the grace period is over.
+        sim.step({ ...idle, action: sim.world.menu !== null && t % 2 === 0 && sim.tick - sim.world.menu.openedTick >= 18 });
+        if (sim.world.entities.find((e) => e.type === 'sleeper')?.fsm?.state === 'awake') return sim.tick;
+      }
+      return -1;
+    };
+    const plain = wokeAt(make(-1));
+    const menu = make(10);
+    const withMenu = wokeAt(menu);
+    const open = menu.events.history().find((e) => e.name === 'menu_open')!.tick;
+    const close = menu.events.history().find((e) => e.name === 'menu_choose')!.tick;
+    expect(plain).toBeGreaterThan(0);
+    expect(withMenu - plain).toBe(close - open);
+  });
+
+  it('a cancellable menu closes on dash with no option; one with nothing to pick is always cancellable', () => {
+    const shop = make(10, { cancellable: true });
+    shop.run([{ from: 0, to: 40, input: {} }], 40);
+    tap(shop, 'dash');
+    expect(shop.world.menu).toBeNull();
+    expect(shop.events.history().find((e) => e.name === 'menu_choose')?.payload).toEqual({ menu: 'boon', option: null, index: -1 });
+    const empty = make(10, { options: [{ id: 'x', label: 'X', disabled: true }] });
+    empty.run([{ from: 0, to: 40, input: {} }], 40);
+    expect(empty.world.menu?.cancellable).toBe(true);
+    tap(empty, 'action');
+    expect(empty.world.menu).not.toBeNull();
+    tap(empty, 'dash');
+    expect(empty.world.menu).toBeNull();
+  });
+
+  it('pausing holds behaviour timers too', () => {
+    const run = (pauseTicks: number) => {
+      const sim = make(-1);
+      // The sleeper's timer starts on the first world step; pause after it is running.
+      for (let i = 0; i < 5; i++) sim.step(idle);
+      if (pauseTicks > 0) {
+        sim.step({ ...idle, pause: true });
+        for (let i = 1; i < pauseTicks; i++) sim.step(idle);
+        sim.step({ ...idle, pause: true });
+      }
+      for (let t = 0; t < 400; t++) {
+        sim.step(idle);
+        if (sim.world.entities.find((e) => e.type === 'sleeper')?.fsm?.state === 'awake') return sim.tick;
+      }
+      return -1;
+    };
+    expect(run(50) - run(0)).toBe(50);
+  });
+
+  it('copies carried props onto the player before systems init', () => {
+    let seen: unknown = null;
+    const reader = defineSystem<null>({
+      id: 'reader',
+      init(ctx) {
+        seen = ctx.world.player.props['power'];
+        return null;
+      },
+      fixedUpdate() {},
+    });
+    const sim = createSim({ ...options, systems: [reader], carry: { power: 3 } });
+    expect(seen).toBe(3);
+    expect(sim.world.player.props['power']).toBe(3);
+    sim.reset();
+    expect(sim.world.player.props['power']).toBe(3);
+  });
+});
+
+describe('behaviour conditions', () => {
+  it('took_damage is false for an entity never hit, even on the first tick', () => {
+    const sentry: BehaviourFsm = {
+      version: 1,
+      id: 'sentry',
+      designNotes: '',
+      initial: 'calm',
+      states: { calm: { onEnter: [], update: [], transitions: [{ to: 'angry', when: { kind: 'took_damage' } }] }, angry: { onEnter: [], update: [], transitions: [] } },
+    };
+    // Hits the sentry once, on tick 6.
+    const striker = defineSystem<null>({
+      id: 'striker',
+      init: () => null,
+      fixedUpdate(_s, _input, ctx) {
+        const e = ctx.world.entities.find((x) => x.type === 'walker');
+        if (ctx.tick === 6 && e) ctx.damage(e, 1, null);
+      },
+    });
+    const sim = createSim({ ...options, systems: [striker], entityDefs: [{ type: 'walker', w: 8, h: 8, hp: 3, fsm: 'sentry' }], behaviours: [sentry] });
+    sim.run([], 5);
+    const e = sim.world.entities.find((x) => x.type === 'walker')!;
+    expect(e.fsm?.state).toBe('calm');
+    sim.run([], 2);
+    expect(e.fsm?.state).toBe('angry');
   });
 });

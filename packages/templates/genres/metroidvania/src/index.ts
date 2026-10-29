@@ -36,4 +36,5 @@ export const metroidvaniaRuntime: GenreRuntime = {
   defaultBehaviours: DEFAULT_BEHAVIOURS,
   defaultRules: [],
   collectibleTypes: COLLECTIBLE_TYPES,
+  feedbackExtras: [{ event: 'custom:door_open', channels: ['sfx', 'shake'] }],
 };

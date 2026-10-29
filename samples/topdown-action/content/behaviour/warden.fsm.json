@@ -1,0 +1,402 @@
+{
+  "version": 1,
+  "id": "warden",
+  "designNotes": "Boss: stalks; slams with a long wind-up up close (an area hit); fires ember rings at range; enrages below half health (faster, slams throw rings too). Never staggers.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk",
+          "when": {
+            "kind": "player_in_sight",
+            "px": 72
+          }
+        },
+        {
+          "to": "stalk",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "stalk": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 26
+        }
+      ],
+      "transitions": [
+        {
+          "to": "roar",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "hp_below",
+                "fraction": 0.5
+              },
+              {
+                "kind": "flag",
+                "name": "enraged",
+                "is": false
+              }
+            ]
+          }
+        },
+        {
+          "to": "windup",
+          "when": {
+            "kind": "player_within",
+            "px": 22
+          }
+        },
+        {
+          "to": "aim",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 2200
+          }
+        }
+      ]
+    },
+    "windup": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "windup"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:windup"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "slam",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 650
+          }
+        }
+      ]
+    },
+    "slam": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "slam"
+        },
+        {
+          "kind": "damage_player",
+          "amount": 2,
+          "radius": 24
+        },
+        {
+          "kind": "emit",
+          "event": "custom:slam"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 700
+          }
+        }
+      ]
+    },
+    "aim": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "aim"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:aim"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "volley",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 550
+          }
+        }
+      ]
+    },
+    "volley": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        },
+        {
+          "kind": "shoot_ring",
+          "projectile": "ember",
+          "count": 8,
+          "speed": 46,
+          "cooldownMs": 0
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 450
+          }
+        }
+      ]
+    },
+    "roar": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "windup"
+        },
+        {
+          "kind": "set_flag",
+          "name": "enraged",
+          "value": true
+        },
+        {
+          "kind": "emit",
+          "event": "custom:enrage"
+        },
+        {
+          "kind": "shoot_ring",
+          "projectile": "ember",
+          "count": 10,
+          "speed": 40,
+          "cooldownMs": 0
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 900
+          }
+        }
+      ]
+    },
+    "stalk2": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 34
+        }
+      ],
+      "transitions": [
+        {
+          "to": "windup2",
+          "when": {
+            "kind": "player_within",
+            "px": 24
+          }
+        },
+        {
+          "to": "aim2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 1500
+          }
+        }
+      ]
+    },
+    "windup2": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "windup"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:windup"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "slam2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 520
+          }
+        }
+      ]
+    },
+    "slam2": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "slam"
+        },
+        {
+          "kind": "damage_player",
+          "amount": 2,
+          "radius": 26
+        },
+        {
+          "kind": "shoot_ring",
+          "projectile": "ember",
+          "count": 8,
+          "speed": 30,
+          "cooldownMs": 0
+        },
+        {
+          "kind": "emit",
+          "event": "custom:slam"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 600
+          }
+        }
+      ]
+    },
+    "aim2": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "aim"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:aim"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "volley2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 450
+          }
+        }
+      ]
+    },
+    "volley2": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        },
+        {
+          "kind": "shoot_ring",
+          "projectile": "ember",
+          "count": 8,
+          "speed": 50,
+          "cooldownMs": 0
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 380
+          }
+        }
+      ]
+    }
+  }
+}

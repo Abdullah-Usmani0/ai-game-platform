@@ -100,6 +100,21 @@ export function measure(text: string): number {
   return Math.max(0, w - 1);
 }
 
+/** Greedy word wrap into lines no wider than `maxWidth` pixels at scale 1; a word wider than that gets a line of its own. */
+export function wrapText(text: string, maxWidth: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && measure(next) > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
 export interface TextOptions {
   color: RGB;
   /** Pixel size of one font pixel. */

@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import type { Entity } from '../sim/world.js';
+import type { Entity, Menu } from '../sim/world.js';
 import { sfxFor } from './art/audio.js';
 import { mix, toInt, type RGB } from './art/color.js';
-import { textImage } from './art/font.js';
+import { textImage, wrapText } from './art/font.js';
 import { artPalette, type ArtPalette, type OutlineMode } from './art/palette.js';
 import { PixelCanvas, hash2 } from './art/pixels.js';
 import { FLAG, PARTICLES, TORCH, paintClouds, paintGlow, paintNebula, paintParticle, paintPlanet, paintRidge, paintScanlines, paintShadow, paintSky, paintSkyOrb, paintStars, paintVignette, paintVoid } from './art/scenery.js';
@@ -34,6 +34,10 @@ const CHUNK_TILES = 64;
 const HUD_H = 14;
 /** How long the level name stays up after a level loads, in ticks. */
 const BANNER_TICKS = 110;
+/** Feedback sources that hit harder than an ordinary hit: a longer hitstop and a bigger shake. */
+const HEAVY_SOURCES = new Set(['custom:finisher', 'custom:slam', 'custom:enrage']);
+/** Height of the boss health band at the bottom of the screen. */
+const BOSS_H = 18;
 
 interface Sheet {
   key: string;
@@ -63,6 +67,8 @@ interface Particle {
   max: number;
   /** Fades out with its life (afterimages, glows and slashes fade; dust just ends). */
   fade: boolean;
+  /** The sim tick it has been moved up to: a particle born late in a long manual step ages from its own birth. */
+  at: number;
 }
 
 interface Layer {
@@ -102,6 +108,8 @@ export class MainScene extends Phaser.Scene {
   private overlayTex: Phaser.Textures.CanvasTexture | null = null;
   private overlayImg!: Phaser.GameObjects.Image;
   private overlaySig = '';
+  /** The open menu's id and highlight when last drawn, to click on a highlight change. */
+  private menuSeen = '';
   private fadeImg!: Phaser.GameObjects.Image;
   private bannerImg: Phaser.GameObjects.Image | null = null;
   private followTarget = { x: 0, y: 0 };
@@ -113,7 +121,16 @@ export class MainScene extends Phaser.Scene {
   private dashUntilTick = -1;
   private swingTick = -100;
   private lastGhostTick = -1;
-  private lastTick = 0;
+  /** Entity types the game marks as bosses (their bar, their death). */
+  private bossTypes = new Set<string>();
+  private bossTex: Phaser.Textures.CanvasTexture | null = null;
+  private bossImg!: Phaser.GameObjects.Image;
+  private bossSig = '';
+  /** The boss's health a moment ago: the bar shows what a hit took as a pale stretch that drains away. */
+  private bossTrail = { id: -1, hp: 0, seen: 0, hold: 0 };
+  /** Attack telegraphs on the floor (a boss's slam reach), following their entity while it winds up. */
+  private telegraphs: Array<{ img: Phaser.GameObjects.Image; entity: number; from: number }> = [];
+  private lastBossTick = 0;
   /** Decorations (flags, torches) keep moving on the title screen, when the sim is not ticking. */
   private animTick = 0;
   readonly sfx = new Sfx();
@@ -148,6 +165,9 @@ export class MainScene extends Phaser.Scene {
     }
     this.hudTex = this.textures.createCanvas('gg-hud', w, HUD_H);
     this.hudImg = this.add.image(0, 0, 'gg-hud').setOrigin(0).setScrollFactor(0).setDepth(10_000).setVisible(false);
+    this.bossTypes = new Set(this.controller.options.simOptions.entityDefs.filter((d) => d.boss).map((d) => d.type));
+    this.bossTex = this.textures.createCanvas('gg-boss', w, BOSS_H);
+    this.bossImg = this.add.image(0, h - BOSS_H, 'gg-boss').setOrigin(0).setScrollFactor(0).setDepth(10_000).setVisible(false);
     this.overlayTex = this.textures.createCanvas('gg-overlay', w, h);
     this.overlayImg = this.add.image(0, 0, 'gg-overlay').setOrigin(0).setScrollFactor(0).setDepth(11_000).setVisible(false);
     this.fadeImg = this.add.image(0, 0, 'gg-px').setOrigin(0).setScrollFactor(0).setDisplaySize(w, h).setTint(toInt(this.pal.ink)).setDepth(12_000).setAlpha(0);
@@ -254,6 +274,16 @@ export class MainScene extends Phaser.Scene {
       }
     }
     this.addCanvasTexture('gg-slash', slash);
+    // A dithered ring the size of a boss slam's reach (24 px), drawn on the floor while it winds up.
+    const tele = new PixelCanvas(51, 51);
+    for (let y = 0; y < 51; y++) {
+      for (let x = 0; x < 51; x++) {
+        const r = Math.hypot(x - 25, y - 25);
+        if (r <= 24.5 && r > 22.5) tele.set(x, y, [255, 255, 255]);
+        else if (r <= 22.5 && (x + y) % 3 === 0) tele.set(x, y, [255, 255, 255], 110);
+      }
+    }
+    this.addCanvasTexture('gg-telegraph', tele);
     const legend = legendFor(this.pal);
     for (const [key, tpl] of Object.entries(HUD_ICONS)) {
       const pc = new PixelCanvas(tpl[0]!.length + 2, tpl.length + 2);
@@ -304,6 +334,10 @@ export class MainScene extends Phaser.Scene {
     this.lastSeen.clear();
     for (const p of this.particles) this.release(p.img);
     this.particles = [];
+    for (const t of this.telegraphs) t.img.destroy();
+    this.telegraphs = [];
+    this.bossTrail = { id: -1, hp: 0, seen: 0, hold: 0 };
+    this.bossSig = '';
     this.bannerImg?.destroy();
     this.bannerImg = null;
   }
@@ -328,7 +362,6 @@ export class MainScene extends Phaser.Scene {
     this.followTarget.x = Math.round(p.x + p.w / 2);
     this.followTarget.y = Math.round(p.y + p.h / 2);
     cam.centerOn(this.followTarget.x, this.followTarget.y);
-    this.lastTick = sim.tick;
     this.buildBackdrop();
     this.buildTiles();
     this.buildDecor();
@@ -344,9 +377,10 @@ export class MainScene extends Phaser.Scene {
           // Shake and flash run on real time: a manually stepped game (bots, screenshots, thumbnails) skips them, so a
           // frame captured at a tick looks the same on every run instead of catching a flash from the steps before it.
           const realtime = this.controller.mode === 'realtime';
-          if (channel === 'shake' && maxShake > 0 && realtime) cam.shake(140, 0.0045 * maxShake);
-          else if (channel === 'flash' && realtime) cam.flash(80, ...this.pal.white);
-          else if (channel === 'hitstop') this.hitstopUntil = performance.now() + 60;
+          const heavy = HEAVY_SOURCES.has(String(ev.payload['source']));
+          if (channel === 'shake' && maxShake > 0 && realtime) cam.shake(heavy ? 220 : 140, (heavy ? 0.008 : 0.0045) * maxShake);
+          else if (channel === 'flash' && realtime) cam.flash(heavy ? 120 : 80, ...this.pal.white);
+          else if (channel === 'hitstop') this.hitstopUntil = performance.now() + (heavy ? 95 : 60);
           else if (channel === 'particle') this.celebrate(String(ev.payload['source']));
         } else if (ev.name === 'audio_play') {
           const source = String(ev.payload['sfx'] ?? ev.payload['source']);
@@ -562,9 +596,13 @@ export class MainScene extends Phaser.Scene {
       const flips = this.setting === 'side' ? true : s.sheet.directional ? s.dir === 'side' : this.setting !== 'space' && !e.pickup;
       s.img.setFlipX(flips && e.facing < 0);
       if (e.type === 'arrow') s.img.setRotation(Math.atan2(e.vy, e.vx));
-      const blink = e.isPlayer && e.invulnTicks > 0 && Math.floor(e.invulnTicks / 4) % 2 === 0;
+      // Invulnerable after a hit: blink. Not while dashing (the dash's own frames are its afterimages).
+      const blink = e.isPlayer && e.invulnTicks > 0 && !e.flags['dashing'] && Math.floor(e.invulnTicks / 4) % 2 === 0;
       s.img.setAlpha(blink ? 0.35 : 1);
+      // A wind-up or an aim flashes the attacker hot red: every attack is read before it lands.
+      const telegraph = !e.isPlayer && (e.anim === 'windup' || e.anim === 'aim') && tick % 8 < 3;
       if (e.tookDamageTick >= 0 && tick - e.tookDamageTick < 4) s.img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+      else if (telegraph) s.img.setTint(toInt(this.pal.danger[3])).setTintMode(Phaser.TintModes.FILL);
       else s.img.clearTint();
       const depth = ysort ? 100 + feet : e.isPlayer ? 120 : e.pickup ? 90 : e.isProjectile ? 115 : 110;
       s.img.setDepth(depth);
@@ -593,7 +631,7 @@ export class MainScene extends Phaser.Scene {
       this.lastGhostTick = tick;
       const ghost = this.take(ps.sheet.key, ps.img.frame.name);
       ghost.setOrigin(ps.img.originX, ps.img.originY).setFlipX(ps.img.flipX).setTint(toInt(this.pal.garment[3])).setDepth(ps.img.depth - 1);
-      this.particles.push({ img: ghost, x: ps.img.x, y: ps.img.y, vx: 0, vy: 0, ay: 0, life: 12, max: 12, fade: true });
+      this.particles.push({ img: ghost, x: ps.img.x, y: ps.img.y, vx: 0, vy: 0, ay: 0, life: 12, max: 12, fade: true, at: tick });
     }
   }
 
@@ -620,14 +658,19 @@ export class MainScene extends Phaser.Scene {
       const img = this.take(`gg-p-${shape}`).setTint(toInt(colors[i % colors.length]!)).setDepth(300);
       if (opts.add) img.setBlendMode(Phaser.BlendModes.ADD);
       const life = Math.max(2, Math.round((opts.life ?? 24) * (0.7 + r2 * 0.6)));
-      this.particles.push({ img, x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, ay: opts.ay ?? 0, life, max: life, fade: shape === 'ring' || opts.add === true });
+      this.particles.push({ img, x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, ay: opts.ay ?? 0, life, max: life, fade: shape === 'ring' || opts.add === true, at: tick });
     }
   }
 
-  /** Particles move in sim ticks, so they freeze with hitstop and a manually stepped game shows the same frame each run. */
-  private stepParticles(ticks: number): void {
+  /**
+   * Particles move in sim ticks, so they freeze with hitstop and a manually stepped game shows the same frame each run.
+   * Each ages from its own birth tick: a manual step of many ticks shows the effects of its last ticks, not none.
+   */
+  private stepParticles(tick: number): void {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i]!;
+      const ticks = Math.min(60, Math.max(0, tick - p.at));
+      p.at = tick;
       for (let t = 0; t < ticks; t++) {
         p.vy += p.ay;
         p.x += p.vx;
@@ -687,6 +730,17 @@ export class MainScene extends Phaser.Scene {
       case 'death': {
         const at = this.where(payload);
         const player = payload['entity'] === p.id;
+        if (this.bossTypes.has(String(payload['type']))) {
+          // A boss goes out big: rings, a fountain of embers and chunks, and the screen shakes and flashes (realtime).
+          for (const life of [12, 20, 28]) this.burst('ring', at.x, at.y, [life === 20 ? this.pal.accent[4] : this.pal.white], 1, { speed: 0, life, add: true });
+          this.burst('chunk', at.x, at.y, [this.pal.danger[3], this.pal.danger[1], this.pal.terrain[3], this.pal.white], 30, { speed: 2.2, ay: 0.06, life: 44 });
+          this.burst('spark', at.x, at.y, [this.pal.accent[4], this.pal.danger[4], this.pal.white], 24, { speed: 2.6, life: 30, add: true });
+          if (this.controller.mode === 'realtime') {
+            this.cameras.main.shake(400, 0.01 * this.style.camera.maxShake);
+            this.cameras.main.flash(160, ...this.pal.white);
+          }
+          break;
+        }
         const colors = player ? [this.pal.hero[4], this.pal.garment[3], this.pal.accent[3]] : [this.pal.danger[3], this.pal.danger[1], this.pal.white];
         this.burst('chunk', at.x, at.y, colors, player ? 16 : 9, { speed: player ? 1.8 : 1.3, ay: 0.06, life: player ? 34 : 22 });
         this.burst('ring', at.x, at.y, [this.pal.white], 1, { speed: 0, life: 10, add: true });
@@ -711,8 +765,41 @@ export class MainScene extends Phaser.Scene {
         this.swingTick = sim.tick;
         const dx = Number(payload['dirX'] ?? p.facing);
         const dy = Number(payload['dirY'] ?? 0);
-        const img = this.take('gg-slash').setRotation(Math.atan2(dy, dx)).setDepth(400).setTint(toInt(this.pal.white)).setBlendMode(Phaser.BlendModes.ADD);
-        this.particles.push({ img, x: p.x + p.w / 2 + dx * 4, y: p.y + p.h / 2 + dy * 4, vx: dx * 0.3, vy: dy * 0.3, ay: 0, life: 7, max: 7, fade: true });
+        // A finisher swings a bigger, golden arc; a dash-strike a long thrust.
+        const kind = String(payload['kind'] ?? 'swing');
+        const finisher = kind === 'finisher';
+        const lunge = kind === 'lunge';
+        const img = this.take('gg-slash')
+          .setRotation(Math.atan2(dy, dx))
+          .setDepth(400)
+          .setTint(toInt(finisher ? this.pal.accent[4] : this.pal.white))
+          .setBlendMode(Phaser.BlendModes.ADD)
+          .setScale(lunge ? 1.7 : finisher ? 1.5 : 1, lunge ? 0.8 : finisher ? 1.5 : 1);
+        const reach = lunge ? 9 : finisher ? 6 : 4;
+        const life = finisher || lunge ? 9 : 7;
+        this.particles.push({ img, x: p.x + p.w / 2 + dx * reach, y: p.y + p.h / 2 + dy * reach, vx: dx * 0.35, vy: dy * 0.35, ay: 0, life, max: life, fade: true, at: sim.tick });
+        if (finisher) this.burst('spark', p.x + p.w / 2 + dx * 10, p.y + p.h / 2 + dy * 10, [this.pal.accent[4], this.pal.white], 5, { speed: 1.4, angle: Math.atan2(dy, dx), spread: 1.4, life: 10, add: true });
+        break;
+      }
+      case 'custom:windup': {
+        const id = Number(payload['entity']);
+        const e = sim.world.entities.find((x) => x.id === id);
+        if (!e || !e.flags['boss']) break;
+        const img = this.add.image(0, 0, 'gg-telegraph').setTint(toInt(this.pal.danger[3])).setBlendMode(Phaser.BlendModes.ADD).setDepth(55).setAlpha(0);
+        this.telegraphs.push({ img, entity: id, from: sim.tick });
+        break;
+      }
+      case 'custom:slam': {
+        const at = this.where(payload);
+        this.burst('ring', at.x, at.y + 4, [this.pal.danger[4]], 1, { speed: 0, life: 12, add: true });
+        this.burst('chunk', at.x, at.y + 6, [this.pal.terrain[2], this.pal.terrain[3], this.pal.danger[2]], 14, { speed: 1.8, angle: -Math.PI / 2, spread: 3, ay: 0.08, life: 26 });
+        this.burst('dot', at.x, at.y + 8, dust, 10, { speed: 1.2, angle: 0, spread: Math.PI * 2, life: 18 });
+        break;
+      }
+      case 'custom:enrage': {
+        const at = this.where(payload);
+        this.burst('ring', at.x, at.y, [this.pal.danger[4]], 1, { speed: 0, life: 16, add: true });
+        this.burst('spark', at.x, at.y, [this.pal.danger[4], this.pal.accent[4], this.pal.white], 16, { speed: 2, life: 22, add: true });
         break;
       }
       case 'custom:fire':
@@ -723,6 +810,14 @@ export class MainScene extends Phaser.Scene {
         this.burst('dot', at.x, at.y + 6, dust, 4, { speed: 0.5, angle: Math.PI / 2, spread: 2.6, life: 14 });
         break;
       }
+      // Menus are UI: they always sound, whatever the feedback table says.
+      case 'menu_open':
+        this.sfx.play('menu_open');
+        break;
+      case 'menu_choose':
+        this.sfx.play(payload['option'] === null ? 'select' : 'menu_pick');
+        if (payload['option'] !== null) this.burst('star', feet.x, feet.y - 6, [this.pal.accent[4], this.pal.white, this.pal.accent[3]], 10, { speed: 1.3, angle: -Math.PI / 2, spread: 2.6, life: 26, add: true });
+        break;
       default:
         break;
     }
@@ -795,6 +890,72 @@ export class MainScene extends Phaser.Scene {
     this.hudImg.setVisible(true);
   }
 
+  /** Telegraphs grow brighter as the attack nears and go when the attacker stops winding up. */
+  private stepTelegraphs(tick: number): void {
+    for (let i = this.telegraphs.length - 1; i >= 0; i--) {
+      const t = this.telegraphs[i]!;
+      const e = this.controller.sim.world.entities.find((x) => x.id === t.entity);
+      if (!e || !e.alive || e.anim !== 'windup') {
+        t.img.destroy();
+        this.telegraphs.splice(i, 1);
+        continue;
+      }
+      const k = Math.min(1, (tick - t.from) / 36);
+      t.img
+        .setPosition(Math.round(e.x + e.w / 2), Math.round(e.y + e.h / 2))
+        .setAlpha(0.18 + 0.5 * k + (tick % 6 < 3 ? 0.08 : 0))
+        .setScale(0.9 + 0.1 * k);
+    }
+  }
+
+  /** The engaged boss's name and health along the bottom: what a hit took shows as a pale stretch that drains away. */
+  private drawBossBar(ticks: number): void {
+    const sim = this.controller.sim;
+    const p = sim.world.player;
+    const boss = sim.world.entities.find((e) => e.alive && e.flags['boss'] && e.fsm && e.fsm.state !== '' && e.fsm.state !== this.initialState(e.fsm.id));
+    if (!boss) {
+      this.bossImg.setVisible(false);
+      this.bossSig = '';
+      return;
+    }
+    const trail = this.bossTrail;
+    if (trail.id !== boss.id) Object.assign(trail, { id: boss.id, hp: boss.hp, seen: boss.hp, hold: 0 });
+    // A new hit holds the pale stretch a moment (consecutive hits keep holding it), then it drains to the health left.
+    if (boss.hp < trail.seen) trail.hold = 24;
+    trail.seen = boss.hp;
+    if (trail.hp <= boss.hp) trail.hp = boss.hp;
+    else if (trail.hold > 0) trail.hold -= ticks;
+    else trail.hp = Math.max(boss.hp, trail.hp - 0.35 * ticks);
+    const name = String(boss.props['name'] ?? boss.type).toUpperCase();
+    const sig = JSON.stringify([name, boss.hp, boss.maxHp, Math.round(trail.hp * 4), p.alive]);
+    if (sig === this.bossSig) return;
+    this.bossSig = sig;
+    const { w: cw } = this.style.canvas;
+    const pal = this.pal;
+    const pc = new PixelCanvas(cw, BOSS_H);
+    const bw = Math.min(180, cw - 80);
+    const bx = Math.round((cw - bw) / 2);
+    const by = 11;
+    const label = this.text(name, pal.white);
+    pc.blit(label, Math.round((cw - label.w) / 2), 0);
+    pc.fillRect(bx - 1, by - 1, bw + 2, 6, pal.ink);
+    pc.fillRect(bx, by, bw, 4, mix(pal.ink, pal.danger[0], 0.6));
+    const fill = Math.round((bw * Math.max(0, boss.hp)) / boss.maxHp);
+    const lost = Math.round((bw * Math.max(0, trail.hp)) / boss.maxHp);
+    if (lost > fill) pc.fillRect(bx + fill, by, lost - fill, 4, mix(pal.white, pal.danger[3], 0.35));
+    pc.fillRect(bx, by, fill, 4, pal.danger[2]);
+    pc.fillRect(bx, by, fill, 1, pal.danger[4]);
+    pc.fillRect(bx, by + 3, fill, 1, pal.danger[1]);
+    // Notches at each quarter, and a brighter one at half health (where the boss enrages).
+    for (const q of [0.25, 0.5, 0.75]) pc.fillRect(bx + Math.round(bw * q), by, 1, 4, q === 0.5 ? pal.accent[3] : pal.ink, q === 0.5 ? 255 : 160);
+    this.repaint(this.bossTex, pc);
+    this.bossImg.setVisible(true);
+  }
+
+  private initialState(fsmId: string): string {
+    return this.controller.options.simOptions.behaviours?.find((b) => b.id === fsmId)?.initial ?? '';
+  }
+
   private showBanner(): void {
     const name = (this.controller.level.name ?? '').toUpperCase();
     const levels = this.controller.options.levels.length;
@@ -818,6 +979,11 @@ export class MainScene extends Phaser.Scene {
   private drawOverlay(): void {
     const scene = this.controller.scene;
     const w = this.controller.sim.world;
+    if (scene === 'play' && w.menu) {
+      this.drawMenu(w.menu);
+      return;
+    }
+    this.menuSeen = '';
     const blink = Math.floor(performance.now() / 500) % 2 === 0;
     const title = (this.style.title ?? '').toUpperCase();
     const lines: Array<{ text: string; scale: number; color: RGB; gap?: number }> = [];
@@ -862,6 +1028,94 @@ export class MainScene extends Phaser.Scene {
     this.overlayImg.setVisible(true);
   }
 
+  private drawMenu(menu: Menu): void {
+    const seen = `${menu.id}|${menu.openedTick}`;
+    if (this.menuSeen.startsWith(`${seen}|`) && this.menuSeen !== `${seen}|${menu.selected}`) this.sfx.play('select');
+    this.menuSeen = `${seen}|${menu.selected}`;
+    const sig = JSON.stringify(['menu', menu]);
+    if (sig === this.overlaySig) return;
+    this.overlaySig = sig;
+    const { w: cw, h: ch } = this.style.canvas;
+    const pc = new PixelCanvas(cw, ch);
+    pc.fillRect(0, 0, cw, ch, this.pal.ink, 165);
+    this.paintMenu(pc, menu);
+    this.repaint(this.overlayTex, pc);
+    this.overlayImg.setVisible(true);
+  }
+
+  /** An in-game choice (boons, upgrades, a shop): the title, one card per option, the highlighted card lifted and lit. */
+  private paintMenu(pc: PixelCanvas, menu: Menu): void {
+    const { w: cw, h: ch } = this.style.canvas;
+    const pal = this.pal;
+    const title = this.text(menu.title.toUpperCase(), pal.accent[4], 2, mix(pal.accent[4], pal.accent[1], 0.4));
+    pc.blit(title, Math.round((cw - title.w) / 2), 12);
+    const n = menu.options.length;
+    const gap = 8;
+    const cardW = Math.min(88, Math.floor((cw - 24 - (n - 1) * gap) / n));
+    const cardH = Math.min(106, ch - 62);
+    const x0 = Math.round((cw - (n * cardW + (n - 1) * gap)) / 2);
+    const y0 = 38;
+    menu.options.forEach((opt, i) => {
+      const sel = i === menu.selected;
+      const x = x0 + i * (cardW + gap);
+      const y = y0 - (sel ? 3 : 0);
+      // The card: the game's warm mid tone, lighter at the top, a lit top edge and a dark lip.
+      const top = mix(pal.ink, pal.terrain[sel ? 2 : 1], sel ? 0.72 : 0.55);
+      const bottom = mix(pal.ink, pal.terrain[1], sel ? 0.4 : 0.28);
+      for (let r = 0; r < cardH; r++) pc.fillRect(x, y + r, cardW, 1, mix(top, bottom, r / cardH), 250);
+      const edge = sel ? pal.accent[3] : mix(pal.ink, pal.terrain[2], 0.8);
+      pc.fillRect(x, y, cardW, 1, edge);
+      pc.fillRect(x, y + cardH - 1, cardW, 1, edge);
+      pc.fillRect(x, y, 1, cardH, edge);
+      pc.fillRect(x + cardW - 1, y, 1, cardH, edge);
+      pc.fillRect(x + 1, y + 1, cardW - 2, 1, sel ? pal.accent[4] : mix(pal.ink, pal.terrain[3], 0.6));
+      pc.fillRect(x + 1, y + cardH - 2, cardW - 2, 1, pal.ink, 160);
+      if (sel) {
+        // Corner ticks outside the card, like a cursor.
+        for (const [cx, cy, dx, dy] of [[x - 2, y - 2, 1, 1], [x + cardW + 1, y - 2, -1, 1], [x - 2, y + cardH + 1, 1, -1], [x + cardW + 1, y + cardH + 1, -1, -1]] as const) {
+          pc.fillRect(Math.min(cx, cx + dx * 3), cy, 4, 1, pal.accent[4]);
+          pc.fillRect(cx, Math.min(cy, cy + dy * 3), 1, 4, pal.accent[4]);
+        }
+      }
+      // A medallion for the icon: an ink disc in a gold ring (brighter on the highlighted card).
+      const mx = x + Math.floor(cardW / 2);
+      const my = y + 18;
+      for (let dy = -13; dy <= 13; dy++) {
+        for (let dx = -13; dx <= 13; dx++) {
+          const r = Math.hypot(dx + 0.5, dy + 0.5);
+          if (r > 13) continue;
+          pc.set(mx + dx, my + dy, r > 11.5 ? (sel ? pal.accent[3] : pal.accent[1]) : r > 10.5 ? pal.ink : mix(pal.ink, pal.terrain[1], 0.35 - (dy / 13) * 0.15));
+        }
+      }
+      const icon = opt.icon ? this.icons.get(opt.icon) : undefined;
+      if (icon) pc.blitScaled(icon, mx - icon.w + 1, my - icon.h + 1, 2);
+      let ty = y + 36;
+      for (const line of wrapText(opt.label.toUpperCase(), cardW - 6).slice(0, 2)) {
+        const t = this.text(line, sel ? pal.white : pal.ui[3]);
+        pc.blit(t, x + Math.round((cardW - t.w) / 2), ty);
+        ty += 9;
+      }
+      pc.fillRect(x + 10, ty + 1, cardW - 20, 1, sel ? pal.accent[2] : mix(pal.ink, pal.terrain[3], 0.45));
+      ty += 5;
+      const rest = opt.cost !== undefined ? 3 : 4;
+      for (const line of wrapText((opt.detail ?? '').toUpperCase(), cardW - 8).slice(0, rest)) {
+        const t = this.text(line, sel ? pal.ui[3] : pal.ui[2]);
+        pc.blit(t, x + Math.round((cardW - t.w) / 2), ty);
+        ty += 9;
+      }
+      if (opt.cost !== undefined) {
+        const coin = this.icons.get('coin')!;
+        const price = this.text(String(opt.cost), opt.disabled ? pal.danger[3] : pal.accent[4]);
+        const px = x + Math.round((cardW - coin.w - price.w) / 2);
+        pc.blit(coin, px, y + cardH - 13);
+        pc.blit(price, px + coin.w, y + cardH - 13);
+      }
+      if (opt.disabled) pc.fillRect(x + 1, y + 1, cardW - 2, cardH - 2, pal.ink, 120);
+    });
+    const hint = this.text(`< > TO CHOOSE · ENTER TO TAKE${menu.cancellable ? ' · X TO LEAVE' : ''}`, pal.ui[2]);
+    pc.blit(hint, Math.round((cw - hint.w) / 2), Math.min(ch - 11, y0 + cardH + 6));
+  }
+
   // ---------------------------------------------------------------- frame
 
   override update(_time: number, delta: number): void {
@@ -878,8 +1132,7 @@ export class MainScene extends Phaser.Scene {
     this.followTarget.x = Math.round(p.x + p.w / 2);
     this.followTarget.y = Math.round(p.y + p.h / 2);
     this.syncEntities();
-    this.stepParticles(Math.min(60, Math.max(0, tick - this.lastTick)));
-    this.lastTick = tick;
+    this.stepParticles(tick);
     this.animTick = this.controller.mode === 'realtime' ? this.animTick + delta / (1000 / 60) : tick;
     const cam = this.cameras.main;
     for (const l of this.layers) {
@@ -898,8 +1151,15 @@ export class MainScene extends Phaser.Scene {
       d.img.setFrame(d.frames[Math.floor(((this.animTick + d.phase * 7) * this.fps.effects) / 60) % d.frames.length]!);
       d.glow?.setAlpha(0.3 + 0.08 * Math.sin(this.animTick / 5 + d.phase));
     }
-    if (this.controller.scene === 'play') this.drawHud();
-    else this.hudImg.setVisible(false);
+    this.stepTelegraphs(tick);
+    if (this.controller.scene === 'play') {
+      this.drawHud();
+      this.drawBossBar(Math.min(60, Math.max(0, tick - this.lastBossTick)));
+    } else {
+      this.hudImg.setVisible(false);
+      this.bossImg.setVisible(false);
+    }
+    this.lastBossTick = tick;
     this.updateIntro(tick);
     this.drawOverlay();
   }
@@ -922,6 +1182,9 @@ const HUD_ICONS: Record<string, readonly string[]> = {
   foot: ['.ww.', '.ww.', 'www.', 'www.', '.w..'],
   bolt: ['..bB', '.bB.', 'bBBb', '.bB.', 'bB..'],
   key: ['.bA..', 'b.aA.', '.aA..', '..AA.', '..Aa.'],
+  flame: ['..E..', '.eE..', '.eEe.', 'eEBEe', 'eBwBe', '.eBe.'],
+  sword: ['..w..', '..U..', '..U..', '..U..', 'bBBBb', '..q..', '..q..'],
+  hammer: ['tTTTt', 'tUUUt', 'tTTTt', '..q..', '..q..', '..q..'],
 };
 const HUD_KEY_ICONS: Record<string, string> = {
   coins: 'coin',
@@ -942,6 +1205,7 @@ const HUD_KEY_ICONS: Record<string, string> = {
   power: 'bolt',
   relics: 'gem',
   keys: 'key',
+  boons: 'flame',
 };
 
 export function createPhaserGame(controller: GameController, style: ViewStyle, parent: HTMLElement | string | undefined, onCreated: () => void): { game: Phaser.Game; scene: MainScene } {

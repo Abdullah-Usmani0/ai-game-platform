@@ -11,6 +11,8 @@ export const LeafCondition = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('timer_elapsed'), ms: z.int().min(0).max(60000) }),
   z.object({ kind: z.literal('player_within'), px: z.int().min(1).max(2000) }),
   z.object({ kind: z.literal('player_beyond'), px: z.int().min(1).max(2000) }),
+  /** Within `px` and nothing solid between the two centres: an enemy that wakes on sight, never through a wall. */
+  z.object({ kind: z.literal('player_in_sight'), px: z.int().min(1).max(2000) }),
   z.object({ kind: z.literal('hp_below'), fraction: z.number().min(0).max(1) }),
   z.object({ kind: z.literal('hit_wall') }),
   z.object({ kind: z.literal('at_ledge') }),
@@ -36,11 +38,14 @@ export const Action = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('jump'), vy: z.number().min(-1200).max(0) }),
   z.object({ kind: z.literal('set_velocity'), vx: z.number().min(-600).max(600), vy: z.number().min(-1200).max(1200) }),
   z.object({ kind: z.literal('shoot'), projectile: Id, speed: z.number().min(10).max(1200), cooldownMs: z.int().min(50).max(10000) }),
+  /** `count` projectiles evenly around the shooter, one aimed at the player; each ring turns half a step from the last. */
+  z.object({ kind: z.literal('shoot_ring'), projectile: Id, count: z.int().min(3).max(24), speed: z.number().min(10).max(600), cooldownMs: z.int().min(0).max(10000) }),
   z.object({ kind: z.literal('play_anim'), anim: Id }),
   z.object({ kind: z.literal('emit'), event: z.string().max(32) }),
   z.object({ kind: z.literal('set_flag'), name: Id, value: z.boolean() }),
   z.object({ kind: z.literal('turn_around') }),
-  z.object({ kind: z.literal('damage_player'), amount: z.int().min(0).max(100) }),
+  /** Hurts the player when touching, or when within `radius` px of the entity's centre (a slam). */
+  z.object({ kind: z.literal('damage_player'), amount: z.int().min(0).max(100), radius: z.int().min(1).max(200).optional() }),
   z.object({ kind: z.literal('despawn') }),
 ]);
 export type Action = z.infer<typeof Action>;

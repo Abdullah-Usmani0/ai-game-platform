@@ -2,13 +2,15 @@ import { movementTopdown, movementTopdownMeta, pickups, pickupsMeta, type GenreR
 import { DEFAULT_BEHAVIOURS, VOCAB } from './behaviours.js';
 import { COLLECTIBLE_TYPES, ENTITY_DEFS, PLAYER } from './entities.js';
 import { DEFAULT_FEEL, FEEL } from './feel.js';
+import { boons, meta as boonsMeta } from './systems/boons.js';
 import { meleeAttack, meta as meleeMeta } from './systems/melee-attack.js';
 import { meta as roomClearMeta, roomClear } from './systems/room-clear.js';
 
 export * from './feel.js';
 export * from './entities.js';
 export * from './behaviours.js';
-export { meleeAttack, roomClear, movementTopdown, pickups };
+export { BOONS, type Boon } from './systems/boons.js';
+export { meleeAttack, roomClear, movementTopdown, pickups, boons };
 
 export const topdownActionRuntime: GenreRuntime = {
   id: 'topdown-action',
@@ -19,9 +21,10 @@ export const topdownActionRuntime: GenreRuntime = {
     [meleeMeta.id]: { meta: meleeMeta as never, create: () => meleeAttack },
     [roomClearMeta.id]: { meta: roomClearMeta as never, create: () => roomClear },
     [pickupsMeta.id]: { meta: pickupsMeta as never, create: () => pickups },
+    [boonsMeta.id]: { meta: boonsMeta as never, create: () => boons },
   },
   requiredSystems: ['movement-topdown', 'melee-attack', 'room-clear'],
-  optionalSystems: ['pickups'],
+  optionalSystems: ['pickups', 'boons'],
   feelPresets: FEEL,
   defaultFeel: DEFAULT_FEEL,
   entityDefs: ENTITY_DEFS,
@@ -30,4 +33,10 @@ export const topdownActionRuntime: GenreRuntime = {
   defaultBehaviours: DEFAULT_BEHAVIOURS,
   defaultRules: [],
   collectibleTypes: COLLECTIBLE_TYPES,
+  paramDefaults: { 'movement-topdown': { dashInvuln: true } },
+  feedbackExtras: [
+    { event: 'custom:finisher', channels: ['hitstop', 'shake', 'sfx'] },
+    { event: 'custom:slam', channels: ['shake', 'sfx'] },
+    { event: 'custom:enrage', channels: ['shake', 'flash', 'sfx'] },
+  ],
 };

@@ -49,12 +49,39 @@ export interface EntityDef {
   projectile?: boolean;
   /** Placeholder render colour by palette role, for items that are neither enemies nor plain pickups (relics, doors). */
   tint?: EntityTint;
+  /** A boss: the renderer shows its health bar, and melee knockback barely moves it (sets flags.boss). */
+  boss?: boolean;
 }
 
 export interface WorldFlags {
   paused: boolean;
   gameOver: boolean;
   won: boolean;
+}
+
+/** One choice on an in-game menu: a boon, an upgrade, a shop item. */
+export interface MenuOption {
+  id: string;
+  label: string;
+  /** A short sentence under the label. */
+  detail?: string;
+  /** HUD icon drawn on the card: heart, bolt, star, coin, gem, clock, foot, skull, key... */
+  icon?: string;
+  /** Shown on the card as a price; what choosing it costs is up to the system that opened the menu. */
+  cost?: number;
+  /** Shown greyed out; the selection skips it and it cannot be chosen. */
+  disabled?: boolean;
+}
+
+/** An open menu. While one is open the world holds still: no system, entity or timer advances. */
+export interface Menu {
+  id: string;
+  title: string;
+  options: MenuOption[];
+  selected: number;
+  openedTick: number;
+  /** The dash key closes it without a choice. */
+  cancellable: boolean;
 }
 
 export interface World {
@@ -67,6 +94,8 @@ export interface World {
   score: number;
   deaths: number;
   checkpoint: { x: number; y: number };
+  /** The open menu, if any (opened by a system through ctx.openMenu). */
+  menu: Menu | null;
 }
 
 export function makeEntity(id: number, def: EntityDef, x: number, y: number): Entity {
@@ -92,7 +121,7 @@ export function makeEntity(id: number, def: EntityDef, x: number, y: number): En
     contactDamage: def.contactDamage ?? 0,
     pickup: def.pickup ?? false,
     anim: 'idle',
-    flags: {},
+    flags: def.boss ? { boss: true } : {},
     props: {},
     fsm: def.fsm ? { id: def.fsm, state: '', enteredTick: 0, cooldowns: {} } : null,
     invulnTicks: 0,

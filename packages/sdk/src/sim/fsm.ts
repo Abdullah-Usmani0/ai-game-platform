@@ -10,6 +10,22 @@ function distanceToPlayer(e: Entity, ctx: SimCtx): number {
   return Math.hypot(centerX(p) - centerX(e), centerY(p) - centerY(e));
 }
 
+/** True when no solid tile lies on the straight line between the entity's centre and the player's (tile steps). */
+export function inSight(e: Entity, ctx: SimCtx): boolean {
+  const p = ctx.world.player;
+  const ts = ctx.map.tileSize;
+  const x0 = centerX(e);
+  const y0 = centerY(e);
+  const dx = centerX(p) - x0;
+  const dy = centerY(p) - y0;
+  const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / (ts / 2));
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    if (ctx.map.kindAtPx(x0 + dx * t, y0 + dy * t) === 'solid') return false;
+  }
+  return true;
+}
+
 function atLedge(e: Entity, ctx: SimCtx): boolean {
   if (!e.grounded) return false;
   const aheadX = e.facing > 0 ? e.x + e.w + 1 : e.x - 1;
@@ -28,6 +44,8 @@ export function evalLeaf(c: LeafCondition, e: Entity, ctx: SimCtx): boolean {
       return distanceToPlayer(e, ctx) <= c.px;
     case 'player_beyond':
       return distanceToPlayer(e, ctx) > c.px;
+    case 'player_in_sight':
+      return distanceToPlayer(e, ctx) <= c.px && inSight(e, ctx);
     case 'hp_below':
       return e.maxHp > 0 && e.hp / e.maxHp < c.fraction;
     case 'hit_wall':
@@ -37,7 +55,8 @@ export function evalLeaf(c: LeafCondition, e: Entity, ctx: SimCtx): boolean {
     case 'grounded':
       return e.grounded;
     case 'took_damage':
-      return e.tookDamageTick >= ctx.tick - 1;
+      // Hit this tick or the last (never-hit entities hold -1, which must not read as a hit on tick 0).
+      return e.tookDamageTick >= 0 && e.tookDamageTick >= ctx.tick - 1;
     case 'flag':
       return (e.flags[c.name] ?? false) === c.is;
     case 'chance':
@@ -105,6 +124,27 @@ export function applyAction(a: Action, e: Entity, ctx: SimCtx): void {
       proj.facing = e.facing;
       return;
     }
+    case 'shoot_ring': {
+      if (!e.fsm) return;
+      const key = `ring:${a.projectile}`;
+      if (ctx.tick < (e.fsm.cooldowns[key] ?? -1)) return;
+      e.fsm.cooldowns[key] = ctx.tick + Math.ceil(a.cooldownMs / TICK_MS);
+      // One projectile points at the player; every other ring is turned half a step, so standing still never works twice.
+      const rings = Number(e.props['rings'] ?? 0);
+      e.props['rings'] = rings + 1;
+      const step = (Math.PI * 2) / a.count;
+      const aim = Math.atan2(centerY(p) - centerY(e), centerX(p) - centerX(e)) + (rings % 2) * (step / 2);
+      for (let i = 0; i < a.count; i++) {
+        const ang = aim + i * step;
+        const dx = Math.cos(ang);
+        const dy = Math.sin(ang);
+        const proj = ctx.spawn(a.projectile, centerX(e) - 2 + dx * (e.w / 2 + 2), centerY(e) - 2 + dy * (e.h / 2 + 2));
+        proj.vx = dx * a.speed;
+        proj.vy = dy * a.speed;
+        proj.facing = dx >= 0 ? 1 : -1;
+      }
+      return;
+    }
     case 'play_anim':
       e.anim = a.anim;
       return;
@@ -118,7 +158,7 @@ export function applyAction(a: Action, e: Entity, ctx: SimCtx): void {
       e.facing = -e.facing;
       return;
     case 'damage_player':
-      if (overlaps(e, p)) ctx.damage(p, a.amount, e);
+      if (a.radius !== undefined ? distanceToPlayer(e, ctx) <= a.radius : overlaps(e, p)) ctx.damage(p, a.amount, e);
       return;
     case 'despawn':
       e.alive = false;

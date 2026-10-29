@@ -1,7 +1,9 @@
 import type { LevelJson } from '@gg/schemas';
 import { Tilemap } from '@gg/sdk';
 import { err, report, warn, type Issue, type ValidationReport } from '@gg/validators';
-import { HOSTILE_TYPES } from '../entities.js';
+import { BOSS_TYPES, ENTITY_DEFS, HOSTILE_TYPES } from '../entities.js';
+
+const HP: Record<string, number> = Object.fromEntries(ENTITY_DEFS.map((d) => [d.type, d.hp ?? 1]));
 
 /** Breadth-first distances (in tiles, 4-neighbour) from a tile over non-solid tiles. */
 export function tileDistances(map: Tilemap, from: { x: number; y: number }): Map<string, number> {
@@ -46,6 +48,17 @@ export function validateRooms(level: LevelJson): ValidationReport {
   if (hostiles.length === 0) issues.push(warn('no_combat', 'no hostiles: the exit opens immediately'));
   if (hostiles.length > 24) issues.push(err('too_many_enemies', `${hostiles.length} hostiles (maximum 24)`));
   for (const e of level.entities) if (map.kindAt(e.x, e.y) === 'solid') issues.push(err('entity_in_wall', `${e.type} at ${e.x},${e.y} is inside a wall`, { x: e.x, y: e.y }));
-  const hp = hostiles.reduce((a, e) => a + (e.type === 'brute' ? 6 : 2), 0);
-  return report(issues, { reachableTiles: dist.size, goalDistance: goalDistance ?? -1, enemies: hostiles.length, enemyHp: hp, archers: hostiles.filter((e) => e.type === 'archer').length });
+  // A boss is two tiles wide and tall (its feet on its tile, its body on the row above): it must stand clear.
+  const bosses = hostiles.filter((e) => BOSS_TYPES.includes(e.type));
+  for (const b of bosses) {
+    for (const [dx, dy] of [[0, 0], [1, 0], [0, -1], [1, -1]] as const) {
+      if (map.kindAt(b.x + dx, b.y + dy) === 'solid') {
+        issues.push(err('boss_in_wall', `${b.type} at ${b.x},${b.y} overlaps a wall`, { x: b.x, y: b.y }));
+        break;
+      }
+    }
+  }
+  if (bosses.length > 1) issues.push(err('too_many_bosses', `${bosses.length} bosses on one floor (maximum 1)`));
+  const hp = hostiles.reduce((a, e) => a + (HP[e.type] ?? 2), 0);
+  return report(issues, { reachableTiles: dist.size, goalDistance: goalDistance ?? -1, enemies: hostiles.length, enemyHp: hp, archers: hostiles.filter((e) => e.type === 'archer').length, bosses: bosses.length });
 }

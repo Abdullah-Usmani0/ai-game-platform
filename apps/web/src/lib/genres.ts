@@ -36,10 +36,10 @@ export const GENRES: GenreInfo[] = [
   {
     id: 'topdown-action',
     label: 'Top-down action',
-    hint: 'Rooms and doors, directional melee, dash, clear the floor to open the exit.',
+    hint: 'Rooms and doors, a three-hit combo, a dash you strike out of, a boon after every floor and a boss at the end.',
     image: '/genres/topdown-action.png',
-    controls: [MOVE, ['E / Enter', 'attack'], ['X / Shift', 'dash'], PAUSE],
-    examples: ['A torch-lit crypt: clear each hall of horned grunts and archers to unbar the stairs down.', 'A sunken temple where every room is a fight and the dash is your only shield.'],
+    controls: [MOVE, ['E / Enter', 'attack (third hit is a finisher)'], ['X / Shift', 'dash (dodges attacks)'], PAUSE],
+    examples: ['A torch-lit crypt: clear each hall of horned grunts and archers, pick a boon at every stair, then face the warden below.', 'A sunken temple where every room is a fight, the dash is your only shield and a drowned king waits at the bottom.'],
   },
   {
     id: 'shmup',

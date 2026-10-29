@@ -6,12 +6,16 @@ import { hashValue } from './hash.js';
 import { emptyInput, inputAtTick, inputEquals, type InputFrame, type InputSegment, type InputState } from './input.js';
 import { moveBody, overlaps } from './physics.js';
 import { Rng } from './rng.js';
-import type { SimCtx, SystemDef } from './system.js';
+import type { MenuSpec, SimCtx, SystemDef } from './system.js';
 import { Tilemap } from './tilemap.js';
-import { makeEntity, type Entity, type EntityDef, type World } from './world.js';
+import { makeEntity, type Entity, type EntityDef, type Menu, type World } from './world.js';
 
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
+/** A menu ignores picks for this many ticks after it opens (0.3 s), so a held or mashed key never chooses unread. */
+export const MENU_GRACE_TICKS = 18;
+/** Options a menu shows at most (four cards fit the smallest canvas). */
+export const MENU_MAX_OPTIONS = 4;
 
 export interface SimOptions {
   level: LevelJson;
@@ -28,6 +32,8 @@ export interface SimOptions {
   content?: Record<string, unknown>;
   /** 'platformer' (gravity, facing along x) or 'topdown' (no gravity, FSM moves on both axes). */
   movementMode?: 'platformer' | 'topdown';
+  /** Player props carried over from the previous level (boons, upgrades); copied onto the player before systems init. */
+  carry?: Readonly<Record<string, ParamValue>>;
 }
 
 export interface Sim {
@@ -56,6 +62,8 @@ class SimImpl implements Sim {
   private states = new Map<string, unknown>();
   private log: InputFrame[] = [];
   private lastInput: InputState = emptyInput();
+  /** The previous step's input: key presses are edges against it. */
+  private prevInput: InputState = emptyInput();
   private behaviours = new Map<string, BehaviourFsm>();
   private defs = new Map<string, EntityDef>();
   private unsubs: Array<() => void> = [];
@@ -75,12 +83,14 @@ class SimImpl implements Sim {
     this.tick = 0;
     this.log = [];
     this.lastInput = emptyInput();
+    this.prevInput = emptyInput();
     this.map = new Tilemap(this.options.level);
     const lvl = this.options.level;
     const ts = lvl.tileSize;
     const playerDef: EntityDef = { type: 'player', w: this.options.player.w, h: this.options.player.h, hp: this.options.player.hp };
     const player = makeEntity(1, playerDef, lvl.spawn.x * ts, lvl.spawn.y * ts + (ts - playerDef.h));
     player.isPlayer = true;
+    Object.assign(player.props, this.options.carry ?? {});
     this.world = {
       levelId: lvl.id,
       entities: [player],
@@ -91,6 +101,7 @@ class SimImpl implements Sim {
       score: 0,
       deaths: 0,
       checkpoint: { x: player.x, y: player.y },
+      menu: null,
     };
     for (const le of lvl.entities) {
       const def = this.defs.get(le.type);
@@ -141,7 +152,55 @@ class SimImpl implements Sim {
       damage: (target, amount, source) => this.damage(target, amount, source),
       respawnPlayer: () => this.respawnPlayer(),
       move: (e, dx, dy) => moveBody(this.map, e, dx, dy),
+      openMenu: (menu) => this.openMenu(menu),
     };
+  }
+
+  private openMenu(spec: MenuSpec): void {
+    const options = spec.options.slice(0, MENU_MAX_OPTIONS).map((o) => ({ ...o }));
+    if (options.length === 0) return;
+    const firstEnabled = options.findIndex((o) => !o.disabled);
+    let selected = Math.max(0, Math.min(options.length - 1, Math.floor(spec.selected ?? firstEnabled)));
+    if (options[selected]!.disabled && firstEnabled >= 0) selected = firstEnabled;
+    // A menu with nothing to pick can always be closed, so it never traps the player.
+    const cancellable = (spec.cancellable ?? false) || firstEnabled < 0;
+    this.world.menu = { id: spec.id, title: spec.title, options, selected, openedTick: this.tick, cancellable };
+    this.events.emit(this.tick, 'menu_open', { menu: spec.id, options: options.map((o) => o.id) });
+  }
+
+  /** Arrows move the highlight (skipping disabled options, wrapping); action or jump picks; dash cancels if allowed. */
+  private stepMenu(menu: Menu, input: InputState, prev: InputState): void {
+    const pressed = (k: keyof InputState) => input[k] && !prev[k];
+    const n = menu.options.length;
+    const dir = (pressed('right') || pressed('down') ? 1 : 0) - (pressed('left') || pressed('up') ? 1 : 0);
+    if (dir !== 0) {
+      for (let i = 1; i < n; i++) {
+        const j = (((menu.selected + dir * i) % n) + n) % n;
+        if (!menu.options[j]!.disabled) {
+          menu.selected = j;
+          break;
+        }
+      }
+    }
+    if (this.tick - menu.openedTick < MENU_GRACE_TICKS) return;
+    const opt = menu.options[menu.selected];
+    if ((pressed('action') || pressed('jump')) && opt && !opt.disabled) {
+      this.world.menu = null;
+      this.events.emit(this.tick, 'menu_choose', { menu: menu.id, option: opt.id, index: menu.selected });
+    } else if (menu.cancellable && pressed('dash')) {
+      this.world.menu = null;
+      this.events.emit(this.tick, 'menu_choose', { menu: menu.id, option: null, index: -1 });
+    }
+  }
+
+  /** While the world is frozen (paused, or a menu is open) behaviour timers, cooldowns and hurt flashes hold still. */
+  private holdTimers(): void {
+    for (const e of this.world.entities) {
+      if (e.tookDamageTick >= 0) e.tookDamageTick++;
+      if (!e.fsm) continue;
+      e.fsm.enteredTick++;
+      for (const k of Object.keys(e.fsm.cooldowns)) e.fsm.cooldowns[k] = (e.fsm.cooldowns[k] ?? 0) + 1;
+    }
   }
 
   spawn(type: string, x: number, y: number): Entity {
@@ -184,14 +243,24 @@ class SimImpl implements Sim {
       this.log.push({ tick: this.tick, input: { ...input } });
       this.lastInput = { ...input };
     }
+    const prev = this.prevInput;
+    this.prevInput = { ...input };
     const w = this.world;
+    // An open menu holds the world still, even on a won level: a boon picked as the floor ends still carries over.
+    if (w.menu) {
+      this.stepMenu(w.menu, input, prev);
+      this.dispatchEvents();
+      this.holdTimers();
+      this.tick++;
+      return;
+    }
     if (w.flags.won || w.flags.gameOver) {
       this.tick++;
       return;
     }
-    if (input.pause && !this.lastPause) w.flags.paused = !w.flags.paused;
-    this.lastPause = input.pause;
+    if (input.pause && !prev.pause) w.flags.paused = !w.flags.paused;
     if (w.flags.paused) {
+      this.holdTimers();
       this.tick++;
       return;
     }
@@ -201,7 +270,6 @@ class SimImpl implements Sim {
     for (const e of w.entities) if (e.invulnTicks > 0) e.invulnTicks--;
     this.tick++;
   }
-  private lastPause = false;
 
   private stepEntities(): void {
     const ctx = this.ctx('');
@@ -264,6 +332,8 @@ class SimImpl implements Sim {
       hud: { score: w.score, deaths: w.deaths, ...w.hud },
       rng: { seed: this.rng.seed, calls: this.rng.calls },
       flags: { ...w.flags },
+      // Only while a menu is open, so the hash of every state without one is what it always was.
+      ...(w.menu ? { menu: { id: w.menu.id, selected: w.menu.selected, options: w.menu.options.map((o) => o.id) } } : {}),
     };
     return { ...body, hash: hashValue(body) };
   }

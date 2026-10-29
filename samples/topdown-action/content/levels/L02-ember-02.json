@@ -146,9 +146,15 @@
       "props": {}
     },
     {
+      "type": "grunt",
+      "x": 12,
+      "y": 18,
+      "props": {}
+    },
+    {
       "type": "gem",
-      "x": 9,
-      "y": 8,
+      "x": 8,
+      "y": 4,
       "props": {}
     }
   ],
@@ -162,6 +168,6 @@
   },
   "ramp": {
     "segment": 1,
-    "difficulty": 0.45
+    "difficulty": 0.5
   }
 }

@@ -1,6 +1,9 @@
 [
   { "event": "dash", "channels": ["sfx"] },
   { "event": "hit", "channels": ["hitstop", "shake", "sfx"] },
+  { "event": "custom:finisher", "channels": ["hitstop", "shake", "sfx"] },
+  { "event": "custom:slam", "channels": ["shake", "sfx"] },
+  { "event": "custom:enrage", "channels": ["shake", "flash", "sfx"] },
   { "event": "death", "channels": ["flash", "sfx"] },
   { "event": "pickup", "channels": ["sfx"] },
   { "event": "level_complete", "channels": ["sfx", "particle"] }

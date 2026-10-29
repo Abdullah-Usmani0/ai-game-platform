@@ -25,13 +25,15 @@ export function slugify(s: string): string {
 /** Deterministic front matter from the request and the genre defaults: the dry run's output and the fallback. */
 export function draftFrontmatter(req: CreateRequest, g: GenreManifest): GddFrontmatter {
   const budget = g.scopeBudget[req.scopeTier];
-  const fsmIds = new Set(g.entityDefs.filter((e) => e.fsm).map((e) => e.fsm as string));
+  const fsmIds = new Set(g.entityDefs.filter((e) => e.fsm && !e.boss).map((e) => e.fsm as string));
+  // A genre with a boss puts one on the last level when the tier's budget allows it.
+  const bosses = g.entityDefs.some((e) => e.boss) ? Math.min(1, budget.bosses) : 0;
   return GddFrontmatter.parse({
     title: req.title ?? titleFromPrompt(req.prompt),
     genre: g.id,
     scopeTier: req.scopeTier,
     pillars: g.gddDefaults.pillars,
-    scope: { levels: budget.levels, enemies: Math.min(budget.enemies, Math.max(1, fsmIds.size)), items: Math.min(budget.items, Math.max(1, g.collectibleTypes.length)), bosses: 0 },
+    scope: { levels: budget.levels, enemies: Math.min(budget.enemies, Math.max(1, fsmIds.size)), items: Math.min(budget.items, Math.max(1, g.collectibleTypes.length)), bosses },
     targets: g.gddDefaults.targets,
     verbs: g.gddDefaults.verbs,
     feedbackEvents: g.gddDefaults.feedbackEvents,
@@ -40,7 +42,8 @@ export function draftFrontmatter(req: CreateRequest, g: GenreManifest): GddFront
 
 /** A GDD body with every required section, written from the concept and the front matter. */
 export function draftBody(req: CreateRequest, g: GenreManifest, fm: GddFrontmatter): string {
-  const enemies = g.entityDefs.filter((e) => e.fsm).map((e) => e.type).slice(0, fm.scope.enemies);
+  const enemies = g.entityDefs.filter((e) => e.fsm && !e.boss).map((e) => e.type).slice(0, fm.scope.enemies);
+  const bosses = g.entityDefs.filter((e) => e.boss).map((e) => e.type).slice(0, fm.scope.bosses);
   const items = g.collectibleTypes.slice(0, fm.scope.items);
   const feedback = fm.feedbackEvents.map((f) => `${f.event}: ${f.channels.join(', ')}`).join('; ');
   const levelsNoun = g.levelGrammar.kind === 'arena' ? 'arena' : 'level';
@@ -62,7 +65,7 @@ export function draftBody(req: CreateRequest, g: GenreManifest, fm: GddFrontmatt
       : `Difficulty rises monotonically across ${fm.scope.levels} ${levelsNoun}s from 0.15 to about 0.75: each ${levelsNoun} introduces one new element (a wider gap, a wall, a new enemy) and the first ten tiles of every ${levelsNoun} are safe. Target ${fm.targets.levelTimeS} seconds per ${levelsNoun}.`,
     '',
     '## Scope',
-    `${fm.scope.levels} ${levelsNoun}${fm.scope.levels === 1 ? '' : 's'}, ${fm.scope.enemies} enemy type${fm.scope.enemies === 1 ? '' : 's'}, ${fm.scope.items} item type${fm.scope.items === 1 ? '' : 's'}, ${fm.scope.bosses} bosses (tier ${fm.scopeTier}).`,
+    `${fm.scope.levels} ${levelsNoun}${fm.scope.levels === 1 ? '' : 's'}, ${fm.scope.enemies} enemy type${fm.scope.enemies === 1 ? '' : 's'}, ${fm.scope.items} item type${fm.scope.items === 1 ? '' : 's'}, ${fm.scope.bosses} boss${fm.scope.bosses === 1 ? '' : 'es'}${bosses.length ? ` (${bosses.join(', ')} on the last ${levelsNoun})` : ''} (tier ${fm.scopeTier}).`,
     '',
     '## Feedback',
     `Every listed event produces its channels at runtime through the feedback binder and the juice linter proves it: ${feedback}. Hit pause and shake stay inside the clamps; no silent first ten seconds.`,

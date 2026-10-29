@@ -100,12 +100,19 @@ export class PixelCanvas {
 
   /** Copies another canvas in, skipping its transparent pixels. */
   blit(src: PixelCanvas, dx: number, dy: number): void {
+    this.blitScaled(src, dx, dy, 1);
+  }
+
+  /** Copies another canvas in at a whole-number scale (each source pixel becomes a scale x scale block). */
+  blitScaled(src: PixelCanvas, dx: number, dy: number, scale: number): void {
+    const s = Math.max(1, Math.floor(scale));
     for (let y = 0; y < src.h; y++) {
       for (let x = 0; x < src.w; x++) {
         const i = (y * src.w + x) * 4;
         const a = src.data[i + 3]!;
         if (a === 0) continue;
-        this.set(dx + x, dy + y, [src.data[i]!, src.data[i + 1]!, src.data[i + 2]!], a);
+        const c: RGB = [src.data[i]!, src.data[i + 1]!, src.data[i + 2]!];
+        for (let by = 0; by < s; by++) for (let bx = 0; bx < s; bx++) this.set(dx + x * s + bx, dy + y * s + by, c, a);
       }
     }
   }

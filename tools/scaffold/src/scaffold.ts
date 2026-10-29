@@ -105,7 +105,10 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   write(files, out, 'design/gdd.md', opts.gddMarkdown.endsWith('\n') ? opts.gddMarkdown : `${opts.gddMarkdown}\n`);
   write(files, out, 'design/systems.json', JSON.stringify(opts.systems, null, 2) + '\n');
   write(files, out, 'design/style.json', JSON.stringify(opts.style, null, 2) + '\n');
-  write(files, out, 'design/feedback.json', JSON.stringify(gdd.data.feedbackEvents, null, 2) + '\n');
+  // The GDD's table binds the fixed events; the genre adds its own custom ones (a finisher, a boss slam, a door).
+  const feedback: FeedbackBinding[] = [...(gdd.data.feedbackEvents as FeedbackBinding[])];
+  for (const x of g.feedbackExtras ?? []) if (!feedback.some((f) => f.event === x.event)) feedback.push(x as FeedbackBinding);
+  write(files, out, 'design/feedback.json', JSON.stringify(feedback, null, 2) + '\n');
   write(files, out, 'design/deviations.md', F.DEVIATIONS_MD);
   write(files, out, 'assets/manifest.json', F.ASSET_MANIFEST);
   write(files, out, 'assets/requests.json', F.ASSET_REQUESTS);
@@ -120,7 +123,6 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   // Oracle: the static validator and the genre's solver bot (same wiring as the generated src/game.ts) must both pass.
   const solver = g.bots[g.solverBot];
   if (!solver) throw new Error(`genre ${g.id} names unknown solver bot '${g.solverBot}'`);
-  const feedback = gdd.data.feedbackEvents as FeedbackBinding[];
   const accept = (level: LevelJson, content: Record<string, unknown>): boolean => {
     if (!g.levelGrammar.validate(level, feel).ok) return false;
     const so = simOptionsFor(g, opts.systems, { behaviours: g.defaultBehaviours, content, feedback });
@@ -147,12 +149,14 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
     let s = seed;
     for (let i = 0; i < count; i++) {
       const difficulty = count === 1 ? 0.2 : 0.15 + (0.6 * i) / Math.max(3, count - 1);
-      let level = g.levelGrammar.generate({ seed: s, difficulty });
+      // A design with a boss gets it on the last level (generators without bosses ignore the parameter).
+      const boss = gdd.data.scope.bosses > 0 && count > 1 && i === count - 1 ? 1 : 0;
+      let level = g.levelGrammar.generate({ seed: s, difficulty, boss });
       let tries = 0;
       while (!accept(level, {})) {
         if (++tries >= 20) throw new Error(`no level seed from ${s - tries + 1} to ${s} passes the validator and the ${g.solverBot} bot at difficulty ${difficulty}`);
         s++;
-        level = g.levelGrammar.generate({ seed: s, difficulty });
+        level = g.levelGrammar.generate({ seed: s, difficulty, boss });
       }
       s++;
       const id = `l${String(i + 1).padStart(2, '0')}`;
@@ -186,7 +190,7 @@ export function defaultSystems(genreId: string, optional: string[] = []): System
     version: 1,
     genre: g.id,
     feelPreset: g.defaultFeel,
-    systems: ids.map((id) => ({ id, params: Object.fromEntries(Object.entries(g.systems[id]!.meta.params).map(([k, p]) => [k, p.default])) })),
+    systems: ids.map((id) => ({ id, params: { ...Object.fromEntries(Object.entries(g.systems[id]!.meta.params).map(([k, p]) => [k, p.default])), ...(g.paramDefaults?.[id] ?? {}) } })),
   };
 }
 

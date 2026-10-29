@@ -66,9 +66,10 @@ export function installTestSeam(
     inputLog: () => controller.sim.inputLog(),
     runScript: (segments, until) => controller.runScript(segments, until),
     replay: (segments, ticks, seed) =>
-      replay({ ...controller.options.simOptions, level: controller.level, seed: seed ?? controller.sim.rng.seed }, segments, ticks),
+      replay({ ...controller.options.simOptions, level: controller.level, seed: seed ?? controller.sim.rng.seed, carry: controller.carry }, segments, ticks),
     goto: (scene, params) => {
-      if (params?.level !== undefined) controller.loadLevel(params.level);
+      // A level reached by goto starts fresh, as the node-side bots and gates play it.
+      if (params?.level !== undefined) controller.loadLevel(params.level, controller.seed, {});
       controller.setScene(scene);
     },
     setSeed: (seed) => controller.reset(seed),

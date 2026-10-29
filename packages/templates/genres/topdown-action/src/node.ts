@@ -18,11 +18,11 @@ export const topdownAction: GenreManifest = {
   interviewFragment: read('./gdd/interview.md'),
   scopeBudget: {
     small: { levels: 2, enemies: 2, items: 1, bosses: 0 },
-    medium: { levels: 4, enemies: 3, items: 2, bosses: 0 },
-    large: { levels: 6, enemies: 3, items: 3, bosses: 1 },
+    medium: { levels: 4, enemies: 3, items: 2, bosses: 1 },
+    large: { levels: 6, enemies: 4, items: 3, bosses: 1 },
   },
   gddDefaults: {
-    pillars: ['every room is a readable fight', 'hits land heavy, dashes feel safe', 'clear the room to open the door'],
+    pillars: ['every room is a readable fight', 'hits land heavy, dashes feel safe', 'every floor makes the run stronger'],
     verbs: ['move', 'dash', 'attack'],
     feedbackEvents: [
       { event: 'dash', channels: ['sfx'] },

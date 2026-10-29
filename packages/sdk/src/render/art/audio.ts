@@ -46,6 +46,25 @@ export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
   level_start: arp([523, 784], 0.07, 0.1, 0.07, 'triangle'),
   level_complete: arp([523, 659, 784, 1047], 0.09, 0.16, 0.1),
   select: [{ wave: 'square', from: 660, to: 660, dur: 0.04, vol: 0.06 }],
+  // A finisher: the hit, a heavier crunch and a low thump under it.
+  finisher: [
+    { wave: 'noise', from: 2600, to: 220, dur: 0.14, vol: 0.18 },
+    { wave: 'square', from: 180, to: 55, dur: 0.16, vol: 0.12 },
+    { wave: 'triangle', from: 90, to: 40, dur: 0.2, vol: 0.2 },
+  ],
+  // A boss slam: a deep boom with rubble.
+  slam: [
+    { wave: 'triangle', from: 110, to: 32, dur: 0.42, vol: 0.24 },
+    { wave: 'noise', from: 900, to: 80, dur: 0.38, vol: 0.14 },
+  ],
+  // A boss's roar as it enrages: a falling sawtooth growl over noise.
+  roar: [
+    { wave: 'sawtooth', from: 220, to: 70, dur: 0.6, vol: 0.12 },
+    { wave: 'sawtooth', from: 165, to: 52, dur: 0.6, vol: 0.08, delay: 0.03 },
+    { wave: 'noise', from: 1500, to: 200, dur: 0.5, vol: 0.08 },
+  ],
+  menu_open: arp([392, 523, 659, 784], 0.05, 0.14, 0.07, 'triangle'),
+  menu_pick: [...arp([784, 1047, 1568], 0.045, 0.12, 0.09), { wave: 'noise', from: 6000, to: 2000, dur: 0.12, vol: 0.04 }],
 };
 
 /** What each gameplay event sounds like (the feedback table decides whether it sounds at all). */
@@ -63,6 +82,12 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return 'bump';
     case 'custom:door_open':
       return 'door';
+    case 'custom:finisher':
+      return 'finisher';
+    case 'custom:slam':
+      return 'slam';
+    case 'custom:enrage':
+      return 'roar';
     default:
       return SFX_PRESETS[event] ? event : null;
   }
