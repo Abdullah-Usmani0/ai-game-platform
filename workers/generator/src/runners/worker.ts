@@ -6,9 +6,10 @@ import { costUsd, generateArtifact, providerFor, type GenerateResult, type Usage
 import { BundleManifest, GddFrontmatter, LevelJson, StyleCard, SystemsJson, type BehaviourFsm } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from '@gg/scaffold';
-import { checkLevel, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
+import { checkLevel, levelPlan, plannedLevelCount, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
 import { CATALOG, genre as genreOf } from '@gg/templates/node';
-import { checkGdd, checkSystems, impact, parseFrontmatter, validateBehaviour } from '@gg/validators';
+import { sfxPresetFor } from '@gg/sdk/art';
+import { checkGdd, checkSystems, impact, parseFrontmatter, silentSfx, validateBehaviour } from '@gg/validators';
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
 import type { PairDraft, Runner, StageContext, StageOutcome } from './types.js';
 
@@ -127,6 +128,8 @@ const gdd: StageFn = async (ctx) => {
       const issues: string[] = [];
       if (v.genre !== g.id) issues.push(`genre must be '${g.id}'`);
       for (const k of ['levels', 'enemies', 'items', 'bosses'] as const) if (v.scope[k] > budget[k]) issues.push(`scope.${k} ${v.scope[k]} exceeds the tier budget ${budget[k]}`);
+      if (plannedLevelCount(g.levelGrammar.kind, v.scope.levels) !== v.scope.levels) issues.push(`scope.levels ${v.scope.levels}: this genre builds ${plannedLevelCount(g.levelGrammar.kind, v.scope.levels)}`);
+      for (const i of silentSfx(v, sfxPresetFor)) issues.push(i.message);
       if (v.scope.enemies > g.entityDefs.filter((e) => e.fsm).length) issues.push(`scope.enemies exceeds the ${g.entityDefs.filter((e) => e.fsm).length} enemy types this genre has`);
       const known = new Set(g.gddDefaults.verbs);
       if (!v.verbs.some((x) => known.has(x))) issues.push(`verbs must include at least one of ${g.gddDefaults.verbs.join(', ')}`);
@@ -337,12 +340,11 @@ const behaviour: StageFn = async (ctx) => {
 
 // ---------------------------------------------------------------- levels
 
-const ARENA_DIFFICULTY: Record<string, number> = { small: 0.25, medium: 0.35, large: 0.45 };
-
 /**
  * Model-free: sample seeds from the genre generator, keep the candidates that pass the static validator and the
- * solver bot (with this game's systems, behaviours and content), select the one whose solver time is closest to
- * the GDD target. This is the data-tier sample -> verify -> select loop with the generator as the sampler.
+ * solver bot (with this game's systems, behaviours and content, at the seed the level is played with), select the one
+ * whose solver time is closest to the GDD target. This is the data-tier sample -> verify -> select loop with the
+ * generator as the sampler. The shared level plan sets the count, the ramp and the boss floor.
  */
 const levels: StageFn = async (ctx) => {
   const t0 = Date.now();
@@ -361,23 +363,25 @@ const levels: StageFn = async (ctx) => {
   const baseSeed = (ctx.request?.seed ?? 1) * 1000 + (ctx.attempt - 1) * 100;
   const targetTicks = Math.round(fm.targets.levelTimeS * 60 * 0.6);
 
-  const oracle = (level: LevelJson, content: Record<string, unknown>): { ok: boolean; ticks: number } => {
+  const oracle = (level: LevelJson, content: Record<string, unknown>, playSeed: number): { ok: boolean; ticks: number } => {
     if (!g.levelGrammar.validate(level, feel).ok) return { ok: false, ticks: 0 };
     const so = simOptionsFor(g, sys, { behaviours, content, feedback });
-    const r = runBot(createSim({ ...so, level, seed: 1 }), solver, 90 * 60);
+    const r = runBot(createSim({ ...so, level, seed: playSeed }), solver, 90 * 60);
     return { ok: r.completed, ticks: r.ticks };
   };
+  const plan = levelPlan(g.levelGrammar.kind, { levels: fm.scope.levels, bosses: fm.scope.bosses, tier: fm.scopeTier });
 
   const written: string[] = [];
   const tried: string[] = [];
   if (g.levelGrammar.kind === 'arena') {
-    const difficulty = ARENA_DIFFICULTY[fm.scopeTier] ?? 0.25;
+    const slot = plan[0]!;
+    const difficulty = slot.difficulty;
     let best: { level: LevelJson; content: Record<string, unknown>; dist: number } | null = null;
     for (let s = baseSeed; s < baseSeed + kSeeds * 2 && !best; s++) {
       const params: LevelGenParams = { seed: s, difficulty };
       const level = g.levelGrammar.generate(params);
       const content = g.extraContent?.(params) ?? {};
-      const r = oracle(level, content);
+      const r = oracle(level, content, slot.seed);
       tried.push(`${s}:${r.ok ? 'ok' : 'x'}`);
       if (r.ok) best = { level: { ...level, id: 'arena', name: 'Arena', ramp: { segment: 0, difficulty } }, content, dist: 0 };
     }
@@ -387,15 +391,11 @@ const levels: StageFn = async (ctx) => {
     for (const [key, value] of Object.entries(best.content)) writeJson(join(ctx.gameDir, 'content', `${key}.json`), value);
     written.push('arena');
   } else {
-    const count = Math.max(1, Math.min(fm.scope.levels, 10));
     const targets = new Set((ctx.route?.targets ?? []).filter((t) => /^l\d{2}$/.test(t)));
     const existing = new Map(listJson(levelsDir).map((f) => [readJson<LevelJson>(f).id, f]));
     const content = extraContentOf(ctx.gameDir);
     const out: Array<{ file: string; level: LevelJson }> = [];
-    for (let i = 0; i < count; i++) {
-      const id = `l${String(i + 1).padStart(2, '0')}`;
-      // Ramp from 0.15 in steps of at most 0.2 per level (0.75 is reached from four levels up).
-      const difficulty = Math.round((count === 1 ? 0.25 : 0.15 + (0.6 * i) / Math.max(3, count - 1)) * 100) / 100;
+    for (const { index: i, id, difficulty, boss, seed: playSeed } of plan) {
       if (targets.size && !targets.has(id) && existing.has(id)) {
         out.push({ file: `L${String(i + 1).padStart(2, '0')}-${id}.json`, level: readJson<LevelJson>(existing.get(id)!) });
         continue;
@@ -404,8 +404,8 @@ const levels: StageFn = async (ctx) => {
       for (let round = 0; round < 4 && !best; round++) {
         const from = baseSeed + i * 50 + round * kSeeds;
         for (let s = from; s < from + kSeeds; s++) {
-          const level = g.levelGrammar.generate({ seed: s, difficulty });
-          const r = oracle(level, content);
+          const level = g.levelGrammar.generate({ seed: s, difficulty, boss });
+          const r = oracle(level, content, playSeed);
           tried.push(`${id}@${s}:${r.ok ? r.ticks : 'x'}`);
           if (!r.ok) continue;
           const dist = Math.abs(r.ticks - targetTicks);

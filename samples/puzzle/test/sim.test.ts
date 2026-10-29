@@ -1,5 +1,5 @@
 import { LevelJson } from '@gg/schemas';
-import { createSim } from '@gg/sdk';
+import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import { runBot } from '@gg/template-core';
 import { BOTS, validatePuzzle } from '@gg/template-puzzle/node';
 import { describe, expect, it } from 'vitest';
@@ -17,8 +17,8 @@ describe('puzzle sample', () => {
     expect(pushes).toEqual([...pushes].sort((a, b) => a - b));
   });
   it('the solver bot finishes every board with feedback on each push; chaos does not', () => {
-    for (const level of LEVELS) {
-      const r = runBot(createSim({ ...SIM_OPTIONS, level, seed: 1 }), BOTS['solver']!, 60 * 60);
+    for (const [i, level] of LEVELS.entries()) {
+      const r = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), BOTS['solver']!, 60 * 60);
       expect(r.completed, `${level.id} not completed (ticks=${r.ticks})`).toBe(true);
       expect(r.events['feedback']).toBeGreaterThan(0);
     }

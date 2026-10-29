@@ -1,5 +1,5 @@
 import { BehaviourFsm, LevelJson, type ParamValue } from '@gg/schemas';
-import { createSim } from '@gg/sdk';
+import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import { runBot } from '@gg/template-core';
 import { BOTS } from '@gg/template-topdown-action/node';
 import { describe, expect, it } from 'vitest';
@@ -16,14 +16,14 @@ describe('topdown-action sample', () => {
   });
 
   it('the clearer finishes every floor on its own, the warden included; the coward cannot leave the first', () => {
-    for (const level of LEVELS) {
-      const r = runBot(createSim({ ...SIM_OPTIONS, level, seed: 1 }), BOTS['clearer']!, 90 * 60);
+    for (const [i, level] of LEVELS.entries()) {
+      const r = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), BOTS['clearer']!, 90 * 60);
       expect(r.completed, `${level.id} not completed (ticks=${r.ticks} deaths=${r.deaths})`).toBe(true);
       expect(r.events['feedback']).toBeGreaterThan(0);
     }
     const lair = LEVELS[2]!;
     expect(lair.entities.filter((e) => e.type === 'warden')).toHaveLength(1);
-    const sim = createSim({ ...SIM_OPTIONS, level: lair, seed: 1 });
+    const sim = createSim({ ...SIM_OPTIONS, level: lair, seed: levelSeed(DEFAULT_SEED, 2) });
     runBot(sim, BOTS['clearer']!, 90 * 60);
     expect(sim.events.history().some((e) => e.name === 'death' && e.payload['type'] === 'warden')).toBe(true);
     // No boon after the boss: the run is over.
@@ -36,7 +36,7 @@ describe('topdown-action sample', () => {
     let carry: Record<string, ParamValue> = {};
     const taken: string[] = [];
     for (const [i, level] of LEVELS.entries()) {
-      const sim = createSim({ ...SIM_OPTIONS, level, seed: 1 + i, carry });
+      const sim = createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i), carry });
       const r = runBot(sim, BOTS['clearer']!, 90 * 60);
       expect(r.completed, `${level.id}`).toBe(true);
       for (const ev of sim.events.history()) if (ev.name === 'custom:boon') taken.push(String(ev.payload['boon']));

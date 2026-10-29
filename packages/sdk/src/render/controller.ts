@@ -1,6 +1,6 @@
 import type { LevelJson, ParamValue, StateSnapshot } from '@gg/schemas';
 import { emptyInput, inputAtTick, type InputSegment, type InputState } from '../sim/input.js';
-import { createSim, type Sim, type SimOptions } from '../sim/sim.js';
+import { createSim, levelSeed, type Sim, type SimOptions } from '../sim/sim.js';
 import { Driver, type RunMode } from './driver.js';
 import { Keyboard } from './keyboard.js';
 import { Metrics } from './metrics.js';
@@ -65,7 +65,7 @@ export class GameController {
   private makeSim(levelIndex: number, seed: number): Sim {
     const level = this.options.levels[levelIndex];
     if (!level) throw new Error(`level index ${levelIndex} out of range`);
-    return createSim({ ...this.options.simOptions, level, seed: seed + levelIndex, carry: this.carry });
+    return createSim({ ...this.options.simOptions, level, seed: levelSeed(seed, levelIndex), carry: this.carry });
   }
 
   private provideInput(tick: number): InputState {

@@ -464,6 +464,17 @@ export function goalCloseness(map: Tilemap, p: Entity): number {
   return Math.max(0, Math.min(1, 1 - d / start));
 }
 
+/** The seed a game plays with unless the page asks for another (the play page passes none). */
+export const DEFAULT_SEED = 1;
+
+/**
+ * The seed level `index` runs with when the game plays at `seed`: every level its own, the same on every retry. Every
+ * proof of a level (solver bots, the explorer, recorded runs) runs at the seed players get: levelSeed(DEFAULT_SEED, i).
+ */
+export function levelSeed(seed: number, index: number): number {
+  return seed + index;
+}
+
 export function createSim(options: SimOptions): Sim {
   return new SimImpl(options);
 }

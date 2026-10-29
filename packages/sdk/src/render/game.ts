@@ -1,5 +1,5 @@
 import type { LevelJson } from '@gg/schemas';
-import type { SimOptions } from '../sim/sim.js';
+import { DEFAULT_SEED, type SimOptions } from '../sim/sim.js';
 import { BridgeGuest } from './bridge-guest.js';
 import { GameController, type GameBuild } from './controller.js';
 import type { RunMode } from './driver.js';
@@ -38,7 +38,7 @@ export async function createGame(opts: GameOptions): Promise<GameHandle> {
   const init = await bridge.connect();
   const query = readQuery();
   const mode: RunMode = init ? (init.mode === 'test' ? 'manual' : 'realtime') : (query.mode ?? opts.defaultMode ?? 'realtime');
-  const seed = init?.seed ?? query.seed ?? opts.defaultSeed ?? 1;
+  const seed = init?.seed ?? query.seed ?? opts.defaultSeed ?? DEFAULT_SEED;
   const controller = new GameController({ levels: opts.levels, simOptions: opts.sim, seed, mode, build: opts.build });
   controller.keyboard.attach(window);
 

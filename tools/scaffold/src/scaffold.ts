@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { GddFrontmatter, type LevelJson, type StyleCard, type SystemsJson } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
-import { type GenreManifest, type LevelGenParams, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
+import { type GenreManifest, type LevelGenParams, levelPlan, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { CATALOG, genre as genreOf } from '@gg/templates/node';
 import { checkSystems, parseFrontmatter } from '@gg/validators';
 import * as F from './files.js';
@@ -117,53 +117,44 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   mkdirSync(join(out, 'content', 'levels'), { recursive: true });
   mkdirSync(join(out, 'reports'), { recursive: true });
 
-  // Content placeholders from the genre's generators, validated and ramped.
+  // Content placeholders from the genre's generators, as the shared level plan lays them out (count, ramp, boss floor).
   const levels: string[] = [];
   const feel = g.feelPresets[opts.systems.feelPreset] ?? g.feelPresets[g.defaultFeel]!;
-  // Oracle: the static validator and the genre's solver bot (same wiring as the generated src/game.ts) must both pass.
+  // Oracle: the static validator and the genre's solver bot (same wiring as the generated src/game.ts) must both pass,
+  // the bot playing at the seed the level gets in the game.
   const solver = g.bots[g.solverBot];
   if (!solver) throw new Error(`genre ${g.id} names unknown solver bot '${g.solverBot}'`);
-  const accept = (level: LevelJson, content: Record<string, unknown>): boolean => {
+  const accept = (level: LevelJson, content: Record<string, unknown>, playSeed: number): boolean => {
     if (!g.levelGrammar.validate(level, feel).ok) return false;
     const so = simOptionsFor(g, opts.systems, { behaviours: g.defaultBehaviours, content, feedback });
-    return runBot(createSim({ ...so, level, seed: 1 }), solver, 90 * 60).completed;
+    return runBot(createSim({ ...so, level, seed: playSeed }), solver, 90 * 60).completed;
   };
-  if (g.levelGrammar.kind === 'arena') {
-    let s = seed;
-    let params: LevelGenParams = { seed: s, difficulty: 0.25 };
+  const arena = g.levelGrammar.kind === 'arena';
+  const plan = levelPlan(g.levelGrammar.kind, { levels: opts.levels ?? gdd.data.scope.levels, bosses: gdd.data.scope.bosses, tier: gdd.data.scopeTier });
+  let s = seed;
+  for (const slot of plan) {
+    const paramsAt = (genSeed: number): LevelGenParams => (arena ? { seed: genSeed, difficulty: slot.difficulty } : { seed: genSeed, difficulty: slot.difficulty, boss: slot.boss });
+    let params = paramsAt(s);
     let level = g.levelGrammar.generate(params);
-    let content = g.extraContent?.(params) ?? {};
+    // Arena genres generate their content (waves) with the level; level-based genres ship none.
+    let content = arena ? (g.extraContent?.(params) ?? {}) : {};
     let tries = 0;
-    while (!accept(level, content)) {
-      if (++tries >= 20) throw new Error(`no arena seed from ${seed} to ${s} is completable by the ${g.solverBot} bot`);
-      params = { seed: ++s, difficulty: 0.25 };
+    while (!accept(level, content, slot.seed)) {
+      if (++tries >= 20) throw new Error(`no seed from ${s - tries + 1} to ${s} gives ${slot.id} a level that passes the validator and the ${g.solverBot} bot at difficulty ${slot.difficulty}`);
+      params = paramsAt(++s);
       level = g.levelGrammar.generate(params);
-      content = g.extraContent?.(params) ?? {};
+      content = arena ? (g.extraContent?.(params) ?? {}) : {};
     }
-    level = { ...level, id: 'arena', name: 'Arena' };
-    write(files, out, 'content/levels/L01-arena.json', JSON.stringify(level, null, 2) + '\n');
-    levels.push('arena');
-    for (const [key, value] of Object.entries(content)) write(files, out, `content/${key}.json`, JSON.stringify(value, null, 2) + '\n');
-  } else {
-    const count = Math.max(1, Math.min(opts.levels ?? gdd.data.scope.levels, 10));
-    let s = seed;
-    for (let i = 0; i < count; i++) {
-      const difficulty = count === 1 ? 0.2 : 0.15 + (0.6 * i) / Math.max(3, count - 1);
-      // A design with a boss gets it on the last level (generators without bosses ignore the parameter).
-      const boss = gdd.data.scope.bosses > 0 && count > 1 && i === count - 1 ? 1 : 0;
-      let level = g.levelGrammar.generate({ seed: s, difficulty, boss });
-      let tries = 0;
-      while (!accept(level, {})) {
-        if (++tries >= 20) throw new Error(`no level seed from ${s - tries + 1} to ${s} passes the validator and the ${g.solverBot} bot at difficulty ${difficulty}`);
-        s++;
-        level = g.levelGrammar.generate({ seed: s, difficulty, boss });
-      }
-      s++;
-      const id = `l${String(i + 1).padStart(2, '0')}`;
-      level = { ...level, id, name: `Level ${i + 1}`, ramp: { segment: i, difficulty: Math.round(difficulty * 100) / 100 } };
-      write(files, out, `content/levels/L${String(i + 1).padStart(2, '0')}-${id}.json`, JSON.stringify(level, null, 2) + '\n');
-      levels.push(id);
+    s++;
+    const n = String(slot.index + 1).padStart(2, '0');
+    if (arena) {
+      write(files, out, `content/levels/L${n}-arena.json`, JSON.stringify({ ...level, id: 'arena', name: 'Arena' }, null, 2) + '\n');
+      for (const [key, value] of Object.entries(content)) write(files, out, `content/${key}.json`, JSON.stringify(value, null, 2) + '\n');
+    } else {
+      level = { ...level, id: slot.id, name: `Level ${slot.index + 1}`, ramp: { segment: slot.index, difficulty: slot.difficulty } };
+      write(files, out, `content/levels/L${n}-${slot.id}.json`, JSON.stringify(level, null, 2) + '\n');
     }
+    levels.push(slot.id);
   }
   for (const b of g.defaultBehaviours) write(files, out, `content/behaviour/${b.id}.fsm.json`, JSON.stringify(b, null, 2) + '\n');
 

@@ -17,10 +17,11 @@ export const survivors: GenreManifest = {
   solverBot: survivorsCheck.solverBot,
   gddFragment: read('./gdd/fragment.md'),
   interviewFragment: read('./gdd/interview.md'),
+  // One arena whatever the tier (the arena grammar builds one): bigger tiers bring harder waves and more enemy and item types.
   scopeBudget: {
     small: { levels: 1, enemies: 2, items: 1, bosses: 0 },
-    medium: { levels: 2, enemies: 2, items: 2, bosses: 0 },
-    large: { levels: 3, enemies: 3, items: 3, bosses: 1 },
+    medium: { levels: 1, enemies: 2, items: 2, bosses: 0 },
+    large: { levels: 1, enemies: 3, items: 3, bosses: 1 },
   },
   gddDefaults: {
     pillars: ['constant forward pressure', 'every kill feeds the next', 'sixty seconds, no filler'],

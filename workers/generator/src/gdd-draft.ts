@@ -1,5 +1,5 @@
 import { GddFrontmatter, type CreateRequest } from '@gg/schemas';
-import type { GenreManifest } from '@gg/template-core';
+import { plannedLevelCount, type GenreManifest } from '@gg/template-core';
 
 /** A title from the first words of the prompt: "a tight cave platformer about..." -> "Tight Cave Platformer". */
 export function titleFromPrompt(prompt: string): string {
@@ -33,7 +33,7 @@ export function draftFrontmatter(req: CreateRequest, g: GenreManifest): GddFront
     genre: g.id,
     scopeTier: req.scopeTier,
     pillars: g.gddDefaults.pillars,
-    scope: { levels: budget.levels, enemies: Math.min(budget.enemies, Math.max(1, fsmIds.size)), items: Math.min(budget.items, Math.max(1, g.collectibleTypes.length)), bosses },
+    scope: { levels: plannedLevelCount(g.levelGrammar.kind, budget.levels), enemies: Math.min(budget.enemies, Math.max(1, fsmIds.size)), items: Math.min(budget.items, Math.max(1, g.collectibleTypes.length)), bosses },
     targets: g.gddDefaults.targets,
     verbs: g.gddDefaults.verbs,
     feedbackEvents: g.gddDefaults.feedbackEvents,
