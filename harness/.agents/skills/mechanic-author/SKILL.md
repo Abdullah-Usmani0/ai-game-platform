@@ -13,5 +13,5 @@ A system is pure data in, pure data out. Copy `examples/timed-switch.ts` or `exa
 5. Register it in `game/src/systems/index.ts` (`BESPOKE` array) and add `game/tests/unit/<id>.test.ts` that runs the sim in Node with a scripted input and asserts on state and event counts.
 6. `pnpm -C game typecheck && pnpm -C game lint && pnpm -C game test`.
 
-Forbidden (the linter blocks them): `phaser`, `window`, DOM, timers, `Math.random`, `Date`, `async`, classes, `this`, module-level `let`.
+Forbidden (the linter blocks them): `phaser`, `window`, DOM, timers, `Math.random`, `Date`, `async`, classes, `this`, module-level `let`, and writes into module-level objects from a function (keep state in the system state object).
 Keep systems under 150 lines; split otherwise. If a mechanic needs a new entity type, add it in the GDD scope first and ask for an `entityDefs` entry via `design/deviations.md`.

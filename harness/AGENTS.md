@@ -44,7 +44,7 @@ Edit jobs run one route (parameter, style, behaviour, content, code) and then th
 
 ## Non-negotiables (enforced by hooks and the gate, not by goodwill)
 
-- TypeScript only. Simulation code is GlueTS: no `Math.random`, `Date`, timers, `async`, DOM or `window`, no classes, no `this`, no module-level `let`.
+- TypeScript only. Simulation code is GlueTS: no `Math.random`, `Date`, timers, `async`, DOM or `window`, no classes, no `this`, no module-level `let`, no writes into module-level objects from functions (`TABLE.x = 1`, `CACHE.push(...)`).
 - Never import `phaser` or `@gg/sdk/render` from simulation code. Use the typed `@gg/sdk` System API: `defineSystem`, `ctx.rng`, `ctx.events`, `ctx.move`, `ctx.spawn`, `ctx.damage`.
 - Randomness only through `ctx.rng`; time only through `ctx.tick` and `ctx.dt`. Every gameplay event goes through `ctx.emit` using the fixed event table.
 - Levels and behaviour are data and must pass `pnpm validate`. Regenerate a failing level with a new seed; never hand-patch tiles.

@@ -146,22 +146,74 @@ const noEngineImport = {
   },
 };
 
+// Methods that change the object they are called on (arrays, maps, sets).
+const MUTATING_METHODS = new Set(['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse', 'fill', 'copyWithin', 'set', 'add', 'delete', 'clear']);
+const MUTATING_OBJECT_CALLS = new Set(['assign', 'defineProperty', 'defineProperties', 'setPrototypeOf']);
+const FUNCTIONS = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']);
+const TS_WRAPPERS = new Set(['TSAsExpression', 'TSNonNullExpression', 'TSSatisfiesExpression', 'TSTypeAssertion']);
+
+function insideFunction(node) {
+  for (let n = node.parent; n; n = n.parent) if (FUNCTIONS.has(n.type)) return true;
+  return false;
+}
+
+/** Up through casts and member accesses from a binding (`(X as T).a.b`): the outermost expression still inside X. */
+function reach(id) {
+  let n = id;
+  for (;;) {
+    const p = n.parent;
+    if (p && TS_WRAPPERS.has(p.type) && p.expression === n) n = p;
+    else if (p && p.type === 'MemberExpression' && p.object === n) n = p;
+    else return n;
+  }
+}
+
+/** How this reference to a module-level binding changes what the binding holds, or null when it only reads it. */
+function mutation(id) {
+  const top = reach(id);
+  const p = top.parent;
+  if (top !== id && top.type === 'MemberExpression') {
+    if (p.type === 'AssignmentExpression' && p.left === top) return 'assigns into';
+    if (p.type === 'UpdateExpression' && p.argument === top) return 'increments or decrements';
+    if (p.type === 'UnaryExpression' && p.operator === 'delete' && p.argument === top) return 'deletes from';
+    if (p.type === 'CallExpression' && p.callee === top && !top.computed && top.property.type === 'Identifier' && MUTATING_METHODS.has(top.property.name)) return `calls ${top.property.name}() on`;
+  }
+  if (p && p.type === 'CallExpression' && p.arguments[0] === top && p.callee.type === 'MemberExpression' && isIdentifier(p.callee.object, 'Object') && !p.callee.computed && MUTATING_OBJECT_CALLS.has(p.callee.property.name)) return `passes to Object.${p.callee.property.name}()`;
+  return null;
+}
+
 const noModuleState = {
   meta: {
     type: 'problem',
     docs: {
       description:
-        'Disallow module-level mutable bindings, classes and `this`; state lives in the system state object.',
+        'Disallow module-level mutable bindings, writes into module-level objects from functions, classes and `this`; state lives in the system state object.',
     },
     messages: {
       let: 'Module-level `{{kind}}` creates hidden mutable state. Keep state in the system state object.',
+      mutate:
+        'This {{how}} the module-level `{{name}}`: state kept at module level is shared by every sim (replays, bots, a second player) and survives a reset. Keep it in the system state object.',
       cls: 'Classes are not allowed in simulation code; use plain data and functions.',
       thisExpr: '`this` is not allowed in simulation code.',
     },
     schema: [],
   },
   create(context) {
+    const sourceCode = context.sourceCode;
     return {
+      // A const binding cannot be reassigned, but what it holds can be changed: inside a function (that is, while a sim
+      // runs) any write through a module-level binding is hidden state. Filling a table while the module loads is fine.
+      'Program:exit'(program) {
+        const global = sourceCode.getScope(program);
+        for (const scope of [global, ...global.childScopes.filter((c) => c.type === 'module')]) {
+          for (const variable of scope.variables) {
+            for (const ref of variable.references) {
+              const how = insideFunction(ref.identifier) ? mutation(ref.identifier) : null;
+              if (how) context.report({ node: ref.identifier, messageId: 'mutate', data: { how, name: variable.name } });
+            }
+          }
+        }
+      },
       VariableDeclaration(node) {
         if (node.parent && node.parent.type === 'Program' && node.kind !== 'const') {
           context.report({ node, messageId: 'let', data: { kind: node.kind } });
