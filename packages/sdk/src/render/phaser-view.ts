@@ -341,8 +341,11 @@ export class MainScene extends Phaser.Scene {
         this.lastEvent.set(ev.name, ev.payload);
         if (ev.name === 'feedback') {
           const channel = String(ev.payload['channel']);
-          if (channel === 'shake' && maxShake > 0) cam.shake(140, 0.0045 * maxShake);
-          else if (channel === 'flash') cam.flash(80, ...this.pal.white);
+          // Shake and flash run on real time: a manually stepped game (bots, screenshots, thumbnails) skips them, so a
+          // frame captured at a tick looks the same on every run instead of catching a flash from the steps before it.
+          const realtime = this.controller.mode === 'realtime';
+          if (channel === 'shake' && maxShake > 0 && realtime) cam.shake(140, 0.0045 * maxShake);
+          else if (channel === 'flash' && realtime) cam.flash(80, ...this.pal.white);
           else if (channel === 'hitstop') this.hitstopUntil = performance.now() + 60;
           else if (channel === 'particle') this.celebrate(String(ev.payload['source']));
         } else if (ev.name === 'audio_play') {

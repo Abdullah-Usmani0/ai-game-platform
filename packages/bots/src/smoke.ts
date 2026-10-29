@@ -57,6 +57,14 @@ async function runManual(url: string, script: InputSegment[], ticks: number, see
     if (outDir) {
       mkdirSync(outDir, { recursive: true });
       screenshotPath = join(outDir, `smoke-seed${seed}-tick${ticks}.png`);
+      // The screenshot becomes the version's thumbnail: a moment of play, not the win screen after the bot finished.
+      // The scripted run is deterministic, so replaying it to an earlier tick shows exactly what happened there.
+      const won = events.find((e) => e.name === 'level_complete')?.tick;
+      const shotTick = won === undefined ? ticks : Math.min(won - 10, Math.max(120, Math.round(won * 0.6)));
+      if (shotTick !== ticks && shotTick > 0) {
+        await s.runScript(script, shotTick);
+        await session.page.waitForTimeout(100);
+      }
       writeFileSync(screenshotPath, await s.screenshotPng());
     }
     return { manual, events, inPageReplay, readyMs, metrics, errors: [...session.consoleErrors, ...session.pageErrors], failures, screenshotPath };
