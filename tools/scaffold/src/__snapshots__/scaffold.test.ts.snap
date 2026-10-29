@@ -1,0 +1,4741 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`scaffold output is pinned for curated genres > metroidvania files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/behaviour/hopper.fsm.json": "{
+  "version": 1,
+  "id": "hopper",
+  "designNotes": "Waits, then hops toward the player in short bursts.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "hop",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 700
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "hop": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 60
+        },
+        {
+          "kind": "jump",
+          "vy": -120
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "wait",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 300
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/turret.fsm.json": "{
+  "version": 1,
+  "id": "turret",
+  "designNotes": "Stationary; fires a bolt at the player every second while they are in range.",
+  "initial": "idle",
+  "states": {
+    "idle": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "fire",
+          "when": {
+            "kind": "player_within",
+            "px": 96
+          }
+        }
+      ]
+    },
+    "fire": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bolt",
+          "speed": 90,
+          "cooldownMs": 1000
+        }
+      ],
+      "transitions": [
+        {
+          "to": "idle",
+          "when": {
+            "kind": "player_beyond",
+            "px": 128
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/walker.fsm.json": "{
+  "version": 1,
+  "id": "walker",
+  "designNotes": "Patrols its ledge; chases when the player comes close; gives up when the player gets away.",
+  "initial": "patrol",
+  "states": {
+    "patrol": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "walk"
+        }
+      ],
+      "update": [
+        {
+          "kind": "patrol",
+          "speed": 25
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "player_within",
+            "px": 48
+          }
+        }
+      ]
+    },
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 45
+        }
+      ],
+      "transitions": [
+        {
+          "to": "patrol",
+          "when": {
+            "kind": "player_beyond",
+            "px": 96
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/levels/L01-l01.json": "{
+  "version": 1,
+  "id": "l01",
+  "name": "Level 1",
+  "tileSize": 8,
+  "width": 70,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    "######################################################################",
+    "#........................................................#...........#",
+    "#........................................................#...........#",
+    "#........................................................#...........#",
+    "#........................................................#...........#",
+    "#........................................................#...........#",
+    "#........................................................#...........#",
+    "#........................................................#...........#",
+    "#........................................................#...........#",
+    "#........................................................#...........#",
+    "#..............................................##........#...........#",
+    "#..............................................##........#...........#",
+    "#..............................................##........#...........#",
+    "#..............................................##........#...........#",
+    "#..............................................##........#.........G.#",
+    "#.......................................##############################",
+    "#.......................................##############################",
+    "#.......................................##############################",
+    "#.......................................##############################",
+    "#..............S.........####...........##############################",
+    "######################################################################",
+    "######################################################################",
+    "######################################################################"
+  ],
+  "entities": [
+    {
+      "type": "wings",
+      "x": 4,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 7,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 12,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 27,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "walker",
+      "x": 36,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "key",
+      "x": 47,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 48,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "door",
+      "x": 57,
+      "y": 14,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 15,
+    "y": 19
+  },
+  "goal": {
+    "x": 67,
+    "y": 14
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.15
+  }
+}
+",
+  "content/levels/L02-l02.json": "{
+  "version": 1,
+  "id": "l02",
+  "name": "Level 2",
+  "tileSize": 8,
+  "width": 98,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    "##################################################################################################",
+    "#.............................................................#..................................#",
+    "#.............................................................#..................................#",
+    "#.............................................................#..................................#",
+    "#.............................................................#..................................#",
+    "#.............................................................#..................................#",
+    "#.............................................................#..................................#",
+    "#.............................................................#..................................#",
+    "#.............................................................#..................................#",
+    "#.............................................................#..................................#",
+    "#....................................................##.......#..................................#",
+    "#....................................................##.......#..................................#",
+    "#....................................................##.......#..................................#",
+    "#....................................................##.......#..................................#",
+    "#....................................................##.......#................................G.#",
+    "#...........................................############################................##########",
+    "#...........................................############################................##########",
+    "#...........................................############################................##########",
+    "#...........................................############################................##########",
+    "#..............S............................############################................##########",
+    "###############################..#######################################................##########",
+    "###############################..#######################################................##########",
+    "###############################^^#######################################^^^^^^^^^^^^^^^^##########"
+  ],
+  "entities": [
+    {
+      "type": "wings",
+      "x": 4,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 7,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 12,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "walker",
+      "x": 27,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "key",
+      "x": 53,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 54,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "door",
+      "x": 62,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "walker",
+      "x": 57,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "boots",
+      "x": 66,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 76,
+      "y": 10,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 80,
+      "y": 10,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 84,
+      "y": 10,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 15,
+    "y": 19
+  },
+  "goal": {
+    "x": 95,
+    "y": 14
+  },
+  "ramp": {
+    "segment": 1,
+    "difficulty": 0.35
+  }
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "jump",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "land",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "dash",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "hit",
+    "channels": [
+      "shake",
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "death",
+    "channels": [
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "pickup",
+    "channels": [
+      "sfx",
+      "particle",
+      "flash"
+    ]
+  },
+  {
+    "event": "checkpoint",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "custom:door_open",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"Undervault","genre":"metroidvania","scopeTier":"small","pillars":["every wall is a promise","a new ability changes the map","backtracking pays off"],"scope":{"levels":1,"enemies":2,"items":3,"bosses":0},"targets":{"sessionMin":6,"levelTimeS":60,"deathsPerLevel":3},"verbs":["run","jump","dash","stomp","explore"],"feedbackEvents":[{"event":"jump","channels":["sfx"]},{"event":"land","channels":["sfx"]},{"event":"dash","channels":["sfx","particle"]},{"event":"hit","channels":["shake","flash","sfx"]},{"event":"death","channels":["flash","sfx"]},{"event":"pickup","channels":["sfx","particle","flash"]},{"event":"checkpoint","channels":["sfx"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+A single cavern under a sealed vault. The way forward is a cliff too tall to climb, so the player turns back and finds a pair of wings in the dark behind the start. With the double jump the cliff falls, a key waits on a pillar top, a locked door gives way, and past it lie the boots. The last stretch is a long spike pit that only a double jump and a dash can cross.
+
+## Pillars
+1. Every wall is a promise: each obstacle the player cannot pass yet is visible before the relic that beats it.
+2. A new ability changes the map: the wings turn the cliff and the pillar into paths; the boots turn the pit into a bridge.
+3. Backtracking pays off: the first relic is behind the start, and every pickup moves the checkpoint forward.
+
+## Core loop
+30 seconds: walk right, meet the cliff, turn back and find the wings. 5 minutes: climb, take the key from the pillar, open the door, take the boots, cross the pit. Session: a few runs chasing a clean crossing with no falls.
+
+## Progression
+Wings, then the key and the door, then the boots and the pit. Abilities persist through deaths; each pickup moves the checkpoint.
+
+## Scope
+1 cavern, 2 enemy types (walker, hopper), 3 relics (wings, key, boots), no bosses.
+
+## Feedback
+Jumps and landings sound, the dash trails particles, hits shake and flash, relic pickups flash and sparkle, checkpoints chime, reaching the exit celebrates. See the front-matter table.
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "metroidvania",
+  "feelPreset": "celeste-class",
+  "systems": [
+    {
+      "id": "movement-metroidvania",
+      "params": {}
+    },
+    {
+      "id": "relics",
+      "params": {
+        "relicScore": 25
+      }
+    },
+    {
+      "id": "hazards",
+      "params": {
+        "respawnDelayTicks": 30
+      }
+    },
+    {
+      "id": "goal",
+      "params": {
+        "bonus": 10
+      }
+    },
+    {
+      "id": "pickups",
+      "params": {
+        "value": 1
+      }
+    },
+    {
+      "id": "combat-stomp",
+      "params": {
+        "bounceVy": -70,
+        "stompScore": 5
+      }
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pin metroidvania</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-metroidvania",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, LevelJson, SystemsJson } from '@gg/schemas';
+import { feedbackBinder, type FeedbackBinding, type SimOptions, type SystemDef } from '@gg/sdk';
+import { metroidvaniaRuntime } from '@gg/template-metroidvania';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+const SYSTEMS = systemsJson as unknown as SystemsJson;
+const runtime = metroidvaniaRuntime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob('../content/*.json', { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const BEHAVIOURS: BehaviourFsm[] = [...runtime.defaultBehaviours.filter((b) => !Object.values(behaviourFiles).some((f) => f.id === b.id)), ...sorted(behaviourFiles)];
+export const RULES: EcaRule[] = [...runtime.defaultRules, ...sorted(ruleFiles)];
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** Template systems selected in design/systems.json (in that order), then bespoke systems, then the feedback binder. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const templateSystems: SystemDef<any>[] = SYSTEMS.systems.map((s) => {
+  const mod = runtime.systems[s.id];
+  if (!mod) throw new Error(\`systems.json names unknown system '\${s.id}' for genre metroidvania\`);
+  return mod.create();
+});
+
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = {
+  feel: runtime.feelPresets[SYSTEMS.feelPreset] ?? runtime.feelPresets[runtime.defaultFeel]!,
+  systems: [...templateSystems, ...BESPOKE, feedbackBinder(FEEDBACK)],
+  entityDefs: runtime.entityDefs,
+  player: runtime.player,
+  behaviours: BEHAVIOURS,
+  rules: RULES,
+  params: Object.fromEntries(SYSTEMS.systems.map((s) => [s.id, s.params])),
+  content: CONTENT,
+  movementMode: runtime.movementMode,
+};
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-metroidvania', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'metroidvania',
+    title: 'Pin metroidvania',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', and list it here. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import { metroidvania } from '@gg/template-metroidvania/node';
+export const BOTS = metroidvania.bots;
+export const SOLVER_BOT = metroidvania.solverBot;
+",
+  "tests/unit/game.test.ts": "import { createSim } from '@gg/sdk';
+import { runBot } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+describe('metroidvania game', () => {
+  it('every level is completable by the solver bot', () => {
+    for (const level of LEVELS) {
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: 1 }), BOTS[SOLVER_BOT]!, 90 * 60);
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;
+
+exports[`scaffold output is pinned for curated genres > platformer files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/behaviour/hopper.fsm.json": "{
+  "version": 1,
+  "id": "hopper",
+  "designNotes": "Waits, then hops toward the player in short bursts.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "hop",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 700
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "hop": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 60
+        },
+        {
+          "kind": "jump",
+          "vy": -120
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "wait",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 300
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/turret.fsm.json": "{
+  "version": 1,
+  "id": "turret",
+  "designNotes": "Stationary; fires a bolt at the player every second while they are in range.",
+  "initial": "idle",
+  "states": {
+    "idle": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "fire",
+          "when": {
+            "kind": "player_within",
+            "px": 96
+          }
+        }
+      ]
+    },
+    "fire": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bolt",
+          "speed": 90,
+          "cooldownMs": 1000
+        }
+      ],
+      "transitions": [
+        {
+          "to": "idle",
+          "when": {
+            "kind": "player_beyond",
+            "px": 128
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/walker.fsm.json": "{
+  "version": 1,
+  "id": "walker",
+  "designNotes": "Patrols its ledge; chases when the player comes close; gives up when the player gets away.",
+  "initial": "patrol",
+  "states": {
+    "patrol": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "walk"
+        }
+      ],
+      "update": [
+        {
+          "kind": "patrol",
+          "speed": 25
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "player_within",
+            "px": 48
+          }
+        }
+      ]
+    },
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 45
+        }
+      ],
+      "transitions": [
+        {
+          "to": "patrol",
+          "when": {
+            "kind": "player_beyond",
+            "px": 96
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/levels/L01-l01.json": "{
+  "version": 1,
+  "id": "l01",
+  "name": "Level 1",
+  "tileSize": 8,
+  "width": 55,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".............................-----..-------............",
+    ".......................................................",
+    "..S...................####...........................G.",
+    "#######################################################",
+    "#######################################################",
+    "#######################################################"
+  ],
+  "entities": [
+    {
+      "type": "coin",
+      "x": 6,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "walker",
+      "x": 12,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "walker",
+      "x": 18,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 24,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 30,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 32,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 37,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 39,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 41,
+      "y": 15,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 2,
+    "y": 19
+  },
+  "goal": {
+    "x": 53,
+    "y": 19
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.15
+  }
+}
+",
+  "content/levels/L02-l02.json": "{
+  "version": 1,
+  "id": "l02",
+  "name": "Level 2",
+  "tileSize": 8,
+  "width": 65,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    "..........-------.......------...................................",
+    "...................#.............................................",
+    "..S................#..................####.....................G.",
+    "################################..#################..############",
+    "################################..#################..############",
+    "################################^^#################^^############"
+  ],
+  "entities": [
+    {
+      "type": "coin",
+      "x": 6,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 11,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 13,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 15,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 25,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 27,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "coin",
+      "x": 40,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "walker",
+      "x": 47,
+      "y": 19,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 2,
+    "y": 19
+  },
+  "goal": {
+    "x": 63,
+    "y": 19
+  },
+  "ramp": {
+    "segment": 1,
+    "difficulty": 0.35
+  }
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "jump",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "land",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "hit",
+    "channels": [
+      "shake",
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "death",
+    "channels": [
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "pickup",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"First Steps","genre":"platformer","scopeTier":"small","pillars":["tight, forgiving jumps","readable hazards at a glance","one short level that teaches by doing"],"scope":{"levels":1,"enemies":1,"items":1,"bosses":0},"targets":{"sessionMin":3,"levelTimeS":45,"deathsPerLevel":2},"verbs":["run","jump","dash","stomp"],"feedbackEvents":[{"event":"jump","channels":["sfx"]},{"event":"land","channels":["sfx"]},{"event":"hit","channels":["shake","flash","sfx"]},{"event":"death","channels":["flash","sfx"]},{"event":"pickup","channels":["sfx","particle"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+A single-screen-wide cave run. The player runs right, hops two-tile gaps with spikes at the bottom, clears a two-tile wall with a held jump, grabs coins from a one-way ledge and stomps a patrolling walker before reaching the exit. Everything the player needs is visible before it is needed.
+
+## Pillars
+1. Tight, forgiving jumps: Celeste-class constants with coyote time and jump buffering so the input always feels honoured.
+2. Readable hazards at a glance: spikes are only ever at the bottom of pits, walkers are the only moving threat.
+3. One short level that teaches by doing: gap, step, wall, ledge, enemy, exit, in that order.
+
+## Core loop
+30 seconds: run, jump a gap, land, collect. 5 minutes: clear the level, retry for all coins and no deaths. Session: a handful of attempts.
+
+## Progression
+One level with a gentle ramp: flat run, first gap, a one-tile step, a two-tile wall, a one-way ledge with coins, a second walker, the exit.
+
+## Scope
+1 level, 1 enemy type (walker), 1 item type (coin), no bosses.
+
+## Feedback
+Every jump and landing has a sound. Hits shake the camera, flash and play a sound. Death flashes. Pickups and the exit celebrate with sound and particles. See the front-matter table; the juice linter proves it at playtest time.
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "platformer",
+  "feelPreset": "celeste-class",
+  "systems": [
+    {
+      "id": "movement-platformer",
+      "params": {}
+    },
+    {
+      "id": "hazards",
+      "params": {
+        "respawnDelayTicks": 30
+      }
+    },
+    {
+      "id": "goal",
+      "params": {
+        "bonus": 10
+      }
+    },
+    {
+      "id": "pickups",
+      "params": {
+        "value": 1
+      }
+    },
+    {
+      "id": "combat-stomp",
+      "params": {
+        "bounceVy": -70,
+        "stompScore": 5
+      }
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pin platformer</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-platformer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, LevelJson, SystemsJson } from '@gg/schemas';
+import { feedbackBinder, type FeedbackBinding, type SimOptions, type SystemDef } from '@gg/sdk';
+import { platformerRuntime } from '@gg/template-platformer';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+const SYSTEMS = systemsJson as unknown as SystemsJson;
+const runtime = platformerRuntime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob('../content/*.json', { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const BEHAVIOURS: BehaviourFsm[] = [...runtime.defaultBehaviours.filter((b) => !Object.values(behaviourFiles).some((f) => f.id === b.id)), ...sorted(behaviourFiles)];
+export const RULES: EcaRule[] = [...runtime.defaultRules, ...sorted(ruleFiles)];
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** Template systems selected in design/systems.json (in that order), then bespoke systems, then the feedback binder. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const templateSystems: SystemDef<any>[] = SYSTEMS.systems.map((s) => {
+  const mod = runtime.systems[s.id];
+  if (!mod) throw new Error(\`systems.json names unknown system '\${s.id}' for genre platformer\`);
+  return mod.create();
+});
+
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = {
+  feel: runtime.feelPresets[SYSTEMS.feelPreset] ?? runtime.feelPresets[runtime.defaultFeel]!,
+  systems: [...templateSystems, ...BESPOKE, feedbackBinder(FEEDBACK)],
+  entityDefs: runtime.entityDefs,
+  player: runtime.player,
+  behaviours: BEHAVIOURS,
+  rules: RULES,
+  params: Object.fromEntries(SYSTEMS.systems.map((s) => [s.id, s.params])),
+  content: CONTENT,
+  movementMode: runtime.movementMode,
+};
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-platformer', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'platformer',
+    title: 'Pin platformer',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', and list it here. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import { platformer } from '@gg/template-platformer/node';
+export const BOTS = platformer.bots;
+export const SOLVER_BOT = platformer.solverBot;
+",
+  "tests/unit/game.test.ts": "import { createSim } from '@gg/sdk';
+import { runBot } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+describe('platformer game', () => {
+  it('every level is completable by the solver bot', () => {
+    for (const level of LEVELS) {
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: 1 }), BOTS[SOLVER_BOT]!, 90 * 60);
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;
+
+exports[`scaffold output is pinned for curated genres > puzzle files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/levels/L01-l01.json": "{
+  "version": 1,
+  "id": "l01",
+  "name": "Level 1",
+  "tileSize": 16,
+  "width": 9,
+  "height": 7,
+  "legend": {
+    "#": "solid",
+    ".": "air"
+  },
+  "rows": [
+    "#########",
+    "#.......#",
+    "#.......#",
+    "#.##.##.#",
+    "#.......#",
+    "#.......#",
+    "#########"
+  ],
+  "entities": [
+    {
+      "type": "target",
+      "x": 6,
+      "y": 2,
+      "props": {}
+    },
+    {
+      "type": "target",
+      "x": 4,
+      "y": 1,
+      "props": {}
+    },
+    {
+      "type": "crate",
+      "x": 6,
+      "y": 1,
+      "props": {}
+    },
+    {
+      "type": "crate",
+      "x": 5,
+      "y": 2,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 5,
+    "y": 5
+  },
+  "goal": {
+    "x": 6,
+    "y": 2
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.15
+  }
+}
+",
+  "content/levels/L02-l02.json": "{
+  "version": 1,
+  "id": "l02",
+  "name": "Level 2",
+  "tileSize": 16,
+  "width": 10,
+  "height": 8,
+  "legend": {
+    "#": "solid",
+    ".": "air"
+  },
+  "rows": [
+    "##########",
+    "#........#",
+    "#........#",
+    "#...##...#",
+    "#.#.#....#",
+    "#........#",
+    "#........#",
+    "##########"
+  ],
+  "entities": [
+    {
+      "type": "target",
+      "x": 5,
+      "y": 2,
+      "props": {}
+    },
+    {
+      "type": "target",
+      "x": 7,
+      "y": 3,
+      "props": {}
+    },
+    {
+      "type": "crate",
+      "x": 2,
+      "y": 5,
+      "props": {}
+    },
+    {
+      "type": "crate",
+      "x": 6,
+      "y": 5,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 5,
+    "y": 4
+  },
+  "goal": {
+    "x": 5,
+    "y": 2
+  },
+  "ramp": {
+    "segment": 1,
+    "difficulty": 0.35
+  }
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "move",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "push",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "undo",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"Crate Cellar","genre":"puzzle","scopeTier":"small","pillars":["every push is a decision","boards read at a glance","mistakes cost nothing: undo is free"],"scope":{"levels":3,"enemies":0,"items":0,"bosses":0},"targets":{"sessionMin":10,"levelTimeS":60,"deathsPerLevel":0},"verbs":["move","push","undo"],"feedbackEvents":[{"event":"move","channels":["sfx"]},{"event":"push","channels":["sfx","particle"]},{"event":"undo","channels":["sfx"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+Three cellar boards under an old inn. A cellar hand shoves crates of preserves onto the chalk marks on the floor before the cook comes down. One crate on the first board, two on the second, three on the last; walls and pillars decide which pushes are safe.
+
+## Pillars
+1. Every push is a decision: crates move one tile, only forwards; a crate pushed into a corner off its mark is stuck until you undo.
+2. Boards read at a glance: walls, crates, marks and the player are four distinct shapes and colours; a crate on its mark lights up.
+3. Mistakes cost nothing: undo takes back a move instantly and as often as you like; restart resets the board.
+
+## Core loop
+30 seconds: look at the board, find the crate that has to go first, push it. 5 minutes: solve a board, then solve it again in fewer moves. Session: all three cellars in one sitting.
+
+## Progression
+Cellar 1 (difficulty 0.1): one crate, four pushes. Cellar 2 (difficulty 0.3): two crates, eight pushes. Cellar 3 (difficulty 0.5): three crates around inner walls, nine pushes. Each board is proven solvable by the solver; difficulty is the fewest pushes it needs.
+
+## Scope
+3 boards, no enemies, no items, no bosses.
+
+## Feedback
+Steps tick, pushes thud with a puff of dust, undo rewinds with a soft sound, and a solved board celebrates. See the front-matter table.
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "puzzle",
+  "feelPreset": "grid-snappy",
+  "systems": [
+    {
+      "id": "grid-push",
+      "params": {
+        "stepTicks": 6,
+        "repeatDelayTicks": 14,
+        "repeatTicks": 6,
+        "allowUndo": true,
+        "bonus": 10
+      }
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pin puzzle</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-puzzle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, LevelJson, SystemsJson } from '@gg/schemas';
+import { feedbackBinder, type FeedbackBinding, type SimOptions, type SystemDef } from '@gg/sdk';
+import { puzzleRuntime } from '@gg/template-puzzle';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+const SYSTEMS = systemsJson as unknown as SystemsJson;
+const runtime = puzzleRuntime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob('../content/*.json', { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const BEHAVIOURS: BehaviourFsm[] = [...runtime.defaultBehaviours.filter((b) => !Object.values(behaviourFiles).some((f) => f.id === b.id)), ...sorted(behaviourFiles)];
+export const RULES: EcaRule[] = [...runtime.defaultRules, ...sorted(ruleFiles)];
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** Template systems selected in design/systems.json (in that order), then bespoke systems, then the feedback binder. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const templateSystems: SystemDef<any>[] = SYSTEMS.systems.map((s) => {
+  const mod = runtime.systems[s.id];
+  if (!mod) throw new Error(\`systems.json names unknown system '\${s.id}' for genre puzzle\`);
+  return mod.create();
+});
+
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = {
+  feel: runtime.feelPresets[SYSTEMS.feelPreset] ?? runtime.feelPresets[runtime.defaultFeel]!,
+  systems: [...templateSystems, ...BESPOKE, feedbackBinder(FEEDBACK)],
+  entityDefs: runtime.entityDefs,
+  player: runtime.player,
+  behaviours: BEHAVIOURS,
+  rules: RULES,
+  params: Object.fromEntries(SYSTEMS.systems.map((s) => [s.id, s.params])),
+  content: CONTENT,
+  movementMode: runtime.movementMode,
+};
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-puzzle', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'puzzle',
+    title: 'Pin puzzle',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', and list it here. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import { puzzle } from '@gg/template-puzzle/node';
+export const BOTS = puzzle.bots;
+export const SOLVER_BOT = puzzle.solverBot;
+",
+  "tests/unit/game.test.ts": "import { createSim } from '@gg/sdk';
+import { runBot } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+describe('puzzle game', () => {
+  it('every level is completable by the solver bot', () => {
+    for (const level of LEVELS) {
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: 1 }), BOTS[SOLVER_BOT]!, 90 * 60);
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;
+
+exports[`scaffold output is pinned for curated genres > shmup files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/behaviour/drift.fsm.json": "{
+  "version": 1,
+  "id": "drift",
+  "designNotes": "Falls slowly; gone at the bottom.",
+  "initial": "fall",
+  "states": {
+    "fall": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 30
+        }
+      ],
+      "transitions": [
+        {
+          "to": "gone",
+          "when": {
+            "kind": "grounded"
+          }
+        }
+      ]
+    },
+    "gone": {
+      "onEnter": [
+        {
+          "kind": "despawn"
+        }
+      ],
+      "update": [],
+      "transitions": []
+    }
+  }
+}
+",
+  "content/behaviour/drone.fsm.json": "{
+  "version": 1,
+  "id": "drone",
+  "designNotes": "Dives from the top, weaves left and right, fires an aimed bullet every 1.4 s, leaves at the bottom.",
+  "initial": "dive",
+  "states": {
+    "dive": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "fly"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 42
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bullet",
+          "speed": 90,
+          "cooldownMs": 1400
+        }
+      ],
+      "transitions": [
+        {
+          "to": "gone",
+          "when": {
+            "kind": "grounded"
+          }
+        },
+        {
+          "to": "left",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 800
+          }
+        }
+      ]
+    },
+    "left": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": -38,
+          "vy": 28
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bullet",
+          "speed": 90,
+          "cooldownMs": 1400
+        }
+      ],
+      "transitions": [
+        {
+          "to": "gone",
+          "when": {
+            "kind": "grounded"
+          }
+        },
+        {
+          "to": "right",
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 700
+              },
+              {
+                "kind": "hit_wall"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "right": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 38,
+          "vy": 28
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bullet",
+          "speed": 90,
+          "cooldownMs": 1400
+        }
+      ],
+      "transitions": [
+        {
+          "to": "gone",
+          "when": {
+            "kind": "grounded"
+          }
+        },
+        {
+          "to": "left",
+          "when": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 700
+              },
+              {
+                "kind": "hit_wall"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "gone": {
+      "onEnter": [
+        {
+          "kind": "despawn"
+        }
+      ],
+      "update": [],
+      "transitions": []
+    }
+  }
+}
+",
+  "content/behaviour/tank.fsm.json": "{
+  "version": 1,
+  "id": "tank",
+  "designNotes": "Slow straight descent with an aimed bullet every 0.8 s; 6 hp.",
+  "initial": "descend",
+  "states": {
+    "descend": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "fly"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 14
+        },
+        {
+          "kind": "shoot",
+          "projectile": "bullet",
+          "speed": 75,
+          "cooldownMs": 800
+        }
+      ],
+      "transitions": [
+        {
+          "to": "gone",
+          "when": {
+            "kind": "grounded"
+          }
+        }
+      ]
+    },
+    "gone": {
+      "onEnter": [
+        {
+          "kind": "despawn"
+        }
+      ],
+      "update": [],
+      "transitions": []
+    }
+  }
+}
+",
+  "content/levels/L01-arena.json": "{
+  "version": 1,
+  "id": "arena",
+  "name": "Arena",
+  "tileSize": 8,
+  "width": 40,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "S": "spawn",
+    "G": "goal"
+  },
+  "rows": [
+    "########################################",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#......................................#",
+    "#...................SG.................#",
+    "#......................................#",
+    "#......................................#",
+    "########################################"
+  ],
+  "entities": [],
+  "spawn": {
+    "x": 20,
+    "y": 19
+  },
+  "goal": {
+    "x": 21,
+    "y": 19
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.25
+  }
+}
+",
+  "content/waves.json": "{
+  "version": 1,
+  "designNotes": "difficulty 0.25 ramp over 60s; drones from the top, tanks after the midpoint",
+  "waves": [
+    {
+      "atS": 2,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 6,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 10,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 14,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 15,
+      "spawns": [
+        {
+          "enemy": "power",
+          "count": 1,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 18,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 22,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 26,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 30,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 30,
+      "spawns": [
+        {
+          "enemy": "power",
+          "count": 1,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 34,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 38,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 2,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 42,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 45,
+      "spawns": [
+        {
+          "enemy": "power",
+          "count": 1,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 46,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 50,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 54,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    },
+    {
+      "atS": 58,
+      "spawns": [
+        {
+          "enemy": "drone",
+          "count": 3,
+          "pattern": "top"
+        }
+      ]
+    }
+  ]
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "dash",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "hit",
+    "channels": [
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "death",
+    "channels": [
+      "shake",
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "pickup",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"Static Sky","genre":"shmup","scopeTier":"small","pillars":["every bullet is readable","the ship answers instantly","sixty seconds of rising pressure"],"scope":{"levels":1,"enemies":2,"items":1,"bosses":0},"targets":{"sessionMin":5,"levelTimeS":60,"deathsPerLevel":2},"verbs":["move","shoot","dash"],"feedbackEvents":[{"event":"dash","channels":["sfx"]},{"event":"hit","channels":["flash","sfx"]},{"event":"death","channels":["shake","flash","sfx"]},{"event":"pickup","channels":["sfx"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+One screen of static-filled sky. Drones dive and weave from the top firing aimed bullets, tanks grind down the middle after the midpoint, and power cells drift down every fifteen seconds. Hold fire, slide under targets, sidestep bullets, survive the minute.
+
+## Pillars
+1. Every bullet is readable: aimed shots at 90 px/s, never more than a handful on screen, no off-screen fire.
+2. The ship answers instantly: near-instant acceleration, a short sidestep dash with a real cooldown.
+3. Sixty seconds of rising pressure: waves every four seconds, each a little bigger; tanks after the midpoint.
+
+## Core loop
+30 seconds: slide under the first drones, hold fire, dodge the first aimed bullet. 5 minutes: survive the minute with fewer hits, catch every power cell. Session: a handful of runs chasing a cleaner one.
+
+## Progression
+Drones only for the first half; tanks join after the midpoint; pressure ramps linearly to the end of the minute.
+
+## Scope
+1 screen, 2 enemy types (drone, tank), 1 item (power cell), no bosses.
+
+## Feedback
+Hits flash and sound, deaths shake and flash, dashes and pickups sound, surviving the minute celebrates. See the front-matter table.
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "shmup",
+  "feelPreset": "arcade-ship",
+  "systems": [
+    {
+      "id": "movement-topdown",
+      "params": {
+        "dash": true,
+        "dashInvuln": false
+      }
+    },
+    {
+      "id": "player-shooter",
+      "params": {
+        "fireCooldownTicks": 8,
+        "shotSpeed": 220,
+        "damage": 1,
+        "spread": 1,
+        "killScore": 10
+      }
+    },
+    {
+      "id": "spawner",
+      "params": {
+        "maxAlive": 80
+      }
+    },
+    {
+      "id": "survival",
+      "params": {
+        "winAtS": 60,
+        "winBonus": 50
+      }
+    },
+    {
+      "id": "pickups",
+      "params": {
+        "value": 1
+      }
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pin shmup</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-shmup",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, LevelJson, SystemsJson } from '@gg/schemas';
+import { feedbackBinder, type FeedbackBinding, type SimOptions, type SystemDef } from '@gg/sdk';
+import { shmupRuntime } from '@gg/template-shmup';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+const SYSTEMS = systemsJson as unknown as SystemsJson;
+const runtime = shmupRuntime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob('../content/*.json', { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const BEHAVIOURS: BehaviourFsm[] = [...runtime.defaultBehaviours.filter((b) => !Object.values(behaviourFiles).some((f) => f.id === b.id)), ...sorted(behaviourFiles)];
+export const RULES: EcaRule[] = [...runtime.defaultRules, ...sorted(ruleFiles)];
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** Template systems selected in design/systems.json (in that order), then bespoke systems, then the feedback binder. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const templateSystems: SystemDef<any>[] = SYSTEMS.systems.map((s) => {
+  const mod = runtime.systems[s.id];
+  if (!mod) throw new Error(\`systems.json names unknown system '\${s.id}' for genre shmup\`);
+  return mod.create();
+});
+
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = {
+  feel: runtime.feelPresets[SYSTEMS.feelPreset] ?? runtime.feelPresets[runtime.defaultFeel]!,
+  systems: [...templateSystems, ...BESPOKE, feedbackBinder(FEEDBACK)],
+  entityDefs: runtime.entityDefs,
+  player: runtime.player,
+  behaviours: BEHAVIOURS,
+  rules: RULES,
+  params: Object.fromEntries(SYSTEMS.systems.map((s) => [s.id, s.params])),
+  content: CONTENT,
+  movementMode: runtime.movementMode,
+};
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-shmup', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'shmup',
+    title: 'Pin shmup',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', and list it here. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import { shmup } from '@gg/template-shmup/node';
+export const BOTS = shmup.bots;
+export const SOLVER_BOT = shmup.solverBot;
+",
+  "tests/unit/game.test.ts": "import { createSim } from '@gg/sdk';
+import { runBot } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+describe('shmup game', () => {
+  it('every level is completable by the solver bot', () => {
+    for (const level of LEVELS) {
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: 1 }), BOTS[SOLVER_BOT]!, 90 * 60);
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;
+
+exports[`scaffold output is pinned for curated genres > survivors files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/behaviour/chaser.fsm.json": "{
+  "version": 1,
+  "id": "chaser",
+  "designNotes": "Runs straight at the player; staggers briefly when hit.",
+  "initial": "chase",
+  "states": {
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 38
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "stagger": {
+      "onEnter": [
+        {
+          "kind": "move_away_from_player",
+          "speed": 60
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 200
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/levels/L01-arena.json": "{
+  "version": 1,
+  "id": "arena",
+  "name": "Arena",
+  "tileSize": 8,
+  "width": 56,
+  "height": 34,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "S": "spawn",
+    "G": "goal"
+  },
+  "rows": [
+    "########################################################",
+    "#......................................................#",
+    "#......................................................#",
+    "#....................##................................#",
+    "#....................##................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................##..............#",
+    "#......................................##..............#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#...........................SG.........................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#........................................##............#",
+    "#........................................##............#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#............................................##........#",
+    "#............................................##........#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "########################################################"
+  ],
+  "entities": [],
+  "spawn": {
+    "x": 28,
+    "y": 17
+  },
+  "goal": {
+    "x": 29,
+    "y": 17
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.25
+  }
+}
+",
+  "content/waves.json": "{
+  "version": 1,
+  "designNotes": "difficulty 0.25 ramp over 60s",
+  "waves": [
+    {
+      "atS": 2,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 8,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 14,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 20,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 4,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 26,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 4,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 32,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 38,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 44,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 50,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 6,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 56,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 6,
+          "pattern": "ring"
+        }
+      ]
+    }
+  ]
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "dash",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "hit",
+    "channels": [
+      "hitstop",
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "death",
+    "channels": [
+      "shake",
+      "sfx"
+    ]
+  },
+  {
+    "event": "pickup",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"Last Light","genre":"survivors","scopeTier":"small","pillars":["constant forward pressure","every kill feeds the next","sixty seconds, no filler"],"scope":{"levels":1,"enemies":2,"items":1,"bosses":0},"targets":{"sessionMin":5,"levelTimeS":60,"deathsPerLevel":2},"verbs":["move","dash","attack"],"feedbackEvents":[{"event":"dash","channels":["sfx"]},{"event":"hit","channels":["hitstop","flash","sfx"]},{"event":"death","channels":["shake","sfx"]},{"event":"pickup","channels":["sfx"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+A single walled arena. Chasers pour in from the edges, then in rings around the player. The player attacks the nearest enemy automatically and dashes out of trouble. Survive sixty seconds.
+
+## Pillars
+1. Constant forward pressure: waves every five seconds, each a little bigger.
+2. Every kill feeds the next: enemies drop xp that scores and marks progress.
+3. Sixty seconds, no filler: the run ends in victory or death, then restart.
+
+## Core loop
+30 seconds: dodge, let the auto-attack clear the closest chaser, grab xp. 5 minutes: survive the full minute with fewer hits. Session: a handful of runs chasing a cleaner one.
+
+## Progression
+Edge spawns first, rings from the second third, a brute late if the difficulty allows. Pressure ramps linearly.
+
+## Scope
+1 arena, 2 enemy types (chaser, brute), 1 item (xp), no bosses.
+
+## Feedback
+Hits freeze and flash, deaths shake, dashes and pickups sound, the win celebrates. See the front-matter table.
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "survivors",
+  "feelPreset": "arena-melee",
+  "systems": [
+    {
+      "id": "movement-topdown",
+      "params": {
+        "dash": true,
+        "dashInvuln": false
+      }
+    },
+    {
+      "id": "auto-attack",
+      "params": {
+        "range": 40,
+        "damage": 1,
+        "cooldownTicks": 30,
+        "xpPerLevel": 6
+      }
+    },
+    {
+      "id": "spawner",
+      "params": {
+        "maxAlive": 80
+      }
+    },
+    {
+      "id": "survival",
+      "params": {
+        "winAtS": 60,
+        "winBonus": 50
+      }
+    },
+    {
+      "id": "pickups",
+      "params": {
+        "value": 1
+      }
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pin survivors</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-survivors",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, LevelJson, SystemsJson } from '@gg/schemas';
+import { feedbackBinder, type FeedbackBinding, type SimOptions, type SystemDef } from '@gg/sdk';
+import { survivorsRuntime } from '@gg/template-survivors';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+const SYSTEMS = systemsJson as unknown as SystemsJson;
+const runtime = survivorsRuntime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob('../content/*.json', { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const BEHAVIOURS: BehaviourFsm[] = [...runtime.defaultBehaviours.filter((b) => !Object.values(behaviourFiles).some((f) => f.id === b.id)), ...sorted(behaviourFiles)];
+export const RULES: EcaRule[] = [...runtime.defaultRules, ...sorted(ruleFiles)];
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** Template systems selected in design/systems.json (in that order), then bespoke systems, then the feedback binder. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const templateSystems: SystemDef<any>[] = SYSTEMS.systems.map((s) => {
+  const mod = runtime.systems[s.id];
+  if (!mod) throw new Error(\`systems.json names unknown system '\${s.id}' for genre survivors\`);
+  return mod.create();
+});
+
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = {
+  feel: runtime.feelPresets[SYSTEMS.feelPreset] ?? runtime.feelPresets[runtime.defaultFeel]!,
+  systems: [...templateSystems, ...BESPOKE, feedbackBinder(FEEDBACK)],
+  entityDefs: runtime.entityDefs,
+  player: runtime.player,
+  behaviours: BEHAVIOURS,
+  rules: RULES,
+  params: Object.fromEntries(SYSTEMS.systems.map((s) => [s.id, s.params])),
+  content: CONTENT,
+  movementMode: runtime.movementMode,
+};
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-survivors', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'survivors',
+    title: 'Pin survivors',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', and list it here. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import { survivors } from '@gg/template-survivors/node';
+export const BOTS = survivors.bots;
+export const SOLVER_BOT = survivors.solverBot;
+",
+  "tests/unit/game.test.ts": "import { createSim } from '@gg/sdk';
+import { runBot } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+describe('survivors game', () => {
+  it('every level is completable by the solver bot', () => {
+    for (const level of LEVELS) {
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: 1 }), BOTS[SOLVER_BOT]!, 90 * 60);
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;
+
+exports[`scaffold output is pinned for curated genres > topdown-action files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/behaviour/archer.fsm.json": "{
+  "version": 1,
+  "id": "archer",
+  "designNotes": "Holds position and shoots arrows while the player is in range; retreats when the player gets close.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        }
+      ],
+      "update": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "attack",
+          "when": {
+            "kind": "player_in_sight",
+            "px": 100
+          }
+        },
+        {
+          "to": "attack",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "attack": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "aim"
+        }
+      ],
+      "update": [
+        {
+          "kind": "idle"
+        },
+        {
+          "kind": "shoot",
+          "projectile": "arrow",
+          "speed": 70,
+          "cooldownMs": 1600
+        }
+      ],
+      "transitions": [
+        {
+          "to": "retreat",
+          "when": {
+            "kind": "player_within",
+            "px": 30
+          }
+        },
+        {
+          "to": "wait",
+          "when": {
+            "kind": "player_beyond",
+            "px": 170
+          }
+        },
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "retreat": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_away_from_player",
+          "speed": 40
+        }
+      ],
+      "transitions": [
+        {
+          "to": "attack",
+          "when": {
+            "kind": "player_beyond",
+            "px": 52
+          }
+        },
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "stagger": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "hurt"
+        },
+        {
+          "kind": "move_away_from_player",
+          "speed": 60
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "attack",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 260
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/brute.fsm.json": "{
+  "version": 1,
+  "id": "brute",
+  "designNotes": "Slow chaser with a long wind-up and a two-damage bite; staggers briefly when hit.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "player_in_sight",
+            "px": 96
+          }
+        },
+        {
+          "to": "chase",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 34
+        }
+      ],
+      "transitions": [
+        {
+          "to": "windup",
+          "when": {
+            "kind": "player_within",
+            "px": 16
+          }
+        },
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        },
+        {
+          "to": "wait",
+          "when": {
+            "kind": "player_beyond",
+            "px": 180
+          }
+        }
+      ]
+    },
+    "windup": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "windup"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:windup"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "bite",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 450
+          }
+        }
+      ]
+    },
+    "bite": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "bite"
+        },
+        {
+          "kind": "damage_player",
+          "amount": 2
+        },
+        {
+          "kind": "emit",
+          "event": "custom:bite"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 600
+          }
+        }
+      ]
+    },
+    "stagger": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "hurt"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 160
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/grunt.fsm.json": "{
+  "version": 1,
+  "id": "grunt",
+  "designNotes": "Waits in its room, rushes on sight, stops to wind up a bite (interruptible by a hit), staggers when hit, gives up when the player leaves.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "player_in_sight",
+            "px": 84
+          }
+        },
+        {
+          "to": "chase",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 46
+        }
+      ],
+      "transitions": [
+        {
+          "to": "windup",
+          "when": {
+            "kind": "player_within",
+            "px": 13
+          }
+        },
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        },
+        {
+          "to": "wait",
+          "when": {
+            "kind": "player_beyond",
+            "px": 160
+          }
+        }
+      ]
+    },
+    "windup": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "windup"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:windup"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        },
+        {
+          "to": "bite",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 300
+          }
+        }
+      ]
+    },
+    "bite": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "bite"
+        },
+        {
+          "kind": "damage_player",
+          "amount": 1
+        },
+        {
+          "kind": "emit",
+          "event": "custom:bite"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        },
+        {
+          "to": "chase",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 400
+          }
+        }
+      ]
+    },
+    "stagger": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "hurt"
+        },
+        {
+          "kind": "move_away_from_player",
+          "speed": 70
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 220
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/warden.fsm.json": "{
+  "version": 1,
+  "id": "warden",
+  "designNotes": "Boss: stalks; slams with a long wind-up up close (an area hit); fires ember rings at range; enrages below half health (faster, slams throw rings too). Never staggers.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk",
+          "when": {
+            "kind": "player_in_sight",
+            "px": 72
+          }
+        },
+        {
+          "to": "stalk",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "stalk": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 26
+        }
+      ],
+      "transitions": [
+        {
+          "to": "roar",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "hp_below",
+                "fraction": 0.5
+              },
+              {
+                "kind": "flag",
+                "name": "enraged",
+                "is": false
+              }
+            ]
+          }
+        },
+        {
+          "to": "windup",
+          "when": {
+            "kind": "player_within",
+            "px": 22
+          }
+        },
+        {
+          "to": "aim",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 2200
+          }
+        }
+      ]
+    },
+    "windup": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "windup"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:windup"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "slam",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 650
+          }
+        }
+      ]
+    },
+    "slam": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "slam"
+        },
+        {
+          "kind": "damage_player",
+          "amount": 2,
+          "radius": 24
+        },
+        {
+          "kind": "emit",
+          "event": "custom:slam"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 700
+          }
+        }
+      ]
+    },
+    "aim": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "aim"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:aim"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "volley",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 550
+          }
+        }
+      ]
+    },
+    "volley": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        },
+        {
+          "kind": "shoot_ring",
+          "projectile": "ember",
+          "count": 8,
+          "speed": 46,
+          "cooldownMs": 0
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 450
+          }
+        }
+      ]
+    },
+    "roar": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "windup"
+        },
+        {
+          "kind": "set_flag",
+          "name": "enraged",
+          "value": true
+        },
+        {
+          "kind": "emit",
+          "event": "custom:enrage"
+        },
+        {
+          "kind": "shoot_ring",
+          "projectile": "ember",
+          "count": 10,
+          "speed": 40,
+          "cooldownMs": 0
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 900
+          }
+        }
+      ]
+    },
+    "stalk2": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 34
+        }
+      ],
+      "transitions": [
+        {
+          "to": "windup2",
+          "when": {
+            "kind": "player_within",
+            "px": 24
+          }
+        },
+        {
+          "to": "aim2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 1500
+          }
+        }
+      ]
+    },
+    "windup2": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "windup"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:windup"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "slam2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 520
+          }
+        }
+      ]
+    },
+    "slam2": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "slam"
+        },
+        {
+          "kind": "damage_player",
+          "amount": 2,
+          "radius": 26
+        },
+        {
+          "kind": "shoot_ring",
+          "projectile": "ember",
+          "count": 8,
+          "speed": 30,
+          "cooldownMs": 0
+        },
+        {
+          "kind": "emit",
+          "event": "custom:slam"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 600
+          }
+        }
+      ]
+    },
+    "aim2": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "aim"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:aim"
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "volley2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 450
+          }
+        }
+      ]
+    },
+    "volley2": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        },
+        {
+          "kind": "shoot_ring",
+          "projectile": "ember",
+          "count": 8,
+          "speed": 50,
+          "cooldownMs": 0
+        }
+      ],
+      "update": [
+        {
+          "kind": "set_velocity",
+          "vx": 0,
+          "vy": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stalk2",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 380
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/levels/L01-l01.json": "{
+  "version": 1,
+  "id": "l01",
+  "name": "Level 1",
+  "tileSize": 8,
+  "width": 33,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "S": "spawn",
+    "G": "goal"
+  },
+  "rows": [
+    "#################################",
+    "#...............#...............#",
+    "#...............#...............#",
+    "#...............#...............#",
+    "#...............#...............#",
+    "#...............................#",
+    "#.......S.......................#",
+    "#...............................#",
+    "#...............#...............#",
+    "#...............#...............#",
+    "#...............#...............#",
+    "#######################...#######",
+    "#...............#...............#",
+    "#...............#...............#",
+    "#...............#...............#",
+    "#...............#...............#",
+    "#...............................#",
+    "#.......G.......................#",
+    "#...............................#",
+    "#...............#...............#",
+    "#...............#...............#",
+    "#...............#...............#",
+    "#################################"
+  ],
+  "entities": [
+    {
+      "type": "gem",
+      "x": 6,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "gem",
+      "x": 11,
+      "y": 16,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 3,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 8,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "gem",
+      "x": 28,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 27,
+      "y": 20,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 29,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "gem",
+      "x": 21,
+      "y": 4,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 27,
+      "y": 2,
+      "props": {}
+    },
+    {
+      "type": "gem",
+      "x": 5,
+      "y": 3,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 8,
+    "y": 6
+  },
+  "goal": {
+    "x": 8,
+    "y": 17
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.15
+  }
+}
+",
+  "content/levels/L02-l02.json": "{
+  "version": 1,
+  "id": "l02",
+  "name": "Level 2",
+  "tileSize": 8,
+  "width": 46,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "S": "spawn",
+    "G": "goal"
+  },
+  "rows": [
+    "##############################################",
+    "#..............#..............#..............#",
+    "#..............#..............#..............#",
+    "#..............#..............#..............#",
+    "#..............#..............#..............#",
+    "#..............#.............................#",
+    "#.......S......#.............................#",
+    "#..............#.............................#",
+    "#...........#..#..#...........#...........#..#",
+    "#..............#..............#..............#",
+    "#..............#..............#..............#",
+    "#######...############...############...######",
+    "#..............#..............#..............#",
+    "#..............#..............#..............#",
+    "#...........#..#..#...........#..#...........#",
+    "#..............#..............#..............#",
+    "#.............................#..............#",
+    "#.............................#.......G......#",
+    "#.............................#..............#",
+    "#..............#..............#..............#",
+    "#..............#..............#..............#",
+    "#..............#..............#..............#",
+    "##############################################"
+  ],
+  "entities": [
+    {
+      "type": "gem",
+      "x": 42,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "gem",
+      "x": 41,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "warden",
+      "x": 38,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "gem",
+      "x": 42,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 41,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 37,
+      "y": 3,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 40,
+      "y": 7,
+      "props": {}
+    },
+    {
+      "type": "gem",
+      "x": 17,
+      "y": 5,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 21,
+      "y": 6,
+      "props": {}
+    },
+    {
+      "type": "archer",
+      "x": 22,
+      "y": 3,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 27,
+      "y": 7,
+      "props": {}
+    },
+    {
+      "type": "gem",
+      "x": 28,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 17,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 18,
+      "y": 16,
+      "props": {}
+    },
+    {
+      "type": "grunt",
+      "x": 27,
+      "y": 20,
+      "props": {}
+    },
+    {
+      "type": "gem",
+      "x": 3,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "gem",
+      "x": 12,
+      "y": 7,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 8,
+    "y": 6
+  },
+  "goal": {
+    "x": 38,
+    "y": 17
+  },
+  "ramp": {
+    "segment": 1,
+    "difficulty": 0.35
+  }
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "dash",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "hit",
+    "channels": [
+      "hitstop",
+      "shake",
+      "sfx"
+    ]
+  },
+  {
+    "event": "death",
+    "channels": [
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "pickup",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "custom:finisher",
+    "channels": [
+      "hitstop",
+      "shake",
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:slam",
+    "channels": [
+      "shake",
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:enrage",
+    "channels": [
+      "shake",
+      "flash",
+      "sfx"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"Ember Halls","genre":"topdown-action","scopeTier":"medium","pillars":["every room is a readable fight","hits land heavy, dashes feel safe","every floor makes the run stronger"],"scope":{"levels":3,"enemies":3,"items":1,"bosses":1},"targets":{"sessionMin":6,"levelTimeS":90,"deathsPerLevel":2},"verbs":["move","dash","attack"],"feedbackEvents":[{"event":"dash","channels":["sfx"]},{"event":"hit","channels":["hitstop","shake","sfx"]},{"event":"death","channels":["flash","sfx"]},{"event":"pickup","channels":["sfx"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+A short run through ember-lit halls. Two floors of rooms joined by doors, then the warden's lair. Grunts rush when they see you, archers hold the far wall and shoot, brutes wind up slowly and bite hard, and each exit stays locked until the floor is clear. Strike in a three-hit chain whose third blow is a heavy finisher, lunge out of a dash, dodge through attacks; after each floor choose one of three boons that stays with you for the rest of the run.
+
+## Pillars
+1. Every room is a readable fight: enemies wake on sight (never through a wall), every attack flashes red before it lands, nothing hurts by touch.
+2. Hits land heavy, dashes feel safe: hit pause and shake on every swing that connects, a bigger crunch on finishers and dash-strikes; the dash cannot be hit while it lasts.
+3. Every floor makes the run stronger: a boon after each cleared floor (damage, reach, speed, dash, knockback, hearts) carries into the next, so the warden meets a stronger hero.
+
+## Core loop
+30 seconds: step into a room, bait the grunts, chain a finisher, dash through an arrow. 5 minutes: clear a floor with fewer hits and pick the boon that fits. Session: the full run to the warden, then a cleaner run with different boons.
+
+## Progression
+Floor 1 (difficulty 0.25): a few rooms, grunts and an archer. Floor 2 (difficulty 0.5): more rooms, archers behind cover, a brute. Floor 3 (difficulty 0.55): guarded rooms, then the lair: the warden slams up close after a long wind-up, fires rings of embers at range and enrages at half health (faster, its slams throwing a slow wave of embers). The first room of every floor is empty.
+
+## Scope
+3 floors, 3 enemy types (grunt, archer, brute), 1 boss (the warden, on the last floor), 1 item (gem), 7 boons.
+
+## Feedback
+Swings that hit freeze and shake; finishers, dash-strikes and the warden's slam and roar hit harder; deaths flash; dashes and pickups sound; the boss's health shows along the bottom; clearing a floor celebrates at the exit. See the front-matter table (custom events are bound in design/feedback.json).
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "topdown-action",
+  "feelPreset": "room-melee",
+  "systems": [
+    {
+      "id": "movement-topdown",
+      "params": {
+        "dash": true,
+        "dashInvuln": true
+      }
+    },
+    {
+      "id": "melee-attack",
+      "params": {
+        "damage": 1,
+        "range": 14,
+        "cooldownTicks": 18,
+        "knockback": 6,
+        "autoAim": true,
+        "combo": true,
+        "dashStrike": true,
+        "finisherBonus": 1
+      }
+    },
+    {
+      "id": "room-clear",
+      "params": {
+        "requireClear": true,
+        "bonus": 20,
+        "killScore": 5,
+        "gemHeal": 1
+      }
+    },
+    {
+      "id": "pickups",
+      "params": {
+        "value": 1
+      }
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pin topdown-action</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-topdown-action",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, LevelJson, SystemsJson } from '@gg/schemas';
+import { feedbackBinder, type FeedbackBinding, type SimOptions, type SystemDef } from '@gg/sdk';
+import { topdownActionRuntime } from '@gg/template-topdown-action';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+const SYSTEMS = systemsJson as unknown as SystemsJson;
+const runtime = topdownActionRuntime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob('../content/*.json', { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const BEHAVIOURS: BehaviourFsm[] = [...runtime.defaultBehaviours.filter((b) => !Object.values(behaviourFiles).some((f) => f.id === b.id)), ...sorted(behaviourFiles)];
+export const RULES: EcaRule[] = [...runtime.defaultRules, ...sorted(ruleFiles)];
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** Template systems selected in design/systems.json (in that order), then bespoke systems, then the feedback binder. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const templateSystems: SystemDef<any>[] = SYSTEMS.systems.map((s) => {
+  const mod = runtime.systems[s.id];
+  if (!mod) throw new Error(\`systems.json names unknown system '\${s.id}' for genre topdown-action\`);
+  return mod.create();
+});
+
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = {
+  feel: runtime.feelPresets[SYSTEMS.feelPreset] ?? runtime.feelPresets[runtime.defaultFeel]!,
+  systems: [...templateSystems, ...BESPOKE, feedbackBinder(FEEDBACK)],
+  entityDefs: runtime.entityDefs,
+  player: runtime.player,
+  behaviours: BEHAVIOURS,
+  rules: RULES,
+  params: Object.fromEntries(SYSTEMS.systems.map((s) => [s.id, s.params])),
+  content: CONTENT,
+  movementMode: runtime.movementMode,
+};
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-topdown-action', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'topdown-action',
+    title: 'Pin topdown-action',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', and list it here. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import { topdownAction } from '@gg/template-topdown-action/node';
+export const BOTS = topdownAction.bots;
+export const SOLVER_BOT = topdownAction.solverBot;
+",
+  "tests/unit/game.test.ts": "import { createSim } from '@gg/sdk';
+import { runBot } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+describe('topdown-action game', () => {
+  it('every level is completable by the solver bot', () => {
+    for (const level of LEVELS) {
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: 1 }), BOTS[SOLVER_BOT]!, 90 * 60);
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;

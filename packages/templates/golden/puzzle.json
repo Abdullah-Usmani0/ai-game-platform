@@ -1,0 +1,298 @@
+{
+  "runtime": {
+    "movementMode": "topdown",
+    "defaultFeel": "grid-snappy",
+    "requiredSystems": [
+      "grid-push"
+    ],
+    "optionalSystems": [],
+    "entityDefs": "71058800767db25f",
+    "player": {
+      "w": 12,
+      "h": 12,
+      "hp": 1
+    },
+    "feelPresets": "0570581831fab39d",
+    "behaviourVocab": "f3c638f09f930aa6",
+    "defaultBehaviours": "09612b07b5ecb5a5",
+    "defaultRules": "09612b07b5ecb5a5",
+    "collectibleTypes": [],
+    "feedbackExtras": "09612b07b5ecb5a5",
+    "paramDefaults": "08f44b07b5901a25",
+    "systemsMeta": "e21f21d76bce5087",
+    "scopeBudget": "18f12b593e3c61bc",
+    "gddDefaults": "e5a9d412aafc514f",
+    "gddFragment": "c62f20535880d293",
+    "interviewFragment": "15e982494fd7dc01",
+    "panels": "6bd8f8ef7c4021be",
+    "exemplars": "6049590f4c3ba8d2",
+    "levelGrammar": "tilemap",
+    "solverBot": "solver",
+    "bots": [
+      "chaos",
+      "solver"
+    ]
+  },
+  "levels": {
+    "seed1-difficulty0.2": "2372667b965e6b7b",
+    "seed2-difficulty0.2": "7bd173987ca1331b",
+    "seed1-difficulty0.5": "5ef23169244da74b",
+    "seed2-difficulty0.5": "734483aa5657bd53",
+    "seed1-difficulty0.75": "d6cc3a9816c64bba",
+    "seed2-difficulty0.75": "e0ad2977754ad47e"
+  },
+  "runs": {
+    "seed1-difficulty0.2:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed1-difficulty0.2:chaos": {
+      "completed": false,
+      "ticks": 4000,
+      "deaths": 0,
+      "finalHash": "e40007e6b3b8bbbd",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 4,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.2:solver": {
+      "completed": true,
+      "ticks": 169,
+      "deaths": 0,
+      "finalHash": "753e95cb32fa5252",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 4,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.2:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed2-difficulty0.2:chaos": {
+      "completed": false,
+      "ticks": 4000,
+      "deaths": 0,
+      "finalHash": "4051d89bf036636c",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 4,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.2:solver": {
+      "completed": true,
+      "ticks": 176,
+      "deaths": 0,
+      "finalHash": "406032a542805b69",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 4,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.5:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed1-difficulty0.5:chaos": {
+      "completed": false,
+      "ticks": 4000,
+      "deaths": 0,
+      "finalHash": "3633a10afa4fb11e",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 6,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.5:solver": {
+      "completed": true,
+      "ticks": 246,
+      "deaths": 0,
+      "finalHash": "914a1ea1278473d1",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 6,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.5:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed2-difficulty0.5:chaos": {
+      "completed": false,
+      "ticks": 4000,
+      "deaths": 0,
+      "finalHash": "b09b43aa17e9efe3",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 6,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.5:solver": {
+      "completed": true,
+      "ticks": 253,
+      "deaths": 0,
+      "finalHash": "e1178287de4dcf77",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 6,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.75:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed1-difficulty0.75:chaos": {
+      "completed": false,
+      "ticks": 4000,
+      "deaths": 0,
+      "finalHash": "9ed79dbcc012c2ae",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 8,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.75:solver": {
+      "completed": true,
+      "ticks": 463,
+      "deaths": 0,
+      "finalHash": "24634013a9aab490",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 8,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.75:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed2-difficulty0.75:chaos": {
+      "completed": false,
+      "ticks": 4000,
+      "deaths": 0,
+      "finalHash": "6aee7841e34979c5",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 8,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.75:solver": {
+      "completed": true,
+      "ticks": 449,
+      "deaths": 0,
+      "finalHash": "0fb2e5ad8f988c7b",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 0,
+        "death": 0,
+        "pickup": 0,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 8,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    }
+  }
+}

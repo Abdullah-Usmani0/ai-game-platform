@@ -1,0 +1,420 @@
+{
+  "runtime": {
+    "movementMode": "topdown",
+    "defaultFeel": "arena-melee",
+    "requiredSystems": [
+      "movement-topdown",
+      "auto-attack",
+      "spawner",
+      "survival"
+    ],
+    "optionalSystems": [
+      "pickups"
+    ],
+    "entityDefs": "8403cb8fa2b372ab",
+    "player": {
+      "w": 8,
+      "h": 10,
+      "hp": 5
+    },
+    "feelPresets": "c9e38f5796e25109",
+    "behaviourVocab": "def4012f313b87af",
+    "defaultBehaviours": "94810155a5ff6f2c",
+    "defaultRules": "09612b07b5ecb5a5",
+    "collectibleTypes": [
+      "xp"
+    ],
+    "feedbackExtras": "09612b07b5ecb5a5",
+    "paramDefaults": "08f44b07b5901a25",
+    "systemsMeta": "c71661db49c9f7a5",
+    "scopeBudget": "073dd167651a9f42",
+    "gddDefaults": "044697082c4aa4c8",
+    "gddFragment": "b75d06ac12b823fb",
+    "interviewFragment": "887dab27d3723ef3",
+    "panels": "76de848ebc6dacc7",
+    "exemplars": "c1a312f88fd27888",
+    "levelGrammar": "arena",
+    "solverBot": "kiter",
+    "bots": [
+      "afk",
+      "chaos",
+      "kiter"
+    ]
+  },
+  "levels": {
+    "seed1-difficulty0.2": "ae4aa531db69a8c9",
+    "seed2-difficulty0.2": "2e086cc15e964d73",
+    "seed1-difficulty0.5": "32cdb9e99b5e8060",
+    "seed2-difficulty0.5": "d9a581b770f7e076",
+    "seed1-difficulty0.75": "710af6ea472dfdcc",
+    "seed2-difficulty0.75": "de2a774be13a98fa"
+  },
+  "runs": {
+    "seed1-difficulty0.2:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed1-difficulty0.2:afk": {
+      "completed": false,
+      "ticks": 1798,
+      "deaths": 1,
+      "finalHash": "c1ad2355dec867f6",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 35,
+        "death": 15,
+        "pickup": 5,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 31,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.2:chaos": {
+      "completed": false,
+      "ticks": 1684,
+      "deaths": 1,
+      "finalHash": "1b68801a0b682bf9",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 28,
+        "death": 10,
+        "pickup": 2,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 26,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.2:kiter": {
+      "completed": true,
+      "ticks": 3601,
+      "deaths": 0,
+      "finalHash": "4b7f1ff506375904",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 69,
+        "death": 43,
+        "pickup": 19,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 86,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.2:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed2-difficulty0.2:afk": {
+      "completed": false,
+      "ticks": 1438,
+      "deaths": 1,
+      "finalHash": "ca5044ad66cab2a1",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 27,
+        "death": 11,
+        "pickup": 4,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 23,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.2:chaos": {
+      "completed": false,
+      "ticks": 1888,
+      "deaths": 1,
+      "finalHash": "8f8e778fd31f7253",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 34,
+        "death": 13,
+        "pickup": 3,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 29,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.2:kiter": {
+      "completed": true,
+      "ticks": 3601,
+      "deaths": 0,
+      "finalHash": "149b24190820286f",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 71,
+        "death": 42,
+        "pickup": 20,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 85,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.5:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed1-difficulty0.5:afk": {
+      "completed": false,
+      "ticks": 1316,
+      "deaths": 1,
+      "finalHash": "048532ee50e06315",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 30,
+        "death": 13,
+        "pickup": 5,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 27,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.5:chaos": {
+      "completed": false,
+      "ticks": 1124,
+      "deaths": 1,
+      "finalHash": "e6abfbd5f93a40be",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 19,
+        "death": 7,
+        "pickup": 2,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 21,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.5:kiter": {
+      "completed": true,
+      "ticks": 3601,
+      "deaths": 0,
+      "finalHash": "e31311719eb70839",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 107,
+        "death": 62,
+        "pickup": 20,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 128,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.5:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed2-difficulty0.5:afk": {
+      "completed": false,
+      "ticks": 1556,
+      "deaths": 1,
+      "finalHash": "793e6a3a4caef6be",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 33,
+        "death": 13,
+        "pickup": 4,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 32,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.5:chaos": {
+      "completed": false,
+      "ticks": 1266,
+      "deaths": 1,
+      "finalHash": "32a7f047c02c4c3f",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 24,
+        "death": 9,
+        "pickup": 2,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 23,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.5:kiter": {
+      "completed": true,
+      "ticks": 3601,
+      "deaths": 0,
+      "finalHash": "37a0eeaf2c651cb3",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 89,
+        "death": 61,
+        "pickup": 29,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 127,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.75:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed1-difficulty0.75:afk": {
+      "completed": false,
+      "ticks": 1157,
+      "deaths": 1,
+      "finalHash": "4abe9f00ec208209",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 27,
+        "death": 11,
+        "pickup": 4,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 28,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.75:chaos": {
+      "completed": false,
+      "ticks": 1384,
+      "deaths": 1,
+      "finalHash": "bfbd0438214c559a",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 31,
+        "death": 13,
+        "pickup": 3,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 36,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed1-difficulty0.75:kiter": {
+      "completed": false,
+      "ticks": 2562,
+      "deaths": 1,
+      "finalHash": "3e4170209c5dabdb",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 76,
+        "death": 31,
+        "pickup": 12,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 87,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.75:validate": {
+      "ok": true,
+      "issues": []
+    },
+    "seed2-difficulty0.75:afk": {
+      "completed": false,
+      "ticks": 1157,
+      "deaths": 1,
+      "finalHash": "1317907292902bed",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 25,
+        "death": 11,
+        "pickup": 6,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 28,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.75:chaos": {
+      "completed": false,
+      "ticks": 1390,
+      "deaths": 1,
+      "finalHash": "3b6133b8563d7366",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 31,
+        "death": 11,
+        "pickup": 5,
+        "level_complete": 0,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 34,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    },
+    "seed2-difficulty0.75:kiter": {
+      "completed": true,
+      "ticks": 3601,
+      "deaths": 0,
+      "finalHash": "4c685962ca3795f0",
+      "events": {
+        "jump": 0,
+        "land": 0,
+        "hit": 115,
+        "death": 42,
+        "pickup": 9,
+        "level_complete": 1,
+        "feedback": 0,
+        "audio_play": 0,
+        "spawn": 132,
+        "menu_open": 0,
+        "menu_choose": 0
+      }
+    }
+  }
+}

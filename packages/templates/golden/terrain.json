@@ -1,0 +1,14 @@
+{
+  "platformer:side:open": "a35c3232f79e8bc9",
+  "platformer:side:locked": "a35c3232f79e8bc9",
+  "survivors:field:open": "9c59d3582f10b2f2",
+  "survivors:field:locked": "9c59d3582f10b2f2",
+  "topdown-action:dungeon:open": "58398639348311e9",
+  "topdown-action:dungeon:locked": "582ed90f435f2691",
+  "shmup:space:open": "a35c3232f79e8bc9",
+  "shmup:space:locked": "a35c3232f79e8bc9",
+  "metroidvania:side:open": "425ac8f2257322bc",
+  "metroidvania:side:locked": "425ac8f2257322bc",
+  "puzzle:dungeon:open": "7180875d185db9dc",
+  "puzzle:dungeon:locked": "7180875d185db9dc"
+}

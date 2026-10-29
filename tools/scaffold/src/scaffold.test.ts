@@ -14,6 +14,30 @@ function run(cmd: string, args: string[], cwd: string): { ok: boolean; out: stri
   return { ok: r.status === 0, out: `${r.stdout}${r.stderr}` };
 }
 
+describe('scaffold output is pinned for curated genres', () => {
+  // Part of the golden lock: what a curated game is made of may only change on purpose (update with vitest -u).
+  for (const genre of ['platformer', 'survivors', 'topdown-action', 'shmup', 'metroidvania', 'puzzle'] as const) {
+    it(`${genre} files are unchanged`, () => {
+      const out = mkdtempSync(join(tmpdir(), `gg-scaffold-pin-${genre}-`));
+      const result = scaffold({
+        outDir: out,
+        genre,
+        gameId: `pin-${genre}`,
+        title: `Pin ${genre}`,
+        systems: defaultSystems(genre, genre === 'platformer' || genre === 'metroidvania' ? ['pickups', 'combat-stomp'] : genre === 'puzzle' ? [] : ['pickups']),
+        style: DEFAULT_STYLE,
+        gddMarkdown: sampleGdd(genre),
+        levels: 2,
+        seed: 5,
+        linkNodeModules: false,
+      });
+      const files: Record<string, string> = {};
+      for (const f of [...result.files].sort()) files[f] = readFileSync(join(out, f), 'utf8');
+      expect(files).toMatchSnapshot();
+    });
+  }
+});
+
 describe('scaffold', () => {
   for (const genre of ['platformer', 'survivors', 'topdown-action', 'shmup', 'metroidvania', 'puzzle'] as const) {
     it(`emits a ${genre} game that typechecks, lints, tests and builds`, () => {
