@@ -109,6 +109,8 @@
     "runner": "claude-sdk",
     "gate": ["build", "smoke", "juice"],
     "allowedWrite": ["game/design/feedback.json", "game/src/systems/**"],
+    "seeds": [1, 2, 3],
+    "ticks": 600,
     "caps": {
       "turns": 40,
       "usd": 1,

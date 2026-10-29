@@ -15,6 +15,8 @@ export interface SmokeOptions {
   outDir?: string;
   /** Also run the same script in realtime mode and compare the final hash (the determinism proof). */
   replayCheck?: boolean;
+  /** File name of the report written to outDir (default playtest-report.json); runs at several seeds name theirs apart. */
+  reportName?: string;
 }
 
 export interface SmokeResult {
@@ -141,7 +143,7 @@ export async function runSmoke(opts: SmokeOptions): Promise<SmokeResult> {
   };
   if (opts.outDir) {
     mkdirSync(opts.outDir, { recursive: true });
-    writeFileSync(join(opts.outDir, 'playtest-report.json'), JSON.stringify(report, null, 2) + '\n');
+    writeFileSync(join(opts.outDir, opts.reportName ?? 'playtest-report.json'), JSON.stringify(report, null, 2) + '\n');
   }
   return { report, manual, realtime, inPageReplay, readyMs, screenshotPath };
 }

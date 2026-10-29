@@ -3,7 +3,7 @@ import { CELESTE_CLASS } from '@gg/sdk';
 import { describe, expect, it } from 'vitest';
 import { validateBehaviour } from './behaviour.js';
 import { checkGdd } from './gdd.js';
-import { juiceLint } from './juice.js';
+import { juiceLint, juiceLintRuns, silentSfx } from './juice.js';
 import { jumpEnvelope } from './jump-envelope.js';
 import { validateLevel, validateRamp } from './level.js';
 import { checkSystems, impact, type SystemsCatalog } from './systems.js';
@@ -168,6 +168,43 @@ describe('juiceLint', () => {
     const r = juiceLint(events, gdd);
     expect(r.ok).toBe(false);
     expect(r.issues[0]?.code).toBe('feedback_missing');
+  });
+});
+
+describe('juiceLintRuns', () => {
+  const gdd = { feedbackEvents: [{ event: 'hit', channels: ['shake'] }, { event: 'custom:finisher', channels: ['flash'] }] };
+  const hit = (tick: number, answered: boolean): GameEventRecord[] => [{ tick, name: 'hit', payload: {} }, ...(answered ? [{ tick, name: 'feedback', payload: { channel: 'shake' } }] : [])];
+  it('lints each seed on its own: feedback from another run never answers an event', () => {
+    // Seed 1 hits at 10 unanswered; seed 2 shakes at 10. Merged into one history the hit would look answered.
+    const runs = [
+      { seed: 1, events: hit(10, false) },
+      { seed: 2, events: [{ tick: 10, name: 'feedback', payload: { channel: 'shake' } }, ...hit(40, true)] },
+    ];
+    expect(juiceLint(runs.flatMap((r) => r.events), gdd).issues.some((i) => i.code === 'feedback_missing')).toBe(false);
+    const r = juiceLintRuns(runs, gdd);
+    expect(r.ok).toBe(false);
+    expect(r.issues.filter((i) => i.code === 'feedback_missing').map((i) => i.message)).toEqual([expect.stringMatching(/^seed 1: 'hit' fired 1x/)]);
+  });
+  it("checks the genre's custom events, and an event counts as never fired only when no run fired it", () => {
+    const runs = [
+      { seed: 1, events: [...hit(10, true), { tick: 20, name: 'custom:finisher', payload: {} }] },
+      { seed: 2, events: hit(10, true) },
+    ];
+    const r = juiceLintRuns(runs, gdd);
+    expect(r.issues.map((i) => i.message)).toEqual([expect.stringMatching(/^seed 1: 'custom:finisher' fired 1x but 1x had no flash/)]);
+    const quiet = juiceLintRuns([{ seed: 1, events: hit(10, true) }, { seed: 2, events: hit(5, true) }], gdd);
+    expect(quiet.ok).toBe(true);
+    expect(quiet.issues).toEqual([expect.objectContaining({ code: 'event_never_fired', message: "feedback event 'custom:finisher' never occurred in any of 2 runs" })]);
+  });
+});
+
+describe('silentSfx', () => {
+  it('flags sfx bindings for events no sound plays for', () => {
+    const sounds: Record<string, string> = { hit: 'hit', 'custom:slam': 'slam' };
+    const table = { feedbackEvents: [{ event: 'hit', channels: ['sfx', 'shake'] }, { event: 'spawn', channels: ['sfx'] }, { event: 'custom:slam', channels: ['sfx'] }, { event: 'menu_choose', channels: ['flash'] }] };
+    const issues = silentSfx(table, (e) => sounds[e] ?? null);
+    expect(issues.map((i) => [i.code, i.severity])).toEqual([['sfx_unresolved', 'error']]);
+    expect(issues[0]!.message).toMatch(/^'spawn' is bound to sfx/);
   });
 });
 

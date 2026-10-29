@@ -1,11 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { runSmoke } from '@gg/bots';
+import { mergeReports, runSmoke } from '@gg/bots';
 import { GddFrontmatter, LevelJson, StyleCard, SystemsJson, type GateReport, type PlaytestReport } from '@gg/schemas';
 import { CATALOG, GENRES } from '@gg/templates/node';
-import { checkGdd, checkSystems, juiceLint, parseFrontmatter, validateRamp } from '@gg/validators';
+import { sfxPresetFor } from '@gg/sdk/art';
+import { checkGdd, checkSystems, juiceLintRuns, parseFrontmatter, silentSfx, validateRamp, type FeedbackTable } from '@gg/validators';
 
 /**
  * `pnpm gate`: the deterministic definition of done for the current stage.
@@ -44,6 +45,24 @@ function readGdd(): GddFrontmatter | null {
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf8')) as T;
+}
+
+/** Each smoke seed's own report (playtest-seed<N>.json): the event history the juice lint needs, run by run. */
+const SEED_REPORT = /^playtest-seed(\d+)\.json$/;
+function seedReports(): PlaytestReport[] {
+  if (!existsSync(reportsDir)) return [];
+  return readdirSync(reportsDir)
+    .filter((f) => SEED_REPORT.test(f))
+    .sort((a, b) => Number(SEED_REPORT.exec(a)![1]) - Number(SEED_REPORT.exec(b)![1]))
+    .map((f) => readJson<PlaytestReport>(join(reportsDir, f)));
+}
+
+/** What must answer what: design/feedback.json (the GDD's table plus the genre's custom events), else the GDD's table. */
+function feedbackTable(): FeedbackTable | null {
+  const p = join(gameDir, 'design', 'feedback.json');
+  if (existsSync(p)) return { feedbackEvents: readJson<Array<{ event: string; channels: string[] }>>(p) };
+  const fm = readGdd();
+  return fm ? { feedbackEvents: fm.feedbackEvents } : null;
 }
 
 function tail(text: string, lines = 30): string {
@@ -87,7 +106,8 @@ async function check(name: string): Promise<Check> {
       const fm = readGdd();
       const budget = fm ? GENRES[fm.genre]?.scopeBudget[fm.scopeTier] : undefined;
       const r = checkGdd(md, budget);
-      return { name, passed: r.ok, detail: r.issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
+      const issues = [...r.issues, ...(fm ? silentSfx(fm, sfxPresetFor) : [])];
+      return { name, passed: issues.every((i) => i.severity !== 'error'), detail: issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
     }
     case 'validate:style': {
       const p = join(gameDir, 'design', 'style.json');
@@ -141,27 +161,36 @@ async function check(name: string): Promise<Check> {
     }
     case 'juice': {
       const reportPath = join(reportsDir, 'playtest-report.json');
-      if (!existsSync(reportPath)) return { name, passed: false, detail: 'no playtest report; run the smoke check first' };
-      const rep = JSON.parse(readFileSync(reportPath, 'utf8')) as PlaytestReport;
-      const fm = readGdd();
-      const table: { feedbackEvents: GddFrontmatter['feedbackEvents'] } = fm ? { feedbackEvents: fm.feedbackEvents } : { feedbackEvents: [{ event: 'hit', channels: ['shake', 'flash', 'sfx'] }, { event: 'death', channels: ['flash', 'sfx'] }, { event: 'pickup', channels: ['sfx'] }] };
-      const r = juiceLint(rep.events ?? [], table);
-      const errors = r.issues.filter((i) => i.severity === 'error').map((i) => `${i.code}: ${i.message}`);
-      const warnings = r.issues.filter((i) => i.severity === 'warning').map((i) => `${i.code}: ${i.message}`);
-      return { name, passed: r.ok, detail: [...errors, ...warnings.map((w) => `warning ${w}`)].join('\n') };
+      const runs = seedReports();
+      if (runs.length === 0 && existsSync(reportPath)) runs.push(readJson<PlaytestReport>(reportPath));
+      if (runs.length === 0) return { name, passed: false, detail: 'no playtest report; run the smoke check first' };
+      const table: FeedbackTable = feedbackTable() ?? { feedbackEvents: [{ event: 'hit', channels: ['shake', 'flash', 'sfx'] }, { event: 'death', channels: ['flash', 'sfx'] }, { event: 'pickup', channels: ['sfx'] }] };
+      const r = juiceLintRuns(runs.map((rep) => ({ seed: rep.seeds[0] ?? 1, events: rep.events ?? [] })), table);
+      const issues = [...silentSfx(table, sfxPresetFor), ...r.issues];
+      const errors = issues.filter((i) => i.severity === 'error').map((i) => `${i.code}: ${i.message}`);
+      const warnings = issues.filter((i) => i.severity === 'warning').map((i) => `${i.code}: ${i.message}`);
+      return { name, passed: errors.length === 0, detail: [...errors, ...warnings.map((w) => `warning ${w}`)].join('\n') };
     }
     case 'smoke': {
       const dist = join(gameDir, 'dist');
       if (!existsSync(join(dist, 'index.html'))) return { name, passed: false, detail: `no bundle at ${dist}; run build first` };
       const seeds = stage.seeds ?? [1];
       const failures: string[] = [];
+      // Each seed writes its own report; the summary (playtest-report.json) is merged from this run's seeds only.
+      if (existsSync(reportsDir)) for (const f of readdirSync(reportsDir)) if (SEED_REPORT.test(f)) rmSync(join(reportsDir, f));
+      const reports: PlaytestReport[] = [];
       for (const seed of seeds) {
         try {
-          const res = await runSmoke({ dir: dist, seed, ticks: stage.ticks ?? 600, outDir: reportsDir, replayCheck: true });
+          const res = await runSmoke({ dir: dist, seed, ticks: stage.ticks ?? 600, outDir: reportsDir, replayCheck: true, reportName: `playtest-seed${seed}.json` });
+          reports.push(res.report);
           if (!res.report.passed) failures.push(`seed ${seed}: ${res.report.failures.join('; ')}`);
         } catch (e) {
           failures.push(`seed ${seed}: ${(e as Error).message}`);
         }
+      }
+      if (reports.length > 0) {
+        mkdirSync(reportsDir, { recursive: true });
+        writeFileSync(join(reportsDir, 'playtest-report.json'), JSON.stringify(mergeReports(reports), null, 2) + '\n');
       }
       return { name, passed: failures.length === 0, detail: failures.join('\n') };
     }
@@ -179,7 +208,9 @@ async function check(name: string): Promise<Check> {
       const reportPath = join(reportsDir, 'playtest-report.json');
       if (existsSync(reportPath)) {
         const rep = JSON.parse(readFileSync(reportPath, 'utf8')) as PlaytestReport;
-        const m = rep.bots[0]?.metrics ?? {};
+        // The worst seed decides: frame time and heap are the highest any smoke run saw.
+        const worst = (k: string) => Math.max(0, ...rep.bots.map((b) => Number(b.metrics?.[k] ?? 0)));
+        const m: Record<string, number> = { frameMsP95: worst('frameMsP95'), heapMB: worst('heapMB') };
         if ((rep.readyMs ?? 0) > (budgets['readyMs'] ?? Infinity)) problems.push(`readyMs ${rep.readyMs} > ${budgets['readyMs']}`);
         if ((m['frameMsP95'] ?? 0) > (budgets['frameMsP95'] ?? Infinity) * 1.5) problems.push(`frameMsP95 ${m['frameMsP95']} > ${budgets['frameMsP95']} (x1.5 headless allowance)`);
         if ((m['heapMB'] ?? 0) > (budgets['heapMb'] ?? Infinity)) problems.push(`heap ${m['heapMB']} MB > ${budgets['heapMb']} MB`);

@@ -8,10 +8,12 @@ if (!existsSync(goldenPath)) {
 }
 const golden = JSON.parse(readFileSync(goldenPath, 'utf8'));
 const report = JSON.parse(readFileSync(reportPath, 'utf8'));
-const bot = report.bots?.[0] ?? {};
+// The golden is the scripted smoke run at one seed (golden.ts): compare that same run, whatever other seeds the report has.
+const seed = golden.seed ?? 1;
+const bot = report.bots?.find((b: { seed?: number }) => b.seed === seed) ?? report.bots?.[0] ?? {};
 const problems: string[] = [];
 if ((bot.crashes?.length ?? 0) > 0) problems.push(`crashes: ${bot.crashes.length}`);
-if (golden.completed && !bot.completed) problems.push('solver completion regressed');
+if (golden.completed && !bot.completed) problems.push(`the scripted smoke run at seed ${seed} no longer finishes the level`);
 if (golden.metrics?.frameMsP95 && bot.metrics?.frameMsP95 > golden.metrics.frameMsP95 * 1.1 + 1) problems.push(`frameMsP95 ${bot.metrics.frameMsP95} > ${golden.metrics.frameMsP95} x1.1`);
 console.log(JSON.stringify({ golden: golden.metrics, current: bot.metrics, problems }, null, 2));
 process.exit(problems.length ? 1 : 0);

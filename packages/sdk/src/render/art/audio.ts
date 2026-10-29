@@ -92,3 +92,11 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return SFX_PRESETS[event] ? event : null;
   }
 }
+
+/**
+ * The sound an event can play at all, whoever it happens to (the player's death or an enemy's), or null when the
+ * renderer has none: a feedback binding to sfx for such an event would be silent.
+ */
+export function sfxPresetFor(event: string): string | null {
+  return sfxFor(event, { entity: 0, target: 0 }, () => true) ?? sfxFor(event, { entity: 1, target: 1 }, () => false);
+}

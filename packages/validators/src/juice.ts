@@ -1,4 +1,4 @@
-import type { GameEventRecord, GddFrontmatter } from '@gg/schemas';
+import type { GameEventRecord } from '@gg/schemas';
 import { err, report, warn, type Issue, type ValidationReport } from './report.js';
 
 export interface JuiceClamps {
@@ -13,11 +13,19 @@ export interface JuiceClamps {
 export const DEFAULT_CLAMPS: JuiceClamps = { feedbackWindowTicks: 6, silentStartTicks: 600, maxPerTick: 4 };
 
 /**
+ * What must answer what: the GDD's feedback table, or the game's design/feedback.json, which adds the genre's own
+ * custom events (a finisher, a boss slam) to the GDD's fixed ones.
+ */
+export interface FeedbackTable {
+  feedbackEvents: ReadonlyArray<{ event: string; channels: readonly string[] }>;
+}
+
+/**
  * Event-based juice lint over a recorded playtest event history. Proves feedback at runtime:
  * every occurrence of a GDD feedback event must be followed within the window by a `feedback`
  * (with one of its declared channels) or `audio_play` event. Also checks pile-ups and silent starts.
  */
-export function juiceLint(events: readonly GameEventRecord[], gdd: Pick<GddFrontmatter, 'feedbackEvents'>, clamps: JuiceClamps = DEFAULT_CLAMPS): ValidationReport {
+export function juiceLint(events: readonly GameEventRecord[], gdd: FeedbackTable, clamps: JuiceClamps = DEFAULT_CLAMPS): ValidationReport {
   const issues: Issue[] = [];
   const counts: Record<string, number> = {};
   for (const e of events) counts[e.name] = (counts[e.name] ?? 0) + 1;
@@ -41,7 +49,7 @@ export function juiceLint(events: readonly GameEventRecord[], gdd: Pick<GddFront
       for (let t = occ.tick; t <= occ.tick + clamps.feedbackWindowTicks && !found; t++) {
         for (const f of feedbackByTick.get(t) ?? []) {
           if (f.name === 'audio_play' && fe.channels.includes('sfx')) found = true;
-          if (f.name === 'feedback' && fe.channels.includes(String(f.payload['channel']) as (typeof fe.channels)[number])) found = true;
+          if (f.name === 'feedback' && fe.channels.includes(String(f.payload['channel']))) found = true;
         }
       }
       if (!found) misses++;
@@ -66,4 +74,39 @@ export function juiceLint(events: readonly GameEventRecord[], gdd: Pick<GddFront
   const lastTick = events[events.length - 1]?.tick ?? 0;
   if (!firstAudio && lastTick >= clamps.silentStartTicks) issues.push(warn('silent_start', `no audio_play in the first ${clamps.silentStartTicks} ticks`));
   return report(issues, { events: events.length, feedbackEvents: counts['feedback'] ?? 0, audioEvents: counts['audio_play'] ?? 0, unboundEvents: unbound });
+}
+
+/**
+ * The juice lint over several runs of one game (the smoke seeds). Each run is linted on its own, since feedback is
+ * matched to its event by tick within a run; errors and per-run warnings name their seed. An event counts as never
+ * fired only when it fired in none of the runs.
+ */
+export function juiceLintRuns(runs: ReadonlyArray<{ seed: number; events: readonly GameEventRecord[] }>, gdd: FeedbackTable, clamps: JuiceClamps = DEFAULT_CLAMPS): ValidationReport {
+  const issues: Issue[] = [];
+  const neverFired = new Map<string, number>();
+  let events = 0;
+  let feedbackEvents = 0;
+  let audioEvents = 0;
+  let unboundEvents = 0;
+  for (const run of runs) {
+    const r = juiceLint(run.events, gdd, clamps);
+    for (const i of r.issues) {
+      if (i.code === 'event_never_fired') neverFired.set(i.message, (neverFired.get(i.message) ?? 0) + 1);
+      else issues.push({ ...i, message: `seed ${run.seed}: ${i.message}` });
+    }
+    events += Number(r.metrics['events']);
+    feedbackEvents += Number(r.metrics['feedbackEvents']);
+    audioEvents += Number(r.metrics['audioEvents']);
+    unboundEvents = Math.max(unboundEvents, Number(r.metrics['unboundEvents']));
+  }
+  for (const [message, n] of neverFired) if (n === runs.length) issues.push(warn('event_never_fired', message.replace('in this run', `in any of ${runs.length} run${runs.length === 1 ? '' : 's'}`)));
+  return report(issues, { runs: runs.length, events, feedbackEvents, audioEvents, unboundEvents });
+}
+
+/**
+ * Feedback bound to the sfx channel for an event no sound plays for: the binder still emits audio_play, so the lint
+ * passes while the game stays silent. `soundFor` is the renderer's lookup (the preset an event plays, or null).
+ */
+export function silentSfx(gdd: FeedbackTable, soundFor: (event: string) => string | null): Issue[] {
+  return gdd.feedbackEvents.filter((fe) => fe.channels.includes('sfx') && !soundFor(fe.event)).map((fe) => err('sfx_unresolved', `'${fe.event}' is bound to sfx but no sound plays for it; bind another channel or an event with a sound`));
 }
