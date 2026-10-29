@@ -65,4 +65,5 @@ export const meta = {
   },
   emits: ['hit', 'death', 'despawn', 'spawn'],
   feedbackFor: ['hit', 'death'],
+  controls: { action: 'shoot' },
 } as const;

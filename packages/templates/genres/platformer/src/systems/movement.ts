@@ -160,4 +160,5 @@ export const meta = {
   params: {},
   emits: ['jump', 'land', 'dash'],
   feedbackFor: ['jump', 'land', 'dash'],
+  controls: { left: 'run', right: 'run', jump: 'jump', dash: 'dash' },
 } as const;

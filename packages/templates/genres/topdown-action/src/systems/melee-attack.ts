@@ -125,4 +125,5 @@ export const meta = {
   },
   emits: ['hit', 'death', 'despawn', 'custom:swing', 'custom:finisher'],
   feedbackFor: ['hit', 'custom:finisher'],
+  controls: { action: 'attack', left: 'aim', right: 'aim', up: 'aim', down: 'aim' },
 } as const;
