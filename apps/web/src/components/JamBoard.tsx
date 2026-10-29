@@ -11,6 +11,7 @@ const PHASE: Record<JamView['phase'], string> = {
   voting: 'Voting',
   closed: 'Finished',
 };
+const PHASE_TONE: Record<JamView['phase'], string> = { upcoming: 'info', open: 'ok', voting: 'brand', closed: 'neutral' };
 const CRITERIA = [
   ['fun', 'Fun'],
   ['theme', 'Theme'],
@@ -76,15 +77,35 @@ export function JamBoard({ initial }: { initial: JamView }) {
 
   return (
     <div className="jam" data-testid="jam" data-phase={phase} data-jam={jam.id}>
-      <h1>{jam.title}</h1>
-      <p className="jam-theme">
-        Theme: <strong>{jam.theme}</strong>
-        {jam.genres.length ? <span className="muted"> · {jam.genres.join(', ')} only</span> : null}
-      </p>
-      {jam.description ? <p>{jam.description}</p> : null}
-      <p className="muted" data-testid="jam-phase">
-        <strong>{PHASE[phase]}</strong> · entries open {utc(jam.startsAt)} · submissions close {utc(jam.submissionsClose)} · voting closes {utc(jam.votingClose)}
-      </p>
+      <div className="page-head">
+        <div>
+          <div className="cluster" style={{ marginBottom: 10 }}>
+            <span className="pill dot" data-tone={PHASE_TONE[phase]}>
+              {PHASE[phase]}
+            </span>
+            {jam.genres.length ? <span className="pill">{jam.genres.join(', ')} only</span> : null}
+          </div>
+          <h1>{jam.title}</h1>
+          <p className="jam-theme">
+            Theme: <span className="gradient-text">{jam.theme}</span>
+          </p>
+          {jam.description ? <p className="lead">{jam.description}</p> : null}
+        </div>
+      </div>
+      <div className="timeline" data-testid="jam-phase">
+        <div data-current={phase === 'open' ? 'true' : undefined}>
+          <strong>Entries open</strong>
+          {utc(jam.startsAt)}
+        </div>
+        <div data-current={phase === 'voting' ? 'true' : undefined}>
+          <strong>Voting</strong>
+          from {utc(jam.submissionsClose)}
+        </div>
+        <div data-current={phase === 'closed' ? 'true' : undefined}>
+          <strong>Results</strong>
+          {utc(jam.votingClose)}
+        </div>
+      </div>
       {error ? (
         <p className="err" data-testid="jam-error">
           {error}
@@ -186,8 +207,8 @@ export function JamBoard({ initial }: { initial: JamView }) {
           <p className="muted">Entries rank by score once they have 3 votes: each criterion counts as if every entry also had three votes of 3, so a handful of fives cannot top the jam.</p>
         </div>
       ) : null}
-      <p>
-        <Link href="/jams">All jams</Link>
+      <p style={{ marginTop: 24 }}>
+        <Link href="/jams">← All jams</Link>
       </p>
     </div>
   );

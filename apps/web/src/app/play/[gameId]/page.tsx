@@ -1,8 +1,11 @@
+import Link from 'next/link';
 import { PLAY_SOURCES, type PlaySource } from '@gg/schemas';
+import { Icon } from '@/components/Icon';
 import { PlayFrame } from '@/components/PlayFrame';
 import { PlaySession } from '@/components/PlaySession';
 import { ReportButton } from '@/components/ReportButton';
 import { RemixButton } from '@/components/RemixButton';
+import { GENRE_BY_ID, genreLabel } from '@/lib/genres';
 import { viewerId } from '@/lib/identity';
 import { bundleBaseUrl, getStore } from '@/lib/store';
 
@@ -32,7 +35,7 @@ export default async function PlayPage({ params, searchParams }: Props) {
   const source: PlaySource = (PLAY_SOURCES as readonly string[]).includes(srcRaw) ? (srcRaw as PlaySource) : 'direct';
   let title = safeId;
   let bundleUrl = `/bundles/${safeId}/index.html`;
-  let session: { versionId: string; levels: number } | null = null;
+  let session: { versionId: string; number: number; levels: number } | null = null;
   const store = getStore();
   const game = await store.getGame(safeId).catch(() => null);
   const asked = typeof q['version'] === 'string' ? q['version'] : null;
@@ -45,7 +48,7 @@ export default async function PlayPage({ params, searchParams }: Props) {
       bundleUrl = `${base}/index.html`;
       title = game.title;
       const levels = Number((head.design as { gdd?: { scope?: { levels?: number } } }).gdd?.scope?.levels ?? 1);
-      session = { versionId: head.id, levels: Number.isFinite(levels) && levels > 0 ? levels : 1 };
+      session = { versionId: head.id, number: head.number, levels: Number.isFinite(levels) && levels > 0 ? levels : 1 };
     }
   }
   const me = await viewerId();
@@ -53,31 +56,100 @@ export default async function PlayPage({ params, searchParams }: Props) {
   if (game && moderated && (game.state === 'removed' || (game.ownerId !== me && !(await store.isModerator(me))))) {
     return (
       <main>
-        <h1>{game.title}</h1>
-        <p className="muted" data-testid="moderated" data-state={game.state}>
-          {game.state === 'removed' ? 'This game was removed by moderation.' : 'This game is hidden while moderators review reports about it.'}
-        </p>
+        <div className="empty">
+          <strong>{game.title}</strong>
+          <span data-testid="moderated" data-state={game.state}>
+            {game.state === 'removed' ? 'This game was removed by moderation.' : 'This game is hidden while moderators review reports about it.'}
+          </span>
+          <Link className="btn" href="/">
+            Back to the games
+          </Link>
+        </div>
       </main>
     );
   }
+  const info = game ? GENRE_BY_ID[game.genre] : undefined;
+  const stats = game ? await store.gameStats(game.id).catch(() => null) : null;
+  const originVersion = game?.originVersionId ? await store.getVersion(game.originVersionId).catch(() => null) : null;
+  const origin = originVersion ? await store.getGame(originVersion.gameId).catch(() => null) : null;
   return (
     <main>
-      <h1>
-        {title} {game?.headVersionId && !moderated ? <RemixButton gameId={game.id} /> : null}
-      </h1>
-      {moderated ? (
-        <p className="err" data-testid="moderated" data-state={game.state}>
-          Suspended pending review: only its owner and moderators can open it, and plays are not recorded.
-        </p>
-      ) : null}
-      {session && game && mode === 'play' && !moderated ? (
-        <>
-          <PlaySession gameId={game.id} versionId={session.versionId} bundleUrl={bundleUrl} source={source} levels={session.levels} seed={seed} rating />
-          {game.ownerId !== me ? <ReportButton gameId={game.id} /> : null}
-        </>
-      ) : (
-        <PlayFrame bundleUrl={bundleUrl} mode={mode} seed={seed} />
-      )}
+      <div className="play-layout">
+        <div className="stage">
+          {moderated ? (
+            <div className="callout" data-tone="err" data-testid="moderated" data-state={game?.state}>
+              Suspended pending review: only its owner and moderators can open it, and plays are not recorded.
+            </div>
+          ) : null}
+          {session && game && mode === 'play' && !moderated ? (
+            <PlaySession gameId={game.id} versionId={session.versionId} bundleUrl={bundleUrl} source={source} levels={session.levels} seed={seed} rating />
+          ) : (
+            <PlayFrame bundleUrl={bundleUrl} mode={mode} seed={seed} />
+          )}
+        </div>
+        <aside className="play-info">
+          <div className="panel stack">
+            <div className="stack-sm">
+              <div className="cluster">
+                <span className="pill">{game ? genreLabel(game.genre) : 'Sample'}</span>
+                {session ? <span className="pill">Version {session.number}</span> : null}
+              </div>
+              <h1>{title}</h1>
+              {game ? (
+                <span className="muted small">
+                  by <strong>{game.ownerId}</strong>
+                  {origin ? (
+                    <>
+                      {' '}
+                      · remix of <Link href={`/play/${origin.id}`}>{origin.title}</Link>
+                    </>
+                  ) : null}
+                </span>
+              ) : null}
+            </div>
+            {stats ? (
+              <div className="stats">
+                <div className="stat">
+                  <span className="value">{stats.players}</span>
+                  <span className="label">players</span>
+                </div>
+                <div className="stat">
+                  <span className="value">{Math.round(stats.completionRate * 100)}%</span>
+                  <span className="label">finish it</span>
+                </div>
+                <div className="stat">
+                  <span className="value">{stats.ratings['fun'] ?? 0}</span>
+                  <span className="label">say fun</span>
+                </div>
+              </div>
+            ) : null}
+            {game?.headVersionId && !moderated ? (
+              <div className="cluster">
+                <RemixButton gameId={game.id} />
+                {game.ownerId === me ? (
+                  <Link className="btn" href={`/games/${game.id}`}>
+                    <Icon name="code" /> Open workspace
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          {info ? (
+            <div className="panel">
+              <h2>Controls</h2>
+              <div className="controls-hint">
+                {info.controls.map(([keys, action]) => (
+                  <span key={keys} style={{ display: 'contents' }}>
+                    <kbd>{keys}</kbd>
+                    <span>{action}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {session && game && mode === 'play' && !moderated && game.ownerId !== me ? <ReportButton gameId={game.id} /> : null}
+        </aside>
+      </div>
     </main>
   );
 }

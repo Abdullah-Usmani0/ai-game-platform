@@ -10,14 +10,17 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "bundles:sample": "node scripts/sync-sample-bundle.mjs",
+    "genre-previews": "node scripts/genre-previews.mjs",
     "check:bridge": "node scripts/check-bridge.mjs",
     "check:create": "node scripts/check-create.mjs",
     "check:community": "node scripts/check-community.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
     "@gg/catalog": "workspace:*",
     "@gg/db": "workspace:*",
     "@gg/schemas": "workspace:*",
+    "@gg/sdk": "workspace:*",
     "@gg/template-core": "workspace:*",
     "@gg/templates": "workspace:*",
     "next": "16.4.3",

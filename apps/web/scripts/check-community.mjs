@@ -126,6 +126,7 @@ try {
   //     level editor draws the same counts over the first level; other players do not see it.
   const heatAfter = await heatTotals();
   await owner.goto(`${url}/games/${game.id}`, { waitUntil: 'load', timeout: 30000 });
+  await owner.click('[data-testid="tab-levels"]');
   await owner.waitForSelector('[data-testid="level-editor"][data-loaded="yes"]', { timeout: 20000 });
   await owner.click('[data-testid="heat-toggle"]');
   await owner.waitForSelector('[data-testid="level-canvas"][data-heat="on"]', { timeout: 10000 });

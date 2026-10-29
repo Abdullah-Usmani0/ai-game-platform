@@ -45,7 +45,7 @@ try {
   const remixJson = await remixed.json();
   const remixView = await (await fetch(`${url}/api/games/${remixJson.gameId}`)).json();
   result.remix = { status: remixed.status, playable: remixView.game?.state, headShared: remixView.head?.bundlePath === (state.versions.find((v) => v.id === game.headVersionId)?.bundlePath) };
-  // 2. Workspace of the finished game: evidence panel and a playable preview over the bridge.
+  // 2. Workspace of the finished game: evidence (the overview tab, open by default) and a playable preview over the bridge.
   await page.goto(`${url}/games/${game.id}`, { waitUntil: 'load', timeout: 30000 });
   await page.waitForSelector('[data-testid="evidence"]', { timeout: 20000 });
   result.panels = Boolean(await page.$('[data-testid="param-panel"]'));
@@ -59,6 +59,7 @@ try {
   result.jobStatusShown = await page.textContent('[data-testid="job-status"]');
   // 2b. Level editor: place a collectible on the spawn tile, run the in-page check (validator + solver bot), apply.
   // The edit is queued as an edit_content job carrying the authored level; no worker runs here.
+  if (await page.$('[data-testid="tab-levels"]')) await page.click('[data-testid="tab-levels"]');
   const editor = await page.waitForSelector('[data-testid="level-editor"][data-loaded="yes"]', { timeout: 20000 }).catch(() => null);
   result.editor = Boolean(editor);
   if (editor) {
@@ -80,6 +81,7 @@ try {
   }
   // 2c. Code view: the head's source opens in the workspace without the private concept, build output or reports, a
   // file shows its lines, and "Ask for a change" starts an edit about it.
+  await page.click('[data-testid="tab-code"]');
   await page.click('[data-testid="code-open"]');
   await page.waitForSelector('[data-testid="code-loaded"]', { timeout: 20000 });
   const files = await page.$$eval('[data-testid="code-file"]', (els) => els.map((e) => e.getAttribute('data-path')));

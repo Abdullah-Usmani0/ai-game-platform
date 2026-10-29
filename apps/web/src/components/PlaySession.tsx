@@ -4,11 +4,11 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref
 import { PLAY_EVENT_LIMITS, type GameToHost, type PlayEvent, type PlaySource, type RatingTag } from '@gg/schemas';
 import { PlayFrame } from '@/components/PlayFrame';
 
-const TAGS: Array<{ tag: RatingTag; label: string }> = [
-  { tag: 'fun', label: 'Fun' },
-  { tag: 'confusing', label: 'Confusing' },
-  { tag: 'broken', label: 'Broken' },
-  { tag: 'ugly', label: 'Ugly' },
+const TAGS: Array<{ tag: RatingTag; label: string; hint: string }> = [
+  { tag: 'fun', label: 'Fun', hint: 'I would play more' },
+  { tag: 'confusing', label: 'Confusing', hint: 'I did not get it' },
+  { tag: 'broken', label: 'Broken', hint: 'something failed' },
+  { tag: 'ugly', label: 'Ugly', hint: 'it looks off' },
 ];
 
 export interface SessionStats {
@@ -137,16 +137,23 @@ export function PlaySession({ gameId, versionId, bundleUrl, source, levels, seed
       <PlayFrame bundleUrl={bundleUrl} mode="play" seed={seed} onMessage={onMessage} sampleStateMs={PLAY_EVENT_LIMITS.sampleEveryS * 1000} />
       {rating ? (
         <div className="panel rate" data-testid="rate">
-          <h2>One word for it</h2>
-          <div className="row">
+          <h2>How was it?</h2>
+          <div className="rate-options">
             {TAGS.map((t) => (
-              <button key={t.tag} className={`tool${tag === t.tag ? ' selected' : ''}`} onClick={() => void rate(t.tag)} data-testid={`rate-${t.tag}`}>
-                {t.label}
+              <button key={t.tag} aria-pressed={tag === t.tag} onClick={() => void rate(t.tag)} data-testid={`rate-${t.tag}`}>
+                <strong>{t.label}</strong>
+                <span className="muted small">{t.hint}</span>
               </button>
             ))}
           </div>
-          {tag ? <p className="muted" data-testid="rated">rated: {tag}</p> : <p className="muted">Pick the one that fits best; you can change it later.</p>}
-          {error ? <p className="err">{error}</p> : null}
+          {tag ? (
+            <p className="muted small rate-note" data-testid="rated">
+              rated: {tag} · you can change it any time
+            </p>
+          ) : (
+            <p className="muted small rate-note">Pick the one word that fits best.</p>
+          )}
+          {error ? <p className="err small">{error}</p> : null}
         </div>
       ) : null}
     </div>

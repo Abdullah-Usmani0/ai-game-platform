@@ -44,62 +44,91 @@ export function CommunityPanel({ gameId, hasHead }: { gameId: string; hasHead: b
   const last = [...view.tests].reverse().find((t) => t.status === 'closed');
   return (
     <div className="panel" data-testid="community" data-listed={listed ? 'yes' : 'no'}>
-      <h2>Community</h2>
-      <p className="muted">
-        {listed ? 'Listed in the feed' : 'Not listed'} · {s.players} player(s), {s.qualifiedPlayers} played 30 s+ · {Math.round(s.completionRate * 100)}% finish · {s.avgPlayMin.toFixed(1)} min avg · rank {s.rankScore.toFixed(3)}
-        {s.broken ? <span className="err"> · marked broken</span> : null}
-      </p>
-      <p className="muted">
-        ratings: fun {s.ratings['fun'] ?? 0} · confusing {s.ratings['confusing'] ?? 0} · broken {s.ratings['broken'] ?? 0} · ugly {s.ratings['ugly'] ?? 0} · remixes {s.remixes}
-      </p>
+      <h2>
+        Community
+        <span className="pill dot" data-tone={listed ? 'ok' : 'neutral'}>
+          {listed ? 'In the feed' : 'Not listed'}
+        </span>
+        {s.broken ? (
+          <span className="pill" data-tone="err">
+            Marked broken
+          </span>
+        ) : null}
+      </h2>
+      <div className="community-stats">
+        <div className="stat">
+          <span className="value">{s.players}</span>
+          <span className="label">players</span>
+        </div>
+        <div className="stat">
+          <span className="value">{s.qualifiedPlayers}</span>
+          <span className="label">played 30 s+</span>
+        </div>
+        <div className="stat">
+          <span className="value">{Math.round(s.completionRate * 100)}%</span>
+          <span className="label">finish</span>
+        </div>
+        <div className="stat">
+          <span className="value">{s.avgPlayMin.toFixed(1)}</span>
+          <span className="label">min avg</span>
+        </div>
+      </div>
+      <div className="ratings">
+        <span className="pill">Fun {s.ratings['fun'] ?? 0}</span>
+        <span className="pill">Confusing {s.ratings['confusing'] ?? 0}</span>
+        <span className="pill">Broken {s.ratings['broken'] ?? 0}</span>
+        <span className="pill">Ugly {s.ratings['ugly'] ?? 0}</span>
+        <span className="pill">Remixes {s.remixes}</span>
+        <span className="pill" title="feed rank score">Rank {s.rankScore.toFixed(3)}</span>
+      </div>
       {view.state === 'removed' ? (
         <>
-          <p className="err" data-testid="moderation-state" data-state="removed">
+          <div className="callout" data-tone="err" data-testid="moderation-state" data-state="removed">
             Removed by moderation{view.moderation.removedFor ? `: ${view.moderation.removedFor}` : ''}. It cannot be played, edited, listed or remixed.
-          </p>
+          </div>
           {view.isOwner && !view.moderation.appeal ? <AppealForm gameId={gameId} counterNotice={view.moderation.removedKind === 'ip'} onSent={() => void refresh()} /> : null}
           {view.moderation.appeal?.status === 'open' ? (
-            <p className="muted" data-testid="appeal-status" data-status="open">
+            <p className="muted small" data-testid="appeal-status" data-status="open">
               Appeal filed; moderators can restore the game from {new Date(view.moderation.appeal.reinstateAfter).toLocaleDateString()}.
             </p>
           ) : view.moderation.appeal?.status === 'upheld' ? (
-            <p className="err" data-testid="appeal-status" data-status="upheld">
+            <p className="err small" data-testid="appeal-status" data-status="upheld">
               Appeal upheld: the removal stands{view.moderation.appeal.decisionNote ? ` (${view.moderation.appeal.decisionNote})` : ''}.
             </p>
           ) : null}
         </>
       ) : view.state === 'suspended' ? (
-        <p className="err" data-testid="moderation-state" data-state="suspended">
+        <div className="callout" data-tone="warn" data-testid="moderation-state" data-state="suspended">
           Suspended: hidden from other players until moderators review the reports about it{view.moderation.openReports ? ` (${view.moderation.openReports} open)` : ''}.
-        </p>
+        </div>
       ) : view.moderation.unlistedFor !== null ? (
-        <p className="err" data-testid="moderation-state" data-state="unlisted">
+        <div className="callout" data-tone="warn" data-testid="moderation-state" data-state="unlisted">
           A moderator unlisted this version{view.moderation.unlistedFor ? `: ${view.moderation.unlistedFor}` : ''}. Publish a fixed version to list it again.
-        </p>
+        </div>
       ) : view.moderation.openReports ? (
-        <p className="muted">{view.moderation.openReports} open report(s) await review.</p>
+        <p className="muted small">{view.moderation.openReports} open report(s) await review.</p>
       ) : null}
-      {view.isOwner && view.moderation.ownerStrikes ? <p className="err">Your account has {view.moderation.ownerStrikes} active strike(s); three block listing.</p> : null}
+      {view.isOwner && view.moderation.ownerStrikes ? <p className="err small">Your account has {view.moderation.ownerStrikes} active strike(s); three block listing.</p> : null}
       {open ? (
-        <p data-testid="test-status">
-          testers: {open.submitted}/{open.needed} reports in (reward {open.rewardCredits} credits each)
+        <p className="small" data-testid="test-status">
+          Testers: {open.submitted}/{open.needed} reports in (reward {open.rewardCredits} credits each)
         </p>
       ) : last ? (
-        <p data-testid="test-status">
-          last test round: <strong className={last.outcome === 'works' ? 'ok' : 'err'}>{last.outcome}</strong> ({last.verdicts.map((v) => `${v.verdict}/${v.tag}`).join(', ')})
+        <p className="small" data-testid="test-status">
+          Last test round: <strong className={last.outcome === 'works' ? 'ok' : 'err'}>{last.outcome}</strong> <span className="muted">({last.verdicts.map((v) => `${v.verdict}/${v.tag}`).join(', ')})</span>
         </p>
       ) : null}
       {view.isOwner ? (
         <div className="row">
-          <button disabled={busy || !hasHead || view.state === 'removed' || view.state === 'suspended'} onClick={() => void post('publish', { listed: !listed })} data-testid="publish">
+          <button className={listed ? undefined : 'btn-primary'} disabled={busy || !hasHead || view.state === 'removed' || view.state === 'suspended'} onClick={() => void post('publish', { listed: !listed })} data-testid="publish">
             {listed ? 'Unlist' : 'Publish to the feed'}
           </button>
           <button disabled={busy || !hasHead || Boolean(open) || view.state === 'removed' || view.state === 'suspended'} onClick={() => void post('tests', { needed: 3, rewardCredits: 5 })} data-testid="ask-testers">
-            Ask 3 testers (5 credits each)
+            Ask 3 testers <span className="muted">· 5 credits each</span>
           </button>
         </div>
       ) : null}
-      {error ? <p className="err">{error}</p> : null}
+      {error ? <p className="err small">{error}</p> : null}
     </div>
   );
 }

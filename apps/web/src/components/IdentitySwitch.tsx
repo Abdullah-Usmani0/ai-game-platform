@@ -15,11 +15,23 @@ export function IdentitySwitch() {
   }
   return (
     <span className="identity" data-testid="identity">
-      as <strong data-testid="identity-name">{me?.userId ?? '…'}</strong> · {me?.credits ?? 0} credits{' '}
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="switch user" aria-label="switch user" />
-      <button onClick={() => void switchTo()} disabled={!name.trim()}>
-        switch
-      </button>
+      <span className="who" title={`${me?.credits ?? 0} credits`}>
+        <span className="avatar">{(me?.userId ?? '?').slice(0, 1)}</span>
+        <strong data-testid="identity-name">{me?.userId ?? '…'}</strong>
+        <span className="muted">{me?.credits ?? 0} cr</span>
+      </span>
+      <form
+        className="cluster"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void switchTo();
+        }}
+      >
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="switch user" aria-label="switch user" />
+        <button type="submit" disabled={!name.trim()}>
+          Switch
+        </button>
+      </form>
     </span>
   );
 }

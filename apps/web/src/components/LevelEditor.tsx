@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import type { Heatmap, HeatCell } from '@gg/db';
 import type { BehaviourFsm, LevelJson, SystemsJson, TileKind } from '@gg/schemas';
 import type { GenreCheck, LevelCheck } from '@gg/template-core';
+import { FLAG, PixelCanvas, RECIPES, TYPE_RECIPES, artPalette, paintFrames, paintRegion, prepareLevelArt, settingFor, type Anchor, type ArtPalette, type OutlineMode, type PaletteRoles, type Recipe, type Setting } from '@gg/sdk/art';
 
 /** content/index.json of a published bundle (written by the publisher). */
 interface ContentIndex {
@@ -104,6 +105,29 @@ async function fetchJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** A pixel canvas on a browser canvas, to draw scaled with smoothing off. */
+function canvasOf(pc: PixelCanvas): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = pc.w;
+  c.height = pc.h;
+  c.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(pc.data), pc.w, pc.h), 0, 0);
+  return c;
+}
+
+/** The game's look, from its style card: the editor paints levels with the same art kit the game is drawn with. */
+export interface EditorLook {
+  palette: PaletteRoles;
+  outline?: OutlineMode;
+}
+
+interface LevelArt {
+  /** The draft this was painted from; tiles edited since are drawn flat until the next repaint. */
+  level: LevelJson;
+  pal: ArtPalette;
+  setting: Setting;
+  image: HTMLCanvasElement;
+}
+
 /** The level being edited with its undo history. A reducer keeps every transition pure (Strict Mode replays them). */
 interface EditorState {
   draft: LevelJson | null;
@@ -153,6 +177,7 @@ export function LevelEditor({
   disabled,
   onApply,
   heatSrc,
+  look,
 }: {
   genre: string;
   bundleBase: string;
@@ -160,6 +185,8 @@ export function LevelEditor({
   onApply: (content: { levels: LevelJson[] }, message: string) => void;
   /** The owner's heatmap of this version (/api/games/<id>/heatmap?version=<id>); the overlay is offered when set. */
   heatSrc?: string;
+  /** Paint the level as the game draws it; without it tiles are flat colours. */
+  look?: EditorLook;
 }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -246,7 +273,55 @@ export function LevelEditor({
     if (!entityType && entityTypes[0]) setEntityType(entityTypes[0]);
   }, [entityTypes, entityType]);
 
-  const cell = draft ? Math.max(4, Math.min(16, Math.floor(640 / draft.width))) : 8;
+  // Tiles as large as the panel allows (4 to 16 pixels), so long levels still fit and short ones are easy to hit.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [avail, setAvail] = useState(640);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setAvail(Math.max(320, el.clientWidth - 2)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loaded]);
+  const cell = draft ? Math.max(4, Math.min(16, Math.floor(avail / draft.width))) : 8;
+
+  // The level painted with the game's art. Painting a whole level takes tens of milliseconds, so it follows the draft a
+  // moment behind while tiles are being drawn; tiles changed since the last paint show flat until it catches up.
+  const [art, setArt] = useState<LevelArt | null>(null);
+  const movementMode = kit?.runtime.movementMode;
+  useEffect(() => {
+    if (!draft || !look) {
+      setArt(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      try {
+        const pal = artPalette(look.palette, look.outline ?? 'dark');
+        const setting = settingFor(genre, movementMode);
+        const map = { width: draft.width, height: draft.height, tileSize: draft.tileSize, kindAt: (x: number, y: number) => kindAt(draft, x, y) ?? 'air' };
+        const pc = new PixelCanvas(draft.width * draft.tileSize, draft.height * draft.tileSize);
+        paintRegion(prepareLevelArt(pal, setting, map, false), pc, 0, 0);
+        setArt({ level: draft, pal, setting, image: canvasOf(pc) });
+      } catch {
+        setArt(null);
+      }
+    }, 90);
+    return () => window.clearTimeout(timer);
+  }, [draft, look, genre, movementMode]);
+  // First frame of each entity type's sprite (and the player's, and the side-view goal flag), in the game's palette.
+  const sprites = useMemo(() => {
+    const map = new Map<string, { image: HTMLCanvasElement; anchor: Anchor }>();
+    if (!art) return map;
+    const add = (key: string, recipe: Recipe | undefined) => {
+      const frame = recipe ? paintFrames(recipe, art.pal)[0] : undefined;
+      if (recipe && frame) map.set(key, { image: canvasOf(frame.pc), anchor: recipe.anchor });
+    };
+    for (const t of entityTypes) add(t, RECIPES[TYPE_RECIPES[t] ?? '']);
+    const playerW = kit?.runtime.player.w ?? 8;
+    add('@player', RECIPES[art.setting === 'side' ? 'hero-side' : art.setting === 'space' ? 'ship' : playerW >= 12 ? 'keeper' : 'hero-topdown']);
+    if (art.setting === 'side') add('@goal', FLAG);
+    return map;
+  }, [art, entityTypes, kit]);
 
   // Other players' heat on this version, counted per tile (the heatmap's cell is the level's tile size).
   const tileSize = draft?.tileSize ?? null;
@@ -277,12 +352,34 @@ export function LevelEditor({
     if (!canvas || !draft) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.fillStyle = COLORS.air;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = false;
+    const W = draft.width * cell;
+    const H = draft.height * cell;
+    const toCss = (c: readonly [number, number, number]) => `rgb(${c[0]},${c[1]},${c[2]})`;
+    if (art) {
+      // The sky (side and space settings) under the painted level, then the level itself.
+      const sky = ctx.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, toCss(art.pal.sky[0]));
+      sky.addColorStop(1, toCss(art.pal.sky[1]));
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(art.image, 0, 0, art.image.width, art.image.height, 0, 0, W, H);
+    } else {
+      ctx.fillStyle = COLORS.air;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
     for (let y = 0; y < draft.height; y++) {
       for (let x = 0; x < draft.width; x++) {
         const k = kindAt(draft, x, y) ?? 'air';
-        if (k === 'air') continue;
+        // With art, only tiles edited since the last paint are drawn flat.
+        if (art && k === (kindAt(art.level, x, y) ?? 'air')) continue;
+        if (k === 'air') {
+          if (art) {
+            ctx.fillStyle = toCss(art.setting === 'side' || art.setting === 'space' ? art.pal.sky[1] : art.pal.floor[2]);
+            ctx.fillRect(x * cell, y * cell, cell, cell);
+          }
+          continue;
+        }
         ctx.fillStyle = COLORS[k];
         if (k === 'oneway')
           ctx.fillRect(x * cell, y * cell, cell, Math.max(1, Math.floor(cell / 3)));
@@ -290,7 +387,7 @@ export function LevelEditor({
       }
     }
     if (cell >= 8) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.strokeStyle = art ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.05)';
       ctx.lineWidth = 1;
       for (let x = 0; x <= draft.width; x++) {
         ctx.beginPath();
@@ -313,7 +410,23 @@ export function LevelEditor({
         ctx.fillRect(c.x * cell, c.y * cell, cell, cell);
       }
     }
+    const scale = cell / draft.tileSize;
+    const drawSprite = (key: string, x: number, y: number) => {
+      const sp = sprites.get(key);
+      if (!sp) return false;
+      const w = Math.max(1, Math.round(sp.image.width * scale));
+      const h = Math.max(1, Math.round(sp.image.height * scale));
+      const left = Math.round(x * cell + cell / 2 - w / 2);
+      const top = sp.anchor === 'feet' ? Math.round((y + 1) * cell - h + scale) : Math.round(y * cell + cell / 2 - h / 2);
+      ctx.drawImage(sp.image, left, top, w, h);
+      return true;
+    };
+    if (art) {
+      if (art.setting === 'side') drawSprite('@goal', draft.goal.x, draft.goal.y);
+      drawSprite('@player', draft.spawn.x, draft.spawn.y);
+    }
     for (const e of draft.entities) {
+      if (art && drawSprite(e.type, e.x, e.y)) continue;
       ctx.fillStyle = colorForType(e.type, entityTypes);
       ctx.beginPath();
       ctx.arc(
@@ -361,7 +474,7 @@ export function LevelEditor({
       ctx.lineWidth = 1;
       ctx.strokeRect(hover.x * cell + 0.5, hover.y * cell + 0.5, cell - 1, cell - 1);
     }
-  }, [draft, cell, hover, entityTypes, levelHeat]);
+  }, [draft, cell, hover, entityTypes, levelHeat, art, sprites]);
 
   const mutate = useCallback(
     (fn: (l: LevelJson) => LevelJson) => dispatch({ type: 'edit', fn }),
@@ -570,7 +683,7 @@ export function LevelEditor({
               erase entity
             </button>
           </div>
-          <div className="editor-scroll">
+          <div className="editor-scroll" ref={scrollRef}>
             <canvas
               ref={canvasRef}
               width={draft.width * cell}

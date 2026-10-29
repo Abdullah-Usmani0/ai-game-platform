@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameToHost } from '@gg/schemas';
 import { BridgeHost } from '@/lib/bridge-host';
+import { cap } from '@/lib/text';
 
 export interface PlayFrameProps {
   bundleUrl: string;
@@ -16,10 +17,19 @@ export interface PlayFrameProps {
 
 type Status = 'loading' | 'hello' | 'ready' | 'error';
 
+const STATUS_TONE: Record<Status, string> = { loading: 'neutral', hello: 'info', ready: 'ok', error: 'err' };
+
+/**
+ * A game in its sandboxed frame, with the player's controls under it (pause, sound, full screen). Preview and test
+ * modes add the developer tools: the game's state, a screenshot, frame timing and the event log.
+ */
 export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: PlayFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<BridgeHost | null>(null);
   const [status, setStatus] = useState<Status>('loading');
+  const [paused, setPaused] = useState(false);
+  const [muted, setMuted] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
   const [state, setState] = useState<{ tick: number; hash: string; scene: string } | null>(null);
   const [metrics, setMetrics] = useState<{ fps: number; frameMsP95: number } | null>(null);
@@ -37,7 +47,7 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: P
       mode,
       seed,
       locale: 'en',
-      prefs: { reduceShake: false, colorblind: false, mute: false },
+      prefs: { reduceShake: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false, colorblind: false, mute: false },
       player: { nickname: 'player' },
       limits: { saveBytes: 65536 },
     });
@@ -88,50 +98,75 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: P
   }, [mode, seed, bundleUrl, sampleStateMs]);
 
   const send = (msg: Parameters<BridgeHost['send']>[0]) => hostRef.current?.send(msg);
+  const dev = mode !== 'play';
+  const togglePause = () => {
+    send({ type: paused ? 'resume' : 'pause' });
+    setPaused(!paused);
+    iframeRef.current?.focus();
+  };
+  const toggleMute = () => {
+    send({ type: 'mute', muted: !muted });
+    setMuted(!muted);
+    iframeRef.current?.focus();
+  };
+  const fullscreen = () => void wrapRef.current?.requestFullscreen?.().catch(() => undefined);
 
   return (
-    <div className="play">
-      <div className="frame-wrap">
-        <iframe
-          ref={iframeRef}
-          title="game"
-          src={bundleUrl}
-          sandbox="allow-scripts"
-          allow="autoplay"
-          referrerPolicy="no-referrer"
-        />
-      </div>
-      <aside className="panel" data-status={status}>
-        <h2>Bridge</h2>
-        <p>
-          status: <strong data-testid="status">{status}</strong>
-          {error ? <span className="err"> error: {error}</span> : null}
-        </p>
-        <div className="row">
-          <button onClick={() => send({ type: 'pause' })}>pause</button>
-          <button onClick={() => send({ type: 'resume' })}>resume</button>
-          <button onClick={() => send({ type: 'request_state' })} data-testid="request-state">
-            state
-          </button>
-          <button onClick={() => send({ type: 'request_screenshot' })}>screenshot</button>
+    <div className="stage">
+      <div className="frame-wrap" ref={wrapRef}>
+        <iframe ref={iframeRef} title="game" src={bundleUrl} sandbox="allow-scripts" allow="autoplay; fullscreen" referrerPolicy="no-referrer" />
+        <div className="loading" data-hidden={status === 'ready' ? 'true' : 'false'} aria-hidden="true">
+          {status === 'error' ? 'The game stopped with an error.' : 'Loading the game…'}
         </div>
-        {state ? (
-          <p data-testid="state">
-            tick {state.tick} · scene {state.scene} · hash {state.hash}
-          </p>
+      </div>
+      <div className="frame-bar" data-status={status}>
+        <span className="pill dot" data-tone={STATUS_TONE[status]} data-live={status !== 'ready' && status !== 'error' ? 'true' : undefined}>
+          <span data-testid="status">{cap(status)}</span>
+        </span>
+        {error ? <span className="err small">{error}</span> : null}
+        <span className="spacer" />
+        <button className="btn-sm btn-ghost" onClick={togglePause} disabled={status !== 'ready'} aria-pressed={paused}>
+          {paused ? 'Resume' : 'Pause'}
+        </button>
+        <button className="btn-sm btn-ghost" onClick={toggleMute} disabled={status !== 'ready'} aria-pressed={muted}>
+          {muted ? 'Sound off' : 'Sound on'}
+        </button>
+        <button className="btn-sm btn-ghost" onClick={fullscreen}>
+          Full screen
+        </button>
+        {dev ? (
+          <>
+            <button className="btn-sm" onClick={() => send({ type: 'request_state' })} data-testid="request-state">
+              State
+            </button>
+            <button className="btn-sm" onClick={() => send({ type: 'request_screenshot' })}>
+              Screenshot
+            </button>
+          </>
         ) : null}
-        {metrics ? (
-          <p>
-            {metrics.fps} fps · p95 {metrics.frameMsP95} ms
-          </p>
-        ) : null}
-        <ul className="events">
-          {events.map((e, i) => (
-            <li key={`${e}-${i}`}>{e}</li>
-          ))}
-        </ul>
-        {shot ? <img src={shot} alt="screenshot" className="shot" /> : null}
-      </aside>
+      </div>
+      {dev && (state || metrics || events.length || shot) ? (
+        <div className="devtools">
+          {state ? (
+            <div className="state" data-testid="state">
+              tick {state.tick} · scene {state.scene} · hash {state.hash}
+            </div>
+          ) : null}
+          {metrics ? (
+            <div>
+              {metrics.fps} fps · p95 frame {metrics.frameMsP95} ms
+            </div>
+          ) : null}
+          {events.length ? (
+            <ul className="events">
+              {events.map((e, i) => (
+                <li key={`${e}-${i}`}>{e}</li>
+              ))}
+            </ul>
+          ) : null}
+          {shot ? <img src={shot} alt="screenshot" className="shot" /> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
