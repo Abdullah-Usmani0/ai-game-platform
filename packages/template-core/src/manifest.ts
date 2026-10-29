@@ -1,4 +1,4 @@
-import type { BehaviourFsm, EcaRule, FeedbackChannel, GddFrontmatter, Genre, LevelJson, ParamValue, ScopeTier } from '@gg/schemas';
+import type { BehaviourFsm, EcaRule, FeedbackChannel, GddFrontmatter, LevelJson, ParamValue, PlayableGenre, ScopeTier } from '@gg/schemas';
 import type { EntityDef, FeelPreset, InputState, Sim, SystemDef } from '@gg/sdk';
 import type { CatalogSystem, ValidationReport } from '@gg/validators';
 
@@ -65,7 +65,7 @@ export interface ScopeBudget {
 
 /** Browser-safe part of a genre: what a game bundle imports. */
 export interface GenreRuntime {
-  id: Genre;
+  id: PlayableGenre;
   name: string;
   movementMode: 'platformer' | 'topdown';
   systems: Record<string, SystemModule>;

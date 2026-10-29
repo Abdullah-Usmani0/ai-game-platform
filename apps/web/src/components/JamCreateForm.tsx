@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
+import { GENRES } from '@/lib/genres';
 
-const GENRES = ['platformer', 'survivors', 'topdown-action', 'shmup', 'metroidvania', 'puzzle'];
 /** <input type="datetime-local"> wants local time without a zone. */
 const local = (t: number) => {
   const d = new Date(t - new Date(t).getTimezoneOffset() * 60_000);
@@ -58,9 +58,9 @@ export function JamCreateForm() {
         <textarea rows={2} value={form.description} onChange={set('description')} maxLength={2000} />
       </label>
       <div className="row">
-        {GENRES.map((g) => (
-          <label key={g} className="check">
-            <input type="checkbox" checked={genres.includes(g)} onChange={(e) => setGenres(e.target.checked ? [...genres, g] : genres.filter((x) => x !== g))} /> {g}
+        {GENRES.map(({ id, label }) => (
+          <label key={id} className="check">
+            <input type="checkbox" checked={genres.includes(id)} onChange={(e) => setGenres(e.target.checked ? [...genres, id] : genres.filter((x) => x !== id))} /> {label}
           </label>
         ))}
         <span className="muted">(none: any genre)</span>

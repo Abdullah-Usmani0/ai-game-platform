@@ -110,7 +110,15 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
       genreId = null;
     }
   } else if (job.kind === 'create') {
-    request = CreateRequest.parse(job.input);
+    const parsed = CreateRequest.safeParse(job.input);
+    if (!parsed.success) {
+      // A request the API would refuse (a genre without a template, say): fail the job with the reason, not a crash.
+      const reason = `invalid create request: ${parsed.error.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ')}`;
+      await store.updateJob(job.id, { status: 'failed', finishedAt: new Date().toISOString(), error: { stage: 'setup', reason } });
+      await store.appendEvent(job.id, 'finished', { status: 'failed', stage: 'setup', reason }, 'setup');
+      return 'failed';
+    }
+    request = parsed.data;
     dryRun = dryRun || request.dryRun;
     genreId = request.genre;
     ({ gameDir } = materialize({ templateDir: opts.templateDir, workDir }));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ARTIFACT_SCHEMAS, BehaviourFsm, GddFrontmatter, LevelJson, SystemsJson, toJsonSchema } from './index';
+import { ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, GddFrontmatter, GENRES, JamInput, LevelJson, PLAYABLE_GENRES, SystemsJson, toJsonSchema } from './index';
 
 describe('LevelJson', () => {
   const base = {
@@ -80,5 +80,17 @@ describe('JSON Schema export', () => {
       expect(text.length).toBeGreaterThan(20);
       expect(text).not.toMatch(/"\$ref":"#"/);
     }
+  });
+});
+
+describe('playable genres', () => {
+  it('create requests and jams take only genres with a template', () => {
+    const req = (genre: string) => CreateRequest.safeParse({ prompt: 'A game made of ten words or more, enough to pass.', genre });
+    for (const g of PLAYABLE_GENRES) expect(req(g).success, g).toBe(true);
+    for (const g of GENRES.filter((x) => !(PLAYABLE_GENRES as readonly string[]).includes(x))) expect(req(g).success, g).toBe(false);
+    expect(req('deckbuilder').success).toBe(false);
+    const jam = (genres: string[]) => JamInput.safeParse({ slug: 'spring-jam', title: 'Spring jam', theme: 'growth', genres, startsAt: '2026-11-01T00:00:00Z', submissionsClose: '2026-11-08T00:00:00Z', votingClose: '2026-11-15T00:00:00Z' });
+    expect(jam(['puzzle', 'shmup']).success).toBe(true);
+    expect(jam(['lifesim']).success).toBe(false);
   });
 });

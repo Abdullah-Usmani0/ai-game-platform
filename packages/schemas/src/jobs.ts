@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { Genre, ScopeTier } from './common';
+import { PlayableGenre, ScopeTier } from './common';
 import { LevelJson } from './level';
 
 /** What a user asks for on the create form; the input of a create job. */
 export const CreateRequest = z.object({
   prompt: z.string().min(10).max(4000),
-  genre: Genre,
+  /** Only genres with a template: anything else would pass here and fail at the first stage. */
+  genre: PlayableGenre,
   scopeTier: ScopeTier.default('small'),
   title: z.string().min(1).max(80).optional(),
   referenceTitles: z.array(z.string().max(80)).max(4).default([]),
