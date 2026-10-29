@@ -69,7 +69,13 @@ export class MainScene extends Phaser.Scene {
     for (const u of this.unsubs.splice(2)) u();
     const sim = this.controller.sim;
     const map = sim.map;
-    this.cameras.main.setBounds(0, 0, map.pixelWidth, map.pixelHeight);
+    // A level smaller than the view sits in its middle: grow the bounds evenly around it instead of pinning it top-left.
+    const cam = this.cameras.main;
+    const viewW = cam.width / cam.zoom;
+    const viewH = cam.height / cam.zoom;
+    const bw = Math.max(map.pixelWidth, viewW);
+    const bh = Math.max(map.pixelHeight, viewH);
+    cam.setBounds(-(bw - map.pixelWidth) / 2, -(bh - map.pixelHeight) / 2, bw, bh);
     const lerp = this.style.camera.lerp;
     this.cameras.main.startFollow(this.followTarget, true, lerp, lerp);
     this.cameras.main.setDeadzone(this.style.camera.deadzone.w, this.style.camera.deadzone.h);
@@ -143,7 +149,10 @@ export class MainScene extends Phaser.Scene {
     if (this.controller.scene === 'play') {
       const won = w.flags.won ? '  LEVEL COMPLETE' : w.flags.gameOver ? '  GAME OVER' : w.flags.paused ? '  PAUSED' : '';
       const extra = Object.entries(w.hud).map(([k, v]) => `  ${k.toUpperCase()} ${v}`).join('');
-      this.hud.setText(`HP ${p.hp}  SCORE ${w.score}  DEATHS ${w.deaths}${extra}${won}`);
+      // HP only matters with more than one hit point, deaths once there has been one (a puzzle board has neither).
+      const hp = p.maxHp > 1 ? `HP ${p.hp}  ` : '';
+      const deaths = w.deaths > 0 ? `  DEATHS ${w.deaths}` : '';
+      this.hud.setText(`${hp}SCORE ${w.score}${deaths}${extra}${won}`);
     } else {
       this.hud.setText('');
     }

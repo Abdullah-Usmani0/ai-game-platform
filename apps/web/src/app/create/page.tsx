@@ -9,6 +9,7 @@ const GENRES = [
   { id: 'topdown-action', label: 'Top-down action', hint: 'Rooms and doors, directional melee, dash, clear the floor to open the exit.' },
   { id: 'shmup', label: 'Vertical shooter', hint: 'Hold fire, dodge aimed bullets, survive the minute of waves.' },
   { id: 'metroidvania', label: 'Metroidvania', hint: 'Backtrack for relics: wings to double-jump, boots to dash, keys for locked doors.' },
+  { id: 'puzzle', label: 'Push puzzle', hint: 'Sokoban boards: push every crate onto a target; free undo; each board proven solvable.' },
 ];
 
 /** New-game form: prompt, genre, scope tier, optional title and references; creates the game and its job. */

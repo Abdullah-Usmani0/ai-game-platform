@@ -1,0 +1,1 @@
+Ask (one at a time, short): How many boards should the game have? Should it start gentle (one crate) and end hard, or stay relaxed throughout? Should steps feel snappy or calm? What is pushed, and where (crates in a warehouse, boulders in a temple, presents under a tree)? What is the mood (cosy, eerie, playful)?

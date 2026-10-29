@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "id": "cellar-03",
+  "name": "Cellar 3",
+  "tileSize": 16,
+  "width": 11,
+  "height": 8,
+  "legend": {
+    "#": "solid",
+    ".": "air"
+  },
+  "rows": [
+    "###########",
+    "#.........#",
+    "#.....##..#",
+    "#..##.#...#",
+    "#..#.##...#",
+    "#.........#",
+    "#.........#",
+    "###########"
+  ],
+  "entities": [
+    {
+      "type": "target",
+      "x": 5,
+      "y": 5,
+      "props": {}
+    },
+    {
+      "type": "target",
+      "x": 8,
+      "y": 5,
+      "props": {}
+    },
+    {
+      "type": "target",
+      "x": 3,
+      "y": 2,
+      "props": {}
+    },
+    {
+      "type": "crate",
+      "x": 8,
+      "y": 2,
+      "props": {}
+    },
+    {
+      "type": "crate",
+      "x": 2,
+      "y": 3,
+      "props": {}
+    },
+    {
+      "type": "crate",
+      "x": 8,
+      "y": 4,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 2,
+    "y": 4
+  },
+  "goal": {
+    "x": 5,
+    "y": 5
+  },
+  "ramp": {
+    "segment": 2,
+    "difficulty": 0.5
+  }
+}

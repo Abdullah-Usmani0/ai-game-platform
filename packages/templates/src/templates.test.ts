@@ -16,7 +16,8 @@ describe('genre manifests', () => {
     describe(id, () => {
       it('is complete', () => {
         expect(g.id).toBe(id);
-        expect(Object.keys(g.systems).length).toBeGreaterThan(2);
+        // At least one system: action genres compose several, a push puzzle's rules are one grid-push system.
+        expect(Object.keys(g.systems).length).toBeGreaterThan(0);
         for (const r of g.requiredSystems) expect(g.systems[r]).toBeDefined();
         expect(g.feelPresets[g.defaultFeel]).toBeDefined();
         expect(g.bots[g.solverBot]).toBeDefined();

@@ -15,7 +15,7 @@ function run(cmd: string, args: string[], cwd: string): { ok: boolean; out: stri
 }
 
 describe('scaffold', () => {
-  for (const genre of ['platformer', 'survivors', 'topdown-action', 'shmup', 'metroidvania'] as const) {
+  for (const genre of ['platformer', 'survivors', 'topdown-action', 'shmup', 'metroidvania', 'puzzle'] as const) {
     it(`emits a ${genre} game that typechecks, lints, tests and builds`, () => {
       const out = mkdtempSync(join(tmpdir(), `gg-scaffold-${genre}-`));
       const result = scaffold({
@@ -23,7 +23,7 @@ describe('scaffold', () => {
         genre,
         gameId: `test-${genre}`,
         title: `Test ${genre}`,
-        systems: defaultSystems(genre, genre === 'platformer' || genre === 'metroidvania' ? ['pickups', 'combat-stomp'] : ['pickups']),
+        systems: defaultSystems(genre, genre === 'platformer' || genre === 'metroidvania' ? ['pickups', 'combat-stomp'] : genre === 'puzzle' ? [] : ['pickups']),
         style: DEFAULT_STYLE,
         gddMarkdown: sampleGdd(genre),
         levels: 2,

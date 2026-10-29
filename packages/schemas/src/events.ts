@@ -19,6 +19,10 @@ export const GAME_EVENTS = [
   'ui_close',
   'audio_play',
   'feedback',
+  // Grid puzzles: a step, a crate pushed one tile, a move taken back.
+  'move',
+  'push',
+  'undo',
 ] as const;
 export const GameEventName = z.enum(GAME_EVENTS);
 export type GameEventName = z.infer<typeof GameEventName>;

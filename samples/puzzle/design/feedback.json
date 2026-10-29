@@ -1,0 +1,6 @@
+[
+  { "event": "move", "channels": ["sfx"] },
+  { "event": "push", "channels": ["sfx", "particle"] },
+  { "event": "undo", "channels": ["sfx"] },
+  { "event": "level_complete", "channels": ["sfx", "particle"] }
+]

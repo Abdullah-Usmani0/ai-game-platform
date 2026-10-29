@@ -15,6 +15,7 @@
     "@gg/template-core": "workspace:*",
     "@gg/template-metroidvania": "workspace:*",
     "@gg/template-platformer": "workspace:*",
+    "@gg/template-puzzle": "workspace:*",
     "@gg/template-shmup": "workspace:*",
     "@gg/template-survivors": "workspace:*",
     "@gg/template-topdown-action": "workspace:*",

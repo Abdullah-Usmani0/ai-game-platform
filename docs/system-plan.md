@@ -183,7 +183,7 @@ interface GenreManifest {
 | Top-down action (Hades-like) | 2 | rooms | melee + dash | room graph connectivity | room-clear bot |
 | Metroidvania | 2 | tilemap | platformer | ability-gated BFS | progression bot |
 | Shmup | 2 | arena | bullet grammar | pattern density / dodgeability sim | dodge bot |
-| Puzzle (Sokoban-class) | 3 | tilemap | n/a | tree-search solver with step budget | solver |
+| Puzzle (Sokoban-class) | 3 (built) | tilemap (crates and targets as entities) | n/a: grid steps, step slide and key repeat are grid-push params | push-optimal A* with a step budget, dead-cell and 2x2-freeze pruning; boards by reverse play, difficulty = fewest pushes | solver (plays the plan), chaos |
 | Deckbuilder | 3 | graph | n/a | card-economy sim (win-rate bands) | heuristic player |
 | Life-sim / farming | 3 | rooms | top-down | schedule/economy sim | routine bot |
 | Action roguelike | 4 | rooms | melee | run-graph + economy sim | run bot |
@@ -353,7 +353,7 @@ window.__game: {
 }
 ```
 
-Fixed event table: `level_start, level_complete, checkpoint, jump, land, dash, hit, damage, death, pickup, score, spawn, despawn, ui_open, ui_close, audio_play, feedback{channel: shake|hitstop|flash|particle|sfx}` plus `custom:*`. Clock: `realtime` uses rAF with a fixed-step accumulator; `manual` disables rAF so `step()` is the only way time moves. CI asserts replay-hash equality between manual headless and realtime headed runs for every template sample.
+Fixed event table: `level_start, level_complete, checkpoint, jump, land, dash, hit, damage, death, pickup, score, spawn, despawn, ui_open, ui_close, audio_play, move, push, undo, feedback{channel: shake|hitstop|flash|particle|sfx}` plus `custom:*` (`move`, `push`, `undo` are the grid puzzle's verbs). Clock: `realtime` uses rAF with a fixed-step accumulator; `manual` disables rAF so `step()` is the only way time moves. CI asserts replay-hash equality between manual headless and realtime headed runs for every template sample.
 
 Bridge (protocol v1, zod-validated both sides): iframe `sandbox="allow-scripts"` only → frame posts `hello` → host verifies `event.source`, creates MessageChannel, replies `init` {mode, seed, locale, prefs, save blob, nickname, limits} transferring the port. Game→host: `ready`, `error`, `event` (rate-limited 20/s), `save`, `metrics` every 5 s, `screenshot`, `state`. Host→game: `pause/resume/mute/focus/destroy`, `set_params`, `set_style`, `load_level`, `load_behaviour`, `request_screenshot/state`, `mp_token` (phase 4). Invariants: frame can't navigate top, open popups, or reach the app origin; persistence and identity are decided by the host.
 

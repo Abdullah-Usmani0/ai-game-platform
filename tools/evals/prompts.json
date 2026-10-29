@@ -180,6 +180,24 @@
       "genre": "metroidvania",
       "scopeTier": "medium",
       "prompt": "Two caverns beneath a ruined monastery: find the feather to climb, the bronze key for the crypt door and the wind boots to cross the chasm, past hopping spores and sentries."
+    },
+    {
+      "id": "z01",
+      "genre": "puzzle",
+      "scopeTier": "small",
+      "prompt": "A cosy warehouse puzzle: a little forklift pushes crates onto glowing loading bays, one crate at first and three by the end."
+    },
+    {
+      "id": "z02",
+      "genre": "puzzle",
+      "scopeTier": "small",
+      "prompt": "A temple of sliding stone blocks: an explorer shoves boulders onto pressure plates to open the inner sanctum, with free undo."
+    },
+    {
+      "id": "z03",
+      "genre": "puzzle",
+      "scopeTier": "medium",
+      "prompt": "Six snowy boards where a penguin nudges presents under the right trees; calm steps, gentle start, a tricky four-present finale."
     }
   ]
 }
