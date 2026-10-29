@@ -11,7 +11,7 @@ from `stage.json`. Do not guess them; read the injected summary.
 - `pnpm validate <file>` validates a design or content JSON artifact against its schema.
 - `pnpm exec gg-bots smoke game/dist --seed <n> --ticks 600 --replay-check --out game/reports`
 - `pnpm exec gg-bots contact-sheet game/dist --seed <n> --frames 12 --out game/reports`
-- `pnpm catalog <genre>` exports the systems catalog for the systems-select skill.
+- `pnpm catalog <genre>` exports the systems catalog for the systems-select skill (`pnpm catalog freeform <base>` for a freeform game).
 - Skill scripts: `node --import tsx .agents/skills/<skill>/scripts/<script>.ts ...` (each SKILL.md lists its own).
 
 ## Stages, gates and skills
@@ -20,12 +20,14 @@ from `stage.json`. Do not guess them; read the injected summary.
 |---|---|---|---|
 | gdd | worker (structured) or you | validate:gdd, validate:style | gdd-author |
 | systems | worker (structured) | validate:systems | systems-select |
-| scaffold | worker | typecheck, lint, test, build, smoke | - |
-| behaviour | worker (structured) or you | validate:behaviour, solver | behaviour-author |
+| composition | worker (structured), freeform games only | validate:systems | systems-select |
+| scaffold | worker | typecheck, lint, prove, test, build, smoke | - |
+| behaviour | worker (structured) or you | validate:behaviour, prove, solver | behaviour-author |
 | implement | you | typecheck, lint, test, build, smoke | mechanic-author, verify |
-| levels | worker (generator + solver) or level-designer | validate:levels, validate:ramp, solver | level-design |
+| prove | worker, freeform games only | prove, test | - |
+| levels | worker (generator + solver) or level-designer | validate:levels, validate:ramp, prove, solver | level-design |
 | integrate | you | validate:assets, build, smoke | asset-prompting |
-| playtest | you (bots) | build, smoke, solver | playtest |
+| playtest | you (bots) | build, smoke, prove, solver | playtest |
 | juice | you | build, smoke, juice | juice-pass |
 | review | gdd-reviewer | review (zero P0) | - |
 | budget | worker | build, smoke, budget | budget-check |
@@ -33,10 +35,23 @@ from `stage.json`. Do not guess them; read the injected summary.
 
 Edit jobs run one route (parameter, style, behaviour, content, code) and then the regression skill before the gate.
 
+## Freeform games
+
+A game whose `gdd.md` and `systems.json` say `genre: freeform` builds on one curated base genre (`base` in the GDD,
+`composition.base` in systems.json): its levels, level solver, feel and art come from the base, and its systems from
+every genre whose player moves the same way. Its entities are shipped ones under the game's own names
+(`content/entities.json`, an `EntityRoster`), and its win and lose rules are data for the `objectives` system
+(`content/objectives.json`). Every level ships with a recorded winning run (`content/proofs/<level>.json`, a
+`LevelProof`) at the seed the level is played with; the game's `proof` bot replays it, the `prove` check replays it in
+Node and smoke replays it in the browser. The worker records the runs (the base genre's solver under the base names,
+else the explorer) and records them again whenever a change can break one; a level nobody can win keeps the game
+unlisted. `pnpm catalog freeform <base>` lists the systems a freeform game on that base can use.
+
 ## Project map
 
 - `game/design/` concept.md, gdd.md, systems.json, style.json, deviations.md (the spec; machine-read front matter)
-- `game/content/` levels/*.json, behaviour/*.fsm.json, rules/*.eca.json, waves.json, dialogue.json (data, validated on write)
+- `game/content/` levels/*.json, behaviour/*.fsm.json, rules/*.eca.json, waves.json, dialogue.json (data, validated on write);
+  a freeform game also has entities.json, objectives.json and proofs/*.json (recorded winning runs, written by the worker)
 - `game/src/systems/` bespoke simulation systems in GlueTS (see rules); `game/src/main.ts` is scaffolded, do not edit
 - `game/assets/` requests.json and manifest.json; binary assets are produced by the asset pipeline, never by hand
 - `game/tests/` unit and playtest tests; `game/reports/` gate, playtest, juice, budget and screenshot evidence

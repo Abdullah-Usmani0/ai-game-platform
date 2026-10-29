@@ -26,6 +26,7 @@
     "@gg/schemas": "workspace:*",
     "@gg/sdk": "workspace:*",
     "@gg/template-core": "workspace:*",
+    "@gg/template-freeform": "workspace:*",
     "@gg/templates": "workspace:*",
     "@gg/validators": "workspace:*",
     "tsx": "4.23.15"

@@ -1,11 +1,13 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HEIST } from '@gg/template-freeform';
+import type { LevelProof } from '@gg/schemas';
+import { levelPlan, systemsJsonFor } from '@gg/template-core';
+import { BASE_MANIFESTS, freeformManifest, HEIST, HIVE, LANTERN, proveLevel } from '@gg/template-freeform/node';
 import { describe, expect, it } from 'vitest';
 import { CHECKS, kitFor } from './check.js';
-import { CATALOG, catalogFor, GENRES, manifestFor, readGameFiles, resolveGame } from './node.js';
+import { CATALOG, catalogFor, checkGameSystems, checkProofs, GENRES, manifestFor, readGameFiles, readGameLevels, resolveGame } from './node.js';
 
 const samples = fileURLToPath(new URL('../../../samples/', import.meta.url));
 
@@ -49,5 +51,81 @@ describe('resolveGame', () => {
     expect(() => manifestFor({})).toThrow(/cannot determine the genre/);
     expect(() => manifestFor({}, 'freeform')).toThrow(/base genre comes from its GDD/);
     expect(() => manifestFor({}, 'deckbuilder')).toThrow(/unknown genre/);
+  });
+});
+
+describe('checkProofs', () => {
+  /** LANTERN as the scaffold leaves it: its levels in play order, each with the run that wins it at its seed. */
+  function lantern(): string {
+    const m = freeformManifest(LANTERN.systems, LANTERN.roster);
+    const base = BASE_MANIFESTS[LANTERN.systems.composition.base];
+    const content = { objectives: LANTERN.objectives };
+    const files: Record<string, unknown> = { 'design/systems.json': LANTERN.systems, 'content/entities.json': LANTERN.roster, 'content/objectives.json': LANTERN.objectives };
+    for (const slot of levelPlan(m.levelGrammar.kind, { levels: LANTERN.gdd.scope.levels, bosses: 0, tier: 'small' })) {
+      const level = { ...m.levelGrammar.generate({ seed: slot.index + 1, difficulty: slot.difficulty }), id: slot.id };
+      const r = proveLevel(level, slot.index, { file: LANTERN.systems, roster: LANTERN.roster, content, solver: base.bots[base.solverBot], budget: 20_000 });
+      expect(r.proof, slot.id).not.toBeNull();
+      files[`content/levels/L0${slot.index + 1}-${slot.id}.json`] = level;
+      files[`content/proofs/${slot.id}.json`] = r.proof;
+    }
+    return gameDir(files);
+  }
+
+  it("a freeform game passes when every level has a run at its seed that still wins, replayed on the game's names", () => {
+    const dir = lantern();
+    expect(readGameLevels(dir).map((l) => [l.level.id, l.seed])).toEqual([['l01', 1], ['l02', 2], ['l03', 3]]);
+    const r = checkProofs(dir);
+    expect(r.issues).toEqual([]);
+    expect(r.metrics).toMatchObject({ proven: 3, replayed: true });
+  });
+
+  it('names each level without a run, with a run recorded at another seed, or whose run no longer wins', () => {
+    const dir = lantern();
+    const proofs = readGameFiles(dir).proofs;
+    rmSync(join(dir, 'content', 'proofs', 'l01.json'));
+    const write = (p: LevelProof) => writeFileSync(join(dir, 'content', 'proofs', `${p.level}.json`), JSON.stringify(p));
+    write({ ...proofs.find((p) => p.level === 'l02')!, seed: 9 });
+    // The run stops a second in: the level is not won yet.
+    write({ ...proofs.find((p) => p.level === 'l03')!, ticks: 60 });
+    const r = checkProofs(dir);
+    expect(r.ok).toBe(false);
+    expect(r.issues.map((i) => [i.code, i.at?.path])).toEqual([['no_proof', 'l01'], ['proof_seed', 'l02'], ['stale_proof', 'l03']]);
+  });
+
+  it("a curated game passes: its genre's solver bot proves its levels", () => {
+    const r = checkProofs(join(samples, 'platformer'));
+    expect(r.ok).toBe(true);
+    expect(r.metrics['curated']).toBe(true);
+  });
+});
+
+describe('checkGameSystems', () => {
+  it("a curated game is checked against its catalog and its GDD: each genre's defaults pass with its sample's GDD", () => {
+    for (const [id, g] of Object.entries(GENRES)) {
+      const dir = gameDir({ 'design/systems.json': systemsJsonFor(g), 'design/gdd.md': readFileSync(join(samples, id, 'design', 'gdd.md'), 'utf8') });
+      expect(checkGameSystems(dir).issues.filter((i) => i.severity === 'error'), id).toEqual([]);
+    }
+  });
+
+  it('a freeform game counts the content still to come: the waves its generator writes, the rules its composition writes', () => {
+    // At the systems stage: neither the arena's waves nor the objectives exist yet.
+    const dir = gameDir({ 'design/gdd.md': gddMd(HIVE.gdd), 'design/systems.json': HIVE.systems });
+    expect(checkGameSystems(dir).issues.filter((i) => i.severity === 'error')).toEqual([]);
+    // Once the composition has written the roster, the objectives it should have written with it are missing.
+    mkdirSync(join(dir, 'content'));
+    writeFileSync(join(dir, 'content', 'entities.json'), JSON.stringify(HIVE.roster));
+    expect(checkGameSystems(dir).issues.map((i) => i.code)).toContain('missing_content');
+    writeFileSync(join(dir, 'content', 'objectives.json'), JSON.stringify(HIVE.objectives));
+    expect(checkGameSystems(dir).issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+
+  it("holds a freeform game's objectives to its roster: a rule about an entity the game has not got is an error", () => {
+    const objectives = { ...LANTERN.objectives!, win: { mode: 'all' as const, clauses: [{ kind: 'collect' as const, type: 'firefly', count: 2 }] } };
+    const dir = gameDir({ 'design/gdd.md': gddMd(LANTERN.gdd), 'design/systems.json': LANTERN.systems, 'content/entities.json': LANTERN.roster, 'content/objectives.json': objectives });
+    const r = checkGameSystems(dir);
+    expect(r.ok).toBe(false);
+    expect(r.issues.map((i) => i.code)).toContain('objective_type');
+    expect(checkGameSystems(gameDir({ 'design/systems.json': { version: 1 } })).issues[0]?.code).toBe('systems_schema');
+    expect(checkGameSystems(gameDir({})).issues[0]?.code).toBe('systems_missing');
   });
 });

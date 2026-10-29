@@ -24,9 +24,21 @@
     "skills": ["systems-select"],
     "task": "Select and parameterise catalog systems in game/design/systems.json so every GDD verb and feedback event is covered."
   },
+  "composition": {
+    "runner": "worker",
+    "gate": ["validate:systems"],
+    "allowedWrite": ["game/content/entities.json", "game/content/objectives.json"],
+    "caps": {
+      "turns": 0,
+      "usd": 0.5,
+      "wallMin": 5
+    },
+    "skills": ["systems-select"],
+    "task": "A freeform game only: name the game's entities (content/entities.json) from the shipped ones, and write its win and lose rules (content/objectives.json) when the objectives system is selected."
+  },
   "scaffold": {
     "runner": "worker",
-    "gate": ["typecheck", "lint", "test", "build", "smoke"],
+    "gate": ["typecheck", "lint", "prove", "test", "build", "smoke"],
     "allowedWrite": [],
     "caps": {
       "turns": 0,
@@ -38,7 +50,7 @@
   },
   "behaviour": {
     "runner": "worker",
-    "gate": ["validate:behaviour", "solver"],
+    "gate": ["validate:behaviour", "prove", "solver"],
     "allowedWrite": ["game/content/behaviour/**", "game/content/rules/**"],
     "caps": {
       "turns": 0,
@@ -60,9 +72,21 @@
     "skills": ["mechanic-author", "verify"],
     "task": "Implement any mechanic the GDD requires that no selected catalog system provides, as bespoke GlueTS systems under game/src/systems with unit tests. If every GDD mechanic is already covered, append one line to game/design/deviations.md saying so and stop."
   },
+  "prove": {
+    "runner": "worker",
+    "gate": ["prove", "test"],
+    "allowedWrite": ["game/content/proofs/**"],
+    "caps": {
+      "turns": 0,
+      "usd": 0,
+      "wallMin": 10
+    },
+    "skills": [],
+    "task": "A freeform game only: record a winning run for every level again after a change to how the game plays (worker step); a level no one can win fails the stage."
+  },
   "levels": {
     "runner": "worker",
-    "gate": ["validate:levels", "validate:ramp", "solver"],
+    "gate": ["validate:levels", "validate:ramp", "prove", "solver"],
     "allowedWrite": ["game/content/**"],
     "caps": {
       "turns": 60,
@@ -87,7 +111,7 @@
   },
   "playtest": {
     "runner": "claude-sdk",
-    "gate": ["build", "smoke", "solver"],
+    "gate": ["build", "smoke", "prove", "solver"],
     "allowedWrite": [
       "game/src/systems/**",
       "game/content/**",
@@ -167,6 +191,7 @@
     "gate": [
       "typecheck",
       "lint",
+      "prove",
       "test",
       "validate:gdd",
       "validate:levels",
@@ -187,7 +212,7 @@
   },
   "apply-params": {
     "runner": "worker",
-    "gate": ["validate:systems", "validate:levels", "solver", "build", "smoke"],
+    "gate": ["validate:systems", "validate:levels", "prove", "solver", "build", "smoke"],
     "allowedWrite": ["game/design/systems.json", "game/content/**"],
     "caps": {
       "turns": 0,
@@ -211,7 +236,7 @@
   },
   "apply-content": {
     "runner": "worker",
-    "gate": ["validate:levels", "validate:ramp", "solver"],
+    "gate": ["validate:levels", "validate:ramp", "prove", "solver"],
     "allowedWrite": ["game/content/levels/**"],
     "caps": {
       "turns": 0,

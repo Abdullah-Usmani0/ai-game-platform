@@ -1,5 +1,5 @@
 {
-  "$comment": "Benchmark prompts for every genre and scope tier, round-robin by genre so --limit 6 covers each genre once (--limit 2: platformer and survivors). Each row is graded by the full gate set.",
+  "$comment": "Benchmark prompts for every genre and scope tier, round-robin by genre so --limit 6 covers each genre once (--limit 2: platformer and survivors). Freeform ideas follow (--genre freeform), by tier: F0 an idea a curated genre covers, F1 systems from several genres, F2 a mechanic no system has yet, F3 an idea of its own; the dry run builds each on the base genre its words point at. Each row is graded by the full gate set.",
   "prompts": [
     {
       "id": "p01",
@@ -240,6 +240,90 @@
       "genre": "survivors",
       "scopeTier": "large",
       "prompt": "Survive a whole night in a haunted orchard as the scarecrow's last friend: crows first, then wolves, then the brutes at midnight, with fallen apples that keep you going."
+    },
+    {
+      "id": "f01",
+      "genre": "freeform",
+      "tier": "F1",
+      "scopeTier": "small",
+      "prompt": "A robot burglar whose shoulder turret fires on its own, clearing guarded vault rooms one by one before the alarm resets."
+    },
+    {
+      "id": "f02",
+      "genre": "freeform",
+      "tier": "F1",
+      "scopeTier": "small",
+      "prompt": "A moth carrying lanterns home through a night forest: gather every lantern on the way, hop over the frogs and mind the spore pods."
+    },
+    {
+      "id": "f03",
+      "genre": "freeform",
+      "tier": "F1",
+      "scopeTier": "small",
+      "prompt": "A bee guarding its hive with its stinger, holding out against wasp swarms until the sun comes up."
+    },
+    {
+      "id": "f04",
+      "genre": "freeform",
+      "tier": "F0",
+      "scopeTier": "small",
+      "prompt": "A courier pilot shooting through a storm of diving drones and slow armoured tanks to deliver the last letter."
+    },
+    {
+      "id": "f05",
+      "genre": "freeform",
+      "tier": "F0",
+      "scopeTier": "small",
+      "prompt": "A greenhouse of sliding planters: push every crate of seedlings onto its sunny bed in as few moves as you can."
+    },
+    {
+      "id": "f06",
+      "genre": "freeform",
+      "tier": "F0",
+      "scopeTier": "small",
+      "prompt": "Explore a flooded clocktower: the wings unlock the high ledges, a brass key opens the sluice door, and the dash boots cross the long pit."
+    },
+    {
+      "id": "f07",
+      "genre": "freeform",
+      "tier": "F1",
+      "scopeTier": "medium",
+      "prompt": "A shepherd holding out on a hilltop against waves of wolves until dawn, with a crook that sweeps them back."
+    },
+    {
+      "id": "f08",
+      "genre": "freeform",
+      "tier": "F1",
+      "scopeTier": "medium",
+      "prompt": "A lighthouse keeper clearing shadow creatures out of the rooms of a drowned dungeon, a lamp-blade in hand."
+    },
+    {
+      "id": "f09",
+      "genre": "freeform",
+      "tier": "F2",
+      "scopeTier": "small",
+      "prompt": "A platformer where the hero flips gravity to walk on the ceiling, jumping between floor and roof to cross the spike pits."
+    },
+    {
+      "id": "f10",
+      "genre": "freeform",
+      "tier": "F2",
+      "scopeTier": "small",
+      "prompt": "A top-down angler who casts a line to reel eels out of flooded rooms before they bite."
+    },
+    {
+      "id": "f11",
+      "genre": "freeform",
+      "tier": "F3",
+      "scopeTier": "small",
+      "prompt": "A cosy tea-shop rush: hurry each order to its table before the customer leaves, and step around the spilled puddles."
+    },
+    {
+      "id": "f12",
+      "genre": "freeform",
+      "tier": "F3",
+      "scopeTier": "small",
+      "prompt": "A dance-floor duel where each step on the beat pushes your partner's boxes of confetti onto the glowing tiles."
     }
   ]
 }

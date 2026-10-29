@@ -20,6 +20,8 @@ const { values } = parseArgs({
     k: { type: 'string', default: '3' },
     limit: { type: 'string' },
     genre: { type: 'string' },
+    /** Freeform prompts of one tier only (F0 to F3, see prompts.json). */
+    tier: { type: 'string' },
     filter: { type: 'string' },
     out: { type: 'string', default: resolve(here, 'reports') },
     store: { type: 'string', default: resolve(here, '.bench-store') },
@@ -28,8 +30,9 @@ const { values } = parseArgs({
 });
 const k = Number(values.k);
 const dryRun = !values.live;
-const prompts = (JSON.parse(readFileSync(resolve(here, 'prompts.json'), 'utf8')) as { prompts: Array<{ id: string; genre: string; scopeTier: string; prompt: string }> }).prompts
+const prompts = (JSON.parse(readFileSync(resolve(here, 'prompts.json'), 'utf8')) as { prompts: Array<{ id: string; genre: string; tier?: string; scopeTier: string; prompt: string }> }).prompts
   .filter((p) => !values.genre || p.genre === values.genre)
+  .filter((p) => !values.tier || p.tier === values.tier)
   .filter((p) => !values.filter || p.id.includes(values.filter))
   .slice(0, values.limit ? Number(values.limit) : undefined);
 const policy = values.policy ? ModelPolicy.parse(JSON.parse(readFileSync(resolve(values.policy), 'utf8'))) : null;
@@ -43,6 +46,7 @@ mkdirSync(values.out, { recursive: true });
 interface Run {
   prompt: string;
   genre: string;
+  tier: string | null;
   run: number;
   status: string;
   costUsd: number;
@@ -84,7 +88,7 @@ for (const p of prompts) {
       const detail = (gateFailed?.payload['detail'] as string[] | undefined)?.join('; ');
       failure = (detail || error?.reason || error?.message || status).slice(0, 300);
     }
-    const run: Run = { prompt: p.id, genre: p.genre, run: i + 1, status, costUsd: after?.costUsd ?? 0, durationMs: Date.now() - start, failedStage: error?.stage ?? null, failure, stages };
+    const run: Run = { prompt: p.id, genre: p.genre, tier: p.tier ?? null, run: i + 1, status, costUsd: after?.costUsd ?? 0, durationMs: Date.now() - start, failedStage: error?.stage ?? null, failure, stages };
     runs.push(run);
     console.log(`${p.id} run ${i + 1}: ${status} in ${Math.round(run.durationMs / 1000)} s, $${run.costUsd.toFixed(3)}${run.failedStage ? ` (failed at ${run.failedStage}: ${failure})` : ''}`);
     rmSync(resolve(values['work-root'], job.id), { recursive: true, force: true });
@@ -93,7 +97,7 @@ for (const p of prompts) {
 
 const byPrompt = prompts.map((p) => {
   const rs = runs.filter((r) => r.prompt === p.id);
-  return { id: p.id, genre: p.genre, passAll: rs.every((r) => r.status === 'succeeded'), passed: rs.filter((r) => r.status === 'succeeded').length, runs: rs.length };
+  return { id: p.id, genre: p.genre, tier: p.tier ?? null, passAll: rs.every((r) => r.status === 'succeeded'), passed: rs.filter((r) => r.status === 'succeeded').length, runs: rs.length };
 });
 const stageNames = [...new Set(runs.flatMap((r) => Object.keys(r.stages)))];
 const perStage = Object.fromEntries(

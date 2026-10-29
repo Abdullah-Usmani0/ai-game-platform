@@ -1,7 +1,7 @@
 import { costUsd, generateArtifact, type Provider, type Usage } from '@gg/llm';
-import { EditRoute, type SystemsJson } from '@gg/schemas';
+import { EditRoute, type SystemsFile } from '@gg/schemas';
 import type { GenreManifest } from '@gg/template-core';
-import { CATALOG } from '@gg/templates/node';
+import { CATALOG, catalogFor } from '@gg/templates/node';
 import { heuristicRoute, routeVocabulary } from './fake-provider.js';
 import type { PairDraft } from './runners/types.js';
 
@@ -10,7 +10,7 @@ export interface RouteInputs {
   model: string;
   message: string;
   genre: GenreManifest;
-  systems: SystemsJson | null;
+  systems: SystemsFile | null;
   levelIds: string[];
   behaviourIds: string[];
   k?: number;
@@ -28,9 +28,11 @@ const SYSTEM = [
  * `pair` is the model's route when it was used as given (not a fallback, not overridden for low confidence).
  */
 export async function routeEdit(inp: RouteInputs): Promise<{ route: EditRoute; usage: Usage; costUsd: number; promptHash?: string; pair?: PairDraft }> {
+  // A freeform game's systems come from every genre; parameters the composition sets are not the player's to change.
+  const known = inp.systems ? catalogFor(inp.systems) : CATALOG;
   const catalog = inp.systems?.systems.map((s) => {
-    const c = CATALOG[s.id];
-    return { id: s.id, params: Object.fromEntries(Object.entries(c?.params ?? {}).map(([k, p]) => [k, { current: s.params[k] ?? p.default, min: p.min, max: p.max, type: p.type }])) };
+    const c = known[s.id];
+    return { id: s.id, params: Object.fromEntries(Object.entries(c?.params ?? {}).filter(([, p]) => !p.composed).map(([k, p]) => [k, { current: s.params[k] ?? p.default, min: p.min, max: p.max, type: p.type }])) };
   });
   const prompt = [
     `Message: ${inp.message.replace(/\n/g, ' ')}`,
@@ -52,9 +54,9 @@ export async function routeEdit(inp: RouteInputs): Promise<{ route: EditRoute; u
       for (const p of r.paramPatch) {
         if (r.route === 'style') continue;
         const [sys, param] = p.key.split('.');
-        const c = sys ? CATALOG[sys] : undefined;
+        const c = sys ? known[sys] : undefined;
         const spec = c && param ? c.params[param] : undefined;
-        if (!spec) issues.push(`paramPatch key '${p.key}' is not a catalog parameter`);
+        if (!spec || spec.composed) issues.push(`paramPatch key '${p.key}' is not a catalog parameter`);
         else if (spec.type === 'number' && typeof p.value === 'number' && ((spec.min !== undefined && p.value < spec.min) || (spec.max !== undefined && p.value > spec.max))) issues.push(`${p.key}=${p.value} outside [${spec.min}, ${spec.max}]`);
         else if (inp.systems && !inp.systems.systems.some((s) => s.id === sys)) issues.push(`system '${sys}' is not selected in this game`);
       }

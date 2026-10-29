@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ARTIFACT_SCHEMAS, PLAYABLE_GENRES } from '@gg/schemas';
+import { ARTIFACT_SCHEMAS, CURATED_GENRES, PLAYABLE_GENRES } from '@gg/schemas';
 import { createSim } from '@gg/sdk';
 import { SETTING_BY_GENRE, TYPE_RECIPES } from '@gg/sdk/art';
 import { checkSystems } from '@gg/validators';
@@ -108,8 +108,9 @@ describe('check kits (the level editor runs the gate in the page)', () => {
 });
 
 describe('playable genres', () => {
-  it('every genre a game can be created in has a template, and every template is playable', () => {
-    expect(Object.keys(GENRES).sort()).toEqual([...PLAYABLE_GENRES].sort());
-    expect(Object.keys(CHECKS).sort()).toEqual([...PLAYABLE_GENRES].sort());
+  it('every curated genre has a template and a check kit, and a game can be created in each of them or freeform', () => {
+    expect(Object.keys(GENRES).sort()).toEqual([...CURATED_GENRES].sort());
+    expect(Object.keys(CHECKS).sort()).toEqual([...CURATED_GENRES].sort());
+    expect([...PLAYABLE_GENRES].sort()).toEqual([...CURATED_GENRES, 'freeform'].sort());
   });
 });

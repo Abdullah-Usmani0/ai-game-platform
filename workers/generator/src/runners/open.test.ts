@@ -73,7 +73,7 @@ describe('guards', () => {
     expect(writeDecision('game/content/levels/L01.json', ['game/content/**']).ok).toBe(true);
   });
   it('allows the harness commands and blocks the rest', () => {
-    for (const ok of ['pnpm gate', 'pnpm validate game/content/levels/L01-l01.json', 'pnpm -C game test', 'pnpm -C game exec vitest run tests/unit/game.test.ts', 'pnpm exec gg-bots smoke game/dist --seed 1 --ticks 600 --replay-check --out game/reports', 'pnpm catalog platformer', 'node --import tsx .agents/skills/level-design/scripts/render-level.ts game/content/levels/L01-l01.json', 'cat game/design/gdd.md', 'grep -n defineSystem game/src/systems/hook.ts']) expect(bashDecision(ok).ok, ok).toBe(true);
+    for (const ok of ['pnpm gate', 'pnpm validate game/content/levels/L01-l01.json', 'pnpm -C game test', 'pnpm -C game exec vitest run tests/unit/game.test.ts', 'pnpm exec gg-bots smoke game/dist --seed 1 --ticks 600 --replay-check --out game/reports', 'pnpm catalog platformer', 'pnpm catalog freeform survivors', 'node --import tsx .agents/skills/level-design/scripts/render-level.ts game/content/levels/L01-l01.json', 'cat game/design/gdd.md', 'grep -n defineSystem game/src/systems/hook.ts']) expect(bashDecision(ok).ok, ok).toBe(true);
     for (const bad of ['curl http://x', 'pnpm add left-pad', 'git push origin main', 'rm -rf /', 'pnpm gate && curl x', 'node scripts/evil.js', 'npm install', 'sudo ls']) expect(bashDecision(bad).ok, bad).toBe(false);
   });
 });

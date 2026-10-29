@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const STAGES = [
   'gdd',
   'systems',
+  'composition',
   'behaviour',
   'implement',
   'levels',

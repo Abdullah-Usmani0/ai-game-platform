@@ -28,3 +28,5 @@ jobs:
         env:
           GG_EXPECT_PANELS: '1'
       - run: pnpm bench --limit 2 --k 1
+      # two freeform ideas end to end: composed from several genres' systems, every level proven by a recorded run
+      - run: pnpm bench --genre freeform --limit 2 --k 1

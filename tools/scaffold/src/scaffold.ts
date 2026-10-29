@@ -1,11 +1,12 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import { GddFrontmatter, type LevelJson, type StyleCard, type SystemsFile, type SystemsJson } from '@gg/schemas';
+import { Objectives, parseAnyGdd, type EntityRoster, type LevelJson, type LevelProof, type StyleCard, type SystemsFile, type SystemsJson } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
-import { type GenreManifest, type LevelGenParams, levelPlan, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
-import { CATALOG, genre as genreOf } from '@gg/templates/node';
-import { checkSystems, parseFrontmatter } from '@gg/validators';
+import { type GenreManifest, type LevelGenParams, levelPlan, rolesPresent, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
+import { BASE_MANIFESTS, checkFreeformObjectives, freeformManifest, IDENTITY_ROSTER, proveLevel } from '@gg/template-freeform/node';
+import { catalogFor, genre as genreOf } from '@gg/templates/node';
+import { checkComposition, checkSystems, parseFrontmatter, type Issue } from '@gg/validators';
 import * as F from './files.js';
 
 export interface ScaffoldOptions {
@@ -21,6 +22,10 @@ export interface ScaffoldOptions {
   seed?: number;
   /** Link node_modules from @gg/game-base so the game builds outside the workspace. */
   linkNodeModules?: boolean;
+  /** A freeform game's roster (content/entities.json); without one, its base genre's entities under their own names. */
+  roster?: EntityRoster;
+  /** Content files the design stages wrote, by key (content/<key>.json): a freeform game's objectives. */
+  content?: Record<string, unknown>;
 }
 
 export interface ScaffoldResult {
@@ -62,17 +67,35 @@ function gameBaseNodeModules(): string {
   return join(dirname(pkg), 'node_modules');
 }
 
-/** Emit a complete, buildable game package for a genre from the design artifacts. */
+/**
+ * Emit a complete, buildable game package from the design artifacts: a curated genre's, or a freeform game composed at
+ * load from its systems and roster on its base genre, whose solver replays the proofs the scaffold records.
+ */
 export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
-  const g: GenreManifest = genreOf(opts.genre);
+  const systems = opts.systems;
+  const freeform = systems.genre === 'freeform' ? systems : null;
+  const roster = opts.roster ?? IDENTITY_ROSTER;
+  const g: GenreManifest = freeform ? freeformManifest(freeform, roster) : genreOf(opts.genre);
   const out = resolve(opts.outDir);
   const files: string[] = [];
   const seed = opts.seed ?? 1;
   const fm = parseFrontmatter(opts.gddMarkdown);
-  const gdd = fm ? GddFrontmatter.safeParse(fm.data) : null;
+  const gdd = fm ? parseAnyGdd(fm.data) : null;
   if (!gdd?.success) throw new Error(`gdd.md front matter is invalid: ${gdd?.error.issues.map((i) => i.message).join('; ') ?? 'missing'}`);
-  const systemsCheck = checkSystems(opts.systems, CATALOG, gdd.data);
-  if (!systemsCheck.ok) throw new Error(`systems.json rejected: ${systemsCheck.issues.filter((i) => i.severity === 'error').map((i) => i.message).join('; ')}`);
+  if ((gdd.data.genre === 'freeform') !== Boolean(freeform)) throw new Error('gdd.md and systems.json disagree on whether the game is freeform');
+  const issues: Issue[] = [...checkSystems(systems, catalogFor(systems), gdd.data).issues];
+  if (freeform) {
+    // The composition rules hold a freeform game together, over its roster's roles and the content it ships.
+    const content = [...Object.keys(g.extraContent?.({ seed, difficulty: 0.3 }) ?? {}), ...Object.keys(opts.content ?? {})];
+    issues.push(...checkComposition(Object.values(g.systems).map((m) => m.meta), { roles: rolesPresent(g), content }).issues);
+    if (opts.content?.['objectives'] !== undefined) {
+      const objectives = Objectives.safeParse(opts.content['objectives']);
+      if (!objectives.success) throw new Error(`content/objectives.json is invalid: ${objectives.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+      issues.push(...checkFreeformObjectives(freeform, roster, objectives.data).issues);
+    }
+  }
+  const errors = issues.filter((i) => i.severity === 'error');
+  if (errors.length) throw new Error(`systems.json rejected: ${errors.map((i) => i.message).join('; ')}`);
   mkdirSync(out, { recursive: true });
 
   const runtimeImport = `@gg/template-${g.id}`;
@@ -97,10 +120,11 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   write(files, out, 'eslint.config.js', F.ESLINT_CONFIG);
   write(files, out, 'vitest.config.ts', F.VITEST_CONFIG);
   write(files, out, 'scripts/finish-build.mjs', F.FINISH_BUILD);
-  write(files, out, 'src/main.ts', F.MAIN_TS(opts.gameId, g.id, opts.title));
-  write(files, out, 'src/game.ts', F.GAME_TS(g.id, runtimeImport, runtimeName));
+  // A freeform game is drawn in its base genre's setting.
+  write(files, out, 'src/main.ts', F.MAIN_TS(opts.gameId, freeform ? freeform.composition.base : g.id, opts.title));
+  write(files, out, 'src/game.ts', freeform ? F.FREEFORM_GAME_TS(freeform.composition.base) : F.GAME_TS(g.id, runtimeImport, runtimeName));
   write(files, out, 'src/systems/index.ts', F.SYSTEMS_INDEX);
-  write(files, out, 'tests/unit/bots.ts', F.BOTS_TS(`${runtimeImport}/node`, manifestName));
+  write(files, out, 'tests/unit/bots.ts', freeform ? F.FREEFORM_BOTS_TS : F.BOTS_TS(`${runtimeImport}/node`, manifestName));
   write(files, out, 'tests/unit/game.test.ts', F.GAME_TEST(g.id));
   write(files, out, 'design/gdd.md', opts.gddMarkdown.endsWith('\n') ? opts.gddMarkdown : `${opts.gddMarkdown}\n`);
   write(files, out, 'design/systems.json', JSON.stringify(opts.systems, null, 2) + '\n');
@@ -116,17 +140,28 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   mkdirSync(join(out, 'content', 'rules'), { recursive: true });
   mkdirSync(join(out, 'content', 'levels'), { recursive: true });
   mkdirSync(join(out, 'reports'), { recursive: true });
+  if (freeform) write(files, out, 'content/entities.json', JSON.stringify(roster, null, 2) + '\n');
+  for (const [key, value] of Object.entries(opts.content ?? {})) write(files, out, `content/${key}.json`, JSON.stringify(value, null, 2) + '\n');
 
   // Content placeholders from the genre's generators, as the shared level plan lays them out (count, ramp, boss floor).
   const levels: string[] = [];
   const feel = g.feelPresets[opts.systems.feelPreset] ?? g.feelPresets[g.defaultFeel]!;
-  // Oracle: the static validator and the genre's solver bot (same wiring as the generated src/game.ts) must both pass,
-  // the bot playing at the seed the level gets in the game.
-  const solver = g.bots[g.solverBot];
+  // Oracle: the static validator, then a win at the seed the level gets in the game (same wiring as src/game.ts): the
+  // genre's solver bot, or for a freeform game a recorded proof (its base genre's solver, else the explorer), which the
+  // game's own test then replays.
+  const solver = freeform ? BASE_MANIFESTS[freeform.composition.base].bots[BASE_MANIFESTS[freeform.composition.base].solverBot] : g.bots[g.solverBot];
   if (!solver) throw new Error(`genre ${g.id} names unknown solver bot '${g.solverBot}'`);
-  const accept = (level: LevelJson, content: Record<string, unknown>, playSeed: number): boolean => {
+  const proofs: LevelProof[] = [];
+  const accept = (level: LevelJson, content: Record<string, unknown>, index: number, playSeed: number): boolean => {
     if (!g.levelGrammar.validate(level, feel).ok) return false;
-    const so = simOptionsFor(g, opts.systems, { behaviours: g.defaultBehaviours, content, feedback });
+    // What the level's generator makes (an arena's waves) is written over the design stages' files, so it wins here too.
+    const all = { ...opts.content, ...content };
+    if (freeform) {
+      const r = proveLevel(level, index, { file: freeform, roster, behaviours: g.defaultBehaviours, content: all, feedback, solver, budget: 20_000 });
+      if (r.proof) proofs.push(r.proof);
+      return r.proof !== null;
+    }
+    const so = simOptionsFor(g, systems, { behaviours: g.defaultBehaviours, content: all, feedback });
     return runBot(createSim({ ...so, level, seed: playSeed }), solver, 90 * 60).completed;
   };
   const arena = g.levelGrammar.kind === 'arena';
@@ -134,28 +169,26 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   let s = seed;
   for (const slot of plan) {
     const paramsAt = (genSeed: number): LevelGenParams => (arena ? { seed: genSeed, difficulty: slot.difficulty } : { seed: genSeed, difficulty: slot.difficulty, boss: slot.boss });
+    // The level as the game ships it (its id is what proofs and the editor know it by).
+    const named = (l: LevelJson): LevelJson => (arena ? { ...l, id: 'arena', name: 'Arena' } : { ...l, id: slot.id, name: `Level ${slot.index + 1}`, ramp: { segment: slot.index, difficulty: slot.difficulty } });
     let params = paramsAt(s);
-    let level = g.levelGrammar.generate(params);
+    let level = named(g.levelGrammar.generate(params));
     // Arena genres generate their content (waves) with the level; level-based genres ship none.
     let content = arena ? (g.extraContent?.(params) ?? {}) : {};
     let tries = 0;
-    while (!accept(level, content, slot.seed)) {
-      if (++tries >= 20) throw new Error(`no seed from ${s - tries + 1} to ${s} gives ${slot.id} a level that passes the validator and the ${g.solverBot} bot at difficulty ${slot.difficulty}`);
+    while (!accept(level, content, slot.index, slot.seed)) {
+      if (++tries >= 20) throw new Error(`no seed from ${s - tries + 1} to ${s} gives ${slot.id} a level that passes the validator and ${freeform ? 'gets a winning run' : `the ${g.solverBot} bot`} at difficulty ${slot.difficulty}`);
       params = paramsAt(++s);
-      level = g.levelGrammar.generate(params);
+      level = named(g.levelGrammar.generate(params));
       content = arena ? (g.extraContent?.(params) ?? {}) : {};
     }
     s++;
     const n = String(slot.index + 1).padStart(2, '0');
-    if (arena) {
-      write(files, out, `content/levels/L${n}-arena.json`, JSON.stringify({ ...level, id: 'arena', name: 'Arena' }, null, 2) + '\n');
-      for (const [key, value] of Object.entries(content)) write(files, out, `content/${key}.json`, JSON.stringify(value, null, 2) + '\n');
-    } else {
-      level = { ...level, id: slot.id, name: `Level ${slot.index + 1}`, ramp: { segment: slot.index, difficulty: slot.difficulty } };
-      write(files, out, `content/levels/L${n}-${slot.id}.json`, JSON.stringify(level, null, 2) + '\n');
-    }
+    write(files, out, `content/levels/L${n}-${arena ? 'arena' : slot.id}.json`, JSON.stringify(level, null, 2) + '\n');
+    for (const [key, value] of Object.entries(content)) write(files, out, `content/${key}.json`, JSON.stringify(value, null, 2) + '\n');
     levels.push(slot.id);
   }
+  for (const p of proofs) write(files, out, `content/proofs/${p.level}.json`, JSON.stringify(p) + '\n');
   for (const b of g.defaultBehaviours) write(files, out, `content/behaviour/${b.id}.fsm.json`, JSON.stringify(b, null, 2) + '\n');
 
   if (opts.linkNodeModules ?? true) linkGameBase(out);

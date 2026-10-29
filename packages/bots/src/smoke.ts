@@ -91,6 +91,38 @@ async function runRealtime(url: string, script: InputSegment[], ticks: number): 
   }
 }
 
+export interface ProofReplay {
+  results: Array<{ level: string; won: boolean; tick: number }>;
+  errors: string[];
+}
+
+/**
+ * Replays each level's recorded winning run in the built game, each level started fresh at the seed it is played with,
+ * and reports which still win: the proofs hold in the browser, not only in Node.
+ */
+export async function replayProofs(opts: { dir: string; proofs: ReadonlyArray<{ index: number; level: string; script: InputSegment[]; ticks: number }> }): Promise<ProofReplay> {
+  const server = await serveDir(opts.dir);
+  try {
+    const session = await openGame(`${server.url}/index.html?mode=manual&seed=1`);
+    try {
+      await waitReady(session.page);
+      const s = seam(session.page);
+      const results: ProofReplay['results'] = [];
+      for (const p of opts.proofs) {
+        await s.gotoLevel(p.index);
+        await s.runScript(p.script, p.ticks);
+        const state = await s.state();
+        results.push({ level: p.level, won: state.flags.won, tick: state.tick });
+      }
+      return { results, errors: [...session.consoleErrors, ...session.pageErrors] };
+    } finally {
+      await session.close();
+    }
+  } finally {
+    await server.close();
+  }
+}
+
 /** Boot the bundle headless, drive it by script in manual mode, verify ready flag, errors, hashes and metrics. */
 export async function runSmoke(opts: SmokeOptions): Promise<SmokeResult> {
   const seed = opts.seed ?? 1;

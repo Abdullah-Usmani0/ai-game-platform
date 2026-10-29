@@ -3,70 +3,22 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { join } from 'node:path';
 import { blockedTermsFor, resolveReferences, sanitize, styleFromReferences } from '@gg/catalog';
 import { costUsd, generateArtifact, providerFor, type GenerateResult, type Usage } from '@gg/llm';
-import { BundleManifest, LevelJson, parseAnyGdd, parseSystemsFile, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type GddFrontmatter, type SystemsFile, type SystemsJson } from '@gg/schemas';
-import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding } from '@gg/sdk';
+import { BundleManifest, LevelJson, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type CreateRequest, type GddFrontmatter, type LevelProof, type SystemsJson } from '@gg/schemas';
+import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from '@gg/scaffold';
 import { checkLevel, levelPlan, plannedLevelCount, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
-import { CATALOG, catalogFor, genre as genreOf, resolveGame } from '@gg/templates/node';
+import { BASE_MANIFESTS, IDENTITY_ROSTER, proveLevel } from '@gg/template-freeform/node';
+import { CATALOG, catalogFor, genre as genreOf, readGameInputs, resolveGame } from '@gg/templates/node';
 import { sfxPresetFor } from '@gg/sdk/art';
-import { checkGdd, checkSystems, impact, parseFrontmatter, silentSfx, validateBehaviour } from '@gg/validators';
+import { checkGdd, checkSystems, impact, silentSfx, validateBehaviour, type ValidationReport } from '@gg/validators';
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
+import { composition, compositionOf, freeformFrontmatter, freeformSystems, reproveLevels } from './freeform-stages.js';
 import type { PairDraft, Runner, StageContext, StageOutcome } from './types.js';
-
-type StageFn = (ctx: StageContext) => Promise<StageOutcome>;
-
-const ZERO: Usage = { inputTokens: 0, outputTokens: 0 };
-const add = (a: Usage, b: Usage): Usage => ({ inputTokens: a.inputTokens + b.inputTokens, outputTokens: a.outputTokens + b.outputTokens, cachedTokens: (a.cachedTokens ?? 0) + (b.cachedTokens ?? 0) });
-const sumUsage = <T>(r: GenerateResult<T>): Usage => r.samples.reduce((acc, s) => add(acc, s.usage), { ...ZERO });
-const ok = (summary: string, extra: Partial<StageOutcome> = {}): StageOutcome => ({ ok: true, summary, usage: { ...ZERO }, costUsd: 0, durationMs: 0, turns: 0, ...extra });
-const fail = (summary: string, failureMode: StageOutcome['failureMode'], extra: Partial<StageOutcome> = {}): StageOutcome => ({ ok: false, summary, usage: { ...ZERO }, costUsd: 0, durationMs: 0, turns: 0, failureMode, ...extra });
-
-const readJson = <T>(p: string): T => JSON.parse(readFileSync(p, 'utf8')) as T;
-const writeJson = (p: string, v: unknown): void => {
-  mkdirSync(join(p, '..'), { recursive: true });
-  writeFileSync(p, JSON.stringify(v, null, 2) + '\n');
-};
-
-function readGdd(gameDir: string): { md: string; fm: AnyGddFrontmatter } | null {
-  const p = join(gameDir, 'design', 'gdd.md');
-  if (!existsSync(p)) return null;
-  const md = readFileSync(p, 'utf8');
-  const fm = parseFrontmatter(md);
-  const parsed = fm ? parseAnyGdd(fm.data) : null;
-  return parsed?.success ? { md, fm: parsed.data } : null;
-}
-
-function readSystems(gameDir: string): SystemsFile | null {
-  const p = join(gameDir, 'design', 'systems.json');
-  if (!existsSync(p)) return null;
-  const parsed = parseSystemsFile(readJson(p));
-  if (!parsed.success) throw new Error(`design/systems.json is invalid: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
-  return parsed.data;
-}
+import { add, fail, listJson, ok, readGdd, readJson, readSystems, sumUsage, writeJson, ZERO, type StageFn } from './stage-kit.js';
 
 /** The game of the job: its curated genre, or its freeform composition; from its design files, else the create request. */
 export function genreOfGame(ctx: Pick<StageContext, 'request' | 'gameDir'>): GenreManifest {
   return resolveGame(ctx.gameDir, ctx.request?.genre);
-}
-
-function listJson(dir: string, suffix = '.json'): string[] {
-  return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(suffix)).sort().map((f) => join(dir, f)) : [];
-}
-
-function behavioursOf(gameDir: string): BehaviourFsm[] {
-  return listJson(join(gameDir, 'content', 'behaviour'), '.fsm.json').map((f) => readJson<BehaviourFsm>(f));
-}
-
-function extraContentOf(gameDir: string): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  const dir = join(gameDir, 'content');
-  for (const f of listJson(dir)) out[f.replace(/^.*\/([^/]+)\.json$/, '$1')] = readJson(f);
-  return out;
-}
-
-function feedbackOf(gameDir: string): FeedbackBinding[] {
-  const p = join(gameDir, 'design', 'feedback.json');
-  return existsSync(p) ? readJson<FeedbackBinding[]>(p) : [];
 }
 
 // ---------------------------------------------------------------- gdd
@@ -78,51 +30,37 @@ const GDD_SYSTEM = [
   'Never invent engine features; everything must be expressible as levels, enemy behaviour data and system parameters.',
 ].join('\n');
 
-const gdd: StageFn = async (ctx) => {
-  const t0 = Date.now();
-  const req = ctx.request;
-  if (!req) return fail('gdd stage needs a create request', 'spec_violation');
-  const g = genreOf(req.genre);
-  const budget = g.scopeBudget[req.scopeTier];
-  const design = join(ctx.gameDir, 'design');
-  mkdirSync(design, { recursive: true });
-  // Style references resolve to cards of unprotectable attributes; the titles and their blocked terms never
-  // reach a prompt or a public artifact (concept.md is private and stays out of the bundle).
-  const refs = resolveReferences(req.referenceTitles);
-  const blocked = blockedTermsFor(refs.matched);
-  const clean = sanitize(req.prompt.trim(), blocked);
-  const cleanReq = { ...req, prompt: clean.text };
-  writeFileSync(
-    join(design, 'concept.md'),
-    `# Concept\n\n${req.prompt.trim()}\n\n- Genre: ${g.name}\n- Scope tier: ${req.scopeTier}\n${refs.matched.length ? `- Style references (private): ${refs.matched.map((e) => e.title).join(', ')}\n` : ''}${refs.unmatched.length ? `- Unresolved references: ${refs.unmatched.join(', ')}\n` : ''}`,
-  );
-  if (!existsSync(join(design, 'style.json'))) {
-    const base = { ...DEFAULT_STYLE, name: 'style' };
-    writeJson(join(design, 'style.json'), refs.matched.length ? styleFromReferences(refs.matched, base, 'reference-style') : base);
-  }
-  const styleNotes = refs.matched.flatMap((e) => e.card.notes).slice(0, 8);
-  const provider = providerFor(ctx.provider);
-  const draft = draftFrontmatter(cleanReq, g);
-  const notes: string[] = [];
-  if (clean.hits.length) notes.push(`prompt sanitised (${clean.hits.length} reference term(s) removed)`);
-  let usage: Usage = { ...ZERO };
-  let cost = 0;
-  let turns = 0;
+/** A game's front matter as the gdd stage settles it: the value, the manifest the game builds on, the call that wrote it. */
+interface FrontMatter<T extends AnyGddFrontmatter> {
+  fm: T;
+  g: GenreManifest;
+  res: GenerateResult<T>;
+  prompt: string;
+  /** Why the draft stands in for the model's front matter, when it does. */
+  note: string | null;
+}
 
-  const fmPrompt = [
-    `Concept:\n${clean.text}`,
+/**
+ * The front matter of a game in a curated genre (its request already sanitised): inside the genre's budget, with its
+ * verbs and enemies. Falls back to the genre's draft.
+ */
+async function curatedFrontmatter(ctx: StageContext, req: CreateRequest, styleNotes: string[], g: GenreManifest): Promise<FrontMatter<GddFrontmatter>> {
+  const budget = g.scopeBudget[req.scopeTier];
+  const draft = draftFrontmatter(req, g);
+  const prompt = [
+    `Concept:\n${req.prompt}`,
     styleNotes.length ? `Art direction (from the style card): ${styleNotes.join('; ')}.` : '',
     `Genre: ${g.name} (${g.id}). Scope tier '${req.scopeTier}' budget: ${JSON.stringify(budget)} (scope must not exceed it).`,
     `Verbs available in this genre: ${g.gddDefaults.verbs.join(', ')}. Enemy types: ${g.entityDefs.filter((e) => e.fsm).map((e) => e.type).join(', ')}. Items: ${g.collectibleTypes.join(', ')}.`,
     `Genre guidance:\n${g.gddFragment}`,
     `Starting point (keep the shape; adapt title, pillars, scope and targets to the concept):\n${JSON.stringify(draft)}`,
   ].join('\n\n');
-  const fmRes = await generateArtifact<GddFrontmatter>({
-    provider,
+  const res = await generateArtifact<GddFrontmatter>({
+    provider: providerFor(ctx.provider),
     model: ctx.model,
     artifact: 'GddFrontmatter',
     system: GDD_SYSTEM,
-    prompt: fmPrompt,
+    prompt,
     k: ctx.policy?.k ?? 1,
     repairRounds: ctx.policy?.repairRounds ?? 1,
     verify: (v) => {
@@ -138,18 +76,48 @@ const gdd: StageFn = async (ctx) => {
     },
     score: (v) => v.verbs.filter((x) => g.gddDefaults.verbs.includes(x)).length + v.feedbackEvents.length * 0.1,
   });
-  usage = add(usage, sumUsage(fmRes));
-  cost += fmRes.totalCostUsd;
-  turns += fmRes.samples.length;
-  let fm = fmRes.selected?.value;
-  const fmWritten = fm !== undefined;
-  if (!fm) {
-    fm = draft;
-    notes.push(`front matter: ${fmRes.samples.length} samples rejected (${fmRes.samples[0]?.issues?.[0] ?? 'provider error'}); using the drafted front matter`);
+  const note = res.selected ? null : `front matter: ${res.samples.length} samples rejected (${res.samples[0]?.issues?.[0] ?? 'provider error'}); using the drafted front matter`;
+  return { fm: res.selected?.value ?? draft, g, res, prompt, note };
+}
+
+const gdd: StageFn = async (ctx) => {
+  const t0 = Date.now();
+  const req = ctx.request;
+  if (!req) return fail('gdd stage needs a create request', 'spec_violation');
+  const design = join(ctx.gameDir, 'design');
+  mkdirSync(design, { recursive: true });
+  // Style references resolve to cards of unprotectable attributes; the titles and their blocked terms never
+  // reach a prompt or a public artifact (concept.md is private and stays out of the bundle).
+  const refs = resolveReferences(req.referenceTitles);
+  const blocked = blockedTermsFor(refs.matched);
+  const clean = sanitize(req.prompt.trim(), blocked);
+  const cleanReq = { ...req, prompt: clean.text };
+  if (!existsSync(join(design, 'style.json'))) {
+    const base = { ...DEFAULT_STYLE, name: 'style' };
+    writeJson(join(design, 'style.json'), refs.matched.length ? styleFromReferences(refs.matched, base, 'reference-style') : base);
   }
+  const styleNotes = refs.matched.flatMap((e) => e.card.notes).slice(0, 8);
+  const provider = providerFor(ctx.provider);
+  const notes: string[] = [];
+  if (clean.hits.length) notes.push(`prompt sanitised (${clean.hits.length} reference term(s) removed)`);
+
+  // A freeform idea's front matter also picks the curated genre it builds on, whose manifest the rest of the stage uses.
+  const front: FrontMatter<AnyGddFrontmatter> = req.genre === 'freeform' ? await freeformFrontmatter(ctx, cleanReq, styleNotes, GDD_SYSTEM) : await curatedFrontmatter(ctx, cleanReq, styleNotes, genreOf(req.genre));
+  const g = front.g;
+  const budget = g.scopeBudget[req.scopeTier];
+  let usage = sumUsage(front.res);
+  let cost = front.res.totalCostUsd;
+  let turns = front.res.samples.length;
+  if (front.note) notes.push(front.note);
+  let fm: AnyGddFrontmatter = front.fm;
+  const fmWritten = front.res.selected?.value !== undefined;
+  writeFileSync(
+    join(design, 'concept.md'),
+    `# Concept\n\n${req.prompt.trim()}\n\n- Genre: ${fm.genre === 'freeform' ? `freeform, built on ${g.name}` : g.name}\n- Scope tier: ${req.scopeTier}\n${refs.matched.length ? `- Style references (private): ${refs.matched.map((e) => e.title).join(', ')}\n` : ''}${refs.unmatched.length ? `- Unresolved references: ${refs.unmatched.join(', ')}\n` : ''}`,
+  );
 
   const bodyPrompt = [
-    `Write the GDD body (markdown, no front matter) for "${fm.title}", a ${g.name.toLowerCase()}.`,
+    `Write the GDD body (markdown, no front matter) for "${fm.title}", a ${fm.genre === 'freeform' ? `game built on the ${g.name.toLowerCase()} template with systems from other genres` : g.name.toLowerCase()}.`,
     'Required sections, in order, each as a level-2 heading: ## Concept, ## Pillars, ## Core loop (30 seconds / 5 minutes / session), ## Progression, ## Scope, ## Feedback.',
     'Under 600 words. Concrete sentences; counts must match the front matter.',
     `Front matter: ${JSON.stringify(fm)}`,
@@ -181,7 +149,7 @@ const gdd: StageFn = async (ctx) => {
   fm = { ...fm, title: sanitize(fm.title, blocked).text.slice(0, 80) || fm.title };
   writeFileSync(join(design, 'gdd.md'), renderGdd(fm, body));
   const pairs: PairDraft[] = [];
-  if (fmWritten) pairs.push({ artifact: 'GddFrontmatter', system: GDD_SYSTEM, prompt: fmPrompt, output: fm });
+  if (fmWritten) pairs.push({ artifact: fm.genre === 'freeform' ? 'FreeformGddFrontmatter' : 'GddFrontmatter', system: GDD_SYSTEM, prompt: front.prompt, output: fm });
   if (bodyWritten) pairs.push({ artifact: 'GddBody', system: GDD_SYSTEM, prompt: bodyPrompt, output: body });
   const stylePath = join(design, 'style.json');
   const style = StyleCard.parse(readJson(stylePath));
@@ -194,7 +162,7 @@ const gdd: StageFn = async (ctx) => {
     durationMs: Date.now() - t0,
     turns,
     artifactPath: join(design, 'gdd.md'),
-    promptHash: fmRes.selected?.promptHash,
+    promptHash: front.res.selected?.promptHash,
     pairs,
   };
 };
@@ -209,9 +177,10 @@ const SYSTEMS_SYSTEM = [
 
 const systems: StageFn = async (ctx) => {
   const t0 = Date.now();
-  const g = genreOfGame(ctx);
   const gddInfo = readGdd(ctx.gameDir);
   if (!gddInfo) return fail('design/gdd.md missing or invalid', 'spec_violation');
+  if (gddInfo.fm.genre === 'freeform') return freeformSystems(ctx, gddInfo.fm, SYSTEMS_SYSTEM);
+  const g = genreOfGame(ctx);
   const catalog = Object.values(CATALOG).filter((c) => c.genres === '*' || c.genres.includes(g.id));
   const exemplar = g.exemplars.find((e) => e.kind === 'systems')?.artifact;
   const prompt = [
@@ -267,8 +236,16 @@ const scaffoldStage: StageFn = async (ctx) => {
     gddMarkdown: gddInfo.md,
     levels: gddInfo.fm.scope.levels,
     seed: ctx.request?.seed ?? 1,
+    ...(sys.genre === 'freeform' ? compositionOf(ctx.gameDir) : {}),
   });
   return ok(`scaffolded ${result.files.length} files; placeholder levels ${result.levels.join(', ')}`, { durationMs: Date.now() - t0, artifactPath: ctx.gameDir });
+};
+
+/** Re-proves a freeform game's levels after a change to how it plays (worker stage 'prove'; a no-op for curated games). */
+const prove: StageFn = async (ctx) => {
+  const t0 = Date.now();
+  const r = reproveLevels(ctx);
+  return r.ok ? ok(r.summary, { durationMs: Date.now() - t0 }) : fail(r.summary, 'semantic_invalid', { durationMs: Date.now() - t0 });
 };
 
 // ---------------------------------------------------------------- behaviour
@@ -314,7 +291,7 @@ const behaviour: StageFn = async (ctx) => {
       verify: (v) => {
         const issues: string[] = [];
         if (v.id !== id) issues.push(`id must be '${id}'`);
-        issues.push(...validateBehaviour(v, g.behaviourVocab).issues.filter((i) => i.severity === 'error').map((i) => i.message));
+        issues.push(...validateBehaviour(v, g.behaviourVocab, g.entityDefs.map((e) => e.type)).issues.filter((i) => i.severity === 'error').map((i) => i.message));
         return issues;
       },
       score: (v) => {
@@ -336,6 +313,10 @@ const behaviour: StageFn = async (ctx) => {
     }
     writeJson(join(ctx.gameDir, 'content', 'behaviour', `${id}.fsm.json`), value);
   }
+  // A freeform game's levels are proven by recorded runs, which new behaviours can break: prove them again.
+  const proven = reproveLevels(ctx);
+  if (!proven.ok) return fail(`behaviours written, but ${proven.summary}`, 'semantic_invalid', { usage, costUsd: cost, turns, durationMs: Date.now() - t0 });
+  if (g.id === 'freeform') notes.push(proven.summary);
   return { ok: true, summary: `wrote ${ids.length} behaviour(s): ${ids.join(', ')}${notes.length ? `; ${notes.join('; ')}` : ''}`, usage, costUsd: cost, durationMs: Date.now() - t0, turns, artifactPath: join(ctx.gameDir, 'content', 'behaviour'), promptHash, pairs };
 };
 
@@ -357,19 +338,29 @@ const levels: StageFn = async (ctx) => {
   const feel = g.feelPresets[sys.feelPreset] ?? g.feelPresets[g.defaultFeel]!;
   const solver = g.bots[g.solverBot];
   if (!solver) return fail(`genre has no solver bot '${g.solverBot}'`, 'spec_violation');
-  const behaviours = behavioursOf(ctx.gameDir);
-  const feedback = feedbackOf(ctx.gameDir);
+  // The game's own inputs, its rules included: a level is proven against the game as it plays.
+  const { behaviours, rules, content: gameContent, feedback } = readGameInputs(ctx.gameDir);
   const levelsDir = join(ctx.gameDir, 'content', 'levels');
   const kSeeds = Math.min(16, Math.max(4, ctx.policy?.k ?? 8));
   const baseSeed = (ctx.request?.seed ?? 1) * 1000 + (ctx.attempt - 1) * 100;
   const targetTicks = Math.round(fm.targets.levelTimeS * 60 * 0.6);
 
-  const oracle = (level: LevelJson, content: Record<string, unknown>, playSeed: number): { ok: boolean; ticks: number } => {
+  // A freeform game's candidates get a winning run instead of a solver bot: its base genre's solver under the base names,
+  // else a short explorer search. The chosen level ships with its run (content/proofs/).
+  const freeform = sys.genre === 'freeform' ? sys : null;
+  const roster = freeform ? compositionOf(ctx.gameDir).roster : IDENTITY_ROSTER;
+  const baseSolver = freeform ? BASE_MANIFESTS[freeform.composition.base].bots[BASE_MANIFESTS[freeform.composition.base].solverBot] : undefined;
+  const oracle = (level: LevelJson, content: Record<string, unknown>, playSeed: number, index: number): { ok: boolean; ticks: number; proof?: LevelProof } => {
     if (!g.levelGrammar.validate(level, feel).ok) return { ok: false, ticks: 0 };
-    const so = simOptionsFor(g, sys, { behaviours, content, feedback });
+    if (freeform) {
+      const r = proveLevel(level, index, { file: freeform, roster, behaviours, rules, content, feedback, solver: baseSolver, budget: 20_000 });
+      return r.proof ? { ok: true, ticks: r.proof.ticks, proof: r.proof } : { ok: false, ticks: 0 };
+    }
+    const so = simOptionsFor(g, sys, { behaviours, rules, content, feedback });
     const r = runBot(createSim({ ...so, level, seed: playSeed }), solver, 90 * 60);
     return { ok: r.completed, ticks: r.ticks };
   };
+  const proofsDir = join(ctx.gameDir, 'content', 'proofs');
   const plan = levelPlan(g.levelGrammar.kind, { levels: fm.scope.levels, bosses: fm.scope.bosses, tier: fm.scopeTier });
 
   const written: string[] = [];
@@ -377,49 +368,61 @@ const levels: StageFn = async (ctx) => {
   if (g.levelGrammar.kind === 'arena') {
     const slot = plan[0]!;
     const difficulty = slot.difficulty;
-    let best: { level: LevelJson; content: Record<string, unknown>; dist: number } | null = null;
+    let best: { level: LevelJson; content: Record<string, unknown>; dist: number; proof?: LevelProof } | null = null;
     for (let s = baseSeed; s < baseSeed + kSeeds * 2 && !best; s++) {
       const params: LevelGenParams = { seed: s, difficulty };
-      const level = g.levelGrammar.generate(params);
+      const level: LevelJson = { ...g.levelGrammar.generate(params), id: 'arena', name: 'Arena', ramp: { segment: 0, difficulty } };
       const content = g.extraContent?.(params) ?? {};
-      const r = oracle(level, content, slot.seed);
+      // The game's other content (a freeform game's objectives) plays along with the arena's own waves.
+      const r = oracle(level, { ...gameContent, ...content }, slot.seed, slot.index);
       tried.push(`${s}:${r.ok ? 'ok' : 'x'}`);
-      if (r.ok) best = { level: { ...level, id: 'arena', name: 'Arena', ramp: { segment: 0, difficulty } }, content, dist: 0 };
+      if (r.ok) best = { level, content, dist: 0, proof: r.proof };
     }
     if (!best) return fail(`no arena seed from ${baseSeed} passed the solver at difficulty ${difficulty} (${tried.join(' ')})`, 'semantic_invalid', { durationMs: Date.now() - t0 });
     rmSync(levelsDir, { recursive: true, force: true });
     writeJson(join(levelsDir, 'L01-arena.json'), best.level);
     for (const [key, value] of Object.entries(best.content)) writeJson(join(ctx.gameDir, 'content', `${key}.json`), value);
+    if (best.proof) {
+      rmSync(proofsDir, { recursive: true, force: true });
+      writeJson(join(proofsDir, `${best.level.id}.json`), best.proof);
+    }
     written.push('arena');
   } else {
     const targets = new Set((ctx.route?.targets ?? []).filter((t) => /^l\d{2}$/.test(t)));
     const existing = new Map(listJson(levelsDir).map((f) => [readJson<LevelJson>(f).id, f]));
-    const content = extraContentOf(ctx.gameDir);
-    const out: Array<{ file: string; level: LevelJson }> = [];
+    const out: Array<{ file: string; level: LevelJson; proof?: LevelProof }> = [];
     for (const { index: i, id, difficulty, boss, seed: playSeed } of plan) {
       if (targets.size && !targets.has(id) && existing.has(id)) {
         out.push({ file: `L${String(i + 1).padStart(2, '0')}-${id}.json`, level: readJson<LevelJson>(existing.get(id)!) });
         continue;
       }
-      let best: { level: LevelJson; dist: number } | null = null;
+      let best: { level: LevelJson; dist: number; solved: boolean; proof?: LevelProof } | null = null;
       for (let round = 0; round < 4 && !best; round++) {
         const from = baseSeed + i * 50 + round * kSeeds;
         for (let s = from; s < from + kSeeds; s++) {
-          const level = g.levelGrammar.generate({ seed: s, difficulty, boss });
-          const r = oracle(level, content, playSeed);
+          const level: LevelJson = { ...g.levelGrammar.generate({ seed: s, difficulty, boss }), id, name: `Level ${i + 1}`, ramp: { segment: i, difficulty } };
+          const r = oracle(level, gameContent, playSeed, i);
           tried.push(`${id}@${s}:${r.ok ? r.ticks : 'x'}`);
           if (!r.ok) continue;
           const dist = Math.abs(r.ticks - targetTicks);
-          if (!best || dist < best.dist) best = { level, dist };
+          // A level the base genre's solver finishes beats one only the explorer won: it is won the way the base's are.
+          const solved = r.proof?.by !== 'explorer';
+          if (!best || (solved !== best.solved ? solved : dist < best.dist)) best = { level, dist, solved, proof: r.proof };
         }
       }
       if (!best) return fail(`no seed produced a solvable level for ${id} at difficulty ${difficulty} (tried ${tried.filter((x) => x.startsWith(id)).length} seeds)`, 'semantic_invalid', { durationMs: Date.now() - t0 });
-      out.push({ file: `L${String(i + 1).padStart(2, '0')}-${id}.json`, level: { ...best.level, id, name: `Level ${i + 1}`, ramp: { segment: i, difficulty } } });
+      out.push({ file: `L${String(i + 1).padStart(2, '0')}-${id}.json`, level: best.level, proof: best.proof });
     }
     rmSync(levelsDir, { recursive: true, force: true });
     for (const o of out) {
       writeJson(join(levelsDir, o.file), o.level);
+      if (o.proof) writeJson(join(proofsDir, `${o.level.id}.json`), o.proof);
       written.push(o.level.id);
+    }
+    // Levels kept from before keep their proofs while those still win; a stale one is found again.
+    if (freeform) {
+      const proven = reproveLevels(ctx);
+      if (!proven.ok) return fail(proven.summary, 'semantic_invalid', { durationMs: Date.now() - t0 });
     }
   }
   return ok(`wrote ${written.length} level(s): ${written.join(', ')} (target ${targetTicks} ticks; ${tried.length} candidates)`, { durationMs: Date.now() - t0, artifactPath: levelsDir });
@@ -581,6 +584,12 @@ const applyParams: StageFn = async (ctx) => {
     if (!r.ok) return r;
     note = `; levels regenerated (${r.summary})`;
   }
+  if (!imp.levels && after.genre === 'freeform') {
+    // A freeform game's recorded runs may no longer win under the new values: prove the levels again.
+    const proven = reproveLevels(ctx);
+    if (!proven.ok) return fail(`parameters applied, but ${proven.summary}`, 'semantic_invalid');
+    note = `; ${proven.summary}`;
+  }
   return ok(`applied ${route.paramPatch.length} parameter(s): ${imp.changed.join(', ')}; impact levels=${imp.levels} assets=${imp.assets}${note}`, { artifactPath: path });
 };
 
@@ -617,11 +626,11 @@ const applyContent: StageFn = async (ctx) => {
   const sys = readSystems(ctx.gameDir);
   if (!sys) return fail('design/systems.json missing', 'spec_violation');
   const kit = { runtime: g, validate: g.levelGrammar.validate, bots: g.bots, solverBot: g.solverBot };
-  const inputs = { behaviours: behavioursOf(ctx.gameDir), content: extraContentOf(ctx.gameDir), feedback: feedbackOf(ctx.gameDir) };
+  const inputs = readGameInputs(ctx.gameDir);
   const levelsDir = join(ctx.gameDir, 'content', 'levels');
   const files = listJson(levelsDir);
   const existing = new Map(files.map((f) => [readJson<LevelJson>(f).id, f]));
-  const accepted: Array<{ file: string; level: LevelJson; ticks: number }> = [];
+  const accepted: Array<{ file: string; level: LevelJson; ticks: number; proof?: LevelProof }> = [];
   for (const raw of content.levels) {
     const parsed = LevelJson.safeParse(raw);
     if (!parsed.success) return fail(`level rejected by the schema: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`, 'schema_invalid', { durationMs: Date.now() - t0 });
@@ -629,20 +638,37 @@ const applyContent: StageFn = async (ctx) => {
     if (!file) return fail(`level '${parsed.data.id}' does not exist in this game (levels: ${[...existing.keys()].join(', ') || 'none'})`, 'semantic_invalid', { durationMs: Date.now() - t0 });
     const prev = readJson<LevelJson>(file);
     const level: LevelJson = { ...parsed.data, ramp: parsed.data.ramp ?? prev.ramp };
+    const index = files.indexOf(file);
+    const rejected = (r: ValidationReport) => fail(`level '${level.id}' rejected: ${r.issues.filter((i) => i.severity === 'error').map((i) => i.message).join('; ')}`, 'semantic_invalid', { durationMs: Date.now() - t0 });
+    if (sys.genre === 'freeform') {
+      // A freeform game's solver replays recorded runs, which an authored level has not got: the validator, then a run
+      // that wins it at its seed (the base genre's solver under the base names, else the explorer).
+      const report = g.levelGrammar.validate(level, g.feelPresets[sys.feelPreset] ?? g.feelPresets[g.defaultFeel]!);
+      if (!report.ok) return rejected(report);
+      const base = BASE_MANIFESTS[sys.composition.base];
+      const proven = proveLevel(level, index, { file: sys, roster: compositionOf(ctx.gameDir).roster, ...inputs, solver: base.bots[base.solverBot], budget: 40_000 });
+      if (!proven.proof) return fail(`no winning run found for '${level.id}': ${proven.tried.join('; ')}`, 'semantic_invalid', { durationMs: Date.now() - t0 });
+      accepted.push({ file, level, ticks: proven.proof.ticks, proof: proven.proof });
+      continue;
+    }
     // Checked at the seed the game plays it with: level i at levelSeed(1, i), as every oracle proves it.
-    const check = checkLevel(kit, level, sys, inputs, { seed: levelSeed(DEFAULT_SEED, files.indexOf(file)) });
-    if (!check.report.ok) return fail(`level '${level.id}' rejected: ${check.report.issues.filter((i) => i.severity === 'error').map((i) => i.message).join('; ')}`, 'semantic_invalid', { durationMs: Date.now() - t0 });
+    const check = checkLevel(kit, level, sys, inputs, { seed: levelSeed(DEFAULT_SEED, index) });
+    if (!check.report.ok) return rejected(check.report);
     if (!check.solver?.completed) return fail(`the ${g.solverBot} bot could not finish '${level.id}' within 90 s (deaths ${check.solver?.deaths ?? 0}, longest stall ${Math.round((check.solver?.stuckMaxTicks ?? 0) / 60)} s)`, 'semantic_invalid', { durationMs: Date.now() - t0 });
     accepted.push({ file, level, ticks: check.solver.ticks });
   }
-  for (const a of accepted) writeJson(a.file, a.level);
-  return ok(`applied ${accepted.length} authored level(s): ${accepted.map((a) => `${a.level.id} (solver ${Math.round(a.ticks / 60)} s)`).join(', ')}`, { durationMs: Date.now() - t0, artifactPath: levelsDir });
+  // Written only once every level of the edit is accepted, each with its run.
+  for (const a of accepted) {
+    writeJson(a.file, a.level);
+    if (a.proof) writeJson(join(ctx.gameDir, 'content', 'proofs', `${a.level.id}.json`), a.proof);
+  }
+  return ok(`applied ${accepted.length} authored level(s): ${accepted.map((a) => `${a.level.id} (${a.proof?.by ?? 'solver'} ${Math.round(a.ticks / 60)} s)`).join(', ')}`, { durationMs: Date.now() - t0, artifactPath: levelsDir });
 };
 
 /** Stages the worker implements itself: structured data stages, the scaffold, model-free level search, publishing, edit patches. */
 export class WorkerRunner implements Runner {
   readonly kind = 'worker' as const;
-  private readonly stages: Record<string, StageFn> = { gdd, systems, scaffold: scaffoldStage, behaviour, levels, publish, 'apply-params': applyParams, 'apply-style': applyStyle, 'apply-content': applyContent };
+  private readonly stages: Record<string, StageFn> = { gdd, systems, composition, scaffold: scaffoldStage, behaviour, prove, levels, publish, 'apply-params': applyParams, 'apply-style': applyStyle, 'apply-content': applyContent };
 
   async run(ctx: StageContext): Promise<StageOutcome> {
     const fn = this.stages[ctx.spec.stage];

@@ -6,8 +6,11 @@ export interface BehaviourVocabulary {
   actions: string[];
 }
 
-/** Structural checks beyond the schema: reachability of states, dead transitions, vocabulary subset. */
-export function validateBehaviour(fsm: BehaviourFsm, vocab?: BehaviourVocabulary): ValidationReport {
+/**
+ * Structural checks beyond the schema: reachability of states, dead transitions, vocabulary subset, and, given the game's
+ * entity types, that every projectile it fires is one of them (a shot of a type the game lacks stops the sim).
+ */
+export function validateBehaviour(fsm: BehaviourFsm, vocab?: BehaviourVocabulary, types?: readonly string[]): ValidationReport {
   const issues: Issue[] = [];
   const names = Object.keys(fsm.states);
   const reachable = new Set<string>([fsm.initial]);
@@ -23,6 +26,11 @@ export function validateBehaviour(fsm: BehaviourFsm, vocab?: BehaviourVocabulary
     if (seenAlways >= 0 && seenAlways < s.transitions.length - 1) issues.push(warn('dead_transition', `state '${n}': transitions after an 'always' are dead`, { path: `states.${n}.transitions` }));
     if (s.update.length === 0 && s.onEnter.length === 0 && s.transitions.length === 0) issues.push(err('empty_state', `state '${n}' does nothing and never leaves`, { path: `states.${n}` }));
     if (s.transitions.length === 0 && names.length > 1) issues.push(warn('terminal_state', `state '${n}' never transitions out`, { path: `states.${n}` }));
+    if (types) {
+      for (const a of [...s.onEnter, ...s.update]) {
+        if ((a.kind === 'shoot' || a.kind === 'shoot_ring') && !types.includes(a.projectile)) issues.push(err('unknown_projectile', `state '${n}' fires '${a.projectile}', which this game has no entity type for`, { path: `states.${n}` }));
+      }
+    }
     if (vocab) {
       for (const a of [...s.onEnter, ...s.update]) if (!vocab.actions.includes(a.kind)) issues.push(err('action_not_in_vocab', `action '${a.kind}' is not in this genre's vocabulary`, { path: `states.${n}` }));
       for (const t of s.transitions) {

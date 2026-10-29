@@ -1,4 +1,4 @@
-import { GddFrontmatter, type CreateRequest } from '@gg/schemas';
+import { GddFrontmatter, type AnyGddFrontmatter, type CreateRequest } from '@gg/schemas';
 import { plannedLevelCount, type GenreManifest } from '@gg/template-core';
 
 /** A title from the first words of the prompt: "a tight cave platformer about..." -> "Tight Cave Platformer". */
@@ -41,7 +41,7 @@ export function draftFrontmatter(req: CreateRequest, g: GenreManifest): GddFront
 }
 
 /** A GDD body with every required section, written from the concept and the front matter. */
-export function draftBody(req: CreateRequest, g: GenreManifest, fm: GddFrontmatter): string {
+export function draftBody(req: CreateRequest, g: GenreManifest, fm: AnyGddFrontmatter): string {
   const enemies = g.entityDefs.filter((e) => e.fsm && !e.boss).map((e) => e.type).slice(0, fm.scope.enemies);
   const bosses = g.entityDefs.filter((e) => e.boss).map((e) => e.type).slice(0, fm.scope.bosses);
   const items = g.collectibleTypes.slice(0, fm.scope.items);
@@ -73,6 +73,6 @@ export function draftBody(req: CreateRequest, g: GenreManifest, fm: GddFrontmatt
   ].join('\n');
 }
 
-export function renderGdd(fm: GddFrontmatter, body: string): string {
+export function renderGdd(fm: AnyGddFrontmatter, body: string): string {
   return `---\n${JSON.stringify(fm)}\n---\n${body.trim()}\n`;
 }

@@ -3,11 +3,13 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { JobKind, JobRow, Store } from '@gg/db';
 import { providerFor, registerProvider, stagePolicy } from '@gg/llm';
-import { CreateRequest, EditRequest, EditRoute, type ModelPolicy, type Stage, type StagePolicy, type SystemsJson, type Trajectory } from '@gg/schemas';
+import { CreateRequest, EditRequest, EditRoute, parseSystemsFile, type ModelPolicy, type Stage, type StagePolicy, type SystemsFile, type Trajectory } from '@gg/schemas';
+import { BASE_MANIFESTS } from '@gg/template-freeform/node';
 import { genre as genreOf } from '@gg/templates/node';
 import { checkpoint } from './checkpoint.js';
 import { routeEdit } from './edit-router.js';
 import { FakeProvider } from './fake-provider.js';
+import { guessBase } from './freeform.js';
 import { runGate, type GateRun } from './gate.js';
 import { materialize, writeStageFile } from './materialize.js';
 import { createPlan, editPlan } from './plan.js';
@@ -46,10 +48,15 @@ interface Resolved {
   provider: string;
 }
 
-function resolveStage(policy: ModelPolicy | null, spec: StageSpec, dryRun: boolean): Resolved {
+/** Stages a policy may leave out, and the stage whose entry they run on then: a freeform game's composition is part of choosing its systems. */
+const POLICY_FALLBACK: Readonly<Record<string, Stage>> = { composition: 'systems' };
+
+export function resolveStage(policy: ModelPolicy | null, spec: StageSpec, dryRun: boolean): Resolved {
   if (spec.runner === 'none') return { runnerKind: 'none', sp: null, model: 'none', provider: 'none' };
   let sp: StagePolicy | null = null;
-  if (policy && (policy.stages as Record<string, StagePolicy | undefined>)[spec.stage]) sp = stagePolicy(policy, spec.stage as Stage);
+  const named = (policy?.stages ?? {}) as Record<string, StagePolicy | undefined>;
+  const entry = named[spec.stage] ? spec.stage : POLICY_FALLBACK[spec.stage];
+  if (policy && entry && named[entry]) sp = stagePolicy(policy, entry as Stage);
   let runnerKind: string = spec.runner ?? sp?.runner ?? 'claude-sdk';
   if (dryRun && (runnerKind === 'claude-sdk' || runnerKind === 'open')) runnerKind = 'none';
   const model = dryRun ? 'fake' : (spec.model ?? sp?.model ?? 'claude-sonnet-5-5');
@@ -57,9 +64,11 @@ function resolveStage(policy: ModelPolicy | null, spec: StageSpec, dryRun: boole
   return { runnerKind, sp, model, provider };
 }
 
-function readSystems(gameDir: string): SystemsJson | null {
+function readSystems(gameDir: string): SystemsFile | null {
   const p = join(gameDir, 'design', 'systems.json');
-  return existsSync(p) ? (JSON.parse(readFileSync(p, 'utf8')) as SystemsJson) : null;
+  if (!existsSync(p)) return null;
+  const parsed = parseSystemsFile(JSON.parse(readFileSync(p, 'utf8')));
+  return parsed.success ? parsed.data : null;
 }
 
 function listIds(dir: string, suffix: string): string[] {
@@ -122,8 +131,10 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
     dryRun = dryRun || request.dryRun;
     genreId = request.genre;
     ({ gameDir } = materialize({ templateDir: opts.templateDir, workDir }));
-    stages = createPlan(presets);
-    if (dryRun) registerProvider('fake', new FakeProvider({ genre: genreOf(request.genre), request }));
+    const freeform = request.genre === 'freeform';
+    stages = createPlan(presets, { freeform });
+    // The dry run builds a freeform idea on the base its words point at, the one the fake front matter picks.
+    if (dryRun) registerProvider('fake', new FakeProvider({ genre: freeform ? BASE_MANIFESTS[guessBase(request.prompt)] : genreOf(request.genre), request }));
   } else if (job.kind.startsWith('edit_')) {
     edit = EditRequest.parse(job.input);
     dryRun = dryRun || edit.dryRun;
@@ -168,7 +179,7 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
     await store.updateJob(job.id, { kind: `edit_${route.route}` as JobKind, input: { ...job.input, route }, baseVersionId: baseId });
     await store.appendEvent(job.id, 'assistant_summary', { route: route.route, confidence: route.confidence, targets: route.targets, designNotes: route.designNotes }, 'route');
     log(`edit routed to '${route.route}' (confidence ${route.confidence}): ${route.designNotes}`);
-    stages = editPlan(route.route, presets, Boolean(edit.content));
+    stages = editPlan(route.route, presets, Boolean(edit.content), { freeform: g.id === 'freeform' });
   } else {
     throw new Error(`job kind '${job.kind}' needs a create request, an edit request or an explicit plan`);
   }

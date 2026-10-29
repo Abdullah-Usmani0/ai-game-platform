@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        genre: [platformer, survivors, topdown-action, shmup, metroidvania, puzzle]
+        genre: [platformer, survivors, topdown-action, shmup, metroidvania, puzzle, freeform]
     steps:
       - uses: actions/checkout@v5
       # pnpm version comes from "packageManager" in package.json

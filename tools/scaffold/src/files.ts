@@ -165,6 +165,53 @@ describe('${genre} game', () => {
 });
 `;
 
+export const FREEFORM_GAME_TS = (base: string) => `import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
+import type { FeedbackBinding, SimOptions } from '@gg/sdk';
+import { simOptionsFor } from '@gg/template-core';
+import { compose } from '@gg/template-freeform';
+import rosterJson from '../content/entities.json';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+/** A freeform game on ${base}: its systems from any genre's catalog, its roster's entities, composed at load. */
+const SYSTEMS = systemsJson as unknown as FreeformSystemsJson;
+export const ROSTER = rosterJson as unknown as EntityRoster;
+const runtime = compose(SYSTEMS, ROSTER).runtime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob(['../content/*.json', '!../content/entities.json'], { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** The selected systems (in systems.json order), then bespoke systems, then the feedback binder; the roster's entities. */
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = simOptionsFor(runtime, SYSTEMS, { behaviours: sorted(behaviourFiles), rules: sorted(ruleFiles), content: CONTENT, feedback: FEEDBACK, bespoke: BESPOKE });
+export const BEHAVIOURS: BehaviourFsm[] = SIM_OPTIONS.behaviours ?? [];
+export const RULES: EcaRule[] = SIM_OPTIONS.rules ?? [];
+`;
+
+export const FREEFORM_BOTS_TS = `import type { EntityRoster, FreeformSystemsJson, LevelProof } from '@gg/schemas';
+import { freeformCheck } from '@gg/template-freeform/check';
+import rosterJson from '../../content/entities.json';
+import systemsJson from '../../design/systems.json';
+
+const proofFiles = import.meta.glob('../../content/proofs/*.json', { eager: true, import: 'default' }) as Record<string, LevelProof>;
+const kit = freeformCheck(systemsJson as unknown as FreeformSystemsJson, rosterJson as unknown as EntityRoster, Object.values(proofFiles));
+/** The proof bot replays each level's recorded winning run; chaos presses keys at random. */
+export const BOTS = kit.bots;
+export const SOLVER_BOT = kit.solverBot;
+`;
+
 export const BOTS_TS = (nodeImport: string, manifestName: string) => `import { ${manifestName} } from '${nodeImport}';
 export const BOTS = ${manifestName}.bots;
 export const SOLVER_BOT = ${manifestName}.solverBot;

@@ -1,13 +1,14 @@
 import { writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { genre } from '@gg/templates/node';
+import { genre, resolveGame } from '@gg/templates/node';
 const { positionals, values } = parseArgs({ allowPositionals: true, options: { seed: { type: 'string', default: '1' }, difficulty: { type: 'string', default: '0.3' }, out: { type: 'string' }, length: { type: 'string' }, id: { type: 'string' } } });
 const id = positionals[0];
 if (!id || !values.out) {
-  console.error('usage: generate-level.ts <genre> --seed N --difficulty 0..1 --out file.json [--length N] [--id lvlid]');
+  console.error('usage: generate-level.ts <genre|freeform> --seed N --difficulty 0..1 --out file.json [--length N] [--id lvlid]');
   process.exit(2);
 }
-const g = genre(id);
+// A freeform game's levels come from its base genre's generator under the game's own entity names.
+const g = id === 'freeform' ? resolveGame('game') : genre(id);
 const params = { seed: Number(values.seed), difficulty: Number(values.difficulty), ...(values.length ? { length: Number(values.length) } : {}) };
 let level = g.levelGrammar.generate(params);
 if (values.id) level = { ...level, id: values.id };

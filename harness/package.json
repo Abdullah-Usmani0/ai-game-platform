@@ -16,9 +16,9 @@
     "tsx": "4.23.15",
     "@gg/validators": "workspace:*",
     "@gg/sdk": "workspace:*",
-    "@gg/template-freeform": "workspace:*",
     "@gg/templates": "workspace:*",
     "@gg/template-core": "workspace:*",
+    "@gg/template-freeform": "workspace:*",
     "@gg/scaffold": "workspace:*",
     "pngjs": "7.0.0"
   },

@@ -116,7 +116,7 @@ for (const file of files) {
     const r = g ? g.levelGrammar.validate(level, feel) : validateLevel(level, { feel });
     if (!printReport(file, `level (${g?.id ?? 'generic'})`, r)) failed++;
   } else if (name === 'BehaviourFsm') {
-    if (!printReport(file, 'behaviour', validateBehaviour(result.data as BehaviourFsm, g?.behaviourVocab))) failed++;
+    if (!printReport(file, 'behaviour', validateBehaviour(result.data as BehaviourFsm, g?.behaviourVocab, g?.entityDefs.map((e) => e.type)))) failed++;
   } else {
     console.log(`${file}: OK (${name})`);
   }

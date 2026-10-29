@@ -31,8 +31,11 @@ export const CURATED_GENRES = ['platformer', 'survivors', 'topdown-action', 'met
 export const CuratedGenre = z.enum(CURATED_GENRES);
 export type CuratedGenre = z.infer<typeof CuratedGenre>;
 
-/** The genres a game can be created in today: each has a template (systems, level generator, solver bot). */
-export const PLAYABLE_GENRES = CURATED_GENRES;
+/**
+ * The genres a game can be created in today: each curated one has its template (systems, level generator, solver bot);
+ * a freeform game composes its own from theirs, on the curated genre it builds on.
+ */
+export const PLAYABLE_GENRES = [...CURATED_GENRES, 'freeform'] as const satisfies readonly Genre[];
 export const PlayableGenre = z.enum(PLAYABLE_GENRES);
 export type PlayableGenre = z.infer<typeof PlayableGenre>;
 

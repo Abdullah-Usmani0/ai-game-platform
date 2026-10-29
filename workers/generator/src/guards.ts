@@ -42,7 +42,7 @@ const ALLOW: readonly RegExp[] = [
   /^pnpm -C game (typecheck|lint|test|build)$/,
   /^pnpm -C game exec vitest run( [\w./-]+)*$/,
   /^pnpm exec gg-bots (smoke|contact-sheet) [\w./-]+( --[a-z-]+( [\w./-]+)?)*$/,
-  /^pnpm catalog [a-z-]+$/,
+  /^pnpm catalog [a-z-]+( [a-z-]+)?$/,
   /^node --import tsx \.agents\/skills\/[a-z-]+\/scripts\/[a-z-]+\.ts( [^;&|`$<>]+)?$/,
   /^(ls|cat|head|tail|wc|grep|rg|find|diff)( [^;&|`$<>]+)?$/,
 ];

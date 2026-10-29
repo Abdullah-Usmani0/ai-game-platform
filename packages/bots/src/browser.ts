@@ -42,6 +42,8 @@ export function seam(page: Page): {
   metrics(): Promise<ReturnType<TestSeam['metrics']>>;
   mode(): Promise<string>;
   screenshotPng(): Promise<Buffer>;
+  /** Start a level fresh (no carried props), as the Node-side bots and proofs play it. */
+  gotoLevel(index: number): Promise<void>;
 } {
   return {
     state: () => page.evaluate(() => window.__game!.state()),
@@ -54,5 +56,6 @@ export function seam(page: Page): {
     metrics: () => page.evaluate(() => window.__game!.metrics()),
     mode: () => page.evaluate(() => window.__game!.mode),
     screenshotPng: () => page.screenshot({ type: 'png' }),
+    gotoLevel: (index) => page.evaluate((i) => window.__game!.goto('play', { level: i }), index),
   };
 }

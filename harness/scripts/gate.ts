@@ -2,12 +2,11 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { mergeReports, runSmoke } from '@gg/bots';
-import { LevelJson, Objectives, parseAnyGdd, parseSystemsFile, StyleCard, type AnyGddFrontmatter, type GateReport, type PlaytestReport } from '@gg/schemas';
-import { catalogFor, manifestFor, readGameFiles, rolesPresent } from '@gg/templates/node';
-import { checkFreeformObjectives } from '@gg/template-freeform/node';
+import { mergeReports, replayProofs, runSmoke } from '@gg/bots';
+import { LevelJson, parseAnyGdd, StyleCard, type AnyGddFrontmatter, type GateReport, type PlaytestReport } from '@gg/schemas';
+import { checkGameSystems, checkProofs, manifestFor, readGameFiles, readGameLevels } from '@gg/templates/node';
 import { sfxPresetFor } from '@gg/sdk/art';
-import { checkComposition, checkGdd, checkSystems, juiceLintRuns, parseFrontmatter, silentSfx, validateRamp, type FeedbackTable, type Issue } from '@gg/validators';
+import { checkGdd, juiceLintRuns, parseFrontmatter, silentSfx, validateRamp, type FeedbackTable } from '@gg/validators';
 
 /**
  * `pnpm gate`: the deterministic definition of done for the current stage.
@@ -118,26 +117,8 @@ async function check(name: string): Promise<Check> {
       return { name, passed: r.success, detail: r.success ? '' : r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n') };
     }
     case 'validate:systems': {
-      const p = join(gameDir, 'design', 'systems.json');
-      if (!existsSync(p)) return { name, passed: false, detail: 'design/systems.json missing' };
-      const parsed = parseSystemsFile(readJson(p));
-      if (!parsed.success) return { name, passed: false, detail: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n') };
-      const issues: Issue[] = [...checkSystems(parsed.data, catalogFor(parsed.data), readGdd() ?? undefined).issues];
-      if (parsed.data.genre === 'freeform') {
-        // A freeform game is held together by the composition rules, over the roster's roles and the content it ships.
-        const files = readGameFiles(gameDir);
-        const m = manifestFor(files);
-        const content = existsSync(join(gameDir, 'content')) ? readdirSync(join(gameDir, 'content')).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')) : [];
-        issues.push(...checkComposition(Object.values(m.systems).map((s) => s.meta), { roles: rolesPresent(m), content }).issues);
-        const objectivesPath = join(gameDir, 'content', 'objectives.json');
-        if (existsSync(objectivesPath) && files.roster) {
-          const o = Objectives.safeParse(readJson(objectivesPath));
-          if (o.success) issues.push(...checkFreeformObjectives(parsed.data, files.roster, o.data).issues);
-          else issues.push(...o.error.issues.map((i) => ({ code: 'objectives_invalid', message: `content/objectives.json ${i.path.join('.')}: ${i.message}`, severity: 'error' as const })));
-        }
-      }
-      const passed = issues.every((i) => i.severity !== 'error');
-      return { name, passed, detail: issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
+      const r = checkGameSystems(gameDir);
+      return { name, passed: r.ok, detail: r.issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
     }
     case 'validate:ramp': {
       const dir = join(gameDir, 'content', 'levels');
@@ -167,6 +148,12 @@ async function check(name: string): Promise<Check> {
       const testFile = join(gameDir, 'tests', 'unit', 'game.test.ts');
       const r = existsSync(testFile) ? run('pnpm', ['-C', gameDir, 'exec', 'vitest', 'run', 'tests/unit/game.test.ts'], harnessDir) : run('pnpm', ['-C', gameDir, 'run', 'test'], harnessDir);
       return { name, passed: r.ok, detail: r.ok ? '' : tail(r.out) };
+    }
+    case 'prove': {
+      // A freeform game's solver is its recorded winning runs: one per level, at its seed, still winning.
+      const r = checkProofs(gameDir);
+      const detail = r.metrics['curated'] ? 'curated game: its genre solver proves the levels (solver check)' : r.issues.map((i) => `${i.code}: ${i.message}`).join('\n');
+      return { name, passed: r.ok, detail };
     }
     case 'review': {
       const p = join(reportsDir, 'review.json');
@@ -207,6 +194,21 @@ async function check(name: string): Promise<Check> {
       if (reports.length > 0) {
         mkdirSync(reportsDir, { recursive: true });
         writeFileSync(join(reportsDir, 'playtest-report.json'), JSON.stringify(mergeReports(reports), null, 2) + '\n');
+      }
+      // A freeform game's proofs must hold in the browser too: every level's recorded run wins in the built game.
+      const files = readGameFiles(gameDir);
+      if (files.systems?.genre === 'freeform') {
+        const proofs = readGameLevels(gameDir).flatMap(({ level, index }) => {
+          const p = files.proofs.find((x) => x.level === level.id);
+          return p ? [{ index, level: level.id, script: p.script, ticks: p.ticks }] : [];
+        });
+        try {
+          const r = await replayProofs({ dir: dist, proofs });
+          for (const x of r.results) if (!x.won) failures.push(`proof replay: ${x.level} is not won in the browser (tick ${x.tick})`);
+          if (r.errors.length) failures.push(`proof replay: ${r.errors.length} console/page error(s): ${r.errors[0]}`);
+        } catch (e) {
+          failures.push(`proof replay: ${(e as Error).message}`);
+        }
       }
       return { name, passed: failures.length === 0, detail: failures.join('\n') };
     }

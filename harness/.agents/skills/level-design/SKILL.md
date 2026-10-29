@@ -14,3 +14,7 @@ Files are `game/content/levels/L<nn>-<id>.json` (`LevelJson`), ordered by number
 4. Validate: `pnpm validate <file>` (schema + solver: reachability, win path, safe start, hazards, collectibles) and the ramp: `node --import tsx .agents/skills/level-design/scripts/difficulty-report.ts game/content/levels`.
 5. Fix by regenerating with a new seed or different difficulty/length, not by editing rows. Small entity tweaks (moving a coin or an enemy by a tile) are fine if you re-validate.
 6. Stop when every level validates, the ramp is monotonic and the first level's difficulty is under 0.4.
+
+For a freeform game, pass `freeform` as the genre: its levels come from its base genre's generator under the game's own
+entity names. Its solver is the recorded winning run of each level (`game/content/proofs/<id>.json`): after you change a
+level, its old run no longer proves it, and the worker records a new one (the `prove` check fails until it has).

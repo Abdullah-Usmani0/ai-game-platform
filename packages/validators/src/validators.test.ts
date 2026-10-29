@@ -105,6 +105,9 @@ describe('validateBehaviour', () => {
     expect(r.issues.map((i) => i.code)).toContain('state_unreachable');
     expect(r.issues.map((i) => i.code)).toContain('action_not_in_vocab');
     expect(r.ok).toBe(false);
+    // A shot of a type the game has not got: a game that renamed its bolts calls them something else.
+    expect(validateBehaviour(fsm, undefined, ['walker', 'spore']).issues.map((i) => i.code)).toContain('unknown_projectile');
+    expect(validateBehaviour(fsm, undefined, ['walker', 'bolt']).issues.map((i) => i.code)).not.toContain('unknown_projectile');
   });
 });
 

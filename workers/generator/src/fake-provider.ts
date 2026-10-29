@@ -1,8 +1,10 @@
 import type { Provider, StructuredRequest, StructuredResponse, TextRequest, TextResponse } from '@gg/llm';
-import type { CreateRequest, EditRoute } from '@gg/schemas';
+import { CuratedGenre, parseAnyGdd, type BehaviourFsm, type CreateRequest, type EditRoute } from '@gg/schemas';
 import { defaultSystems } from '@gg/scaffold';
 import type { GenreManifest } from '@gg/template-core';
-import { draftBody, draftFrontmatter } from './gdd-draft.js';
+import { BASE_MANIFESTS, IDENTITY_ROSTER } from '@gg/template-freeform/node';
+import { baseSystems, defaultObjectives, draftFreeformFrontmatter, exampleFor, guessBase } from './freeform.js';
+import { draftBody, draftFrontmatter, titleFromPrompt } from './gdd-draft.js';
 
 const ZERO = { inputTokens: 0, outputTokens: 0 };
 const STYLE_KEYS = /^(palette|camera|typography|postFx|animationFps|canvas)\.|^(outline|family|pixelArt)$/;
@@ -68,9 +70,7 @@ export class FakeProvider implements Provider {
 
   private request(): CreateRequest {
     if (this.ctx.request) return this.ctx.request;
-    const genre = this.ctx.genre.id;
-    if (genre === 'freeform') throw new Error('the fake provider drafts a freeform game only from its create request');
-    return { prompt: `A ${this.ctx.genre.name.toLowerCase()} made by the dry run.`, genre, scopeTier: 'small', referenceTitles: [], dryRun: true };
+    return { prompt: `A ${this.ctx.genre.name.toLowerCase()} made by the dry run.`, genre: this.ctx.genre.id, scopeTier: 'small', referenceTitles: [], dryRun: true };
   }
 
   async structured(req: StructuredRequest): Promise<StructuredResponse> {
@@ -86,7 +86,33 @@ export class FakeProvider implements Provider {
         break;
       case 'BehaviourFsm': {
         const id = marker(/^Behaviour id: (\S+)/m);
-        data = g.defaultBehaviours.find((b) => b.id === id) ?? g.exemplars.find((e) => e.kind === 'behaviour')?.artifact;
+        // The prompt's reference is the game's own behaviour for the id: a freeform game's runs under its names, maybe
+        // from another genre than the base. Without one, the genre's.
+        const reference = /^Reference FSM for this id[^\n]*\n(\{.*\})$/m.exec(req.prompt)?.[1];
+        data = reference ? (JSON.parse(reference) as BehaviourFsm) : (g.defaultBehaviours.find((b) => b.id === id) ?? g.exemplars.find((e) => e.kind === 'behaviour')?.artifact);
+        break;
+      }
+      case 'FreeformGddFrontmatter': {
+        // The idea's base by its words; the hand-made example on that base when there is one, else the base's draft.
+        const r = this.request();
+        const base = guessBase(r.prompt);
+        const ex = exampleFor(base, r.prompt);
+        data = ex ? { ...ex.gdd, title: r.title ?? titleFromPrompt(r.prompt), scopeTier: r.scopeTier } : draftFreeformFrontmatter(r, base);
+        break;
+      }
+      case 'FreeformSystemsJson': {
+        const base = CuratedGenre.parse(marker(/^Base genre: ([a-z-]+)/m));
+        data = exampleFor(base, this.ctx.request?.prompt)?.systems ?? baseSystems(base);
+        break;
+      }
+      case 'EntityRoster': {
+        const base = CuratedGenre.parse(marker(/^Base genre: ([a-z-]+)/m));
+        data = exampleFor(base, this.ctx.request?.prompt)?.roster ?? IDENTITY_ROSTER;
+        break;
+      }
+      case 'Objectives': {
+        const base = CuratedGenre.parse(marker(/^Base genre: ([a-z-]+)/m));
+        data = exampleFor(base, this.ctx.request?.prompt)?.objectives ?? defaultObjectives(base, Number(marker(/^Level time: (\d+)/m) ?? 60));
         break;
       }
       case 'EditRoute': {
@@ -104,7 +130,10 @@ export class FakeProvider implements Provider {
   async text(req: TextRequest): Promise<TextResponse> {
     if (/GDD body/.test(req.prompt)) {
       const r = this.request();
-      return { text: draftBody(r, this.ctx.genre, draftFrontmatter(r, this.ctx.genre)), usage: { ...ZERO } };
+      // A freeform game's front matter is its own (its base, its example's scope), so the body follows the prompt's.
+      const fm = r.genre === 'freeform' ? parseAnyGdd(JSON.parse(/^Front matter: (\{.*\})$/m.exec(req.prompt)?.[1] ?? 'null')).data : undefined;
+      const g = fm?.genre === 'freeform' ? BASE_MANIFESTS[fm.base] : this.ctx.genre;
+      return { text: draftBody(r, g, fm ?? draftFrontmatter(r, g)), usage: { ...ZERO } };
     }
     return { text: 'NO FINDINGS', usage: { ...ZERO } };
   }

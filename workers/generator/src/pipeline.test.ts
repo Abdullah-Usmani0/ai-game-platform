@@ -36,7 +36,8 @@ describe('stage presets and plans', () => {
     expect(editPlan('content', presets, true).map((s) => s.stage)).toEqual([...AUTHORED_CONTENT_PLAN]);
     expect(editPlan('content', presets).map((s) => s.stage)[0]).toBe('levels');
     expect(editPlan('parameter', presets, true).map((s) => s.stage)).toEqual(editPlan('parameter', presets).map((s) => s.stage));
-    expect(presets['apply-content']?.gate).toEqual(['validate:levels', 'validate:ramp', 'solver']);
+    // A freeform game's authored level is proven by a recorded run; a curated game's prove check passes through.
+    expect(presets['apply-content']?.gate).toEqual(['validate:levels', 'validate:ramp', 'prove', 'solver']);
     expect(presets['apply-content']?.runner).toBe('worker');
   });
 });
