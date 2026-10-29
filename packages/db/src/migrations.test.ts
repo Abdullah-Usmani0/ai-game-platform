@@ -85,6 +85,7 @@ beforeAll(async () => {
   await db.exec(migration('0006_appeals.sql'));
   await db.exec(migration('0007_training_pairs.sql'));
   await db.exec(migration('0008_jams.sql'));
+  await db.exec(migration('0009_freeform.sql'));
   for (const [i, id] of [OWNER, ...PLAYERS, ...TESTERS, MODERATOR, OWNER2, TESTER2].entries()) {
     await db.query('insert into auth.users (id) values ($1)', [id]);
     await db.query('insert into profiles (id, handle) values ($1, $2)', [id, `user_${i}`]);
@@ -92,6 +93,16 @@ beforeAll(async () => {
   await db.query('update profiles set is_moderator = true where id = $1', [MODERATOR]);
   await asService();
 }, 120_000);
+
+describe('freeform migration', () => {
+  it('stores a freeform game like any other, and applies twice without harm', async () => {
+    const g = await one<{ genre: string }>(`insert into games (owner_id, slug, title, genre) values ($1, 'hive-freeform', 'Hive', 'freeform') returning genre`, [OWNER]);
+    expect(g.genre).toBe('freeform');
+    await db.exec(migration('0009_freeform.sql'));
+    const values = await db.query<{ v: string }>(`select unnest(enum_range(null::genre))::text as v`);
+    expect(values.rows.map((r) => r.v).filter((v) => v === 'freeform')).toHaveLength(1);
+  });
+});
 
 describe('core migration functions', () => {
   it('claim_job takes the highest-priority queued job; accept_version moves the head; fork_game records lineage', async () => {

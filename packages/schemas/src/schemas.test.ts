@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, GddFrontmatter, GENRES, JamInput, LevelJson, Objectives, PLAYABLE_GENRES, SystemsJson, toJsonSchema } from './index';
+import { AnyGddFrontmatter, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, EntityRoster, FreeformGddFrontmatter, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, Objectives, PLAYABLE_GENRES, SystemsFile, SystemsJson, toJsonSchema } from './index';
 
 describe('LevelJson', () => {
   const base = {
@@ -107,5 +108,67 @@ describe('Objectives', () => {
     expect(ok({ clauses: [{ kind: 'score_at_least', value: 3 }] })).toBe(false);
     expect(ok({ clauses: [{ kind: 'reach_goal' }] }, [{ kind: 'lives', count: 0 }])).toBe(false);
     expect(ok({ mode: 'any', clauses: [{ kind: 'reach_goal' }, { kind: 'survive', seconds: 60 }] }, [{ kind: 'time_out', seconds: 90 }])).toBe(true);
+  });
+});
+
+describe('freeform', () => {
+  const gdd = {
+    title: 'Hive',
+    genre: 'platformer',
+    scopeTier: 'small',
+    pillars: ['swarm pressure', 'every swing counts', 'short runs'],
+    scope: { levels: 1, enemies: 2, items: 1, bosses: 0 },
+    targets: { sessionMin: 5, levelTimeS: 60, deathsPerLevel: 2 },
+    verbs: ['move', 'attack'],
+    feedbackEvents: [{ event: 'hit', channels: ['sfx'] }],
+  };
+
+  it("the curated design schemas, and the structured calls built on them, stay exactly as they were", () => {
+    // Freeform files have schemas of their own; a change here changes every curated prompt, so it needs a reason.
+    const hash = (name: Parameters<typeof toJsonSchema>[0]) => createHash('sha256').update(JSON.stringify(toJsonSchema(name))).digest('hex').slice(0, 16);
+    expect({ GddFrontmatter: hash('GddFrontmatter'), SystemsJson: hash('SystemsJson'), BehaviourFsm: hash('BehaviourFsm'), EcaRule: hash('EcaRule'), WaveTable: hash('WaveTable'), EditRoute: hash('EditRoute') }).toEqual({
+      GddFrontmatter: '62b2bac5f36b50e5',
+      SystemsJson: '5db9814c9cb7ee9a',
+      BehaviourFsm: 'bfd19052b00a3c0c',
+      EcaRule: 'b74e8a8a3ef2a254',
+      WaveTable: '1f7d2cffadcf4df3',
+      EditRoute: 'baee82f997a7a79c',
+    });
+    expect(GddFrontmatter.safeParse({ ...gdd, genre: 'freeform' }).success).toBe(false);
+  });
+
+  it('a freeform game names the curated genre it builds on, in its GDD and its systems.json', () => {
+    const fm = FreeformGddFrontmatter.parse({ ...gdd, genre: 'freeform', base: 'survivors' });
+    expect(fm.base).toBe('survivors');
+    expect(FreeformGddFrontmatter.safeParse({ ...gdd, genre: 'freeform' }).success).toBe(false);
+    expect(FreeformGddFrontmatter.safeParse({ ...gdd, genre: 'freeform', base: 'freeform' }).success).toBe(false);
+    expect(AnyGddFrontmatter.parse(gdd).genre).toBe('platformer');
+    expect(AnyGddFrontmatter.parse({ ...gdd, genre: 'freeform', base: 'puzzle' })).toMatchObject({ genre: 'freeform', base: 'puzzle' });
+    const systems = { version: 1, genre: 'freeform', feelPreset: 'arena-melee', systems: [{ id: 'movement-topdown' }, { id: 'melee-attack' }, { id: 'objectives' }] };
+    expect(SystemsFile.parse({ ...systems, composition: { base: 'survivors' } })).toMatchObject({ composition: { base: 'survivors' } });
+    expect(SystemsFile.safeParse(systems).success).toBe(false);
+    expect(SystemsFile.parse({ ...systems, genre: 'survivors' }).genre).toBe('survivors');
+    expect(CURATED_GENRES).not.toContain('freeform');
+  });
+
+  it("a roster renames shipped entities, each archetype once, and bounds what it tunes", () => {
+    const roster = EntityRoster.parse({ version: 1, types: [{ type: 'wasp', archetype: 'survivors:chaser' }, { type: 'hornet', archetype: 'survivors:brute', hp: 1.5 }] });
+    expect(roster.types[0]!.hp).toBe(1);
+    expect(roster.player).toEqual({});
+    const bad = (types: unknown[]) => EntityRoster.safeParse({ version: 1, types }).success;
+    expect(bad([{ type: 'wasp', archetype: 'survivors:chaser' }, { type: 'wasp', archetype: 'survivors:brute' }])).toBe(false);
+    expect(bad([{ type: 'wasp', archetype: 'survivors:chaser' }, { type: 'bee', archetype: 'survivors:chaser' }])).toBe(false);
+    expect(bad([{ type: 'player', archetype: 'survivors:chaser' }])).toBe(false);
+    expect(bad([{ type: 'wasp', archetype: 'chaser' }])).toBe(false);
+    expect(bad([{ type: 'wasp', archetype: 'survivors:chaser', hp: 5 }])).toBe(false);
+  });
+
+  it('a proof is a bounded recorded run', () => {
+    const proof = { version: 1, level: 'l01', seed: 1, ticks: 300, by: 'explorer', script: [{ from: 0, to: 120, input: { right: true } }, { from: 120, to: 300, input: { right: true, jump: true } }] };
+    expect(LevelProof.parse(proof).script).toHaveLength(2);
+    expect(LevelProof.safeParse({ ...proof, by: 'guess' }).success).toBe(false);
+    expect(LevelProof.safeParse({ ...proof, script: [{ from: 0, to: 10, input: { fly: true } }] }).success).toBe(false);
+    expect(LevelProof.safeParse({ ...proof, script: [{ from: 10, to: 10, input: {} }] }).success).toBe(false);
+    expect(LevelProof.safeParse({ ...proof, ticks: 0 }).success).toBe(false);
   });
 });

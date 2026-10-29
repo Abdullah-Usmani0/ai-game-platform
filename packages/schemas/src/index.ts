@@ -2,16 +2,18 @@ import { z } from 'zod';
 import { BehaviourFsm, EcaRule } from './behaviour';
 import { BundleManifest } from './bundle';
 import { GameToHost, HostToGame, StateSnapshot } from './bridge';
-import { GddFrontmatter } from './gdd';
+import { FreeformGddFrontmatter, GddFrontmatter } from './gdd';
 import { CreateRequest, EditRequest, EditRoute } from './jobs';
 import { LevelJson } from './level';
 import { GateReport, PlaytestReport } from './playtest';
 import { ModelPolicy } from './policy';
 import { StyleCard } from './style';
-import { SystemsJson } from './systems';
+import { FreeformSystemsJson, SystemsFile, SystemsJson } from './systems';
 import { Trajectory } from './trajectory';
 import { WaveTable } from './waves';
 import { Objectives } from './objectives';
+import { LevelProof } from './proof';
+import { EntityRoster } from './roster';
 
 export * from './common';
 export * from './events';
@@ -22,6 +24,8 @@ export * from './level';
 export * from './behaviour';
 export * from './waves';
 export * from './objectives';
+export * from './roster';
+export * from './proof';
 export * from './playtest';
 export * from './bundle';
 export * from './bridge';
@@ -34,7 +38,12 @@ export * from './community';
 export const ARTIFACT_SCHEMAS = {
   StyleCard,
   SystemsJson,
+  FreeformSystemsJson,
+  SystemsFile,
   GddFrontmatter,
+  FreeformGddFrontmatter,
+  EntityRoster,
+  LevelProof,
   LevelJson,
   BehaviourFsm,
   EcaRule,

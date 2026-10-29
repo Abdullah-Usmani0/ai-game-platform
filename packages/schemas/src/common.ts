@@ -14,12 +14,25 @@ export const GENRES = [
   'deckbuilder',
   'lifesim',
   'roguelike',
+  'freeform',
 ] as const;
 export const Genre = z.enum(GENRES);
 export type Genre = z.infer<typeof Genre>;
 
+/**
+ * The genres a template game's design files name: every genre but freeform, whose design files have schemas of their own
+ * (they also name the base genre). The curated schemas and the prompts built from them stay as they were.
+ */
+export const TemplateGenre = Genre.exclude(['freeform']);
+export type TemplateGenre = z.infer<typeof TemplateGenre>;
+
+/** The genres with a template of their own (systems, level generator, solver bot); a freeform game builds on one of them. */
+export const CURATED_GENRES = ['platformer', 'survivors', 'topdown-action', 'metroidvania', 'shmup', 'puzzle'] as const satisfies readonly Genre[];
+export const CuratedGenre = z.enum(CURATED_GENRES);
+export type CuratedGenre = z.infer<typeof CuratedGenre>;
+
 /** The genres a game can be created in today: each has a template (systems, level generator, solver bot). */
-export const PLAYABLE_GENRES = ['platformer', 'survivors', 'topdown-action', 'metroidvania', 'shmup', 'puzzle'] as const satisfies readonly Genre[];
+export const PLAYABLE_GENRES = CURATED_GENRES;
 export const PlayableGenre = z.enum(PLAYABLE_GENRES);
 export type PlayableGenre = z.infer<typeof PlayableGenre>;
 
