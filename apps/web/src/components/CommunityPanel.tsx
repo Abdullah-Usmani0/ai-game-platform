@@ -9,6 +9,7 @@ interface CommunityView {
   tested: { outcome?: string; versionId?: string } | null;
   stats: { players: number; qualifiedPlayers: number; completionRate: number; avgPlayMin: number; ratings: Record<string, number>; ratingCount: number; remixes: number; rankScore: number; broken: boolean };
   tests: Array<{ id: string; status: string; outcome: string | null; needed: number; submitted: number; rewardCredits: number; verdicts: Array<{ verdict: string; tag: string; note: string }> }>;
+  moderation: { ownerStrikes: number | null; openReports: number | null; removedFor: string | null; unlistedFor: string | null };
 }
 
 /** Listing, community stats and test rounds of a game, in the creator's workspace. */
@@ -50,6 +51,22 @@ export function CommunityPanel({ gameId, hasHead }: { gameId: string; hasHead: b
       <p className="muted">
         ratings: fun {s.ratings['fun'] ?? 0} · confusing {s.ratings['confusing'] ?? 0} · broken {s.ratings['broken'] ?? 0} · ugly {s.ratings['ugly'] ?? 0} · remixes {s.remixes}
       </p>
+      {view.state === 'removed' ? (
+        <p className="err" data-testid="moderation-state" data-state="removed">
+          Removed by moderation{view.moderation.removedFor ? `: ${view.moderation.removedFor}` : ''}. It cannot be played, edited, listed or remixed.
+        </p>
+      ) : view.state === 'suspended' ? (
+        <p className="err" data-testid="moderation-state" data-state="suspended">
+          Suspended: hidden from other players until moderators review the reports about it{view.moderation.openReports ? ` (${view.moderation.openReports} open)` : ''}.
+        </p>
+      ) : view.moderation.unlistedFor !== null ? (
+        <p className="err" data-testid="moderation-state" data-state="unlisted">
+          A moderator unlisted this version{view.moderation.unlistedFor ? `: ${view.moderation.unlistedFor}` : ''}. Publish a fixed version to list it again.
+        </p>
+      ) : view.moderation.openReports ? (
+        <p className="muted">{view.moderation.openReports} open report(s) await review.</p>
+      ) : null}
+      {view.isOwner && view.moderation.ownerStrikes ? <p className="err">Your account has {view.moderation.ownerStrikes} active strike(s); three block listing.</p> : null}
       {open ? (
         <p data-testid="test-status">
           testers: {open.submitted}/{open.needed} reports in (reward {open.rewardCredits} credits each)
@@ -61,10 +78,10 @@ export function CommunityPanel({ gameId, hasHead }: { gameId: string; hasHead: b
       ) : null}
       {view.isOwner ? (
         <div className="row">
-          <button disabled={busy || !hasHead} onClick={() => void post('publish', { listed: !listed })} data-testid="publish">
+          <button disabled={busy || !hasHead || view.state === 'removed' || view.state === 'suspended'} onClick={() => void post('publish', { listed: !listed })} data-testid="publish">
             {listed ? 'Unlist' : 'Publish to the feed'}
           </button>
-          <button disabled={busy || !hasHead || Boolean(open)} onClick={() => void post('tests', { needed: 3, rewardCredits: 5 })} data-testid="ask-testers">
+          <button disabled={busy || !hasHead || Boolean(open) || view.state === 'removed' || view.state === 'suspended'} onClick={() => void post('tests', { needed: 3, rewardCredits: 5 })} data-testid="ask-testers">
             Ask 3 testers (5 credits each)
           </button>
         </div>

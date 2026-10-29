@@ -1,4 +1,4 @@
-import type { ModelPolicy, PlaySource, RatingTag, TestSubmission, TestVerdict, Trajectory } from '@gg/schemas';
+import type { ModelPolicy, PlaySource, RatingTag, ReportInput, ReportKind, ReportResolution, ResolveInput, TestSubmission, TestVerdict, Trajectory } from '@gg/schemas';
 
 export type JobKind = 'create' | 'edit_parameter' | 'edit_style' | 'edit_behaviour' | 'edit_content' | 'edit_code' | 'remix' | 'republish';
 export type JobStatus = 'queued' | 'running' | 'waiting_assets' | 'needs_human' | 'succeeded' | 'failed' | 'cancelled';
@@ -195,6 +195,44 @@ export interface CreditEntry {
   createdAt: string;
 }
 
+export interface ReportRow {
+  id: string;
+  gameId: string;
+  versionId: string | null;
+  reporterId: string;
+  kind: ReportKind;
+  note: string;
+  rightsHolder: boolean;
+  status: 'open' | 'resolved';
+  resolution: ReportResolution | null;
+  resolvedBy: string | null;
+  resolutionNote: string;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+/** A strike against a game owner from an actioned report; active for 90 days. Three active strikes block listing. */
+export interface StrikeRow {
+  id: string;
+  userId: string;
+  reportId: string;
+  gameId: string;
+  reason: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+/** The public audit trail of a removal or a licence settlement. */
+export interface TakedownRow {
+  id: string;
+  gameId: string;
+  reportId: string;
+  action: 'removed' | 'licensed';
+  terms: string;
+  moderatorId: string;
+  createdAt: string;
+}
+
 /**
  * The only persistence surface workers use. Two implementations: Supabase (production)
  * and a JSON file store (local development, demos, tests without credentials).
@@ -238,7 +276,10 @@ export interface Store {
   gameStats(gameId: string): Promise<GameStats>;
   /** Listed, playable games whose head passed its gates and is not broken, ranked by rank score. */
   listFeed(opts?: { limit?: number }): Promise<FeedItem[]>;
-  /** List the game (or unlist it). Listing needs an accepted head whose playtest passed and no broken test verdict. */
+  /**
+   * List the game (or unlist it). Listing needs an accepted head whose playtest passed, no broken test verdict and no
+   * moderator unlisting of that head, a game neither suspended nor removed, and an owner with fewer than three strikes.
+   */
   setListed(gameId: string, listed: boolean): Promise<GameRow>;
   enqueueTest(input: { gameId: string; versionId: string; requestedBy: string; needed?: number; rewardCredits?: number }): Promise<TestQueueRow>;
   listTests(gameId: string): Promise<{ queue: TestQueueRow[]; assignments: TestAssignmentRow[] }>;
@@ -247,4 +288,22 @@ export interface Store {
   /** Needs a test play of at least 30 s since the claim; pays the reward and closes the request when enough reports are in. */
   submitTest(assignmentId: string, testerId: string, report: TestSubmission): Promise<{ assignment: TestAssignmentRow; queue: TestQueueRow }>;
   creditBalance(userId: string): Promise<number>;
+
+  // ---- moderation (phase 3) ----
+  /**
+   * One open report per player, game and kind (reporting again updates the note). The owner cannot report their game.
+   * Open ip, abuse or broken reports from three different players suspend the game (out of the feed) until review.
+   */
+  reportGame(gameId: string, reporterId: string, report: ReportInput): Promise<{ report: ReportRow; suspended: boolean }>;
+  listReports(opts?: { status?: 'open' | 'resolved'; gameId?: string }): Promise<ReportRow[]>;
+  /**
+   * Moderators only, never on their own game (resolutions: REPORT_RESOLUTIONS in @gg/schemas). remove takes the game
+   * down and strikes the owner; unlist takes it out of the feed until a new version is accepted; both close every open
+   * report on it. warn strikes the owner (not on broken reports); license (ip reports) records the terms; dismiss does
+   * nothing else. A suspended game comes back once fewer than three players still have open reports on it.
+   */
+  resolveReport(reportId: string, moderatorId: string, resolution: ResolveInput): Promise<{ report: ReportRow; game: GameRow }>;
+  activeStrikes(userId: string): Promise<number>;
+  isModerator(userId: string): Promise<boolean>;
+  listTakedowns(gameId: string): Promise<TakedownRow[]>;
 }

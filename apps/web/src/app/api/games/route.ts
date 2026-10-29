@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { resolveReferences } from '@gg/catalog';
 import { CreateRequest } from '@gg/schemas';
-import { getStore, OWNER_ID } from '@/lib/store';
+import { viewerId } from '@/lib/identity';
+import { getStore } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,8 +16,9 @@ function titleFromPrompt(prompt: string): string {
   return words.length ? words.map((w) => w[0]!.toUpperCase() + w.slice(1).toLowerCase()).join(' ') : 'Untitled Game';
 }
 
+/** The viewer's games (other players' drafts are not listed; the feed shows listed games). */
 export async function GET(): Promise<Response> {
-  const games = await getStore().listGames({ limit: 50 });
+  const games = await getStore().listGames({ ownerId: await viewerId(), limit: 50 });
   return Response.json({ games });
 }
 
@@ -26,9 +28,10 @@ export async function POST(req: Request): Promise<Response> {
   if (!parsed.success) return Response.json({ error: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) }, { status: 400 });
   const request = parsed.data;
   const store = getStore();
+  const me = await viewerId();
   const title = request.title ?? titleFromPrompt(request.prompt);
   const refs = resolveReferences(request.referenceTitles);
-  const game = await store.createGame({ ownerId: OWNER_ID, slug: `${slugify(title)}-${randomBytes(2).toString('hex')}`, title, genre: request.genre, conceptMd: request.prompt, concept: { scopeTier: request.scopeTier, referenceTitles: request.referenceTitles, references: refs.matched.map((e) => ({ title: e.title, riskTier: e.riskTier, notes: e.card.notes })), unresolvedReferences: refs.unmatched } });
-  const job = await store.enqueueJob({ gameId: game.id, userId: OWNER_ID, kind: 'create', input: request });
+  const game = await store.createGame({ ownerId: me, slug: `${slugify(title)}-${randomBytes(2).toString('hex')}`, title, genre: request.genre, conceptMd: request.prompt, concept: { scopeTier: request.scopeTier, referenceTitles: request.referenceTitles, references: refs.matched.map((e) => ({ title: e.title, riskTier: e.riskTier, notes: e.card.notes })), unresolvedReferences: refs.unmatched } });
+  const job = await store.enqueueJob({ gameId: game.id, userId: me, kind: 'create', input: request });
   return Response.json({ gameId: game.id, jobId: job.id, slug: game.slug, references: refs.matched.map((e) => e.title), unresolvedReferences: refs.unmatched }, { status: 201 });
 }

@@ -1,6 +1,8 @@
 // End-to-end check of the community layer against a store holding a finished dry-run game (made by `pnpm demo`):
 // the owner publishes it, a player plays (the session is recorded on pagehide) and rates it, the feed ranks it, the owner
-// asks for a tester, and a tester claims the game, plays 30 s, reports and is paid. Identities are the dev cookie.
+// asks for a tester, and a tester claims the game, plays 30 s, reports and is paid. Then moderation: three players'
+// reports suspend the game and a moderator's dismissals in the queue bring it back; a fan's remix is taken down for ip
+// and the fan gets a strike. Identities are the dev cookie ('moderator' is the file store's moderator).
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -49,6 +51,11 @@ const pageAs = async (user) => {
 let ok = false;
 const result = {};
 try {
+  // A run that stopped midway can leave reports open on the game (and the game suspended).
+  for (const r of (await api('/api/reports?status=open', 'moderator')).json.reports ?? []) {
+    if (r.gameId === game.id) await api(`/api/reports/${r.id}/resolve`, 'moderator', { resolution: 'dismiss', note: 'check-community reset' });
+  }
+
   // 1. The owner publishes the game from the workspace panel; a non-owner may not.
   result.strangerPublish = (await api(`/api/games/${game.id}/publish`, 'player-a', { listed: true })).status;
   const owner = await pageAs('local-dev');
@@ -100,6 +107,59 @@ try {
   const round = community.tests?.[community.tests.length - 1];
   result.round = { status: round?.status, outcome: round?.outcome, tested: community.tested?.outcome };
 
+  // 5. Three players report the game (one through the play page form); the third report suspends it: out of the feed,
+  //    hidden from other players, no remixes. The moderator dismisses the reports in the queue and it comes back.
+  const reporter = await pageAs('player-a');
+  await reporter.goto(`${url}/play/${game.id}?src=direct`, { waitUntil: 'load', timeout: 30000 });
+  await reporter.click('[data-testid="report-open"]');
+  await reporter.click('[data-testid="report-abuse"]');
+  await reporter.fill('[data-testid="report"] textarea', 'check-community: abusive title');
+  await reporter.click('[data-testid="report-send"]');
+  await reporter.waitForSelector('[data-testid="report-done"]', { timeout: 10000 });
+  await api(`/api/games/${game.id}/report`, 'player-b', { kind: 'abuse', note: 'same here' });
+  const third = await api(`/api/games/${game.id}/report`, 'player-c', { kind: 'broken', note: 'crashes on level 1' });
+  const visitor = await pageAs('player-d');
+  await visitor.goto(`${url}/play/${game.id}`, { waitUntil: 'load', timeout: 30000 });
+  result.suspension = {
+    suspended: third.json.suspended,
+    inFeed: ((await api('/api/feed', 'player-d')).json.items ?? []).some((f) => f.id === game.id),
+    visitorSees: await visitor.getAttribute('[data-testid="moderated"]', 'data-state'),
+    remix: (await api(`/api/games/${game.id}/remix`, 'player-d', {})).status,
+    strangerQueue: (await api('/api/reports?status=open', 'player-d')).status,
+  };
+  const mod = await pageAs('moderator');
+  await mod.goto(`${url}/moderation`, { waitUntil: 'load', timeout: 30000 });
+  const group = `[data-testid="moderation-game"][data-game="${game.id}"]`;
+  const reportsIn = `${group} [data-testid="moderation-report"]`;
+  await mod.waitForSelector(group, { timeout: 15000 });
+  result.suspension.queued = await mod.locator(reportsIn).count();
+  for (let left = result.suspension.queued - 1; left >= 0; left--) {
+    await mod.locator(`${group} [data-testid="resolve-dismiss"]`).first().click();
+    await mod.waitForFunction(([sel, n]) => document.querySelectorAll(sel).length === n, [reportsIn, left], { timeout: 10000 });
+  }
+  result.suspension.after = (await api(`/api/games/${game.id}/community`, 'local-dev')).json.state;
+  result.suspension.backInFeed = ((await api('/api/feed', 'player-d')).json.items ?? []).some((f) => f.id === game.id);
+
+  // 6. A fan remixes the game, a rights holder reports the remix, and the moderator removes it from the queue with a
+  //    note: players see it removed, it cannot be remixed, its owner sees why and has a strike; the original stays up.
+  const fan = `fan-${Date.now().toString(36)}`;
+  const remix = (await api(`/api/games/${game.id}/remix`, fan, {})).json;
+  await api(`/api/games/${remix.gameId}/report`, 'player-a', { kind: 'ip', note: 'my sprites', rightsHolder: true });
+  await mod.goto(`${url}/moderation`, { waitUntil: 'load', timeout: 30000 });
+  const remixGroup = `[data-testid="moderation-game"][data-game="${remix.gameId}"]`;
+  await mod.waitForSelector(remixGroup, { timeout: 15000 });
+  await mod.fill(`${remixGroup} input[aria-label="decision note"]`, 'check-community takedown');
+  await mod.click(`${remixGroup} [data-testid="resolve-remove"]`);
+  await mod.waitForSelector(remixGroup, { state: 'detached', timeout: 10000 });
+  await visitor.goto(`${url}/play/${remix.gameId}`, { waitUntil: 'load', timeout: 30000 });
+  result.takedown = {
+    visitorSees: await visitor.getAttribute('[data-testid="moderated"]', 'data-state'),
+    remix: (await api(`/api/games/${remix.gameId}/remix`, 'player-d', {})).status,
+    removedFor: (await api(`/api/games/${remix.gameId}/community`, fan)).json.moderation?.removedFor,
+    fanStrikes: (await api('/api/me', fan)).json.strikes,
+    original: (await api(`/api/games/${game.id}/community`, 'local-dev')).json.state,
+  };
+
   ok =
     result.strangerPublish === 403 &&
     result.listed &&
@@ -111,6 +171,19 @@ try {
     result.testerPaid === 5 &&
     result.round.status === 'closed' &&
     result.round.outcome === 'works' &&
+    result.suspension.suspended === true &&
+    result.suspension.inFeed === false &&
+    result.suspension.visitorSees === 'suspended' &&
+    result.suspension.remix === 409 &&
+    result.suspension.strangerQueue === 403 &&
+    result.suspension.queued === 3 &&
+    result.suspension.after === 'published' &&
+    result.suspension.backInFeed === true &&
+    result.takedown.visitorSees === 'removed' &&
+    result.takedown.remix === 409 &&
+    result.takedown.removedFor === 'check-community takedown' &&
+    result.takedown.fanStrikes === 1 &&
+    result.takedown.original === 'published' &&
     errors.length === 0;
   console.log(JSON.stringify({ ok, ...result, errors }, null, 2));
 } catch (e) {

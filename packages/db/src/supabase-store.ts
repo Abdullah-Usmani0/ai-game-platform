@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { ModelPolicy, type RatingTag, type TestSubmission, type Trajectory } from '@gg/schemas';
-import type { FeedItem, GameRow, GameStats, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, Store, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
+import { ModelPolicy, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
+import type { FeedItem, GameRow, GameStats, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
 
 function snake(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -292,5 +292,84 @@ export class SupabaseStore implements Store {
     const res = await this.client.from('profiles').select('credits_balance').eq('id', userId).maybeSingle();
     if (res.error) throw new Error(`creditBalance: ${res.error.message}`);
     return Number((res.data as { credits_balance?: number } | null)?.credits_balance ?? 0);
+  }
+
+  // ---------------------------------------------------------------- moderation (functions in 0004_moderation.sql)
+
+  async reportGame(gameId: string, reporterId: string, report: ReportInput): Promise<{ report: ReportRow; suspended: boolean }> {
+    const before = await this.getGame(gameId);
+    const row = await this.rpcRow<ReportRow>('report_game', { p_user_id: reporterId, p_game_id: gameId, p_kind: report.kind, p_note: report.note, p_rights_holder: report.rightsHolder });
+    if (!row) throw new Error('report_game: no row');
+    const after = await this.getGame(gameId);
+    return { report: row, suspended: before?.state !== 'suspended' && after?.state === 'suspended' };
+  }
+
+  async listReports(opts: { status?: 'open' | 'resolved'; gameId?: string } = {}): Promise<ReportRow[]> {
+    let q = this.client.from('reports').select('*').order('created_at');
+    if (opts.status) q = q.eq('status', opts.status);
+    if (opts.gameId) q = q.eq('game_id', opts.gameId);
+    const res = await q;
+    return (this.unwrap(res, 'listReports') as Record<string, unknown>[]).map((r) => camel<ReportRow>(r));
+  }
+
+  async resolveReport(reportId: string, moderatorId: string, input: ResolveInput): Promise<{ report: ReportRow; game: GameRow }> {
+    const report = await this.rpcRow<ReportRow>('resolve_report', { p_user_id: moderatorId, p_report_id: reportId, p_resolution: input.resolution, p_note: input.note });
+    if (!report) throw new Error('resolve_report: no row');
+    // A takedown withdraws the game's own bundles from the public bucket; unedited remixes serve these same files and
+    // came down with it in resolve_report. The checkpoints stay private, for an appeal.
+    if (input.resolution === 'remove') {
+      try {
+        await this.removeFolder('bundles', `g/${report.gameId}`);
+      } catch (e) {
+        throw new Error(`the takedown is recorded, but deleting its files under bundles/g/${report.gameId}/ failed; delete them by hand (${e instanceof Error ? e.message : String(e)})`, { cause: e });
+      }
+    }
+    const game = await this.getGame(report.gameId);
+    if (!game) throw new Error(`game ${report.gameId} not found`);
+    return { report, game };
+  }
+
+  /**
+   * Deletes every object under a folder of a bucket and returns their paths, then asks the CDN to drop its copies
+   * (a hosted feature, so best effort). Storage lists one folder level per call; folders come back with a null id.
+   */
+  async removeFolder(bucket: string, folder: string): Promise<string[]> {
+    const api = this.client.storage.from(bucket);
+    const files: string[] = [];
+    const walk = async (dir: string): Promise<void> => {
+      for (let offset = 0; ; offset += 1000) {
+        const res = await api.list(dir, { limit: 1000, offset });
+        if (res.error) throw new Error(`list ${bucket}/${dir}: ${res.error.message}`);
+        for (const e of res.data) {
+          if (e.id === null) await walk(`${dir}/${e.name}`);
+          else files.push(`${dir}/${e.name}`);
+        }
+        if (res.data.length < 1000) return;
+      }
+    };
+    await walk(folder);
+    for (let i = 0; i < files.length; i += 1000) {
+      const res = await api.remove(files.slice(i, i + 1000));
+      if (res.error) throw new Error(`remove from ${bucket}: ${res.error.message}`);
+    }
+    await Promise.allSettled(files.map((f) => api.purgeCache(f)));
+    return files;
+  }
+
+  async activeStrikes(userId: string): Promise<number> {
+    const res = await this.client.rpc('active_strikes', { p_user: userId });
+    if (res.error) throw new Error(`active_strikes: ${res.error.message}`);
+    return Number(res.data ?? 0);
+  }
+
+  async isModerator(userId: string): Promise<boolean> {
+    const res = await this.client.rpc('is_moderator', { p_user: userId });
+    if (res.error) throw new Error(`is_moderator: ${res.error.message}`);
+    return res.data === true;
+  }
+
+  async listTakedowns(gameId: string): Promise<TakedownRow[]> {
+    const res = await this.client.from('takedowns').select('*').eq('game_id', gameId).order('created_at');
+    return (this.unwrap(res, 'listTakedowns') as Record<string, unknown>[]).map((r) => camel<TakedownRow>(r));
   }
 }

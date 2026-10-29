@@ -429,6 +429,8 @@ const CONTENT_TYPES: Record<string, string> = { '.html': 'text/html', '.js': 'te
 /** Assemble the bundle (built game, content, design, manifest, evidence, thumbnail), upload it and describe the version. */
 const publish: StageFn = async (ctx) => {
   const t0 = Date.now();
+  // A takedown withdrew this game's bundles; a job queued before it must not put them back.
+  if ((await ctx.store.getGame(ctx.gameId).catch(() => null))?.state === 'removed') return fail('the game was removed by moderation; nothing was published', 'spec_violation');
   const dist = join(ctx.gameDir, 'dist');
   if (!existsSync(join(dist, 'game.js')) || !existsSync(join(dist, 'engine.js'))) return fail('dist/game.js or dist/engine.js missing; the budget stage must build first', 'spec_violation');
   const gddInfo = readGdd(ctx.gameDir);

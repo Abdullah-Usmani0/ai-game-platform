@@ -106,3 +106,13 @@ export function testOutcome(verdicts: Array<'works' | 'broken'>): 'works' | 'bro
   const works = verdicts.filter((v) => v === 'works').length;
   return works > verdicts.length - works ? 'works' : 'broken';
 }
+
+/** Moderation thresholds; 0004_moderation.sql uses the same numbers. */
+export const MODERATION = {
+  /** Distinct players with open reports of these kinds that suspend a game pending review. */
+  suspendReporters: 3,
+  suspendKinds: ['ip', 'abuse', 'broken'] as readonly string[],
+  strikeDays: 90,
+  /** Active strikes at which an owner can no longer list games. */
+  maxStrikes: 3,
+} as const;

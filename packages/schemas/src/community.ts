@@ -46,3 +46,33 @@ export const TestRequest = z.object({
   rewardCredits: z.int().min(0).max(100).default(5),
 });
 export type TestRequest = z.infer<typeof TestRequest>;
+
+/** What a player can report about a game. Reports are reviewed by moderators; ip and abuse can suspend a game early. */
+export const REPORT_KINDS = ['ip', 'abuse', 'broken', 'other'] as const;
+export const ReportKind = z.enum(REPORT_KINDS);
+export type ReportKind = z.infer<typeof ReportKind>;
+
+export const ReportInput = z.object({
+  kind: ReportKind,
+  note: z.string().max(1000).default(''),
+  /** ip only: the reporter says they hold the rights. */
+  rightsHolder: z.boolean().default(false),
+});
+export type ReportInput = z.infer<typeof ReportInput>;
+
+/**
+ * A moderator's decision, mildest first. dismiss: no action. unlist: out of the feed until the owner publishes a new
+ * version, no strike (a confirmed broken report). warn: strike the owner, the game stays (not for broken reports: a
+ * broken game is not misconduct). license: an ip claim settled by licence (the game stays, terms are recorded).
+ * remove: take the game down (state removed, unlisted, no remixes) and strike the owner. unlist and remove close every
+ * open report on the game.
+ */
+export const REPORT_RESOLUTIONS = ['dismiss', 'unlist', 'warn', 'license', 'remove'] as const;
+export const ReportResolution = z.enum(REPORT_RESOLUTIONS);
+export type ReportResolution = z.infer<typeof ReportResolution>;
+
+export const ResolveInput = z.object({
+  resolution: ReportResolution,
+  note: z.string().max(1000).default(''),
+});
+export type ResolveInput = z.infer<typeof ResolveInput>;

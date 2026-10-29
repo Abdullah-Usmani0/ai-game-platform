@@ -9,9 +9,10 @@ import { chromium } from 'playwright';
 const cwd = fileURLToPath(new URL('..', import.meta.url));
 const storeDir = process.env.GG_STORE_DIR ?? resolve(cwd, '../../.gg-store-demo');
 const state = JSON.parse(readFileSync(resolve(storeDir, 'store.json'), 'utf8'));
-// A playable game with no queued or running job (an earlier run's editor job leaves the workspace busy until a worker runs it).
+// A playable game the default dev user owns (only owners edit), untouched by moderation, with no queued or running job
+// (an earlier run's editor job leaves the workspace busy until a worker runs it).
 const busy = new Set((state.jobs ?? []).filter((j) => j.status === 'queued' || j.status === 'running').map((j) => j.gameId));
-const game = (state.games ?? []).find((g) => g.headVersionId && !busy.has(g.id));
+const game = (state.games ?? []).find((g) => g.headVersionId && g.ownerId === 'local-dev' && g.state !== 'removed' && g.state !== 'suspended' && !busy.has(g.id));
 if (!game) throw new Error(`no idle playable game in ${storeDir}; run pnpm demo first`);
 const port = 3100 + Math.floor(Math.random() * 500);
 const server = spawn('pnpm', ['exec', 'next', 'start', '-p', String(port)], { cwd, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GG_STORE_DIR: storeDir } });

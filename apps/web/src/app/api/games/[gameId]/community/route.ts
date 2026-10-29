@@ -19,6 +19,13 @@ export async function GET(
     store.listTests(gameId),
   ]);
   const isOwner = game.ownerId === me;
+  const isModerator = await store.isModerator(me);
+  const [ownerStrikes, openReports, takedowns] = await Promise.all([
+    isOwner ? store.activeStrikes(me) : null,
+    isOwner || isModerator ? store.listReports({ status: 'open', gameId }).then((r) => r.length) : null,
+    isOwner && game.state === 'removed' ? store.listTakedowns(gameId) : [],
+  ]);
+  const unlisted = (game.listing as { unlisted?: { versionId?: string; note?: string } }).unlisted;
   return Response.json({
     viewer: me,
     isOwner,
@@ -27,6 +34,13 @@ export async function GET(
     tested: (game.listing as { tested?: unknown }).tested ?? null,
     stats,
     myRating,
+    // Report counts are for the owner and moderators; why the game is out of the feed is for its owner.
+    moderation: {
+      ownerStrikes,
+      openReports,
+      removedFor: isOwner && game.state === 'removed' ? (takedowns.filter((t) => t.action === 'removed').pop()?.terms ?? '') : null,
+      unlistedFor: isOwner && unlisted?.versionId && unlisted.versionId === game.headVersionId ? (unlisted.note ?? '') : null,
+    },
     tests: tests.queue.map((q) => ({
       ...q,
       submitted: tests.assignments.filter((a) => a.queueId === q.id && a.submittedAt).length,

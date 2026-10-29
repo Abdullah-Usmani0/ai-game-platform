@@ -1,13 +1,14 @@
 import Link from 'next/link';
+import { viewerId } from '@/lib/identity';
 import { getStore } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
 export default async function GamesPage() {
-  const games = await getStore().listGames({ limit: 50 });
+  const games = await getStore().listGames({ ownerId: await viewerId(), limit: 50 });
   return (
     <main>
-      <h1>Games</h1>
+      <h1>Your games</h1>
       <p>
         <Link href="/create">Create a new game</Link>
       </p>

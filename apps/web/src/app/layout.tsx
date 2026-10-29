@@ -15,6 +15,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Link href="/create">Create</Link>
           <Link href="/games">Your games</Link>
           <Link href="/test">Test queue</Link>
+          <Link href="/moderation">Moderation</Link>
           <IdentitySwitch />
         </header>
         {children}

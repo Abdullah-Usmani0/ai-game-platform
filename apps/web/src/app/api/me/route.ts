@@ -5,7 +5,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<Response> {
   const me = await viewerId();
-  return Response.json({ userId: me, credits: await getStore().creditBalance(me) });
+  const store = getStore();
+  const [credits, strikes, moderator] = await Promise.all([store.creditBalance(me), store.activeStrikes(me), store.isModerator(me)]);
+  return Response.json({ userId: me, credits, strikes, moderator });
 }
 
 /** Local development only: act as another user (testers, players) by name. */

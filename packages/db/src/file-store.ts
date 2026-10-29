@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { ModelPolicy, type RatingTag, type TestSubmission, type Trajectory } from '@gg/schemas';
-import { computeStats, feedEligible, headPlaytestPassed, RANKING, testOutcome } from './ranking';
-import type { CreditEntry, FeedItem, GameRow, GameStats, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, Store, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
+import { ModelPolicy, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
+import { computeStats, feedEligible, headPlaytestPassed, MODERATION, RANKING, testOutcome } from './ranking';
+import type { CreditEntry, FeedItem, GameRow, GameStats, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
 
 interface FileState {
   games: GameRow[];
@@ -18,6 +18,11 @@ interface FileState {
   testQueue: TestQueueRow[];
   testAssignments: TestAssignmentRow[];
   credits: CreditEntry[];
+  reports: ReportRow[];
+  strikes: StrikeRow[];
+  takedowns: TakedownRow[];
+  /** Local moderators by user id (Supabase: profiles.is_moderator). */
+  moderators: string[];
 }
 
 /** How long a claimed test stays reserved for its tester. */
@@ -34,6 +39,12 @@ const DEFAULT_POLICY: ModelPolicy = ModelPolicy.parse({
   jobCaps: { softUsd: 10, hardUsd: 15, providerUsd: 3, wallMin: 90 },
 });
 
+/** The head a moderator unlisted (listing.unlisted.versionId), or null. */
+function unlistedVersion(g: GameRow): string | null {
+  const u = g.listing['unlisted'] as { versionId?: unknown } | undefined;
+  return typeof u?.versionId === 'string' ? u.versionId : null;
+}
+
 /**
  * JSON-file store for local development, demos and evals. Not for production: every method re-reads the
  * file when it changed on disk and writes atomically, which is enough for one worker plus the dev web app.
@@ -46,7 +57,7 @@ export class FileStore implements Store {
   constructor(private readonly dir: string) {
     mkdirSync(dir, { recursive: true });
     this.file = join(dir, 'store.json');
-    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], ratings: [], testQueue: [], testAssignments: [], credits: [] };
+    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], moderators: ['moderator'] };
     this.load();
   }
 
@@ -68,6 +79,10 @@ export class FileStore implements Store {
       testQueue: parsed.testQueue ?? [],
       testAssignments: parsed.testAssignments ?? [],
       credits: parsed.credits ?? [],
+      reports: parsed.reports ?? [],
+      strikes: parsed.strikes ?? [],
+      takedowns: parsed.takedowns ?? [],
+      moderators: parsed.moderators ?? ['moderator'],
     };
     this.mtime = m;
   }
@@ -169,7 +184,8 @@ export class FileStore implements Store {
     const g = this.state.games.find((x) => x.id === v.gameId);
     if (g) {
       g.headVersionId = v.id;
-      g.state = 'playable';
+      // A new version neither lifts moderation nor unpublishes a listed game.
+      if (g.state !== 'removed' && g.state !== 'suspended' && g.state !== 'published') g.state = 'playable';
       g.updatedAt = new Date().toISOString();
     }
     this.save();
@@ -288,6 +304,7 @@ export class FileStore implements Store {
     if (!origin) throw new Error(`origin version ${originVersionId} not found`);
     const src = this.state.games.find((g) => g.id === origin.gameId);
     if (!src) throw new Error(`origin game ${origin.gameId} not found`);
+    if (src.state === 'removed' || src.state === 'suspended') throw new Error(`the game is ${src.state}; it cannot be remixed`);
     const game = await this.createGame({ ownerId: opts.ownerId, slug: opts.slug, title: opts.title, genre: src.genre, conceptMd: src.conceptMd ?? undefined, concept: src.concept ?? undefined, state: 'draft' });
     this.load();
     const row = this.state.games.find((g) => g.id === game.id)!;
@@ -375,6 +392,9 @@ export class FileStore implements Store {
     const g = this.state.games.find((x) => x.id === gameId);
     if (!g) throw new Error(`game ${gameId} not found`);
     if (listed) {
+      if (g.state === 'removed' || g.state === 'suspended') throw new Error(`the game is ${g.state}; it cannot be listed until moderation clears it`);
+      if (this.strikesOf(g.ownerId) >= MODERATION.maxStrikes) throw new Error(`listing is blocked while the owner has ${MODERATION.maxStrikes} active strikes`);
+      if (g.headVersionId && unlistedVersion(g) === g.headVersionId) throw new Error('a moderator unlisted this version; publish a fixed version first');
       const head = this.state.versions.find((v) => v.id === g.headVersionId) ?? null;
       if (!head || !headPlaytestPassed(head)) throw new Error('the game needs an accepted version whose playtest passed before it can be listed');
       const last = this.state.testQueue.filter((q) => q.gameId === g.id && q.versionId === head.id && q.status === 'closed').pop();
@@ -389,6 +409,7 @@ export class FileStore implements Store {
     this.load();
     const g = this.state.games.find((x) => x.id === input.gameId);
     if (!g) throw new Error(`game ${input.gameId} not found`);
+    if (g.state === 'removed' || g.state === 'suspended') throw new Error(`the game is ${g.state}; testers cannot be asked until moderation clears it`);
     const v = this.state.versions.find((x) => x.id === input.versionId && x.gameId === g.id);
     if (!v?.bundlePath) throw new Error(`version ${input.versionId} has no published bundle`);
     const open = this.state.testQueue.find((q) => q.gameId === g.id && q.versionId === v.id && q.status === 'open');
@@ -418,7 +439,10 @@ export class FileStore implements Store {
     }
     const candidates = this.state.testQueue
       .filter((q) => q.status === 'open')
-      .filter((q) => this.state.games.find((g) => g.id === q.gameId)?.ownerId !== testerId)
+      .filter((q) => {
+        const g = this.state.games.find((x) => x.id === q.gameId);
+        return g !== undefined && g.ownerId !== testerId && g.state !== 'removed' && g.state !== 'suspended';
+      })
       .filter((q) => !this.state.testAssignments.some((a) => a.queueId === q.id && a.testerId === testerId))
       .filter((q) => this.state.testAssignments.filter((a) => a.queueId === q.id && (a.submittedAt !== null || live(a))).length < q.needed)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -464,5 +488,102 @@ export class FileStore implements Store {
   async creditBalance(userId: string): Promise<number> {
     this.load();
     return this.balance(userId);
+  }
+
+  // ---------------------------------------------------------------- moderation
+
+  private strikesOf(userId: string, now = Date.now()): number {
+    return this.state.strikes.filter((x) => x.userId === userId && Date.parse(x.expiresAt) > now).length;
+  }
+
+  /** Distinct players with open reports of the suspending kinds on a game. */
+  private suspendingReporters(gameId: string): number {
+    return new Set(this.state.reports.filter((r) => r.gameId === gameId && r.status === 'open' && MODERATION.suspendKinds.includes(r.kind)).map((r) => r.reporterId)).size;
+  }
+
+  async reportGame(gameId: string, reporterId: string, report: ReportInput): Promise<{ report: ReportRow; suspended: boolean }> {
+    this.load();
+    const g = this.state.games.find((x) => x.id === gameId);
+    if (!g) throw new Error(`game ${gameId} not found`);
+    if (g.ownerId === reporterId) throw new Error('you cannot report your own game');
+    if (g.state === 'removed') throw new Error('this game was already removed');
+    let row = this.state.reports.find((r) => r.gameId === gameId && r.reporterId === reporterId && r.kind === report.kind && r.status === 'open');
+    if (row) Object.assign(row, { note: report.note, rightsHolder: report.rightsHolder });
+    else {
+      row = { id: randomUUID(), gameId, versionId: g.headVersionId, reporterId, kind: report.kind, note: report.note, rightsHolder: report.rightsHolder, status: 'open', resolution: null, resolvedBy: null, resolutionNote: '', createdAt: new Date().toISOString(), resolvedAt: null };
+      this.state.reports.push(row);
+    }
+    let suspended = false;
+    if (g.state !== 'suspended' && this.suspendingReporters(gameId) >= MODERATION.suspendReporters) {
+      g.state = 'suspended';
+      g.updatedAt = new Date().toISOString();
+      suspended = true;
+    }
+    this.save();
+    return { report: { ...row }, suspended };
+  }
+
+  async listReports(opts: { status?: 'open' | 'resolved'; gameId?: string } = {}): Promise<ReportRow[]> {
+    this.load();
+    return this.state.reports.filter((r) => (!opts.status || r.status === opts.status) && (!opts.gameId || r.gameId === opts.gameId)).map((r) => ({ ...r }));
+  }
+
+  async resolveReport(reportId: string, moderatorId: string, input: ResolveInput): Promise<{ report: ReportRow; game: GameRow }> {
+    this.load();
+    if (!this.state.moderators.includes(moderatorId)) throw new Error('only moderators can resolve reports');
+    const r = this.state.reports.find((x) => x.id === reportId);
+    if (!r) throw new Error('report not found');
+    if (r.status !== 'open') throw new Error('this report is already resolved');
+    const g = this.state.games.find((x) => x.id === r.gameId);
+    if (!g) throw new Error(`game ${r.gameId} not found`);
+    if (g.ownerId === moderatorId) throw new Error('moderators cannot resolve reports on their own games');
+    if (input.resolution === 'license' && r.kind !== 'ip') throw new Error('only ip reports can be settled by licence');
+    if (input.resolution === 'warn' && r.kind === 'broken') throw new Error('a broken game is not misconduct: unlist it until it is fixed, or dismiss the report');
+    const now = new Date();
+    const close = (x: ReportRow) => Object.assign(x, { status: 'resolved', resolution: input.resolution, resolvedBy: moderatorId, resolutionNote: input.note, resolvedAt: now.toISOString() });
+    close(r);
+    // Unedited remixes serve the removed game's bundle: they come down with it, without a strike for their owners.
+    const prefix = `bundles/g/${g.id}/`;
+    const copies = input.resolution !== 'remove' ? [] : this.state.games.filter((c) => c.id !== g.id && c.state !== 'removed' && this.state.versions.find((v) => v.id === c.headVersionId)?.bundlePath?.startsWith(prefix));
+    if (input.resolution === 'remove' || input.resolution === 'warn') {
+      this.state.strikes.push({ id: randomUUID(), userId: g.ownerId, reportId: r.id, gameId: g.id, reason: `${r.kind}: ${input.resolution}`, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + MODERATION.strikeDays * 86_400_000).toISOString() });
+    }
+    if (input.resolution === 'remove' || input.resolution === 'unlist') {
+      const closing = new Set([g.id, ...copies.map((c) => c.id)]);
+      for (const other of this.state.reports.filter((x) => closing.has(x.gameId) && x.status === 'open')) close(other);
+    }
+    if (input.resolution === 'remove') {
+      for (const c of [g, ...copies]) {
+        Object.assign(c, { state: 'removed', visibility: 'unlisted', updatedAt: now.toISOString() });
+        this.state.takedowns.push({ id: randomUUID(), gameId: c.id, reportId: r.id, action: 'removed', terms: input.note, moderatorId, createdAt: now.toISOString() });
+      }
+      // Its own bundles leave storage, as in the Supabase store; checkpoints stay for an appeal.
+      rmSync(this.objectPath('bundles', `g/${g.id}`), { recursive: true, force: true });
+    } else if (input.resolution === 'unlist') {
+      Object.assign(g, { state: g.state === 'published' || g.state === 'suspended' ? 'playable' : g.state, visibility: 'unlisted' });
+      g.listing = { ...g.listing, unlisted: { versionId: g.headVersionId, reportId: r.id, note: input.note, at: now.toISOString() } };
+    } else if (input.resolution === 'license') {
+      g.listing = { ...g.listing, license: { terms: input.note, reportId: r.id, at: now.toISOString() } };
+      this.state.takedowns.push({ id: randomUUID(), gameId: g.id, reportId: r.id, action: 'licensed', terms: input.note, moderatorId, createdAt: now.toISOString() });
+    }
+    if (g.state === 'suspended' && this.suspendingReporters(g.id) < MODERATION.suspendReporters) g.state = g.visibility === 'listed' ? 'published' : 'playable';
+    g.updatedAt = now.toISOString();
+    this.save();
+    return { report: { ...r }, game: { ...g } };
+  }
+
+  async activeStrikes(userId: string): Promise<number> {
+    this.load();
+    return this.strikesOf(userId);
+  }
+
+  async isModerator(userId: string): Promise<boolean> {
+    this.load();
+    return this.state.moderators.includes(userId);
+  }
+
+  async listTakedowns(gameId: string): Promise<TakedownRow[]> {
+    this.load();
+    return this.state.takedowns.filter((t) => t.gameId === gameId).map((t) => ({ ...t }));
   }
 }
