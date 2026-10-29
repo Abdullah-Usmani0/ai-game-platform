@@ -1,4 +1,4 @@
-import type { ModelPolicy, PlayEvent, PlaySource, RatingTag, ReportInput, ReportKind, ReportResolution, ResolveInput, TestSubmission, TestVerdict, Trajectory } from '@gg/schemas';
+import type { AppealDecision, AppealInput, ModelPolicy, PlayEvent, PlaySource, RatingTag, ReportInput, ReportKind, ReportResolution, ResolveInput, TestSubmission, TestVerdict, Trajectory } from '@gg/schemas';
 
 export type JobKind = 'create' | 'edit_parameter' | 'edit_style' | 'edit_behaviour' | 'edit_content' | 'edit_code' | 'remix' | 'republish';
 export type JobStatus = 'queued' | 'running' | 'waiting_assets' | 'needs_human' | 'succeeded' | 'failed' | 'cancelled';
@@ -252,7 +252,7 @@ export interface StrikeRow {
   expiresAt: string;
 }
 
-/** The public audit trail of a removal or a licence settlement. */
+/** The public audit trail of a removal or a licence settlement; revertedAt is set when an appeal restores the game. */
 export interface TakedownRow {
   id: string;
   gameId: string;
@@ -261,6 +261,26 @@ export interface TakedownRow {
   terms: string;
   moderatorId: string;
   createdAt: string;
+  revertedAt: string | null;
+}
+
+/** An owner's appeal of a removal (a counter-notice for an ip takedown) and the moderators' decision. */
+export interface AppealRow {
+  id: string;
+  takedownId: string;
+  gameId: string;
+  ownerId: string;
+  statement: string;
+  contactName: string;
+  contactEmail: string;
+  consent: boolean;
+  status: 'open' | 'reinstated' | 'upheld';
+  /** The earliest a reinstatement may happen: 14 days after a counter-notice, at once for other appeals. */
+  reinstateAfter: string;
+  createdAt: string;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  decisionNote: string;
 }
 
 /**
@@ -329,6 +349,7 @@ export interface Store {
    */
   reportGame(gameId: string, reporterId: string, report: ReportInput): Promise<{ report: ReportRow; suspended: boolean }>;
   listReports(opts?: { status?: 'open' | 'resolved'; gameId?: string }): Promise<ReportRow[]>;
+  getReport(reportId: string): Promise<ReportRow | null>;
   /**
    * Moderators only, never on their own game (resolutions: REPORT_RESOLUTIONS in @gg/schemas). remove takes the game
    * down and strikes the owner; unlist takes it out of the feed until a new version is accepted; both close every open
@@ -339,4 +360,16 @@ export interface Store {
   activeStrikes(userId: string): Promise<number>;
   isModerator(userId: string): Promise<boolean>;
   listTakedowns(gameId: string): Promise<TakedownRow[]>;
+  /**
+   * The owner appeals the game's standing removal: once per takedown, a counter-notice (consent required) for an ip
+   * takedown, which can be decided 14 days after it is filed, or a plain appeal decided at once.
+   */
+  appealTakedown(gameId: string, ownerId: string, input: AppealInput): Promise<AppealRow>;
+  listAppeals(opts?: { status?: AppealRow['status']; gameId?: string }): Promise<AppealRow[]>;
+  /**
+   * Moderators only, never on their own game. reinstate puts back every game the takedown removed (the game and its
+   * unedited remixes) as playable and unlisted, restores their quarantined bundles and voids the takedown's strikes;
+   * uphold closes the appeal.
+   */
+  decideAppeal(appealId: string, moderatorId: string, decision: AppealDecision): Promise<{ appeal: AppealRow; games: GameRow[] }>;
 }

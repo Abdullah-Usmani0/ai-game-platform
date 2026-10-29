@@ -82,6 +82,7 @@ beforeAll(async () => {
   await db.exec(migration('0003_community.sql'));
   await db.exec(migration('0004_moderation.sql'));
   await db.exec(migration('0005_play_events.sql'));
+  await db.exec(migration('0006_appeals.sql'));
   for (const [i, id] of [OWNER, ...PLAYERS, ...TESTERS, MODERATOR, OWNER2, TESTER2].entries()) {
     await db.query('insert into auth.users (id) values ($1)', [id]);
     await db.query('insert into profiles (id, handle) values ($1, $2)', [id, `user_${i}`]);
@@ -397,5 +398,53 @@ describe('play events migration', () => {
     } finally {
       await asServer();
     }
+  });
+});
+
+describe('appeals migration', () => {
+  const state = async (gameId: string) => (await one<{ state: string }>('select state from games where id = $1', [gameId])).state;
+  const statement = 'This board is my own work; the sprites were drawn by me in 2026.';
+
+  it('a counter-notice needs consent, waits 14 days, then reinstates the game and its remixes and voids the strike', async () => {
+    const origin = await makeGame('appealed-origin', { owner: OWNER2 });
+    const fork = await one<{ id: string }>(`select * from fork_game($1, $2, 'appealed-copy', 'Copy')`, [origin.versionId, PLAYERS[1]]);
+    const copyV = await one<{ id: string }>(`insert into game_versions (game_id, number, kind, bundle_path) values ($1, 1, 'accepted', $2) returning id`, [fork.id, `bundles/g/${origin.gameId}/v/1`]);
+    await db.query('select accept_version($1)', [copyV.id]);
+    const ip = await one<{ id: string }>(`select * from report_game($1, $2, 'ip', 'my sprites', true)`, [PLAYERS[4], origin.gameId]);
+    const strikes0 = (await one<{ n: number }>('select active_strikes($1) as n', [OWNER2])).n;
+    await db.query(`select resolve_report($1, $2, 'remove', 'DMCA notice 44')`, [MODERATOR, ip.id]);
+    expect((await one<{ n: number }>('select active_strikes($1) as n', [OWNER2])).n).toBe(strikes0 + 1);
+    await expectError(db.query('select * from appeal_takedown($1, $2, $3, $4, $5)', [OWNER2, origin.gameId, statement, 'Owner Two', 'two@example.com']), /consent/);
+    await expectError(db.query('select * from appeal_takedown($1, $2, $3, $4, $5, true)', [PLAYERS[0], origin.gameId, statement, 'Not Me', 'x@example.com']), /game not found/);
+    const appeal = await one<{ id: string; reinstate_after: string; created_at: string }>('select * from appeal_takedown($1, $2, $3, $4, $5, true)', [OWNER2, origin.gameId, statement, 'Owner Two', 'two@example.com']);
+    expect(Math.round((Date.parse(appeal.reinstate_after) - Date.parse(appeal.created_at)) / 86_400_000)).toBe(14);
+    await expectError(db.query('select * from appeal_takedown($1, $2, $3, $4, $5, true)', [OWNER2, origin.gameId, statement, 'Owner Two', 'two@example.com']), /already appealed/);
+    await expectError(db.query(`select * from decide_appeal($1, $2, 'reinstate')`, [PLAYERS[0], appeal.id]), /only moderators/);
+    await expectError(db.query(`select * from decide_appeal($1, $2, 'reinstate')`, [MODERATOR, appeal.id]), /waits 14 days/);
+    // The claimant's window passes without a court action.
+    await db.query(`update appeals set reinstate_after = now() - interval '1 minute' where id = $1`, [appeal.id]);
+    const decided = await one<{ status: string; decided_by: string }>(`select * from decide_appeal($1, $2, 'reinstate', 'no court action in 14 days')`, [MODERATOR, appeal.id]);
+    expect(decided).toMatchObject({ status: 'reinstated', decided_by: MODERATOR });
+    expect([await state(origin.gameId), await state(fork.id)]).toEqual(['playable', 'playable']);
+    expect((await one<{ n: number }>('select count(*)::int as n from takedowns where report_id = $1 and reverted_at is null', [ip.id])).n).toBe(0);
+    expect((await one<{ n: number }>('select active_strikes($1) as n', [OWNER2])).n).toBe(strikes0);
+    await expectError(db.query(`select * from decide_appeal($1, $2, 'uphold')`, [MODERATOR, appeal.id]), /already decided/);
+  });
+
+  it('a plain appeal of an abuse removal can be decided at once; upholding keeps the game down for good', async () => {
+    const { gameId } = await makeGame('appealed-abuse', { owner: OWNER2 });
+    const r = await one<{ id: string }>(`select * from report_game($1, $2, 'abuse', 'slurs')`, [PLAYERS[2], gameId]);
+    await db.query(`select resolve_report($1, $2, 'remove')`, [MODERATOR, r.id]);
+    const appeal = await one<{ id: string }>('select * from appeal_takedown($1, $2, $3, $4, $5)', [OWNER2, gameId, statement, 'Owner Two', 'two@example.com']);
+    expect((await one<{ status: string }>(`select * from decide_appeal($1, $2, 'uphold', 'the title is a slur')`, [MODERATOR, appeal.id])).status).toBe('upheld');
+    expect(await state(gameId)).toBe('removed');
+    await expectError(db.query('select * from appeal_takedown($1, $2, $3, $4, $5)', [OWNER2, gameId, statement, 'Owner Two', 'two@example.com']), /already appealed/);
+    const other = await makeGame('appealed-abuse-2', { owner: OWNER2 });
+    const r2 = await one<{ id: string }>(`select * from report_game($1, $2, 'abuse', 'mistaken')`, [PLAYERS[3], other.gameId]);
+    await db.query(`select resolve_report($1, $2, 'remove')`, [MODERATOR, r2.id]);
+    const a2 = await one<{ id: string }>('select * from appeal_takedown($1, $2, $3, $4, $5)', [OWNER2, other.gameId, statement, 'Owner Two', 'two@example.com']);
+    await db.query(`select * from decide_appeal($1, $2, 'reinstate')`, [MODERATOR, a2.id]);
+    expect(await state(other.gameId)).toBe('playable');
+    await expectError(db.query('select * from appeal_takedown($1, $2, $3, $4, $5)', [OWNER2, other.gameId, statement, 'Owner Two', 'two@example.com']), /only a removed game/);
   });
 });

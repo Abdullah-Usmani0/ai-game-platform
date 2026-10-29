@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { ModelPolicy, PLAY_EVENT_LIMITS, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
+import { ModelPolicy, PLAY_EVENT_LIMITS, type AppealDecision, type AppealInput, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
+import { quarantinePath } from './ranking';
 import { checkCell, HEAT_CELL, heatmapFrom, type HeatRow } from './heatmap';
-import type { FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
+import type { AppealRow, FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
 
 function snake(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -329,16 +330,22 @@ export class SupabaseStore implements Store {
     return (this.unwrap(res, 'listReports') as Record<string, unknown>[]).map((r) => camel<ReportRow>(r));
   }
 
+  async getReport(reportId: string): Promise<ReportRow | null> {
+    const res = await this.client.from('reports').select('*').eq('id', reportId).maybeSingle();
+    if (res.error) throw new Error(`getReport: ${res.error.message}`);
+    return res.data ? camel<ReportRow>(res.data as Record<string, unknown>) : null;
+  }
+
   async resolveReport(reportId: string, moderatorId: string, input: ResolveInput): Promise<{ report: ReportRow; game: GameRow }> {
     const report = await this.rpcRow<ReportRow>('resolve_report', { p_user_id: moderatorId, p_report_id: reportId, p_resolution: input.resolution, p_note: input.note });
     if (!report) throw new Error('resolve_report: no row');
-    // A takedown withdraws the game's own bundles from the public bucket; unedited remixes serve these same files and
-    // came down with it in resolve_report. The checkpoints stay private, for an appeal.
+    // A takedown withdraws the game's own bundles from the public bucket into a private quarantine (unedited remixes
+    // serve these same files and came down with it in resolve_report); an appeal that reinstates moves them back.
     if (input.resolution === 'remove') {
       try {
-        await this.removeFolder('bundles', `g/${report.gameId}`);
+        await this.moveFolder('bundles', `g/${report.gameId}`, 'checkpoints', quarantinePath(report.id, report.gameId));
       } catch (e) {
-        throw new Error(`the takedown is recorded, but deleting its files under bundles/g/${report.gameId}/ failed; delete them by hand (${e instanceof Error ? e.message : String(e)})`, { cause: e });
+        throw new Error(`the takedown is recorded, but moving its files out of bundles/g/${report.gameId}/ failed; move or delete them by hand (${e instanceof Error ? e.message : String(e)})`, { cause: e });
       }
     }
     const game = await this.getGame(report.gameId);
@@ -346,11 +353,8 @@ export class SupabaseStore implements Store {
     return { report, game };
   }
 
-  /**
-   * Deletes every object under a folder of a bucket and returns their paths, then asks the CDN to drop its copies
-   * (a hosted feature, so best effort). Storage lists one folder level per call; folders come back with a null id.
-   */
-  async removeFolder(bucket: string, folder: string): Promise<string[]> {
+  /** Every object path under a folder of a bucket. Storage lists one folder level per call; folders have a null id. */
+  private async listFolder(bucket: string, folder: string): Promise<string[]> {
     const api = this.client.storage.from(bucket);
     const files: string[] = [];
     const walk = async (dir: string): Promise<void> => {
@@ -365,12 +369,29 @@ export class SupabaseStore implements Store {
       }
     };
     await walk(folder);
+    return files;
+  }
+
+  /**
+   * Moves every object under a folder to another bucket and folder and returns the new paths: copy each, then remove
+   * the originals and ask the CDN to drop its copies of them (a hosted feature, so best effort).
+   */
+  async moveFolder(fromBucket: string, folder: string, toBucket: string, toFolder: string): Promise<string[]> {
+    const api = this.client.storage.from(fromBucket);
+    const files = await this.listFolder(fromBucket, folder);
+    const moved: string[] = [];
+    for (const f of files) {
+      const to = `${toFolder}${f.slice(folder.length)}`;
+      const res = await api.copy(f, to, { destinationBucket: toBucket });
+      if (res.error) throw new Error(`copy ${fromBucket}/${f} to ${toBucket}/${to}: ${res.error.message}`);
+      moved.push(to);
+    }
     for (let i = 0; i < files.length; i += 1000) {
       const res = await api.remove(files.slice(i, i + 1000));
-      if (res.error) throw new Error(`remove from ${bucket}: ${res.error.message}`);
+      if (res.error) throw new Error(`remove from ${fromBucket}: ${res.error.message}`);
     }
     await Promise.allSettled(files.map((f) => api.purgeCache(f)));
-    return files;
+    return moved;
   }
 
   async activeStrikes(userId: string): Promise<number> {
@@ -383,6 +404,36 @@ export class SupabaseStore implements Store {
     const res = await this.client.rpc('is_moderator', { p_user: userId });
     if (res.error) throw new Error(`is_moderator: ${res.error.message}`);
     return res.data === true;
+  }
+
+  async appealTakedown(gameId: string, ownerId: string, input: AppealInput): Promise<AppealRow> {
+    const row = await this.rpcRow<AppealRow>('appeal_takedown', { p_user_id: ownerId, p_game_id: gameId, p_statement: input.statement, p_name: input.name, p_email: input.email, p_consent: input.consent });
+    if (!row) throw new Error('appeal_takedown: no row');
+    return row;
+  }
+
+  async listAppeals(opts: { status?: AppealRow['status']; gameId?: string } = {}): Promise<AppealRow[]> {
+    let q = this.client.from('appeals').select('*').order('created_at');
+    if (opts.status) q = q.eq('status', opts.status);
+    if (opts.gameId) q = q.eq('game_id', opts.gameId);
+    return (this.unwrap(await q, 'listAppeals') as Record<string, unknown>[]).map((r) => camel<AppealRow>(r));
+  }
+
+  async decideAppeal(appealId: string, moderatorId: string, input: AppealDecision): Promise<{ appeal: AppealRow; games: GameRow[] }> {
+    const appeal = await this.rpcRow<AppealRow>('decide_appeal', { p_user_id: moderatorId, p_appeal_id: appealId, p_decision: input.decision, p_note: input.note });
+    if (!appeal) throw new Error('decide_appeal: no row');
+    const games: GameRow[] = [];
+    if (appeal.status === 'reinstated') {
+      // decide_appeal reverted every takedown of the report; their quarantined bundles go back to the public bucket.
+      const takedown = camel<TakedownRow>(this.unwrap(await this.client.from('takedowns').select('*').eq('id', appeal.takedownId).single(), 'decideAppeal') as Record<string, unknown>);
+      const reverted = (this.unwrap(await this.client.from('takedowns').select('*').eq('report_id', takedown.reportId).eq('action', 'removed'), 'decideAppeal') as Record<string, unknown>[]).map((r) => camel<TakedownRow>(r));
+      for (const t of reverted) {
+        await this.moveFolder('checkpoints', quarantinePath(t.reportId, t.gameId), 'bundles', `g/${t.gameId}`);
+        const g = await this.getGame(t.gameId);
+        if (g) games.push(g);
+      }
+    }
+    return { appeal, games };
   }
 
   async listTakedowns(gameId: string): Promise<TakedownRow[]> {

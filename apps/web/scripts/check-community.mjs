@@ -3,7 +3,9 @@
 // asks for a tester, and a tester claims the game, plays 30 s, reports and is paid. The owner's heatmap shows the
 // player's position samples and quit point and two players' deaths, in the API and over the level editor. Then moderation: three players'
 // reports suspend the game and a moderator's dismissals in the queue bring it back; a fan's remix is taken down for ip
-// and the fan gets a strike. Identities are the dev cookie ('moderator' is the file store's moderator).
+// and the fan gets a strike; the fan's counter-notice waits its 14 days, while a second fan's appeal of an abuse
+// removal is reinstated from the queue and the strike voided. Identities are the dev cookie ('moderator' is the file
+// store's moderator).
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -199,6 +201,42 @@ try {
     original: (await api(`/api/games/${game.id}/community`, 'local-dev')).json.state,
   };
 
+  // 7. Appeals. The fan files a counter-notice from the remix's workspace: moderators see it and cannot reinstate it
+  //    for 14 days. A second fan's remix removed for abuse is appealed and reinstated at once from the queue.
+  const fanPage = await pageAs(fan);
+  await fanPage.goto(`${url}/games/${remix.gameId}`, { waitUntil: 'load', timeout: 30000 });
+  await fanPage.waitForSelector('[data-testid="appeal-form"]', { timeout: 20000 });
+  await fanPage.fill('[data-testid="appeal-statement"]', 'I state under penalty of perjury that this remix was removed by mistake: the sprites are my own.');
+  await fanPage.fill('[data-testid="appeal-name"]', 'Fan One');
+  await fanPage.fill('[data-testid="appeal-email"]', 'fan@example.com');
+  await fanPage.click('[data-testid="appeal-consent"]');
+  // Debug aid: if the form does not accept the input, record what the page holds before the click times out.
+  if (!(await fanPage.waitForSelector('[data-testid="appeal-send"]:not([disabled])', { timeout: 5000 }).then(() => true, () => false))) {
+    const value = (id) => fanPage.inputValue(`[data-testid="${id}"]`).catch(() => 'missing');
+    result.appealForm = { statement: (await value('appeal-statement')).length, name: await value('appeal-name'), email: await value('appeal-email'), consent: await fanPage.isChecked('[data-testid="appeal-consent"]').catch(() => 'missing'), forms: await fanPage.locator('[data-testid="appeal-form"]').count() };
+  }
+  await fanPage.click('[data-testid="appeal-send"]');
+  await fanPage.waitForSelector('[data-testid="appeal-status"][data-status="open"]', { timeout: 15000 });
+  const counter = ((await api('/api/appeals?status=open', 'moderator')).json.appeals ?? []).find((a) => a.gameId === remix.gameId);
+  result.appeals = { counterListed: Boolean(counter), earlyReinstate: (await api(`/api/appeals/${counter?.id}/decide`, 'moderator', { decision: 'reinstate', note: '' })).status };
+  const fan2 = `fan2-${Date.now().toString(36)}`;
+  const remix2 = (await api(`/api/games/${game.id}/remix`, fan2, {})).json;
+  await api(`/api/games/${remix2.gameId}/report`, 'player-b', { kind: 'abuse', note: 'offensive title' });
+  const abuse = ((await api('/api/reports?status=open', 'moderator')).json.reports ?? []).find((r) => r.gameId === remix2.gameId);
+  await api(`/api/reports/${abuse?.id}/resolve`, 'moderator', { resolution: 'remove', note: 'abusive title' });
+  result.appeals.strikesBefore = (await api('/api/me', fan2)).json.strikes;
+  result.appeals.filed = (await api(`/api/games/${remix2.gameId}/appeal`, fan2, { statement: 'The title quotes the original game and is not abusive.', name: 'Fan Two', email: 'fan2@example.com' })).status;
+  await mod.goto(`${url}/moderation`, { waitUntil: 'load', timeout: 30000 });
+  const card = `[data-testid="appeal"][data-game="${remix2.gameId}"]`;
+  await mod.waitForSelector(card, { timeout: 15000 });
+  result.appeals.counterButton = await mod.textContent(`[data-testid="appeal"][data-game="${remix.gameId}"] [data-testid="appeal-reinstate"]`);
+  await mod.click(`${card} [data-testid="appeal-reinstate"]`);
+  await mod.waitForSelector(card, { state: 'detached', timeout: 10000 });
+  result.appeals.reinstated = (await api(`/api/games/${remix2.gameId}/community`, fan2)).json.state;
+  result.appeals.strikesAfter = (await api('/api/me', fan2)).json.strikes;
+  // The dev file server serves public buckets only: checkpoints and quarantined bundles stay private.
+  result.appeals.privateBucket = (await fetch(`${url}/b/checkpoints/takedowns/x/index.html`)).status;
+
   ok =
     result.strangerPublish === 403 &&
     result.listed &&
@@ -233,6 +271,14 @@ try {
     result.takedown.removedFor === 'check-community takedown' &&
     result.takedown.fanStrikes === 1 &&
     result.takedown.original === 'published' &&
+    result.appeals.counterListed === true &&
+    result.appeals.earlyReinstate === 409 &&
+    /Reinstate from/.test(result.appeals.counterButton ?? '') &&
+    result.appeals.filed === 201 &&
+    result.appeals.strikesBefore === 1 &&
+    result.appeals.reinstated === 'playable' &&
+    result.appeals.strikesAfter === 0 &&
+    result.appeals.privateBucket === 404 &&
     errors.length === 0;
   console.log(JSON.stringify({ ok, ...result, errors }, null, 2));
 } catch (e) {

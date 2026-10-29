@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { ModelPolicy, PLAY_EVENT_LIMITS, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
+import { ModelPolicy, PLAY_EVENT_LIMITS, type AppealDecision, type AppealInput, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
 import { checkCell, HEAT_CELL, heatmapFrom, heatRows } from './heatmap';
-import { computeStats, feedEligible, headPlaytestPassed, MODERATION, RANKING, testOutcome } from './ranking';
-import type { CreditEntry, FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayEventRow, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
+import { computeStats, feedEligible, headPlaytestPassed, MODERATION, quarantinePath, RANKING, testOutcome } from './ranking';
+import type { AppealRow, CreditEntry, FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayEventRow, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
 
 interface FileState {
   games: GameRow[];
@@ -23,6 +23,7 @@ interface FileState {
   reports: ReportRow[];
   strikes: StrikeRow[];
   takedowns: TakedownRow[];
+  appeals: AppealRow[];
   /** Local moderators by user id (Supabase: profiles.is_moderator). */
   moderators: string[];
 }
@@ -59,7 +60,7 @@ export class FileStore implements Store {
   constructor(private readonly dir: string) {
     mkdirSync(dir, { recursive: true });
     this.file = join(dir, 'store.json');
-    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], playEvents: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], moderators: ['moderator'] };
+    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], playEvents: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], appeals: [], moderators: ['moderator'] };
     this.load();
   }
 
@@ -84,7 +85,8 @@ export class FileStore implements Store {
       credits: parsed.credits ?? [],
       reports: parsed.reports ?? [],
       strikes: parsed.strikes ?? [],
-      takedowns: parsed.takedowns ?? [],
+      takedowns: (parsed.takedowns ?? []).map((t) => ({ ...t, revertedAt: t.revertedAt ?? null })),
+      appeals: parsed.appeals ?? [],
       moderators: parsed.moderators ?? ['moderator'],
     };
     this.mtime = m;
@@ -542,6 +544,12 @@ export class FileStore implements Store {
     return this.state.reports.filter((r) => (!opts.status || r.status === opts.status) && (!opts.gameId || r.gameId === opts.gameId)).map((r) => ({ ...r }));
   }
 
+  async getReport(reportId: string): Promise<ReportRow | null> {
+    this.load();
+    const r = this.state.reports.find((x) => x.id === reportId);
+    return r ? { ...r } : null;
+  }
+
   async resolveReport(reportId: string, moderatorId: string, input: ResolveInput): Promise<{ report: ReportRow; game: GameRow }> {
     this.load();
     if (!this.state.moderators.includes(moderatorId)) throw new Error('only moderators can resolve reports');
@@ -569,16 +577,17 @@ export class FileStore implements Store {
     if (input.resolution === 'remove') {
       for (const c of [g, ...copies]) {
         Object.assign(c, { state: 'removed', visibility: 'unlisted', updatedAt: now.toISOString() });
-        this.state.takedowns.push({ id: randomUUID(), gameId: c.id, reportId: r.id, action: 'removed', terms: input.note, moderatorId, createdAt: now.toISOString() });
+        this.state.takedowns.push({ id: randomUUID(), gameId: c.id, reportId: r.id, action: 'removed', terms: input.note, moderatorId, createdAt: now.toISOString(), revertedAt: null });
       }
-      // Its own bundles leave storage, as in the Supabase store; checkpoints stay for an appeal.
-      rmSync(this.objectPath('bundles', `g/${g.id}`), { recursive: true, force: true });
+      // Its own bundles leave the public bucket for a private quarantine, as in the Supabase store: an appeal that
+      // reinstates the game moves them back, byte for byte.
+      this.moveObjects('bundles', `g/${g.id}`, 'checkpoints', quarantinePath(r.id, g.id));
     } else if (input.resolution === 'unlist') {
       Object.assign(g, { state: g.state === 'published' || g.state === 'suspended' ? 'playable' : g.state, visibility: 'unlisted' });
       g.listing = { ...g.listing, unlisted: { versionId: g.headVersionId, reportId: r.id, note: input.note, at: now.toISOString() } };
     } else if (input.resolution === 'license') {
       g.listing = { ...g.listing, license: { terms: input.note, reportId: r.id, at: now.toISOString() } };
-      this.state.takedowns.push({ id: randomUUID(), gameId: g.id, reportId: r.id, action: 'licensed', terms: input.note, moderatorId, createdAt: now.toISOString() });
+      this.state.takedowns.push({ id: randomUUID(), gameId: g.id, reportId: r.id, action: 'licensed', terms: input.note, moderatorId, createdAt: now.toISOString(), revertedAt: null });
     }
     if (g.state === 'suspended' && this.suspendingReporters(g.id) < MODERATION.suspendReporters) g.state = g.visibility === 'listed' ? 'published' : 'playable';
     g.updatedAt = now.toISOString();
@@ -599,5 +608,67 @@ export class FileStore implements Store {
   async listTakedowns(gameId: string): Promise<TakedownRow[]> {
     this.load();
     return this.state.takedowns.filter((t) => t.gameId === gameId).map((t) => ({ ...t }));
+  }
+
+  /** Moves a folder of objects between buckets (a missing folder is nothing to move). */
+  private moveObjects(fromBucket: string, from: string, toBucket: string, to: string): void {
+    const src = this.objectPath(fromBucket, from);
+    if (!existsSync(src)) return;
+    const dest = this.objectPath(toBucket, to);
+    rmSync(dest, { recursive: true, force: true });
+    mkdirSync(dirname(dest), { recursive: true });
+    renameSync(src, dest);
+  }
+
+  async appealTakedown(gameId: string, ownerId: string, input: AppealInput): Promise<AppealRow> {
+    this.load();
+    const g = this.state.games.find((x) => x.id === gameId);
+    if (!g || g.ownerId !== ownerId) throw new Error(`game ${gameId} not found`);
+    if (g.state !== 'removed') throw new Error('only a removed game can be appealed');
+    const takedown = this.state.takedowns.filter((t) => t.gameId === gameId && t.action === 'removed' && !t.revertedAt).pop();
+    if (!takedown) throw new Error('no standing takedown to appeal');
+    if (this.state.appeals.some((a) => a.takedownId === takedown.id)) throw new Error('this takedown was already appealed');
+    const kind = this.state.reports.find((r) => r.id === takedown.reportId)?.kind;
+    if (kind === 'ip' && !input.consent) throw new Error('a counter-notice needs your consent to the jurisdiction of the courts and to accept service from the claimant');
+    const now = new Date();
+    const wait = kind === 'ip' ? MODERATION.counterNoticeDays * 86_400_000 : 0;
+    const row: AppealRow = { id: randomUUID(), takedownId: takedown.id, gameId, ownerId, statement: input.statement, contactName: input.name, contactEmail: input.email, consent: input.consent, status: 'open', reinstateAfter: new Date(now.getTime() + wait).toISOString(), createdAt: now.toISOString(), decidedAt: null, decidedBy: null, decisionNote: '' };
+    this.state.appeals.push(row);
+    this.save();
+    return { ...row };
+  }
+
+  async listAppeals(opts: { status?: AppealRow['status']; gameId?: string } = {}): Promise<AppealRow[]> {
+    this.load();
+    return this.state.appeals.filter((a) => (!opts.status || a.status === opts.status) && (!opts.gameId || a.gameId === opts.gameId)).map((a) => ({ ...a }));
+  }
+
+  async decideAppeal(appealId: string, moderatorId: string, input: AppealDecision): Promise<{ appeal: AppealRow; games: GameRow[] }> {
+    this.load();
+    if (!this.state.moderators.includes(moderatorId)) throw new Error('only moderators can decide appeals');
+    const a = this.state.appeals.find((x) => x.id === appealId);
+    if (!a) throw new Error('appeal not found');
+    if (a.status !== 'open') throw new Error('this appeal is already decided');
+    if (a.ownerId === moderatorId) throw new Error('moderators cannot decide appeals on their own games');
+    const now = new Date();
+    const games: GameRow[] = [];
+    if (input.decision === 'reinstate') {
+      if (now.getTime() < Date.parse(a.reinstateAfter)) throw new Error(`a counter-notice waits ${MODERATION.counterNoticeDays} days for the claimant to go to court; the game can be restored from ${a.reinstateAfter}`);
+      const takedown = this.state.takedowns.find((t) => t.id === a.takedownId)!;
+      // Everything this report took down comes back: the game and the unedited remixes removed with it.
+      for (const t of this.state.takedowns.filter((x) => x.reportId === takedown.reportId && x.action === 'removed' && !x.revertedAt)) {
+        t.revertedAt = now.toISOString();
+        const g = this.state.games.find((x) => x.id === t.gameId);
+        if (g?.state === 'removed') {
+          Object.assign(g, { state: 'playable', visibility: 'unlisted', updatedAt: now.toISOString() });
+          this.moveObjects('checkpoints', quarantinePath(takedown.reportId, g.id), 'bundles', `g/${g.id}`);
+          games.push({ ...g });
+        }
+      }
+      this.state.strikes = this.state.strikes.filter((x) => x.reportId !== takedown.reportId);
+    }
+    Object.assign(a, { status: input.decision === 'reinstate' ? 'reinstated' : 'upheld', decidedAt: now.toISOString(), decidedBy: moderatorId, decisionNote: input.note });
+    this.save();
+    return { appeal: { ...a }, games };
   }
 }

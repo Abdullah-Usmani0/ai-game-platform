@@ -2,6 +2,9 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { getStore, isFileStore } from '@/lib/store';
 
+/** Public buckets, as in Supabase; checkpoints (and the bundles a takedown quarantines there) stay private. */
+const PUBLIC_BUCKETS = new Set(['bundles', 'screenshots', 'asset-final', 'engine']);
+
 const TYPES: Record<string, string> = { html: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8', json: 'application/json', png: 'image/png', md: 'text/markdown; charset=utf-8' };
 
 /** Serves objects of the local file store (bundles, screenshots) in development; production bundles come from the CDN. */
@@ -11,6 +14,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ path: string[]
   const { path } = await ctx.params;
   if (!path?.length || path.some((p) => p === '..' || p.includes('\\'))) return new Response('bad path', { status: 400 });
   const [bucket, ...rest] = path;
+  if (!PUBLIC_BUCKETS.has(bucket!)) return new Response('not found', { status: 404 });
   const root = resolve(store.objectPath(bucket!, ''));
   const file = resolve(store.objectPath(bucket!, rest.join('/')));
   if (!file.startsWith(root + sep) || !existsSync(file) || !statSync(file).isFile()) return new Response('not found', { status: 404 });

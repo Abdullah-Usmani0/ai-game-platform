@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { AppealForm } from '@/components/AppealForm';
 
 interface CommunityView {
   isOwner: boolean;
@@ -9,7 +10,7 @@ interface CommunityView {
   tested: { outcome?: string; versionId?: string } | null;
   stats: { players: number; qualifiedPlayers: number; completionRate: number; avgPlayMin: number; ratings: Record<string, number>; ratingCount: number; remixes: number; rankScore: number; broken: boolean };
   tests: Array<{ id: string; status: string; outcome: string | null; needed: number; submitted: number; rewardCredits: number; verdicts: Array<{ verdict: string; tag: string; note: string }> }>;
-  moderation: { ownerStrikes: number | null; openReports: number | null; removedFor: string | null; unlistedFor: string | null };
+  moderation: { ownerStrikes: number | null; openReports: number | null; removedFor: string | null; unlistedFor: string | null; removedKind: string | null; appeal: { status: string; reinstateAfter: string; decisionNote: string } | null };
 }
 
 /** Listing, community stats and test rounds of a game, in the creator's workspace. */
@@ -52,9 +53,21 @@ export function CommunityPanel({ gameId, hasHead }: { gameId: string; hasHead: b
         ratings: fun {s.ratings['fun'] ?? 0} · confusing {s.ratings['confusing'] ?? 0} · broken {s.ratings['broken'] ?? 0} · ugly {s.ratings['ugly'] ?? 0} · remixes {s.remixes}
       </p>
       {view.state === 'removed' ? (
-        <p className="err" data-testid="moderation-state" data-state="removed">
-          Removed by moderation{view.moderation.removedFor ? `: ${view.moderation.removedFor}` : ''}. It cannot be played, edited, listed or remixed.
-        </p>
+        <>
+          <p className="err" data-testid="moderation-state" data-state="removed">
+            Removed by moderation{view.moderation.removedFor ? `: ${view.moderation.removedFor}` : ''}. It cannot be played, edited, listed or remixed.
+          </p>
+          {view.isOwner && !view.moderation.appeal ? <AppealForm gameId={gameId} counterNotice={view.moderation.removedKind === 'ip'} onSent={() => void refresh()} /> : null}
+          {view.moderation.appeal?.status === 'open' ? (
+            <p className="muted" data-testid="appeal-status" data-status="open">
+              Appeal filed; moderators can restore the game from {new Date(view.moderation.appeal.reinstateAfter).toLocaleDateString()}.
+            </p>
+          ) : view.moderation.appeal?.status === 'upheld' ? (
+            <p className="err" data-testid="appeal-status" data-status="upheld">
+              Appeal upheld: the removal stands{view.moderation.appeal.decisionNote ? ` (${view.moderation.appeal.decisionNote})` : ''}.
+            </p>
+          ) : null}
+        </>
       ) : view.state === 'suspended' ? (
         <p className="err" data-testid="moderation-state" data-state="suspended">
           Suspended: hidden from other players until moderators review the reports about it{view.moderation.openReports ? ` (${view.moderation.openReports} open)` : ''}.

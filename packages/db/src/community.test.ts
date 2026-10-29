@@ -1,9 +1,9 @@
 import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { FileStore } from './file-store';
-import { computeStats, RANKING } from './ranking';
+import { computeStats, quarantinePath, RANKING } from './ranking';
 import type { GameRow, PlayRow, RatingRow } from './types';
 
 /** The file store follows the same community rules as 0003_community.sql (see migrations.test.ts for the SQL side). */
@@ -203,5 +203,54 @@ describe('FileStore heatmap', () => {
     expect((await store.playHeatmap(gameId, 'another-version')).levels).toEqual({});
     await expect(store.playHeatmap(gameId, versionId, 0)).rejects.toThrow(/cell must be/);
     await expect(store.recordPlay({ ...play(versionId, 'p3', 30), gameId }, Array.from({ length: 602 }, () => ev('sample', 'L01', 0, 0)))).rejects.toThrow(/at most 601/);
+  });
+});
+
+describe('FileStore appeals', () => {
+  const statement = 'This board is my own work; the sprites were drawn by me in 2026.';
+  const contact = { statement, name: 'Owner', email: 'owner@example.com' };
+
+  it('quarantines a removed game, waits 14 days on a counter-notice, then restores it, its remix, its files and the strike', async () => {
+    vi.useFakeTimers({ now: new Date('2026-11-01T00:00:00Z') });
+    try {
+      const { store, gameId, versionId } = await storeWithGame();
+      await store.putObject('bundles', `g/${gameId}/v/1/index.html`, new TextEncoder().encode('<!doctype html>'), 'text/html');
+      const copy = await store.forkGame(versionId, { ownerId: 'fan', slug: 'g-one-copy', title: 'Copy' });
+      const ip = await store.reportGame(gameId, 'rights-holder', { kind: 'ip', note: 'my sprites', rightsHolder: true });
+      await store.resolveReport(ip.report.id, 'moderator', { resolution: 'remove', note: 'DMCA notice 45' });
+      const live = store.objectPath('bundles', `g/${gameId}/v/1/index.html`);
+      const held = store.objectPath('checkpoints', `${quarantinePath(ip.report.id, gameId)}/v/1/index.html`);
+      expect([existsSync(live), existsSync(held)]).toEqual([false, true]);
+      expect(await store.activeStrikes('owner')).toBe(1);
+      await expect(store.appealTakedown(gameId, 'owner', { ...contact, consent: false })).rejects.toThrow(/consent/);
+      await expect(store.appealTakedown(gameId, 'fan', { ...contact, consent: true })).rejects.toThrow(/not found/);
+      const appeal = await store.appealTakedown(gameId, 'owner', { ...contact, consent: true });
+      expect(appeal).toMatchObject({ status: 'open', reinstateAfter: '2026-11-15T00:00:00.000Z' });
+      await expect(store.appealTakedown(gameId, 'owner', { ...contact, consent: true })).rejects.toThrow(/already appealed/);
+      await expect(store.decideAppeal(appeal.id, 'owner', { decision: 'reinstate', note: '' })).rejects.toThrow(/only moderators/);
+      await expect(store.decideAppeal(appeal.id, 'moderator', { decision: 'reinstate', note: '' })).rejects.toThrow(/waits 14 days/);
+      vi.setSystemTime(new Date('2026-11-15T00:00:01Z'));
+      const { appeal: decided, games } = await store.decideAppeal(appeal.id, 'moderator', { decision: 'reinstate', note: 'no court action' });
+      expect(decided).toMatchObject({ status: 'reinstated', decidedBy: 'moderator', decisionNote: 'no court action' });
+      expect(games.map((g) => [g.id, g.state, g.visibility]).sort()).toEqual([[copy.id, 'playable', 'unlisted'], [gameId, 'playable', 'unlisted']].sort());
+      expect([existsSync(live), existsSync(held)]).toEqual([true, false]);
+      expect(await store.activeStrikes('owner')).toBe(0);
+      expect((await store.listTakedowns(gameId))[0]?.revertedAt).toBe('2026-11-15T00:00:01.000Z');
+      await expect(store.decideAppeal(appeal.id, 'moderator', { decision: 'uphold', note: '' })).rejects.toThrow(/already decided/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a plain appeal of an abuse removal is decided at once; upholding keeps the game down', async () => {
+    const { store, gameId } = await storeWithGame();
+    const r = await store.reportGame(gameId, 'p1', { kind: 'abuse', note: '', rightsHolder: false });
+    await store.resolveReport(r.report.id, 'moderator', { resolution: 'remove', note: '' });
+    const appeal = await store.appealTakedown(gameId, 'owner', { ...contact, consent: false });
+    expect(Date.parse(appeal.reinstateAfter)).toBeLessThanOrEqual(Date.now());
+    const { appeal: upheld, games } = await store.decideAppeal(appeal.id, 'moderator', { decision: 'uphold', note: 'it is abusive' });
+    expect([upheld.status, games.length, (await store.getGame(gameId))?.state]).toEqual(['upheld', 0, 'removed']);
+    expect(await store.listAppeals({ status: 'open' })).toHaveLength(0);
+    await expect(store.appealTakedown(gameId, 'owner', { ...contact, consent: false })).rejects.toThrow(/already appealed/);
   });
 });

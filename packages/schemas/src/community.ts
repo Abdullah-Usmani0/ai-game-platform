@@ -100,3 +100,25 @@ export const ResolveInput = z.object({
   note: z.string().max(1000).default(''),
 });
 export type ResolveInput = z.infer<typeof ResolveInput>;
+
+/**
+ * A removed game's owner asks for it back. For an ip takedown this is a DMCA counter-notice: a statement under
+ * penalty of perjury that the material was removed by mistake or misidentification, name and contact, and consent
+ * to the jurisdiction of the courts and to accept service from the claimant (17 U.S.C. 512(g)(3)). The game can be
+ * restored 14 days after it is filed unless the claimant goes to court. Any other removal takes a plain appeal.
+ */
+export const AppealInput = z.object({
+  statement: z.string().min(20).max(2000),
+  name: z.string().min(1).max(120),
+  email: z.email().max(200),
+  /** Required for ip takedowns: consent to jurisdiction and to accept service of process from the claimant. */
+  consent: z.boolean().default(false),
+});
+export type AppealInput = z.infer<typeof AppealInput>;
+
+export const APPEAL_DECISIONS = ['reinstate', 'uphold'] as const;
+export const AppealDecision = z.object({
+  decision: z.enum(APPEAL_DECISIONS),
+  note: z.string().max(1000).default(''),
+});
+export type AppealDecision = z.infer<typeof AppealDecision>;

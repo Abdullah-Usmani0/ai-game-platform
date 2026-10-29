@@ -20,11 +20,17 @@ export async function GET(
   ]);
   const isOwner = game.ownerId === me;
   const isModerator = await store.isModerator(me);
-  const [ownerStrikes, openReports, takedowns] = await Promise.all([
+  const [ownerStrikes, openReports, takedowns, appeals] = await Promise.all([
     isOwner ? store.activeStrikes(me) : null,
     isOwner || isModerator ? store.listReports({ status: 'open', gameId }).then((r) => r.length) : null,
     isOwner && game.state === 'removed' ? store.listTakedowns(gameId) : [],
+    isOwner && game.state === 'removed' ? store.listAppeals({ gameId }) : [],
   ]);
+  // The standing removal, its report's kind (an ip takedown takes a counter-notice; the report can be on the game an
+  // unedited remix came down with) and the owner's appeal of it.
+  const standing = takedowns.filter((t) => t.action === 'removed' && !t.revertedAt).pop() ?? null;
+  const standingReport = standing ? await store.getReport(standing.reportId) : null;
+  const appeal = standing ? (appeals.find((a) => a.takedownId === standing.id) ?? null) : null;
   const unlisted = (game.listing as { unlisted?: { versionId?: string; note?: string } }).unlisted;
   return Response.json({
     viewer: me,
@@ -38,7 +44,9 @@ export async function GET(
     moderation: {
       ownerStrikes,
       openReports,
-      removedFor: isOwner && game.state === 'removed' ? (takedowns.filter((t) => t.action === 'removed').pop()?.terms ?? '') : null,
+      removedFor: isOwner && game.state === 'removed' ? (standing?.terms ?? '') : null,
+      removedKind: standingReport?.kind ?? null,
+      appeal: appeal ? { status: appeal.status, reinstateAfter: appeal.reinstateAfter, decisionNote: appeal.decisionNote } : null,
       unlistedFor: isOwner && unlisted?.versionId && unlisted.versionId === game.headVersionId ? (unlisted.note ?? '') : null,
     },
     tests: tests.queue.map((q) => ({

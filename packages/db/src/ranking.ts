@@ -115,4 +115,9 @@ export const MODERATION = {
   strikeDays: 90,
   /** Active strikes at which an owner can no longer list games. */
   maxStrikes: 3,
+  /** Days a counter-notice waits for the claimant to go to court before the game can be restored (DMCA 10-14 business days). */
+  counterNoticeDays: 14,
 } as const;
+
+/** Where a removed game's bundles wait in the private checkpoints bucket until an appeal decides them. */
+export const quarantinePath = (reportId: string, gameId: string): string => `takedowns/${reportId}/g/${gameId}`;
