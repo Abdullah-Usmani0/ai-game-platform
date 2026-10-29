@@ -48,6 +48,8 @@ interface Run {
   costUsd: number;
   durationMs: number;
   failedStage: string | null;
+  /** Why a failed run failed: the last failing gate check's detail, or the job's own reason. */
+  failure: string | null;
   stages: Record<string, { passed: boolean; attempts: number }>;
 }
 const runs: Run[] = [];
@@ -75,9 +77,16 @@ for (const p of prompts) {
       s.passed = s.passed || t.passed;
       stages[t.stage] = s;
     }
-    const run: Run = { prompt: p.id, genre: p.genre, run: i + 1, status, costUsd: after?.costUsd ?? 0, durationMs: Date.now() - start, failedStage: (after?.error as { stage?: string } | null)?.stage ?? null, stages };
+    const error = after?.error as { stage?: string; reason?: string; message?: string } | null;
+    let failure: string | null = null;
+    if (status !== 'succeeded') {
+      const gateFailed = (await store.listEvents(job.id)).filter((e) => e.type === 'gate_failed').at(-1);
+      const detail = (gateFailed?.payload['detail'] as string[] | undefined)?.join('; ');
+      failure = (detail || error?.reason || error?.message || status).slice(0, 300);
+    }
+    const run: Run = { prompt: p.id, genre: p.genre, run: i + 1, status, costUsd: after?.costUsd ?? 0, durationMs: Date.now() - start, failedStage: error?.stage ?? null, failure, stages };
     runs.push(run);
-    console.log(`${p.id} run ${i + 1}: ${status} in ${Math.round(run.durationMs / 1000)} s, $${run.costUsd.toFixed(3)}${run.failedStage ? ` (failed at ${run.failedStage})` : ''}`);
+    console.log(`${p.id} run ${i + 1}: ${status} in ${Math.round(run.durationMs / 1000)} s, $${run.costUsd.toFixed(3)}${run.failedStage ? ` (failed at ${run.failedStage}: ${failure})` : ''}`);
     rmSync(resolve(values['work-root'], job.id), { recursive: true, force: true });
   }
 }
@@ -113,4 +122,7 @@ const outFile = resolve(values.out, `bench-${summary.mode}-${(policy?.name ?? 'f
 writeFileSync(outFile, JSON.stringify(report, null, 2) + '\n');
 console.log(JSON.stringify(summary, null, 2));
 console.log(`report: ${outFile}`);
-process.exit(summary.passAtK === 1 || (summary.runPassRate ?? 0) >= 0.9 ? 0 : 1);
+// A dry run grades the harness itself, which is deterministic: every prompt must pass. A live run grades a model policy.
+const passed = summary.passAtK === 1 || (!dryRun && (summary.runPassRate ?? 0) >= 0.9);
+for (const r of runs) if (r.failure) console.log(`FAILED ${r.prompt} run ${r.run} at ${r.failedStage ?? '?'}: ${r.failure}`);
+process.exit(passed ? 0 : 1);

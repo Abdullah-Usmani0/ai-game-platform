@@ -1,5 +1,5 @@
 {
-  "$comment": "Benchmark prompts: 10 per shipped genre, alternating so --limit N covers both genres. Each row is graded by the full gate set.",
+  "$comment": "Benchmark prompts for every genre and scope tier, round-robin by genre so --limit 6 covers each genre once (--limit 2: platformer and survivors). Each row is graded by the full gate set.",
   "prompts": [
     {
       "id": "p01",
@@ -14,6 +14,30 @@
       "prompt": "A frantic arena survivors game where a lighthouse keeper fends off waves of sea ghosts for one minute, collecting lantern oil to level up."
     },
     {
+      "id": "t01",
+      "genre": "topdown-action",
+      "scopeTier": "small",
+      "prompt": "A mythic dungeon crawl: a torch-bearer clears ember-lit halls room by room, swinging a heavy blade at skeleton grunts and dodging archers behind pillars."
+    },
+    {
+      "id": "h01",
+      "genre": "shmup",
+      "scopeTier": "small",
+      "prompt": "A retro vertical shooter in a static-filled sky: diving drones, slow tanks, aimed bullets, power cells every fifteen seconds."
+    },
+    {
+      "id": "m01",
+      "genre": "metroidvania",
+      "scopeTier": "small",
+      "prompt": "A lantern-bearing moth exploring a flooded cave: wings let it double-jump the old cliffs, a rusty key opens the sluice gate, and dash boots carry it over the spike pit to the exit."
+    },
+    {
+      "id": "z01",
+      "genre": "puzzle",
+      "scopeTier": "small",
+      "prompt": "A cosy warehouse puzzle: a little forklift pushes crates onto glowing loading bays, one crate at first and three by the end."
+    },
+    {
       "id": "p02",
       "genre": "platformer",
       "scopeTier": "small",
@@ -24,6 +48,30 @@
       "genre": "survivors",
       "scopeTier": "small",
       "prompt": "Survive sixty seconds in a haunted library as a candle spirit; books fly at you in rings, and every page you burn makes your flame hit harder."
+    },
+    {
+      "id": "t02",
+      "genre": "topdown-action",
+      "scopeTier": "small",
+      "prompt": "A cartoon kitchen brawl: a chef with a frying pan clears pantry rooms of rushing rats and jar-throwing imps; the door opens when the room is clean."
+    },
+    {
+      "id": "h02",
+      "genre": "shmup",
+      "scopeTier": "small",
+      "prompt": "A bee defending its hive from a minute of wasps and hornets; pollen power-ups widen the stinger spread."
+    },
+    {
+      "id": "m02",
+      "genre": "metroidvania",
+      "scopeTier": "small",
+      "prompt": "A tiny robot waking in an abandoned mine, backtracking for a jump booster and a dash module to reach the elevator, with crawlers patrolling the tunnels."
+    },
+    {
+      "id": "z02",
+      "genre": "puzzle",
+      "scopeTier": "small",
+      "prompt": "A temple of sliding stone blocks: an explorer shoves boulders onto pressure plates to open the inner sanctum, with free undo."
     },
     {
       "id": "p03",
@@ -38,6 +86,30 @@
       "prompt": "An arena survivors game set on a tiny asteroid; rock crabs swarm from the edges and the miner's drill auto-attacks the nearest one."
     },
     {
+      "id": "t03",
+      "genre": "topdown-action",
+      "scopeTier": "medium",
+      "prompt": "A four-floor crypt where a knight fights grunts in tight rooms, archers across long halls and a brute at the bottom; dashes cross arrow lanes."
+    },
+    {
+      "id": "h03",
+      "genre": "shmup",
+      "scopeTier": "small",
+      "prompt": "A paper plane dodging crumpled-ball drones and heavy staplers in a classroom sky; hold to fire pencils."
+    },
+    {
+      "id": "m03",
+      "genre": "metroidvania",
+      "scopeTier": "medium",
+      "prompt": "Two caverns beneath a ruined monastery: find the feather to climb, the bronze key for the crypt door and the wind boots to cross the chasm, past hopping spores and sentries."
+    },
+    {
+      "id": "z03",
+      "genre": "puzzle",
+      "scopeTier": "medium",
+      "prompt": "Six snowy boards where a penguin nudges presents under the right trees; calm steps, gentle start, a tricky four-present finale."
+    },
+    {
       "id": "p04",
       "genre": "platformer",
       "scopeTier": "medium",
@@ -50,6 +122,30 @@
       "prompt": "A cozy-looking but tough survivors run in a bee garden: wasps come in waves, nectar levels you up, brutes arrive late."
     },
     {
+      "id": "t04",
+      "genre": "topdown-action",
+      "scopeTier": "small",
+      "prompt": "A neon arcade dungeon: a janitor robot sweeps through rooms of malfunctioning bots with a mop swing, parrying laser bolts."
+    },
+    {
+      "id": "h04",
+      "genre": "shmup",
+      "scopeTier": "medium",
+      "prompt": "A neon night run over a drowned city: weave through drone swarms and armored tanks, grab the power-ups that widen your shot, and last the full minute."
+    },
+    {
+      "id": "m04",
+      "genre": "metroidvania",
+      "scopeTier": "large",
+      "prompt": "A sprawling fungal cavern to explore: find the boots that let you dash and the wings for a second jump, open sealed doors with keys, and reach the glowing heart of the mycelium."
+    },
+    {
+      "id": "z04",
+      "genre": "puzzle",
+      "scopeTier": "large",
+      "prompt": "Puzzles in a lighthouse keeper's storeroom: push the oil crates onto the marked tiles, room after room of trickier layouts, with undo always one key away."
+    },
+    {
       "id": "p05",
       "genre": "platformer",
       "scopeTier": "small",
@@ -60,6 +156,18 @@
       "genre": "survivors",
       "scopeTier": "small",
       "prompt": "Hold the campfire: a ranger auto-fires arrows at wolves that circle in from the dark for one minute; pick up embers to level up."
+    },
+    {
+      "id": "t05",
+      "genre": "topdown-action",
+      "scopeTier": "large",
+      "prompt": "Descend through the floors of a sunken temple room by room, with a three-hit combo, a dash you strike out of, a blessing after every floor and the tide warden waiting at the bottom."
+    },
+    {
+      "id": "h05",
+      "genre": "shmup",
+      "scopeTier": "large",
+      "prompt": "An orbital defense shift above a frozen moon: waves of drones and tanks that thicken every twenty seconds, shield pickups, and no second chances."
     },
     {
       "id": "p06",
@@ -122,82 +230,16 @@
       "prompt": "A junkyard survivors arena where a magnet robot pulls in scrap (xp) while crushing waves of rust mites that chase it."
     },
     {
-      "id": "t01",
-      "genre": "topdown-action",
-      "scopeTier": "small",
-      "prompt": "A mythic dungeon crawl: a torch-bearer clears ember-lit halls room by room, swinging a heavy blade at skeleton grunts and dodging archers behind pillars."
+      "id": "p11",
+      "genre": "platformer",
+      "scopeTier": "large",
+      "prompt": "A long climb up a storm-wrecked clock tower: floor after floor of gears, spike pits and crumbling ledges, a dash that cuts through the gusts, and coins hidden off the main path."
     },
     {
-      "id": "t02",
-      "genre": "topdown-action",
-      "scopeTier": "small",
-      "prompt": "A cartoon kitchen brawl: a chef with a frying pan clears pantry rooms of rushing rats and jar-throwing imps; the door opens when the room is clean."
-    },
-    {
-      "id": "t03",
-      "genre": "topdown-action",
-      "scopeTier": "medium",
-      "prompt": "A four-floor crypt where a knight fights grunts in tight rooms, archers across long halls and a brute at the bottom; dashes cross arrow lanes."
-    },
-    {
-      "id": "t04",
-      "genre": "topdown-action",
-      "scopeTier": "small",
-      "prompt": "A neon arcade dungeon: a janitor robot sweeps through rooms of malfunctioning bots with a mop swing, parrying laser bolts."
-    },
-    {
-      "id": "h01",
-      "genre": "shmup",
-      "scopeTier": "small",
-      "prompt": "A retro vertical shooter in a static-filled sky: diving drones, slow tanks, aimed bullets, power cells every fifteen seconds."
-    },
-    {
-      "id": "h02",
-      "genre": "shmup",
-      "scopeTier": "small",
-      "prompt": "A bee defending its hive from a minute of wasps and hornets; pollen power-ups widen the stinger spread."
-    },
-    {
-      "id": "h03",
-      "genre": "shmup",
-      "scopeTier": "small",
-      "prompt": "A paper plane dodging crumpled-ball drones and heavy staplers in a classroom sky; hold to fire pencils."
-    },
-    {
-      "id": "m01",
-      "genre": "metroidvania",
-      "scopeTier": "small",
-      "prompt": "A lantern-bearing moth exploring a flooded cave: wings let it double-jump the old cliffs, a rusty key opens the sluice gate, and dash boots carry it over the spike pit to the exit."
-    },
-    {
-      "id": "m02",
-      "genre": "metroidvania",
-      "scopeTier": "small",
-      "prompt": "A tiny robot waking in an abandoned mine, backtracking for a jump booster and a dash module to reach the elevator, with crawlers patrolling the tunnels."
-    },
-    {
-      "id": "m03",
-      "genre": "metroidvania",
-      "scopeTier": "medium",
-      "prompt": "Two caverns beneath a ruined monastery: find the feather to climb, the bronze key for the crypt door and the wind boots to cross the chasm, past hopping spores and sentries."
-    },
-    {
-      "id": "z01",
-      "genre": "puzzle",
-      "scopeTier": "small",
-      "prompt": "A cosy warehouse puzzle: a little forklift pushes crates onto glowing loading bays, one crate at first and three by the end."
-    },
-    {
-      "id": "z02",
-      "genre": "puzzle",
-      "scopeTier": "small",
-      "prompt": "A temple of sliding stone blocks: an explorer shoves boulders onto pressure plates to open the inner sanctum, with free undo."
-    },
-    {
-      "id": "z03",
-      "genre": "puzzle",
-      "scopeTier": "medium",
-      "prompt": "Six snowy boards where a penguin nudges presents under the right trees; calm steps, gentle start, a tricky four-present finale."
+      "id": "s11",
+      "genre": "survivors",
+      "scopeTier": "large",
+      "prompt": "Survive a whole night in a haunted orchard as the scarecrow's last friend: crows first, then wolves, then the brutes at midnight, with fallen apples that keep you going."
     }
   ]
 }
