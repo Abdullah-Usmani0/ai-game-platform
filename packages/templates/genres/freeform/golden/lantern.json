@@ -1,0 +1,53 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-platformer",
+      "hazards",
+      "combat-stomp",
+      "pickups",
+      "objectives"
+    ],
+    "entityDefs": "a443de95413ffcd2",
+    "types": [
+      "beetle<walker",
+      "frog<hopper",
+      "pod<turret",
+      "spore<bolt",
+      "lantern<coin"
+    ],
+    "behaviours": "8280702f30e9f8cc",
+    "vocab": "6a8571b793646307",
+    "composedParams": {
+      "hazards": {
+        "respawn": false
+      }
+    },
+    "feedbackExtras": [],
+    "player": {
+      "w": 8,
+      "h": 11,
+      "hp": 3
+    }
+  },
+  "l01": {
+    "level": "0e9624e75beada70",
+    "content": "1cceaa4f74ef3778",
+    "by": "solver",
+    "ticks": 272,
+    "script": "fcb121fc24337646"
+  },
+  "l02": {
+    "level": "6db23ee8f26486fc",
+    "content": "1cceaa4f74ef3778",
+    "by": "solver",
+    "ticks": 365,
+    "script": "0d15cc8d7307c101"
+  },
+  "l03": {
+    "level": "7af31f2e80231cd4",
+    "content": "1cceaa4f74ef3778",
+    "by": "solver",
+    "ticks": 412,
+    "script": "d511e6d42cbadfc9"
+  }
+}

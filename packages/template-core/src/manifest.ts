@@ -1,4 +1,4 @@
-import type { BehaviourFsm, EcaRule, FeedbackChannel, GddFrontmatter, LevelJson, ParamValue, PlayableGenre, ScopeTier } from '@gg/schemas';
+import type { BehaviourFsm, CuratedGenre, EcaRule, FeedbackChannel, GddFrontmatter, LevelJson, ParamValue, ScopeTier } from '@gg/schemas';
 import type { EntityDef, FeelPreset, InputState, Sim, SystemDef } from '@gg/sdk';
 import type { CatalogSystem, EntityRole, ValidationReport } from '@gg/validators';
 
@@ -65,7 +65,8 @@ export interface ScopeBudget {
 
 /** Browser-safe part of a genre: what a game bundle imports. */
 export interface GenreRuntime {
-  id: PlayableGenre;
+  /** A curated genre, or 'freeform' for a game composed from several (built by @gg/template-freeform). */
+  id: CuratedGenre | 'freeform';
   name: string;
   movementMode: 'platformer' | 'topdown';
   systems: Record<string, SystemModule>;
@@ -95,6 +96,11 @@ export interface GenreRuntime {
    * against them.
    */
   entityRoles?: Record<string, EntityRole[]>;
+  /**
+   * Parameters the game's composition sets and systems.json never does: the roster's names for the types systems name
+   * (a renamed drop), and the switches of death rules that yield to another. Applied over systems.json's params.
+   */
+  composedParams?: Record<string, Record<string, ParamValue>>;
 }
 
 /**

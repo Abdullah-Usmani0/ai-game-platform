@@ -1,0 +1,34 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-topdown",
+      "melee-attack",
+      "spawner",
+      "objectives"
+    ],
+    "entityDefs": "77e77c51838d58df",
+    "types": [
+      "wasp<chaser",
+      "hornet<brute",
+      "xp"
+    ],
+    "behaviours": "94810155a5ff6f2c",
+    "vocab": "3c23db6356fb1f7f",
+    "composedParams": {},
+    "feedbackExtras": [
+      "custom:finisher"
+    ],
+    "player": {
+      "w": 8,
+      "h": 10,
+      "hp": 5
+    }
+  },
+  "arena": {
+    "level": "42ad3572df6c0420",
+    "content": "ab929693b3111cb3",
+    "by": "solver",
+    "ticks": 3600,
+    "script": "7294a625e8b4a02e"
+  }
+}

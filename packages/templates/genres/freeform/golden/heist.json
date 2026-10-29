@@ -1,0 +1,54 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-topdown",
+      "auto-attack",
+      "room-clear",
+      "pickups"
+    ],
+    "entityDefs": "982aa56be9704fcb",
+    "types": [
+      "guard<grunt",
+      "sentry<archer",
+      "enforcer<brute",
+      "keeper<warden",
+      "dart<arrow",
+      "ember",
+      "cell<gem",
+      "shard<xp"
+    ],
+    "behaviours": "91a9c464ebc8c89e",
+    "vocab": "3c23db6356fb1f7f",
+    "composedParams": {
+      "auto-attack": {
+        "dropType": "shard"
+      },
+      "room-clear": {
+        "healType": "cell"
+      }
+    },
+    "feedbackExtras": [
+      "custom:slam",
+      "custom:enrage"
+    ],
+    "player": {
+      "w": 8,
+      "h": 10,
+      "hp": 7
+    }
+  },
+  "l01": {
+    "level": "b9a81f8c4094053a",
+    "content": "08f44b07b5901a25",
+    "by": "solver",
+    "ticks": 372,
+    "script": "4f679db2f8881067"
+  },
+  "l02": {
+    "level": "e001cb11d65c3aaf",
+    "content": "08f44b07b5901a25",
+    "by": "solver",
+    "ticks": 784,
+    "script": "2516e5d95ef670be"
+  }
+}

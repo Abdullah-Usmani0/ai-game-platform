@@ -67,7 +67,10 @@ export class FakeProvider implements Provider {
   constructor(private readonly ctx: { genre: GenreManifest; request: CreateRequest | null }) {}
 
   private request(): CreateRequest {
-    return this.ctx.request ?? { prompt: `A ${this.ctx.genre.name.toLowerCase()} made by the dry run.`, genre: this.ctx.genre.id, scopeTier: 'small', referenceTitles: [], dryRun: true };
+    if (this.ctx.request) return this.ctx.request;
+    const genre = this.ctx.genre.id;
+    if (genre === 'freeform') throw new Error('the fake provider drafts a freeform game only from its create request');
+    return { prompt: `A ${this.ctx.genre.name.toLowerCase()} made by the dry run.`, genre, scopeTier: 'small', referenceTitles: [], dryRun: true };
   }
 
   async structured(req: StructuredRequest): Promise<StructuredResponse> {

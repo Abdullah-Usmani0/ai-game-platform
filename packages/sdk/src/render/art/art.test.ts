@@ -6,6 +6,7 @@ import {
   SETTING_BY_GENRE,
   TYPE_RECIPES,
   artPalette,
+  recipeForType,
   depthField,
   frameSize,
   luminance,
@@ -74,6 +75,10 @@ describe('sprites', () => {
 
   it('maps the shipped entity types to recipes that exist; players have every animation they are asked for', () => {
     for (const [type, recipe] of Object.entries(TYPE_RECIPES)) expect(RECIPES[recipe], type).toBeDefined();
+    // A renamed type draws as the shipped type it names; an unknown one has no recipe (the renderer falls back by role).
+    expect(recipeForType('wasp', 'chaser')).toBe(TYPE_RECIPES['chaser']);
+    expect(recipeForType('chaser')).toBe(TYPE_RECIPES['chaser']);
+    expect(recipeForType('wasp')).toBeUndefined();
     for (const anim of ['idle', 'run', 'jump', 'fall', 'dash', 'hurt']) expect(RECIPES['hero-side']!.anims[anim], anim).toBeDefined();
     for (const name of ['hero-topdown', 'keeper']) {
       for (const dir of ['down', 'up', 'side']) for (const anim of ['idle', 'run', 'hurt']) expect(RECIPES[name]!.anims[`${dir}-${anim}`], `${name} ${dir}-${anim}`).toBeDefined();

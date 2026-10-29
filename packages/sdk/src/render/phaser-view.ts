@@ -6,7 +6,7 @@ import { textImage, wrapText } from './art/font.js';
 import { artPalette, type ArtPalette, type OutlineMode } from './art/palette.js';
 import { PixelCanvas, hash2 } from './art/pixels.js';
 import { FLAG, PARTICLES, TORCH, paintClouds, paintGlow, paintNebula, paintParticle, paintPlanet, paintRidge, paintScanlines, paintShadow, paintSky, paintSkyOrb, paintStars, paintVignette, paintVoid } from './art/scenery.js';
-import { RECIPES, TYPE_RECIPES, frameSize, legendFor, paintFrames, type Anchor, type Recipe } from './art/sprites.js';
+import { RECIPES, frameSize, legendFor, paintFrames, recipeForType, type Anchor, type Recipe } from './art/sprites.js';
 import { paintRegion, prepareLevelArt, settingFor, torchSpots, type Setting } from './art/terrain.js';
 import { toCanvas } from './canvas.js';
 import type { GameController } from './controller.js';
@@ -123,6 +123,8 @@ export class MainScene extends Phaser.Scene {
   private lastGhostTick = -1;
   /** Entity types the game marks as bosses (their bar, their death). */
   private bossTypes = new Set<string>();
+  /** Types drawn as a shipped type (a renamed type keeps its archetype's art, shadow and rotation). */
+  private drawAs = new Map<string, string>();
   private bossTex: Phaser.Textures.CanvasTexture | null = null;
   private bossImg!: Phaser.GameObjects.Image;
   private bossSig = '';
@@ -166,6 +168,7 @@ export class MainScene extends Phaser.Scene {
     this.hudTex = this.textures.createCanvas('gg-hud', w, HUD_H);
     this.hudImg = this.add.image(0, 0, 'gg-hud').setOrigin(0).setScrollFactor(0).setDepth(10_000).setVisible(false);
     this.bossTypes = new Set(this.controller.options.simOptions.entityDefs.filter((d) => d.boss).map((d) => d.type));
+    this.drawAs = new Map(this.controller.options.simOptions.entityDefs.flatMap((d) => (d.drawAs ? [[d.type, d.drawAs] as const] : [])));
     this.bossTex = this.textures.createCanvas('gg-boss', w, BOSS_H);
     this.bossImg = this.add.image(0, h - BOSS_H, 'gg-boss').setOrigin(0).setScrollFactor(0).setDepth(10_000).setVisible(false);
     this.overlayTex = this.textures.createCanvas('gg-overlay', w, h);
@@ -522,7 +525,7 @@ export class MainScene extends Phaser.Scene {
       if (this.setting === 'space') return 'ship';
       return e.w >= 12 ? 'keeper' : 'hero-topdown';
     }
-    return TYPE_RECIPES[e.type] ?? (e.isProjectile ? 'orb' : null);
+    return recipeForType(e.type, this.drawAs.get(e.type)) ?? (e.isProjectile ? 'orb' : null);
   }
 
   private sheetFor(e: Entity): Sheet {
@@ -576,7 +579,7 @@ export class MainScene extends Phaser.Scene {
         const img = this.add.image(0, 0, sheet.key, sheet.anims.values().next().value![0]);
         img.setOrigin(0.5, sheet.anchor === 'feet' ? 1 : 0.5);
         const grounded = !e.isProjectile && (sheet.anchor === 'feet' || e.pickup || e.fsm !== null);
-        const shadow = shadows && grounded && e.type !== 'target' ? this.add.image(0, 0, 'gg-shadow') : null;
+        const shadow = shadows && grounded && (this.drawAs.get(e.type) ?? e.type) !== 'target' ? this.add.image(0, 0, 'gg-shadow') : null;
         const glow = this.fx.bloom && (e.pickup || e.isProjectile) ? this.add.image(0, 0, 'gg-glow').setBlendMode(Phaser.BlendModes.ADD) : null;
         s = { img, shadow, glow, sheet, dir: 'down' };
         this.shown.set(e.id, s);
@@ -595,7 +598,7 @@ export class MainScene extends Phaser.Scene {
       s.img.setScale(e.scaleX, e.scaleY);
       const flips = this.setting === 'side' ? true : s.sheet.directional ? s.dir === 'side' : this.setting !== 'space' && !e.pickup;
       s.img.setFlipX(flips && e.facing < 0);
-      if (e.type === 'arrow') s.img.setRotation(Math.atan2(e.vy, e.vx));
+      if ((this.drawAs.get(e.type) ?? e.type) === 'arrow') s.img.setRotation(Math.atan2(e.vy, e.vx));
       // Invulnerable after a hit: blink. Not while dashing (the dash's own frames are its afterimages).
       const blink = e.isPlayer && e.invulnTicks > 0 && !e.flags['dashing'] && Math.floor(e.invulnTicks / 4) % 2 === 0;
       s.img.setAlpha(blink ? 0.35 : 1);

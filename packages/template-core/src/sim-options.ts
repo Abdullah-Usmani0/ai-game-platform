@@ -13,9 +13,10 @@ export interface SimOptionsInputs {
 
 /**
  * The wiring a scaffolded game's src/game.ts performs, for Node-side tooling (scaffold oracle, playtest, evals):
- * template systems in systems.json order, then bespoke systems, then the feedback binder.
+ * template systems in systems.json order, then bespoke systems, then the feedback binder. The params are systems.json's,
+ * under what the game's composition sets (composedParams).
  */
-export function simOptionsFor(runtime: GenreRuntime, systems: SystemsJson, inputs: SimOptionsInputs = {}): Omit<SimOptions, 'level' | 'seed'> {
+export function simOptionsFor(runtime: GenreRuntime, systems: Pick<SystemsJson, 'feelPreset' | 'systems'>, inputs: SimOptionsInputs = {}): Omit<SimOptions, 'level' | 'seed'> {
   const templateSystems = systems.systems.map((s) => {
     const mod = runtime.systems[s.id];
     if (!mod) throw new Error(`systems.json names unknown system '${s.id}' for genre ${runtime.id}`);
@@ -30,7 +31,7 @@ export function simOptionsFor(runtime: GenreRuntime, systems: SystemsJson, input
     player: runtime.player,
     behaviours,
     rules: [...runtime.defaultRules, ...(inputs.rules ?? [])],
-    params: Object.fromEntries(systems.systems.map((s) => [s.id, s.params])),
+    params: Object.fromEntries(systems.systems.map((s) => [s.id, { ...s.params, ...runtime.composedParams?.[s.id] }])),
     content: inputs.content ?? {},
     movementMode: runtime.movementMode,
   };
@@ -41,6 +42,7 @@ export function simOptionsFor(runtime: GenreRuntime, systems: SystemsJson, input
  * catalog's default parameters under the genre's own (paramDefaults). The scaffold, the golden lock and the sweeps use it.
  */
 export function systemsJsonFor(runtime: GenreRuntime, ids: readonly string[] = [...runtime.requiredSystems, ...runtime.optionalSystems]): SystemsJson {
+  if (runtime.id === 'freeform') throw new Error("a freeform game's systems.json names its base genre: it comes from the game's composition");
   return {
     version: 1,
     genre: runtime.id,

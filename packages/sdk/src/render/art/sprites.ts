@@ -383,6 +383,11 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   target: 'target',
 };
 
+/** The recipe an entity type draws with: its own, or that of the shipped type it is drawn as (a renamed type). */
+export function recipeForType(type: string, drawAs?: string): string | undefined {
+  return TYPE_RECIPES[drawAs ?? type];
+}
+
 /** Every frame of a recipe painted and outlined: one pixel of padding on each side for the outline. */
 export function paintFrames(recipe: Recipe, pal: ArtPalette): Array<{ anim: string; frame: number; pc: PixelCanvas }> {
   const legend = legendFor(pal, recipe.tune?.(pal));

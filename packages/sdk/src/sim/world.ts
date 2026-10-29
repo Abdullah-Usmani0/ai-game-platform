@@ -51,6 +51,8 @@ export interface EntityDef {
   tint?: EntityTint;
   /** A boss: the renderer shows its health bar, and melee knockback barely moves it (sets flags.boss). */
   boss?: boolean;
+  /** The shipped type whose art it is drawn with: a type a game renamed (a freeform game's wasp) keeps its archetype's look. */
+  drawAs?: string;
 }
 
 export interface WorldFlags {
