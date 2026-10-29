@@ -1,4 +1,4 @@
-import type { ModelPolicy, PlaySource, RatingTag, ReportInput, ReportKind, ReportResolution, ResolveInput, TestSubmission, TestVerdict, Trajectory } from '@gg/schemas';
+import type { ModelPolicy, PlayEvent, PlaySource, RatingTag, ReportInput, ReportKind, ReportResolution, ResolveInput, TestSubmission, TestVerdict, Trajectory } from '@gg/schemas';
 
 export type JobKind = 'create' | 'edit_parameter' | 'edit_style' | 'edit_behaviour' | 'edit_content' | 'edit_code' | 'remix' | 'republish';
 export type JobStatus = 'queued' | 'running' | 'waiting_assets' | 'needs_human' | 'succeeded' | 'failed' | 'cancelled';
@@ -119,6 +119,36 @@ export interface PlayRow {
   createdAt: string;
 }
 export type NewPlay = Omit<PlayRow, 'id' | 'createdAt'>;
+
+/** A play event as stored: who, which play and version, what and where (see PlayEvent in @gg/schemas). */
+export interface PlayEventRow extends PlayEvent {
+  playId: string;
+  gameId: string;
+  versionId: string;
+  userId: string;
+}
+
+/** Events of one kind in one cell; x and y are cell coordinates, floor(px / cell). */
+export interface HeatCell {
+  x: number;
+  y: number;
+  n: number;
+}
+
+/** One level's heat: how many plays reached it, and where players died, quit, and spent their time. */
+export interface LevelHeat {
+  plays: number;
+  death: HeatCell[];
+  quit: HeatCell[];
+  sample: HeatCell[];
+}
+
+/** Where other players died, lingered and quit, per level of one version; the owner's own plays are left out. */
+export interface Heatmap {
+  versionId: string;
+  cell: number;
+  levels: Record<string, LevelHeat>;
+}
 
 export interface RatingRow {
   gameId: string;
@@ -269,7 +299,10 @@ export interface Store {
 
   // ---- community (phase 3) ----
   /** Record a finished play session. Plays by the owner and from curated, search, test or workspace traffic do not rank. */
-  recordPlay(play: NewPlay): Promise<PlayRow>;
+  /** Records a finished session with its heatmap events (deaths, quit point, position samples; capped by PlayReport). */
+  recordPlay(play: NewPlay, events?: readonly PlayEvent[]): Promise<PlayRow>;
+  /** Per-level heatmap of one version (cell in pixels, usually the tile size). The caller checks the viewer owns the game. */
+  playHeatmap(gameId: string, versionId: string, cell?: number): Promise<Heatmap>;
   /** One rating per player per game; rating again replaces the tag. */
   rateGame(gameId: string, userId: string, rating: { tag: RatingTag; score?: number }): Promise<RatingRow>;
   getRating(gameId: string, userId: string): Promise<RatingRow | null>;

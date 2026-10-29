@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { ModelPolicy, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
-import type { FeedItem, GameRow, GameStats, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
+import { ModelPolicy, PLAY_EVENT_LIMITS, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
+import { checkCell, HEAT_CELL, heatmapFrom, type HeatRow } from './heatmap';
+import type { FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
 
 function snake(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -201,10 +202,26 @@ export class SupabaseStore implements Store {
     };
   }
 
-  async recordPlay(play: NewPlay): Promise<PlayRow> {
+  async recordPlay(play: NewPlay, events: readonly PlayEvent[] = []): Promise<PlayRow> {
+    if (events.length > PLAY_EVENT_LIMITS.total) throw new Error(`a play carries at most ${PLAY_EVENT_LIMITS.total} events`);
     const row = await this.rpcRow<PlayRow>('record_play', { p_user_id: play.userId, p_game_id: play.gameId, p_version_id: play.versionId, p_source: play.source, p_duration_s: play.durationS, p_completed: play.completed, p_levels_completed: play.levelsCompleted, p_deaths: play.deaths });
     if (!row) throw new Error('record_play: no row');
+    if (events.length) {
+      const res = await this.client.rpc('record_play_events', { p_user_id: play.userId, p_play_id: row.id, p_events: events.map((e) => ({ kind: e.kind, level: e.level, x: e.x, y: e.y, t: e.t })) });
+      if (res.error) throw new Error(`record_play_events: ${res.error.message}`);
+    }
     return row;
+  }
+
+  async playHeatmap(gameId: string, versionId: string, cell: number = HEAT_CELL.default): Promise<Heatmap> {
+    checkCell(cell);
+    const game = await this.getGame(gameId);
+    if (!game) throw new Error(`game ${gameId} not found`);
+    // As the owner: play_heatmap serves the owner only (the web route has already checked the viewer is the owner).
+    const res = await this.client.rpc('play_heatmap', { p_user_id: game.ownerId, p_game_id: gameId, p_version_id: versionId, p_cell: cell });
+    if (res.error) throw new Error(`play_heatmap: ${res.error.message}`);
+    const rows = ((res.data ?? []) as Record<string, unknown>[]).map((r) => camel<HeatRow>(r));
+    return heatmapFrom(rows, versionId, cell);
   }
 
   async rateGame(gameId: string, userId: string, rating: { tag: RatingTag; score?: number }): Promise<RatingRow> {

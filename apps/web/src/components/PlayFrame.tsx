@@ -10,11 +10,13 @@ export interface PlayFrameProps {
   seed?: number;
   /** Every validated message from the game (play sessions count deaths and completions from the events). */
   onMessage?: (msg: GameToHost) => void;
+  /** Ask the game for its state this often while it runs and the tab is visible (play sessions sample positions). */
+  sampleStateMs?: number;
 }
 
 type Status = 'loading' | 'hello' | 'ready' | 'error';
 
-export function PlayFrame({ bundleUrl, mode, seed, onMessage }: PlayFrameProps) {
+export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: PlayFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const hostRef = useRef<BridgeHost | null>(null);
   const [status, setStatus] = useState<Status>('loading');
@@ -40,6 +42,7 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage }: PlayFrameProps) 
       limits: { saveBytes: 65536 },
     });
     hostRef.current = host;
+    let sampler: number | undefined;
     const offMsg = host.on((msg: GameToHost) => {
       onMessageRef.current?.(msg);
       switch (msg.type) {
@@ -48,6 +51,12 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage }: PlayFrameProps) 
           return;
         case 'ready':
           setStatus('ready');
+          if (sampleStateMs && sampler === undefined) {
+            host.send({ type: 'request_state' });
+            sampler = window.setInterval(() => {
+              if (document.visibilityState === 'visible') host.send({ type: 'request_state' });
+            }, sampleStateMs);
+          }
           return;
         case 'error':
           setError(msg.message);
@@ -71,11 +80,12 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage }: PlayFrameProps) 
     });
     const detach = host.attach();
     return () => {
+      window.clearInterval(sampler);
       offMsg();
       detach();
       hostRef.current = null;
     };
-  }, [mode, seed, bundleUrl]);
+  }, [mode, seed, bundleUrl, sampleStateMs]);
 
   const send = (msg: Parameters<BridgeHost['send']>[0]) => hostRef.current?.send(msg);
 

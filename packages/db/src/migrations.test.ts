@@ -3,8 +3,9 @@ import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
 import type { PlaySource, RatingTag } from '@gg/schemas';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { heatmapFrom, heatRows, type HeatRow } from './heatmap';
 import { computeStats } from './ranking';
-import type { GameRow, PlayRow, RatingRow } from './types';
+import type { GameRow, PlayEventRow, PlayRow, RatingRow } from './types';
 
 /**
  * Runs the Supabase migrations on an embedded Postgres (PGlite) and exercises the SQL functions: the core job and
@@ -80,6 +81,7 @@ beforeAll(async () => {
   await db.exec(migration('0001_core.sql').replace('create extension if not exists pgcrypto;', ''));
   await db.exec(migration('0003_community.sql'));
   await db.exec(migration('0004_moderation.sql'));
+  await db.exec(migration('0005_play_events.sql'));
   for (const [i, id] of [OWNER, ...PLAYERS, ...TESTERS, MODERATOR, OWNER2, TESTER2].entries()) {
     await db.query('insert into auth.users (id) values ($1)', [id]);
     await db.query('insert into profiles (id, handle) values ($1, $2)', [id, `user_${i}`]);
@@ -355,5 +357,45 @@ describe('moderation migration: unlisting, remixes and privileges', () => {
     }
     expect(await one('select g.title, p.display_name, p.is_moderator from games g join profiles p on p.id = g.owner_id where g.id = $1', [gameId])).toEqual({ title: 'Renamed', display_name: 'Owner', is_moderator: false });
     expect((await one<{ status: string }>(`select status from generation_jobs where game_id = $1`, [gameId])).status).toBe('queued');
+  });
+});
+
+describe('play events migration', () => {
+  it('records one batch of events per play by its player and serves the owner the same heatmap as heatRows', async () => {
+    const { gameId, versionId } = await makeGame('heat-game', { owner: OWNER2 });
+    const ev = (kind: string, level: string, x: number, y: number, t = 1) => ({ kind, level, x, y, t });
+    const sessions: Array<[string, ReturnType<typeof ev>[]]> = [
+      [PLAYERS[0]!, [ev('sample', 'L01', 10, 20), ev('death', 'L01', 33, 47), ev('death', 'L01', 40, 40.5, 2.5), ev('sample', 'L02', 5, 5), ev('quit', 'L02', 7, 9)]],
+      [PLAYERS[1]!, [ev('death', 'L01', 35, 33), ev('death', 'L01', -3, 0), ev('sample', 'L01', 250.75, 31.9)]],
+      [OWNER2, [ev('death', 'L01', 35, 33), ev('sample', 'L03', 0, 0)]],
+    ];
+    const rows: PlayEventRow[] = [];
+    for (const [user, events] of sessions) {
+      const p = await one<{ id: string }>(`select * from record_play($1, $2, $3, 'feed', 60, false, 0, 2)`, [user, gameId, versionId]);
+      expect((await one<{ n: number }>('select record_play_events($1, $2, $3::jsonb) as n', [user, p.id, JSON.stringify(events)])).n).toBe(events.length);
+      for (const e of events) rows.push({ ...e, kind: e.kind as PlayEventRow['kind'], playId: p.id, gameId, versionId, userId: user });
+      await expectError(db.query('select record_play_events($1, $2, $3::jsonb)', [user, p.id, JSON.stringify(events)]), /already has its events/);
+    }
+    const other = await one<{ id: string }>(`select * from record_play($1, $2, $3, 'feed', 10, false, 0, 0)`, [PLAYERS[2], gameId, versionId]);
+    await expectError(db.query(`select record_play_events($1, $2, '[]'::jsonb)`, [PLAYERS[3], other.id]), /play not found/);
+    await expectError(db.query(`select record_play_events($1, $2, '[{"kind":"teleport","level":"L01","x":0,"y":0,"t":0}]'::jsonb)`, [PLAYERS[2], other.id]), /invalid input value for enum/);
+    await expectError(db.query(`select record_play_events($1, $2, '{"kind":"death"}'::jsonb)`, [PLAYERS[2], other.id]), /must be an array/);
+    for (const cell of [16, 7]) {
+      const sql = (await db.query<Record<string, unknown>>('select * from play_heatmap($1, $2, $3, $4)', [OWNER2, gameId, versionId, cell])).rows.map((r) => ({ levelId: r['level_id'], kind: r['kind'], cx: r['cx'], cy: r['cy'], n: r['n'], plays: r['plays'] }) as HeatRow);
+      expect(heatmapFrom(sql, versionId, cell)).toEqual(heatmapFrom(heatRows(rows, { versionId, ownerId: OWNER2, cell }), versionId, cell));
+    }
+    const heat = heatmapFrom((await db.query<Record<string, unknown>>('select * from play_heatmap($1, $2, $3)', [OWNER2, gameId, versionId])).rows.map((r) => ({ levelId: r['level_id'], kind: r['kind'], cx: r['cx'], cy: r['cy'], n: r['n'], plays: r['plays'] }) as HeatRow), versionId, 16);
+    expect(heat.levels['L01']).toEqual({ plays: 2, death: [{ x: 2, y: 2, n: 3 }, { x: -1, y: 0, n: 1 }], quit: [], sample: [{ x: 0, y: 1, n: 1 }, { x: 15, y: 1, n: 1 }] });
+    expect(heat.levels['L03']).toBeUndefined();
+    await expectError(db.query('select * from play_heatmap($1, $2, $3)', [PLAYERS[0], gameId, versionId]), /game not found/);
+    await expectError(db.query('select * from play_heatmap($1, $2, $3, 0)', [OWNER2, gameId, versionId]), /cell must be/);
+    // Row-level security with no policy: a signed-in client sees no positions, not even its own.
+    expect((await one<{ n: number }>('select count(*)::int as n from play_events where game_id = $1', [gameId])).n).toBe(rows.length);
+    try {
+      await asClient(PLAYERS[0]!);
+      expect((await one<{ n: number }>('select count(*)::int as n from play_events where game_id = $1', [gameId])).n).toBe(0);
+    } finally {
+      await asServer();
+    }
   });
 });

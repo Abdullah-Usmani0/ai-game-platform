@@ -184,3 +184,24 @@ describe('FileStore moderation', () => {
     expect(await licensed.store.isModerator('owner')).toBe(false);
   });
 });
+
+describe('FileStore heatmap', () => {
+  const ev = (kind: 'death' | 'quit' | 'sample', level: string, x: number, y: number, t = 1) => ({ kind, level, x, y, t });
+
+  it("counts other players' deaths, quits and samples per level and cell, with the plays that reached each level", async () => {
+    const { store, gameId, versionId } = await storeWithGame();
+    await store.recordPlay({ ...play(versionId, 'p1', 60), gameId }, [ev('sample', 'L01', 10, 20), ev('death', 'L01', 33, 47), ev('death', 'L01', 40, 40), ev('sample', 'L02', 5, 5), ev('quit', 'L02', 7, 9)]);
+    await store.recordPlay({ ...play(versionId, 'p2', 30), gameId }, [ev('death', 'L01', 35, 33), ev('death', 'L01', 100, 0)]);
+    // The owner's own play is left out.
+    await store.recordPlay({ ...play(versionId, 'owner', 30), gameId }, [ev('death', 'L01', 35, 33), ev('sample', 'L03', 0, 0)]);
+    const heat = await store.playHeatmap(gameId, versionId, 16);
+    expect(heat).toMatchObject({ versionId, cell: 16 });
+    expect(Object.keys(heat.levels).sort()).toEqual(['L01', 'L02']);
+    expect(heat.levels['L01']).toEqual({ plays: 2, death: [{ x: 2, y: 2, n: 3 }, { x: 6, y: 0, n: 1 }], quit: [], sample: [{ x: 0, y: 1, n: 1 }] });
+    expect(heat.levels['L02']).toEqual({ plays: 1, death: [], quit: [{ x: 0, y: 0, n: 1 }], sample: [{ x: 0, y: 0, n: 1 }] });
+    expect((await store.playHeatmap(gameId, versionId, 32)).levels['L01']?.death).toEqual([{ x: 1, y: 1, n: 3 }, { x: 3, y: 0, n: 1 }]);
+    expect((await store.playHeatmap(gameId, 'another-version')).levels).toEqual({});
+    await expect(store.playHeatmap(gameId, versionId, 0)).rejects.toThrow(/cell must be/);
+    await expect(store.recordPlay({ ...play(versionId, 'p3', 30), gameId }, Array.from({ length: 602 }, () => ev('sample', 'L01', 0, 0)))).rejects.toThrow(/at most 601/);
+  });
+});

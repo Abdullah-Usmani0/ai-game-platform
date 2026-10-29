@@ -162,7 +162,7 @@ class SimImpl implements Sim {
     this.events.emit(this.tick, 'damage', { target: target.id, hp: target.hp });
     if (target.hp <= 0) {
       target.alive = false;
-      this.events.emit(this.tick, 'death', { entity: target.id, type: target.type, x: target.x, y: target.y });
+      this.events.emit(this.tick, 'death', { entity: target.id, type: target.type, x: target.x, y: target.y, level: this.world.levelId });
       if (target.isPlayer) this.world.deaths++;
     }
   }

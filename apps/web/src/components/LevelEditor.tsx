@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import type { Heatmap, HeatCell } from '@gg/db';
 import type { BehaviourFsm, LevelJson, SystemsJson, TileKind } from '@gg/schemas';
 import type { GenreCheck, LevelCheck } from '@gg/template-core';
 
@@ -151,11 +152,14 @@ export function LevelEditor({
   bundleBase,
   disabled,
   onApply,
+  heatSrc,
 }: {
   genre: string;
   bundleBase: string;
   disabled: boolean;
   onApply: (content: { levels: LevelJson[] }, message: string) => void;
+  /** The owner's heatmap of this version (/api/games/<id>/heatmap?version=<id>); the overlay is offered when set. */
+  heatSrc?: string;
 }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -171,6 +175,9 @@ export function LevelEditor({
   const [checking, setChecking] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const painting = useRef(false);
+  const [heatOn, setHeatOn] = useState(false);
+  const [heat, setHeat] = useState<Heatmap | null>(null);
+  const [heatError, setHeatError] = useState<string | null>(null);
 
   // Load the bundle's content and the genre's check kit (validator + solver, browser-safe).
   useEffect(() => {
@@ -241,6 +248,29 @@ export function LevelEditor({
 
   const cell = draft ? Math.max(4, Math.min(16, Math.floor(640 / draft.width))) : 8;
 
+  // Other players' heat on this version, counted per tile (the heatmap's cell is the level's tile size).
+  const tileSize = draft?.tileSize ?? null;
+  useEffect(() => {
+    if (!heatOn || !heatSrc || !tileSize) return;
+    let cancelled = false;
+    setHeatError(null);
+    fetch(`${heatSrc}${heatSrc.includes('?') ? '&' : '?'}cell=${tileSize}`, { cache: 'no-store' })
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as Heatmap & { error?: string };
+        if (cancelled) return;
+        if (res.ok) setHeat(data);
+        else setHeatError(data.error ?? 'heatmap unavailable');
+      })
+      .catch(() => {
+        if (!cancelled) setHeatError('heatmap unavailable');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [heatOn, heatSrc, tileSize]);
+  const levelHeat = heatOn && draft ? (heat?.levels[draft.id] ?? null) : null;
+  const total = (cells: HeatCell[] | undefined) => (cells ?? []).reduce((n, c) => n + c.n, 0);
+
   // Draw the level: tiles by kind, entities as discs, the hovered cell outlined.
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -275,6 +305,14 @@ export function LevelEditor({
         ctx.stroke();
       }
     }
+    // Time spent: tiles where position samples fall, brighter where players linger (or get stuck).
+    if (levelHeat) {
+      const most = Math.max(1, ...levelHeat.sample.map((c) => c.n));
+      for (const c of levelHeat.sample) {
+        ctx.fillStyle = `rgba(90, 170, 255, ${(0.15 + 0.5 * (c.n / most)).toFixed(3)})`;
+        ctx.fillRect(c.x * cell, c.y * cell, cell, cell);
+      }
+    }
     for (const e of draft.entities) {
       ctx.fillStyle = colorForType(e.type, entityTypes);
       ctx.beginPath();
@@ -294,12 +332,36 @@ export function LevelEditor({
         ctx.fillText(e.type[0]!.toUpperCase(), e.x * cell + cell / 2, e.y * cell + cell / 2 + 1);
       }
     }
+    // Deaths as red discs (area by count) and quit points as purple crosses, over the entities.
+    if (levelHeat) {
+      const most = Math.max(1, ...levelHeat.death.map((c) => c.n));
+      for (const c of levelHeat.death) {
+        ctx.fillStyle = 'rgba(255, 70, 85, 0.8)';
+        ctx.beginPath();
+        ctx.arc(c.x * cell + cell / 2, c.y * cell + cell / 2, Math.max(2, cell * 0.6 * Math.sqrt(c.n / most)), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = '#c77dff';
+      ctx.lineWidth = 2;
+      for (const c of levelHeat.quit) {
+        const x0 = c.x * cell + 2;
+        const y0 = c.y * cell + 2;
+        const x1 = (c.x + 1) * cell - 2;
+        const y1 = (c.y + 1) * cell - 2;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.moveTo(x1, y0);
+        ctx.lineTo(x0, y1);
+        ctx.stroke();
+      }
+    }
     if (hover) {
       ctx.strokeStyle = '#ffd166';
       ctx.lineWidth = 1;
       ctx.strokeRect(hover.x * cell + 0.5, hover.y * cell + 0.5, cell - 1, cell - 1);
     }
-  }, [draft, cell, hover, entityTypes]);
+  }, [draft, cell, hover, entityTypes, levelHeat]);
 
   const mutate = useCallback(
     (fn: (l: LevelJson) => LevelJson) => dispatch({ type: 'edit', fn }),
@@ -431,6 +493,17 @@ export function LevelEditor({
             >
               reset
             </button>
+            {heatSrc ? (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={heatOn}
+                  onChange={(e) => setHeatOn(e.target.checked)}
+                  data-testid="heat-toggle"
+                />{' '}
+                player heatmap
+              </label>
+            ) : null}
           </div>
           <div className="editor-tools" data-testid="editor-tools">
             {KINDS.map((k) => (
@@ -507,6 +580,10 @@ export function LevelEditor({
               data-cell={cell}
               data-spawn={`${draft.spawn.x},${draft.spawn.y}`}
               data-goal={`${draft.goal.x},${draft.goal.y}`}
+              data-heat={heat && heatOn ? 'on' : 'off'}
+              data-heat-deaths={total(levelHeat?.death)}
+              data-heat-quits={total(levelHeat?.quit)}
+              data-heat-samples={total(levelHeat?.sample)}
               onPointerDown={(e) => {
                 if (disabled) return;
                 painting.current = true;
@@ -531,6 +608,17 @@ export function LevelEditor({
             {hover ? ` · at ${hover.x},${hover.y}: ${kindAt(draft, hover.x, hover.y) ?? '?'}` : ''}
             {dirty ? ' · unsaved changes' : ''}
           </p>
+          {heatOn ? (
+            <p className="muted small" data-testid="heat-legend">
+              {heatError
+                ? heatError
+                : !heat
+                  ? 'Loading the heatmap…'
+                  : levelHeat
+                    ? `Other players on this version: ${levelHeat.plays} play(s) reached this level · ${total(levelHeat.death)} death(s) (red) · ${total(levelHeat.quit)} left here unfinished (purple) · time spent (blue, brighter where players linger).`
+                    : 'No other player has reached this level on this version yet.'}
+            </p>
+          ) : null}
           <div className="row">
             <button
               onClick={() => void runCheck()}

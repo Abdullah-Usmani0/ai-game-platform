@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { RatingTag, TestVerdict } from '@gg/schemas';
-import { PlaySession, type SessionStats } from '@/components/PlaySession';
+import { PlaySession, type PlaySessionHandle, type SessionStats } from '@/components/PlaySession';
 
 interface Claim {
   assignment: { id: string; gameId: string; versionId: string; expiresAt: string };
@@ -26,6 +26,7 @@ export function TestDesk() {
   const [busy, setBusy] = useState(false);
   const [credits, setCredits] = useState<number | null>(null);
   const onStats = useCallback((s: SessionStats) => setPlayed(Math.floor(s.activeS)), []);
+  const session = useRef<PlaySessionHandle>(null);
 
   async function claimNext() {
     setError(null);
@@ -46,8 +47,12 @@ export function TestDesk() {
     if (!claim) return;
     setBusy(true);
     setError(null);
-    // The test play is recorded first: the report is only accepted after a 30 s play of this version.
-    await fetch('/api/plays', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ gameId: claim.assignment.gameId, versionId: claim.assignment.versionId, source: 'test', durationS: played, completed: false, levelsCompleted: 0, deaths: 0 }) });
+    // The test play is recorded first (with its heatmap events): the report is only accepted after a 30 s play of this version.
+    if (!(await session.current?.flush())) {
+      setBusy(false);
+      setError('the test play could not be recorded; try again');
+      return;
+    }
     const res = await fetch(`/api/tests/${claim.assignment.id}/submit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ verdict, tag, note }) });
     const data = (await res.json().catch(() => ({}))) as { credits?: number; error?: string; assignment?: { rewardPaid: number } };
     setBusy(false);
@@ -79,7 +84,7 @@ export function TestDesk() {
           <h2>
             Testing: {claim.game?.title ?? claim.assignment.gameId} <span className="muted">({claim.game?.genre}, {claim.queue.rewardCredits} credits)</span>
           </h2>
-          <PlaySession key={claim.assignment.id} gameId={claim.assignment.gameId} versionId={claim.assignment.versionId} bundleUrl={`${claim.bundleBase}/index.html`} source="test" levels={1} onStats={onStats} autoReport={false} />
+          <PlaySession key={claim.assignment.id} gameId={claim.assignment.gameId} versionId={claim.assignment.versionId} bundleUrl={`${claim.bundleBase}/index.html`} source="test" levels={1} onStats={onStats} ref={session} />
           <div className="panel" data-testid="test-report">
             <h2>Report</h2>
             <p className="muted" data-testid="played">

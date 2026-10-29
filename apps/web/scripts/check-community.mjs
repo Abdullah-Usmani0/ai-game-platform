@@ -1,6 +1,7 @@
 // End-to-end check of the community layer against a store holding a finished dry-run game (made by `pnpm demo`):
 // the owner publishes it, a player plays (the session is recorded on pagehide) and rates it, the feed ranks it, the owner
-// asks for a tester, and a tester claims the game, plays 30 s, reports and is paid. Then moderation: three players'
+// asks for a tester, and a tester claims the game, plays 30 s, reports and is paid. The owner's heatmap shows the
+// player's position samples and quit point and two players' deaths, in the API and over the level editor. Then moderation: three players'
 // reports suspend the game and a moderator's dismissals in the queue bring it back; a fan's remix is taken down for ip
 // and the fan gets a strike. Identities are the dev cookie ('moderator' is the file store's moderator).
 import { spawn } from 'node:child_process';
@@ -65,6 +66,22 @@ try {
   await owner.waitForSelector('[data-testid="community"][data-listed="yes"]', { timeout: 15000 });
   result.listed = true;
 
+  // Heat totals per kind, overall and per level of the head, from the owner's heatmap API (the store keeps earlier
+  // runs' plays, so the check compares before and after).
+  const heatTotals = async () => {
+    const heat = (await api(`/api/games/${game.id}/heatmap`, 'local-dev')).json;
+    const t = { levels: Object.keys(heat.levels ?? {}), death: 0, quit: 0, sample: 0, byLevel: {} };
+    for (const [id, lv] of Object.entries(heat.levels ?? {})) {
+      const sum = (k) => lv[k].reduce((n, c) => n + c.n, 0);
+      t.byLevel[id] = { deaths: sum('death'), quits: sum('quit'), samples: sum('sample') };
+      t.death += t.byLevel[id].deaths;
+      t.quit += t.byLevel[id].quits;
+      t.sample += t.byLevel[id].samples;
+    }
+    return t;
+  };
+  const heatBefore = await heatTotals();
+
   // 2. A player opens it from the feed, plays a few seconds, rates it; leaving the page records the session.
   const player = await pageAs('player-a');
   await player.goto(`${url}/`, { waitUntil: 'load', timeout: 30000 });
@@ -81,13 +98,35 @@ try {
     if (!(stats?.players >= 1)) await new Promise((r) => setTimeout(r, 250));
   }
   result.afterPlay = { players: stats?.players, ratings: stats?.ratingCount, fun: stats?.ratings?.fun };
+  const heatAfterPlay = await heatTotals();
+  const level = heatAfterPlay.levels[0];
 
   // 3. Two more players report sessions through the API; the feed ranks the game with their signals.
-  await api('/api/plays', 'player-b', { gameId: game.id, versionId: game.headVersionId, source: 'feed', durationS: 95, completed: true, levelsCompleted: 1, deaths: 2 });
-  await api('/api/plays', 'player-c', { gameId: game.id, versionId: game.headVersionId, source: 'feed', durationS: 40, completed: false, levelsCompleted: 0, deaths: 4 });
+  const death = (x, y, t) => ({ kind: 'death', level, x, y, t });
+  await api('/api/plays', 'player-b', { gameId: game.id, versionId: game.headVersionId, source: 'feed', durationS: 95, completed: true, levelsCompleted: 1, deaths: 2, events: [death(40, 40, 10), death(41, 44, 20)] });
+  await api('/api/plays', 'player-c', { gameId: game.id, versionId: game.headVersionId, source: 'feed', durationS: 40, completed: false, levelsCompleted: 0, deaths: 4, events: [death(40, 40, 5)] });
   const feed = (await api('/api/feed', 'player-a')).json.items ?? [];
   const item = feed.find((f) => f.id === game.id);
   result.feed = { position: feed.findIndex((f) => f.id === game.id), players: item?.stats.players, qualified: item?.stats.qualifiedPlayers, rank: item?.stats.rankScore };
+
+  // 3b. The owner's heatmap: the browser session sent samples and its quit point; the API plays sent three deaths. The
+  //     level editor draws the same counts over the first level; other players do not see it.
+  const heatAfter = await heatTotals();
+  await owner.goto(`${url}/games/${game.id}`, { waitUntil: 'load', timeout: 30000 });
+  await owner.waitForSelector('[data-testid="level-editor"][data-loaded="yes"]', { timeout: 20000 });
+  await owner.click('[data-testid="heat-toggle"]');
+  await owner.waitForSelector('[data-testid="level-canvas"][data-heat="on"]', { timeout: 10000 });
+  const canvasHeat = async (name) => Number(await owner.getAttribute('[data-testid="level-canvas"]', `data-heat-${name}`));
+  result.heat = {
+    level,
+    samples: heatAfterPlay.sample - heatBefore.sample,
+    quits: heatAfterPlay.quit - heatBefore.quit,
+    deaths: heatAfter.death - heatAfterPlay.death,
+    canvas: { deaths: await canvasHeat('deaths'), quits: await canvasHeat('quits'), samples: await canvasHeat('samples') },
+    api: heatAfter.byLevel[await owner.inputValue('[data-testid="level-select"]')] ?? null,
+    legend: await owner.textContent('[data-testid="heat-legend"]'),
+    stranger: (await api(`/api/games/${game.id}/heatmap`, 'player-a')).status,
+  };
 
   // 4. The owner asks for one tester; the tester claims it, plays 30 s, reports and is paid.
   const ask = await api(`/api/games/${game.id}/tests`, 'local-dev', { needed: 1, rewardCredits: 5 });
@@ -167,6 +206,16 @@ try {
     result.afterPlay.fun >= 1 &&
     result.feed.position >= 0 &&
     result.feed.qualified >= 2 &&
+    result.heat.level !== undefined &&
+    result.heat.samples >= 1 &&
+    result.heat.quits === 1 &&
+    result.heat.deaths === 3 &&
+    result.heat.api !== null &&
+    result.heat.canvas.deaths === result.heat.api.deaths &&
+    result.heat.canvas.quits === result.heat.api.quits &&
+    result.heat.canvas.samples === result.heat.api.samples &&
+    /play\(s\) reached this level/.test(result.heat.legend ?? '') &&
+    result.heat.stranger === 403 &&
     result.ask === 201 &&
     result.testerPaid === 5 &&
     result.round.status === 'closed' &&

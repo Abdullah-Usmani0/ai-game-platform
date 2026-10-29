@@ -19,8 +19,9 @@ export async function POST(req: Request): Promise<Response> {
   const version = await store.getVersion(parsed.data.versionId);
   if (!version || version.gameId !== parsed.data.gameId) return Response.json({ error: 'version not found for this game' }, { status: 404 });
   try {
-    const play = await store.recordPlay({ ...parsed.data, userId: await viewerId() });
-    return Response.json({ play }, { status: 201 });
+    const { events, ...play } = parsed.data;
+    const row = await store.recordPlay({ ...play, userId: await viewerId() }, events);
+    return Response.json({ play: row }, { status: 201 });
   } catch (e) {
     return Response.json({ error: errorMessage(e) }, { status: 400 });
   }

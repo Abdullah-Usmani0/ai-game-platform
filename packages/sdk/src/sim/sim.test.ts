@@ -148,6 +148,10 @@ describe('sim', () => {
     sim.run([{ from: 0, to: 120, input: { right: true } }], 120);
     expect(sim.world.deaths).toBeGreaterThanOrEqual(1);
     expect(sim.world.player.alive).toBe(true);
+    // The death names its level and position, for the creator's heatmaps.
+    const death = sim.events.history().find((e) => e.name === 'death');
+    expect(death?.payload).toMatchObject({ type: 'player', level: sim.world.levelId });
+    expect(typeof death?.payload['x']).toBe('number');
   });
 });
 

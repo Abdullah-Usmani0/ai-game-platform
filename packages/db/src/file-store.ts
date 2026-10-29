@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { ModelPolicy, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
+import { ModelPolicy, PLAY_EVENT_LIMITS, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
+import { checkCell, HEAT_CELL, heatmapFrom, heatRows } from './heatmap';
 import { computeStats, feedEligible, headPlaytestPassed, MODERATION, RANKING, testOutcome } from './ranking';
-import type { CreditEntry, FeedItem, GameRow, GameStats, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
+import type { CreditEntry, FeedItem, GameRow, GameStats, Heatmap, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewVersion, PlayEventRow, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, VersionRow } from './types';
 
 interface FileState {
   games: GameRow[];
@@ -14,6 +15,7 @@ interface FileState {
   trajectories: Trajectory[];
   policies: ModelPolicy[];
   plays: PlayRow[];
+  playEvents: PlayEventRow[];
   ratings: RatingRow[];
   testQueue: TestQueueRow[];
   testAssignments: TestAssignmentRow[];
@@ -57,7 +59,7 @@ export class FileStore implements Store {
   constructor(private readonly dir: string) {
     mkdirSync(dir, { recursive: true });
     this.file = join(dir, 'store.json');
-    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], moderators: ['moderator'] };
+    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], playEvents: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], moderators: ['moderator'] };
     this.load();
   }
 
@@ -75,6 +77,7 @@ export class FileStore implements Store {
       trajectories: parsed.trajectories ?? [],
       policies: parsed.policies?.length ? parsed.policies : [DEFAULT_POLICY],
       plays: parsed.plays ?? [],
+      playEvents: parsed.playEvents ?? [],
       ratings: parsed.ratings ?? [],
       testQueue: parsed.testQueue ?? [],
       testAssignments: parsed.testAssignments ?? [],
@@ -326,13 +329,24 @@ export class FileStore implements Store {
 
   // ---------------------------------------------------------------- community
 
-  async recordPlay(play: NewPlay): Promise<PlayRow> {
+  async recordPlay(play: NewPlay, events: readonly PlayEvent[] = []): Promise<PlayRow> {
     this.load();
     if (!this.state.games.some((g) => g.id === play.gameId)) throw new Error(`game ${play.gameId} not found`);
+    if (events.length > PLAY_EVENT_LIMITS.total) throw new Error(`a play carries at most ${PLAY_EVENT_LIMITS.total} events`);
     const row: PlayRow = { ...play, id: randomUUID(), createdAt: new Date().toISOString() };
     this.state.plays.push(row);
+    for (const e of events) this.state.playEvents.push({ kind: e.kind, level: e.level, x: e.x, y: e.y, t: e.t, playId: row.id, gameId: row.gameId, versionId: row.versionId, userId: row.userId });
     this.save();
     return { ...row };
+  }
+
+  async playHeatmap(gameId: string, versionId: string, cell: number = HEAT_CELL.default): Promise<Heatmap> {
+    this.load();
+    const g = this.state.games.find((x) => x.id === gameId);
+    if (!g) throw new Error(`game ${gameId} not found`);
+    checkCell(cell);
+    const events = this.state.playEvents.filter((e) => e.gameId === gameId);
+    return heatmapFrom(heatRows(events, { versionId, ownerId: g.ownerId, cell }), versionId, cell);
   }
 
   async rateGame(gameId: string, userId: string, rating: { tag: RatingTag; score?: number }): Promise<RatingRow> {

@@ -223,7 +223,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
         <CommunityPanel gameId={game.id} hasHead={Boolean(game.headVersionId)} />
         {head?.panels?.length ? <ParamPanel panels={head.panels} disabled={sending || active || !game.headVersionId} onApply={(m) => void submitEdit(m)} /> : null}
         {head?.style ? <StyleEditor style={head.style} disabled={sending || active || !game.headVersionId} onApply={(m) => void submitEdit(m)} /> : null}
-        {head?.bundleBase ? <LevelEditor key={head.id} genre={game.genre} bundleBase={head.bundleBase} disabled={sending || active || !game.headVersionId} onApply={(content, m) => void submitEdit(m, content)} /> : null}
+        {head?.bundleBase ? <LevelEditor key={head.id} genre={game.genre} bundleBase={head.bundleBase} disabled={sending || active || !game.headVersionId} onApply={(content, m) => void submitEdit(m, content)} heatSrc={`/api/games/${game.id}/heatmap?version=${head.id}`} /> : null}
         {gameView ? (
           <div className="panel">
             <h2>Versions</h2>

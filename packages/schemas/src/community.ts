@@ -10,6 +10,29 @@ export const PLAY_SOURCES = ['feed', 'direct', 'remix', 'featured', 'search', 't
 export const PlaySource = z.enum(PLAY_SOURCES);
 export type PlaySource = z.infer<typeof PlaySource>;
 
+/**
+ * Where something happened in a play, for the creator's heatmaps: a player death, the last position before leaving a
+ * game unfinished, or a position sample every few seconds (dense cells are where players linger or get stuck).
+ */
+export const PLAY_EVENT_KINDS = ['death', 'quit', 'sample'] as const;
+export const PlayEventKind = z.enum(PLAY_EVENT_KINDS);
+export type PlayEventKind = z.infer<typeof PlayEventKind>;
+
+/** What one play may carry (a beacon holds at most 64 KB): 20 minutes of samples, 200 deaths and the quit point. */
+export const PLAY_EVENT_LIMITS = { sampleEveryS: 3, samples: 400, deaths: 200, total: 601 } as const;
+
+export const PlayEvent = z.object({
+  kind: PlayEventKind,
+  /** The level id the game reported. */
+  level: z.string().min(1).max(64),
+  /** World position in pixels (the player's top-left corner). */
+  x: z.number().min(-1e6).max(1e6),
+  y: z.number().min(-1e6).max(1e6),
+  /** Seconds of active play when it happened. */
+  t: z.number().min(0).max(4 * 3600),
+});
+export type PlayEvent = z.infer<typeof PlayEvent>;
+
 /** What a play page reports when a session ends (sent with sendBeacon on pagehide). */
 export const PlayReport = z.object({
   gameId: z.string().min(1).max(64),
@@ -19,6 +42,7 @@ export const PlayReport = z.object({
   completed: z.boolean().default(false),
   levelsCompleted: z.int().min(0).max(100).default(0),
   deaths: z.int().min(0).max(100000).default(0),
+  events: z.array(PlayEvent).max(PLAY_EVENT_LIMITS.total).default([]),
 });
 export type PlayReport = z.infer<typeof PlayReport>;
 
