@@ -1,4 +1,4 @@
-import { GddFrontmatter } from '@gg/schemas';
+import { parseAnyGdd } from '@gg/schemas';
 import { err, report, warn, type Issue, type ValidationReport } from './report.js';
 
 const REQUIRED_SECTIONS = ['Concept', 'Pillars', 'Core loop', 'Progression', 'Scope', 'Feedback'];
@@ -31,7 +31,7 @@ export function checkGdd(md: string, scopeBudget?: { levels: number; enemies: nu
   const issues: Issue[] = [];
   const fm = parseFrontmatter(md);
   if (!fm) return report([err('no_frontmatter', 'gdd.md must start with a front matter block')]);
-  const parsed = GddFrontmatter.safeParse(fm.data);
+  const parsed = parseAnyGdd(fm.data);
   if (!parsed.success) {
     for (const i of parsed.error.issues) issues.push(err('frontmatter_invalid', `${i.path.join('.') || '(root)'}: ${i.message}`, { path: i.path.join('.') }));
     return report(issues);

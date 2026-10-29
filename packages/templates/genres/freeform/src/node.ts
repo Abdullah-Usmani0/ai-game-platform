@@ -9,6 +9,7 @@ import { survivors } from '@gg/template-survivors/node';
 import { topdownAction } from '@gg/template-topdown-action/node';
 import { freeformCheck } from './check.js';
 import { compose, IDENTITY_ROSTER } from './compose.js';
+import { SYSTEMS, usableSystems } from './registry.js';
 import { retypeContent, retypeLevel } from './retype.js';
 
 export * from './index.js';
@@ -40,6 +41,25 @@ export function freeformManifest(file: FreeformSystemsJson, roster: EntityRoster
     bots: kit.bots,
     solverBot: kit.solverBot,
     panels,
+    exemplars: [],
+    samples: [],
+  };
+}
+
+/**
+ * A freeform game before its systems are chosen: its base genre's manifest, offering every system that works with the
+ * base's movement (the systems stage chooses among them). The GDD and systems stages work from it.
+ */
+export function freeformDesignManifest(base: CuratedGenre): GenreManifest {
+  const b = BASE_MANIFESTS[base];
+  const usable = usableSystems(base);
+  return {
+    ...b,
+    id: 'freeform',
+    name: `Freeform on ${b.name.toLowerCase()}`,
+    systems: Object.fromEntries(usable.map((id) => [id, { meta: SYSTEMS[id]!.meta, create: SYSTEMS[id]!.create }])),
+    requiredSystems: [],
+    optionalSystems: usable,
     exemplars: [],
     samples: [],
   };

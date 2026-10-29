@@ -15,14 +15,15 @@ export interface LevelCheck {
 
 /**
  * The solvability oracle every level must pass: the genre's static validator under the game's feel preset, then
- * the solver bot over the real sim with the game's systems, behaviours and content. Deterministic (seed 1).
+ * the solver bot over the real sim with the game's systems, behaviours and content, at the seed the level is played
+ * with (level i of a game plays at levelSeed(DEFAULT_SEED, i); the first level's, 1, by default). Deterministic.
  */
 export function checkLevel(
   kit: GenreCheck,
   level: LevelJson,
-  systems: SystemsJson,
+  systems: Pick<SystemsJson, 'feelPreset' | 'systems'>,
   inputs: SimOptionsInputs = {},
-  maxTicks = 90 * 60,
+  opts: { seed?: number; maxTicks?: number } = {},
 ): LevelCheck {
   const feel =
     kit.runtime.feelPresets[systems.feelPreset] ??
@@ -32,9 +33,9 @@ export function checkLevel(
   const policy = kit.bots[kit.solverBot];
   if (!policy) throw new Error(`genre ${kit.runtime.id} has no solver bot '${kit.solverBot}'`);
   const solver = runBot(
-    createSim({ ...simOptionsFor(kit.runtime, systems, inputs), level, seed: 1 }),
+    createSim({ ...simOptionsFor(kit.runtime, systems, inputs), level, seed: opts.seed ?? 1 }),
     policy,
-    maxTicks,
+    opts.maxTicks ?? 90 * 60,
   );
   return { ok: solver.completed, report, solver };
 }

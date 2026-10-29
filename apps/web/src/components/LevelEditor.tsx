@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { Heatmap, HeatCell } from '@gg/db';
-import type { BehaviourFsm, LevelJson, SystemsJson, TileKind } from '@gg/schemas';
+import { EntityRoster, type BehaviourFsm, type LevelJson, type SystemsFile, type TileKind } from '@gg/schemas';
+import { DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import type { GenreCheck, LevelCheck } from '@gg/template-core';
-import { FLAG, PixelCanvas, RECIPES, TYPE_RECIPES, artPalette, paintFrames, paintRegion, prepareLevelArt, settingFor, type Anchor, type ArtPalette, type OutlineMode, type PaletteRoles, type Recipe, type Setting } from '@gg/sdk/art';
+import { FLAG, PixelCanvas, RECIPES, artPalette, paintFrames, paintRegion, prepareLevelArt, recipeForType, settingFor, type Anchor, type ArtPalette, type OutlineMode, type PaletteRoles, type Recipe, type Setting } from '@gg/sdk/art';
 
 /** content/index.json of a published bundle (written by the publisher). */
 interface ContentIndex {
@@ -16,7 +17,7 @@ interface ContentIndex {
 
 interface Loaded {
   levels: LevelJson[];
-  systems: SystemsJson;
+  systems: SystemsFile;
   behaviours: BehaviourFsm[];
   feedback: unknown[];
   content: Record<string, unknown>;
@@ -220,7 +221,7 @@ export function LevelEditor({
           Promise.all(
             index.behaviour.map((f) => fetchJson<BehaviourFsm>(`${bundleBase}/content/${f}`)),
           ),
-          fetchJson<SystemsJson>(`${bundleBase}/design/systems.json`),
+          fetchJson<SystemsFile>(`${bundleBase}/design/systems.json`),
           fetchJson<unknown[]>(`${bundleBase}/design/feedback.json`).catch(() => []),
           Promise.all(
             index.files
@@ -249,11 +250,14 @@ export function LevelEditor({
     };
   }, [bundleBase]);
 
+  // The game's own check kit: its curated genre's, or a freeform game's, composed from its systems and roster.
   useEffect(() => {
+    if (!loaded) return;
     let cancelled = false;
+    const roster = EntityRoster.safeParse(loaded.content['entities']);
     import('@gg/templates/check')
       .then((m) => {
-        if (!cancelled) setKit(m.checkKit(genre));
+        if (!cancelled) setKit(m.kitFor(loaded.systems, { roster: roster.success ? roster.data : null }));
       })
       .catch(() => {
         if (!cancelled) setKit(null);
@@ -261,7 +265,9 @@ export function LevelEditor({
     return () => {
       cancelled = true;
     };
-  }, [genre]);
+  }, [loaded]);
+  // A freeform game is drawn in its base genre's setting.
+  const artGenre = loaded?.systems.genre === 'freeform' ? loaded.systems.composition.base : genre;
 
   const entityTypes = useMemo(() => {
     const types = new Set<string>();
@@ -297,7 +303,7 @@ export function LevelEditor({
     const timer = window.setTimeout(() => {
       try {
         const pal = artPalette(look.palette, look.outline ?? 'dark');
-        const setting = settingFor(genre, movementMode);
+        const setting = settingFor(artGenre, movementMode);
         const map = { width: draft.width, height: draft.height, tileSize: draft.tileSize, kindAt: (x: number, y: number) => kindAt(draft, x, y) ?? 'air' };
         const pc = new PixelCanvas(draft.width * draft.tileSize, draft.height * draft.tileSize);
         paintRegion(prepareLevelArt(pal, setting, map, false), pc, 0, 0);
@@ -307,7 +313,7 @@ export function LevelEditor({
       }
     }, 90);
     return () => window.clearTimeout(timer);
-  }, [draft, look, genre, movementMode]);
+  }, [draft, look, artGenre, movementMode]);
   // First frame of each entity type's sprite (and the player's, and the side-view goal flag), in the game's palette.
   const sprites = useMemo(() => {
     const map = new Map<string, { image: HTMLCanvasElement; anchor: Anchor }>();
@@ -316,7 +322,9 @@ export function LevelEditor({
       const frame = recipe ? paintFrames(recipe, art.pal)[0] : undefined;
       if (recipe && frame) map.set(key, { image: canvasOf(frame.pc), anchor: recipe.anchor });
     };
-    for (const t of entityTypes) add(t, RECIPES[TYPE_RECIPES[t] ?? '']);
+    // A renamed type (a freeform game's) is drawn as the shipped type it is.
+    const drawAs = new Map((kit?.runtime.entityDefs ?? []).flatMap((d) => (d.drawAs ? [[d.type, d.drawAs] as const] : [])));
+    for (const t of entityTypes) add(t, RECIPES[recipeForType(t, drawAs.get(t)) ?? '']);
     const playerW = kit?.runtime.player.w ?? 8;
     add('@player', RECIPES[art.setting === 'side' ? 'hero-side' : art.setting === 'space' ? 'ship' : playerW >= 12 ? 'keeper' : 'hero-topdown']);
     if (art.setting === 'side') add('@goal', FLAG);
@@ -524,13 +532,23 @@ export function LevelEditor({
     await new Promise((r) => setTimeout(r, 0));
     try {
       const { checkLevel } = await import('@gg/templates/check');
+      // A freeform game's solver replays recorded proofs, which an edited level no longer has: the page runs the
+      // validator, and the worker proves the level when it is applied.
+      const feel = kit.runtime.feelPresets[loaded.systems.feelPreset] ?? kit.runtime.feelPresets[kit.runtime.defaultFeel]!;
+      const report = kit.validate(level, feel);
       setChecked({
         level,
-        result: checkLevel(kit, level, loaded.systems, {
-          behaviours: loaded.behaviours,
-          content: loaded.content,
-          feedback: loaded.feedback as never,
-        }),
+        result:
+          kit.solverBot === 'proof'
+            ? { ok: report.ok, report, solver: null }
+            : checkLevel(
+                kit,
+                level,
+                loaded.systems,
+                { behaviours: loaded.behaviours, content: loaded.content, feedback: loaded.feedback as never },
+                // At the seed the game plays this level with.
+                { seed: levelSeed(DEFAULT_SEED, Math.max(0, loaded.levels.findIndex((l) => l.id === level.id))) },
+              ),
       });
     } catch (e) {
       setChecked({
@@ -756,7 +774,9 @@ export function LevelEditor({
             <div className="report" data-testid="level-report" data-ok={check.ok ? 'yes' : 'no'}>
               <p className={check.ok ? 'ok' : 'err'}>
                 {check.ok
-                  ? `passes: validator ok, ${kit?.solverBot ?? 'solver'} bot finishes in ${Math.round((check.solver?.ticks ?? 0) / 60)} s with ${check.solver?.deaths ?? 0} death(s)`
+                  ? check.solver
+                    ? `passes: validator ok, ${kit?.solverBot ?? 'solver'} bot finishes in ${Math.round(check.solver.ticks / 60)} s with ${check.solver.deaths} death(s)`
+                    : 'passes the validator; the worker proves it can be finished when you apply it'
                   : check.solver
                     ? `the ${kit?.solverBot ?? 'solver'} bot could not finish (${check.solver.deaths} death(s), longest stall ${Math.round(check.solver.stuckMaxTicks / 60)} s)`
                     : 'rejected by the validator'}

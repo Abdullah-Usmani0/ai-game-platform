@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { AnyGddFrontmatter, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, EntityRoster, FreeformGddFrontmatter, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, Objectives, PLAYABLE_GENRES, SystemsFile, SystemsJson, toJsonSchema } from './index';
+import { AnyGddFrontmatter, parseAnyGdd, parseSystemsFile, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, EntityRoster, FreeformGddFrontmatter, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, Objectives, PLAYABLE_GENRES, SystemsFile, SystemsJson, toJsonSchema } from './index';
 
 describe('LevelJson', () => {
   const base = {
@@ -149,6 +149,12 @@ describe('freeform', () => {
     expect(SystemsFile.safeParse(systems).success).toBe(false);
     expect(SystemsFile.parse({ ...systems, genre: 'survivors' }).genre).toBe('survivors');
     expect(CURATED_GENRES).not.toContain('freeform');
+    // Parsed by genre: a curated file fails with the curated schema's own issues, a freeform one needs its base.
+    expect(parseSystemsFile({ ...systems, composition: { base: 'survivors' } }).success).toBe(true);
+    expect(parseSystemsFile(systems).error?.issues.map((i) => i.path.join('.'))).toEqual(['composition']);
+    expect(parseSystemsFile({ ...systems, genre: 'survivors', feelPreset: 'A' }).error?.issues.map((i) => i.path.join('.'))).toEqual(['feelPreset']);
+    expect(parseAnyGdd({ ...gdd, genre: 'freeform' }).error?.issues.map((i) => i.path.join('.'))).toEqual(['base']);
+    expect(parseAnyGdd(gdd).success).toBe(true);
   });
 
   it("a roster renames shipped entities, each archetype once, and bounds what it tunes", () => {

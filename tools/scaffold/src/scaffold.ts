@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import { GddFrontmatter, type LevelJson, type StyleCard, type SystemsJson } from '@gg/schemas';
+import { GddFrontmatter, type LevelJson, type StyleCard, type SystemsFile, type SystemsJson } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
 import { type GenreManifest, type LevelGenParams, levelPlan, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { CATALOG, genre as genreOf } from '@gg/templates/node';
@@ -13,7 +13,7 @@ export interface ScaffoldOptions {
   genre: string;
   gameId: string;
   title: string;
-  systems: SystemsJson;
+  systems: SystemsFile;
   style: StyleCard;
   gddMarkdown: string;
   /** Number of generated levels (platformer) when no content is supplied; survivors always gets one arena. */

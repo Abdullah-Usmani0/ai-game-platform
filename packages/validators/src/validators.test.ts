@@ -1,4 +1,4 @@
-import type { BehaviourFsm, GameEventRecord, LevelJson, SystemsJson } from '@gg/schemas';
+import type { BehaviourFsm, FreeformSystemsJson, GameEventRecord, LevelJson, SystemsJson } from '@gg/schemas';
 import { CELESTE_CLASS } from '@gg/sdk';
 import { describe, expect, it } from 'vitest';
 import { validateBehaviour } from './behaviour.js';
@@ -137,6 +137,15 @@ describe('checkSystems and impact', () => {
     expect(codes).toContain('unknown_system');
     expect(codes).toContain('required_system_missing');
     expect(codes).toContain('feedback_unbound');
+  });
+  it("takes a freeform game's systems from every genre, still checking each one", () => {
+    const melee = { id: 'melee', genres: ['topdown-action'], required: true, summary: 'x', params: { range: { type: 'number' as const, min: 8, max: 40, default: 14, affects: 'levels' as const } }, emits: [], feedbackFor: [] };
+    const mixed: FreeformSystemsJson = { version: 1, genre: 'freeform', composition: { base: 'platformer' }, feelPreset: 'celeste-class', systems: [{ id: 'pickups', params: {} }, { id: 'melee', params: { range: 20 } }] };
+    // No wrong-genre system, no required one missing: the composition rules decide what belongs together.
+    expect(checkSystems(mixed, { ...catalog, melee }).issues).toEqual([]);
+    expect(checkSystems({ ...mixed, systems: [{ id: 'melee', params: { range: 99 } }, { id: 'nope', params: {} }] }, { ...catalog, melee }).issues.map((i) => i.code).sort()).toEqual(['param_range', 'unknown_system']);
+    // The same systems in a curated platformer: a top-down system, and the platformer's own movement missing.
+    expect(checkSystems({ ...base, systems: mixed.systems }, { ...catalog, melee }).issues.map((i) => i.code).sort()).toEqual(['required_system_missing', 'system_wrong_genre']);
   });
   it('reports what a change invalidates', () => {
     const after: SystemsJson = { ...base, systems: [{ id: 'movement-platformer', params: { maxRun: 120 } }, { id: 'pickups', params: { value: 2 } }] };

@@ -3,11 +3,11 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { join } from 'node:path';
 import { blockedTermsFor, resolveReferences, sanitize, styleFromReferences } from '@gg/catalog';
 import { costUsd, generateArtifact, providerFor, type GenerateResult, type Usage } from '@gg/llm';
-import { BundleManifest, GddFrontmatter, LevelJson, StyleCard, SystemsJson, type BehaviourFsm } from '@gg/schemas';
-import { createSim, type FeedbackBinding } from '@gg/sdk';
+import { BundleManifest, LevelJson, parseAnyGdd, parseSystemsFile, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type GddFrontmatter, type SystemsFile, type SystemsJson } from '@gg/schemas';
+import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding } from '@gg/sdk';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from '@gg/scaffold';
 import { checkLevel, levelPlan, plannedLevelCount, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
-import { CATALOG, genre as genreOf } from '@gg/templates/node';
+import { CATALOG, catalogFor, genre as genreOf, resolveGame } from '@gg/templates/node';
 import { sfxPresetFor } from '@gg/sdk/art';
 import { checkGdd, checkSystems, impact, parseFrontmatter, silentSfx, validateBehaviour } from '@gg/validators';
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
@@ -27,25 +27,26 @@ const writeJson = (p: string, v: unknown): void => {
   writeFileSync(p, JSON.stringify(v, null, 2) + '\n');
 };
 
-function readGdd(gameDir: string): { md: string; fm: GddFrontmatter } | null {
+function readGdd(gameDir: string): { md: string; fm: AnyGddFrontmatter } | null {
   const p = join(gameDir, 'design', 'gdd.md');
   if (!existsSync(p)) return null;
   const md = readFileSync(p, 'utf8');
   const fm = parseFrontmatter(md);
-  const parsed = fm ? GddFrontmatter.safeParse(fm.data) : null;
+  const parsed = fm ? parseAnyGdd(fm.data) : null;
   return parsed?.success ? { md, fm: parsed.data } : null;
 }
 
-function readSystems(gameDir: string): SystemsJson | null {
+function readSystems(gameDir: string): SystemsFile | null {
   const p = join(gameDir, 'design', 'systems.json');
-  return existsSync(p) ? SystemsJson.parse(readJson(p)) : null;
+  if (!existsSync(p)) return null;
+  const parsed = parseSystemsFile(readJson(p));
+  if (!parsed.success) throw new Error(`design/systems.json is invalid: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+  return parsed.data;
 }
 
-/** The genre of the job: from the create request, else from the game's own design files. */
+/** The game of the job: its curated genre, or its freeform composition; from its design files, else the create request. */
 export function genreOfGame(ctx: Pick<StageContext, 'request' | 'gameDir'>): GenreManifest {
-  const id = ctx.request?.genre ?? readSystems(ctx.gameDir)?.genre ?? readGdd(ctx.gameDir)?.fm.genre;
-  if (!id) throw new Error('cannot determine the genre: no request, systems.json or gdd.md');
-  return genreOf(id);
+  return resolveGame(ctx.gameDir, ctx.request?.genre);
 }
 
 function listJson(dir: string, suffix = '.json'): string[] {
@@ -536,7 +537,7 @@ const publish: StageFn = async (ctx) => {
   const panels = g.panels.map((spec) => {
     const entry = sys.systems.find((e) => e.id === spec.systemId);
     const current = entry?.params[spec.param];
-    const fallback = CATALOG[spec.systemId]?.params[spec.param]?.default;
+    const fallback = catalogFor(sys)[spec.systemId]?.params[spec.param]?.default;
     return { ...spec, value: typeof current === 'number' ? current : typeof fallback === 'number' ? fallback : spec.min };
   });
   const files = walk(bundleDir);
@@ -569,9 +570,10 @@ const applyParams: StageFn = async (ctx) => {
     if (!entry || !param) return fail(`system '${sysId}' is not selected in this game`, 'semantic_invalid');
     entry.params[param] = value;
   }
-  const check = checkSystems(after, CATALOG);
+  const catalog = catalogFor(after);
+  const check = checkSystems(after, catalog);
   if (!check.ok) return fail(`rejected: ${check.issues.filter((i) => i.severity === 'error').map((i) => i.message).join('; ')}`, 'semantic_invalid');
-  const imp = impact(before, after, CATALOG);
+  const imp = impact(before, after, catalog);
   writeJson(path, after);
   let note = '';
   if (imp.levels) {
@@ -617,7 +619,8 @@ const applyContent: StageFn = async (ctx) => {
   const kit = { runtime: g, validate: g.levelGrammar.validate, bots: g.bots, solverBot: g.solverBot };
   const inputs = { behaviours: behavioursOf(ctx.gameDir), content: extraContentOf(ctx.gameDir), feedback: feedbackOf(ctx.gameDir) };
   const levelsDir = join(ctx.gameDir, 'content', 'levels');
-  const existing = new Map(listJson(levelsDir).map((f) => [readJson<LevelJson>(f).id, f]));
+  const files = listJson(levelsDir);
+  const existing = new Map(files.map((f) => [readJson<LevelJson>(f).id, f]));
   const accepted: Array<{ file: string; level: LevelJson; ticks: number }> = [];
   for (const raw of content.levels) {
     const parsed = LevelJson.safeParse(raw);
@@ -626,7 +629,8 @@ const applyContent: StageFn = async (ctx) => {
     if (!file) return fail(`level '${parsed.data.id}' does not exist in this game (levels: ${[...existing.keys()].join(', ') || 'none'})`, 'semantic_invalid', { durationMs: Date.now() - t0 });
     const prev = readJson<LevelJson>(file);
     const level: LevelJson = { ...parsed.data, ramp: parsed.data.ramp ?? prev.ramp };
-    const check = checkLevel(kit, level, sys, inputs);
+    // Checked at the seed the game plays it with: level i at levelSeed(1, i), as every oracle proves it.
+    const check = checkLevel(kit, level, sys, inputs, { seed: levelSeed(DEFAULT_SEED, files.indexOf(file)) });
     if (!check.report.ok) return fail(`level '${level.id}' rejected: ${check.report.issues.filter((i) => i.severity === 'error').map((i) => i.message).join('; ')}`, 'semantic_invalid', { durationMs: Date.now() - t0 });
     if (!check.solver?.completed) return fail(`the ${g.solverBot} bot could not finish '${level.id}' within 90 s (deaths ${check.solver?.deaths ?? 0}, longest stall ${Math.round((check.solver?.stuckMaxTicks ?? 0) / 60)} s)`, 'semantic_invalid', { durationMs: Date.now() - t0 });
     accepted.push({ file, level, ticks: check.solver.ticks });

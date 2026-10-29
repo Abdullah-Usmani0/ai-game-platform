@@ -7,7 +7,7 @@ import { shmupRuntime } from '@gg/template-shmup';
 import { survivorsRuntime } from '@gg/template-survivors';
 import { topdownActionRuntime } from '@gg/template-topdown-action';
 import { objectives, objectivesMeta, rolesOf, type GenreRuntime, type SystemModule } from '@gg/template-core';
-import type { EntityRole } from '@gg/validators';
+import type { EntityRole, MovementKind, SystemsCatalog } from '@gg/validators';
 
 /** The curated genres' runtimes: every system, entity and behaviour a freeform game can be made of. */
 export const RUNTIMES: Readonly<Record<CuratedGenre, GenreRuntime>> = {
@@ -33,6 +33,27 @@ export const SYSTEMS: Readonly<Record<string, SystemModule & { genres: CuratedGe
   out[objectivesMeta.id] = { meta: objectivesMeta, create: () => objectives, genres: [] };
   return out;
 })();
+
+/** The catalog a freeform game's systems.json is checked against: every system, the shared objectives included. */
+export const FREEFORM_CATALOG: SystemsCatalog = Object.fromEntries(Object.entries(SYSTEMS).map(([id, m]) => [id, m.meta]));
+
+/** How a curated genre's player moves: what its movement system provides. */
+export function movementOf(genre: CuratedGenre): MovementKind {
+  const rt = RUNTIMES[genre];
+  for (const id of rt.requiredSystems) {
+    const kind = rt.systems[id]?.meta.provides?.movement;
+    if (kind) return kind;
+  }
+  throw new Error(`genre ${genre} has no movement system`);
+}
+
+/** The systems a freeform game on a base can use: any that works with the base's movement, and none that moves the player another way. */
+export function usableSystems(base: CuratedGenre): string[] {
+  const kind = movementOf(base);
+  return Object.entries(SYSTEMS)
+    .filter(([, m]) => (m.meta.provides?.movement ?? kind) === kind && (m.meta.requires?.movement ?? [kind]).includes(kind))
+    .map(([id]) => id);
+}
 
 /** A shipped entity of a curated genre, as a freeform game's roster names it: '<genre>:<type>'. */
 export interface Archetype {

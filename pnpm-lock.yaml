@@ -90,6 +90,9 @@ importers:
       '@gg/template-core':
         specifier: workspace:*
         version: link:../packages/template-core
+      '@gg/template-freeform':
+        specifier: workspace:*
+        version: link:../packages/templates/genres/freeform
       '@gg/templates':
         specifier: workspace:*
         version: link:../packages/templates
@@ -420,6 +423,9 @@ importers:
       '@gg/template-core':
         specifier: workspace:*
         version: link:../template-core
+      '@gg/template-freeform':
+        specifier: workspace:*
+        version: link:genres/freeform
       '@gg/template-metroidvania':
         specifier: workspace:*
         version: link:genres/metroidvania

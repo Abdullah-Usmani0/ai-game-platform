@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { ARTIFACT_SCHEMAS, GddFrontmatter, type ArtifactName, type BehaviourFsm, type LevelJson, type SystemsJson } from '@gg/schemas';
+import { ARTIFACT_SCHEMAS, parseAnyGdd, parseSystemsFile, type AnyGddFrontmatter, type ArtifactName, type BehaviourFsm, type LevelJson, type SystemsFile } from '@gg/schemas';
 import { CELESTE_CLASS } from '@gg/sdk';
-import { GENRES } from '@gg/templates/node';
+import { manifestFor, resolveGame } from '@gg/templates/node';
 import type { GenreManifest } from '@gg/template-core';
 import { checkGdd, parseFrontmatter, validateBehaviour, validateLevel, type ValidationReport } from '@gg/validators';
 
@@ -18,7 +18,9 @@ function schemaFor(file: string): ArtifactName | null {
   if (/\/content\/rules\/[^/]+\.eca\.json$/.test(f)) return 'EcaRule';
   if (name === 'waves.json') return 'WaveTable';
   if (name === 'objectives.json') return 'Objectives';
-  if (name === 'systems.json') return 'SystemsJson';
+  if (/\/content\/entities\.json$/.test(f)) return 'EntityRoster';
+  if (/\/content\/proofs\/[^/]+\.json$/.test(f)) return 'LevelProof';
+  if (name === 'systems.json') return 'SystemsFile';
   if (name === 'style.json') return 'StyleCard';
   if (name === 'playtest-report.json') return 'PlaytestReport';
   if (name === 'manifest.json' && /\/dist\//.test(f)) return 'BundleManifest';
@@ -35,28 +37,21 @@ function gameRootOf(file: string): string {
   return dirname(file);
 }
 
-function systemsOf(gameRoot: string): SystemsJson | null {
+function systemsOf(gameRoot: string): SystemsFile | null {
   try {
-    return JSON.parse(readFileSync(join(gameRoot, 'design', 'systems.json'), 'utf8')) as SystemsJson;
+    return JSON.parse(readFileSync(join(gameRoot, 'design', 'systems.json'), 'utf8')) as SystemsFile;
   } catch {
     return null;
   }
 }
 
-function frontmatterOf(gameRoot: string): GddFrontmatter | null {
-  try {
-    const fm = parseFrontmatter(readFileSync(join(gameRoot, 'design', 'gdd.md'), 'utf8'));
-    const parsed = fm ? GddFrontmatter.safeParse(fm.data) : null;
-    return parsed?.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
-
-/** The genre of a game root, from systems.json or the GDD front matter. */
+/** The game of a game root: its curated genre, or its freeform composition (from systems.json, the roster, the GDD). */
 function genreOf(gameRoot: string): GenreManifest | null {
-  const id = systemsOf(gameRoot)?.genre ?? frontmatterOf(gameRoot)?.genre;
-  return id ? (GENRES[id] ?? null) : null;
+  try {
+    return resolveGame(gameRoot);
+  } catch {
+    return null;
+  }
 }
 
 function feelFor(gameRoot: string, g: GenreManifest | null) {
@@ -86,8 +81,10 @@ for (const file of files) {
   if (basename(abs) === 'gdd.md') {
     const md = readFileSync(abs, 'utf8');
     const fm = parseFrontmatter(md);
-    const parsed = fm ? GddFrontmatter.safeParse(fm.data) : null;
-    const budget = parsed?.success ? GENRES[parsed.data.genre]?.scopeBudget[parsed.data.scopeTier] : undefined;
+    const parsed = fm ? parseAnyGdd(fm.data) : null;
+    const gdd: AnyGddFrontmatter | null = parsed?.success ? parsed.data : null;
+    // A freeform game's budget is its base genre's.
+    const budget = gdd ? manifestFor({ gdd }).scopeBudget[gdd.scopeTier] : undefined;
     if (!printReport(file, 'gdd', checkGdd(md, budget))) failed++;
     continue;
   }
@@ -104,7 +101,8 @@ for (const file of files) {
     failed++;
     continue;
   }
-  const result = ARTIFACT_SCHEMAS[name].safeParse(data);
+  // systems.json is parsed by its genre, so a curated file fails with the curated schema's own issues.
+  const result = name === 'SystemsFile' ? parseSystemsFile(data) : ARTIFACT_SCHEMAS[name].safeParse(data);
   if (!result.success) {
     failed++;
     console.error(`${file}: FAILED ${name}`);

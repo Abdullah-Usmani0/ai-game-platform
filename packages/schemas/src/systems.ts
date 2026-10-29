@@ -30,3 +30,8 @@ export type FreeformSystemsJson = z.infer<typeof FreeformSystemsJson>;
 /** Any game's design/systems.json. */
 export const SystemsFile = z.union([FreeformSystemsJson, SystemsJson]);
 export type SystemsFile = z.infer<typeof SystemsFile>;
+
+/** Parses a game's systems.json with the schema its genre calls for, so a curated one fails exactly as it always did. */
+export function parseSystemsFile(data: unknown): z.ZodSafeParseResult<SystemsFile> {
+  return (data as { genre?: unknown } | null)?.genre === 'freeform' ? FreeformSystemsJson.safeParse(data) : SystemsJson.safeParse(data);
+}

@@ -35,3 +35,8 @@ export type FreeformGddFrontmatter = z.infer<typeof FreeformGddFrontmatter>;
 /** Any game's front matter: a freeform game's names its base genre. */
 export const AnyGddFrontmatter = z.union([FreeformGddFrontmatter, GddFrontmatter]);
 export type AnyGddFrontmatter = z.infer<typeof AnyGddFrontmatter>;
+
+/** Parses a game's front matter with the schema its genre calls for, so a curated one fails exactly as it always did. */
+export function parseAnyGdd(data: unknown): z.ZodSafeParseResult<AnyGddFrontmatter> {
+  return (data as { genre?: unknown } | null)?.genre === 'freeform' ? FreeformGddFrontmatter.safeParse(data) : GddFrontmatter.safeParse(data);
+}

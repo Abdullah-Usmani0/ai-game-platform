@@ -1,4 +1,4 @@
-import type { GddFrontmatter, SystemsJson } from '@gg/schemas';
+import type { GddFrontmatter, SystemsFile, SystemsJson } from '@gg/schemas';
 import { err, report, warn, type Issue, type ValidationReport } from './report.js';
 
 export interface CatalogParam {
@@ -86,8 +86,14 @@ export interface CatalogSystem {
 
 export type SystemsCatalog = Record<string, CatalogSystem>;
 
-export function checkSystems(systems: SystemsJson, catalog: SystemsCatalog, gdd?: GddFrontmatter): ValidationReport {
+/**
+ * A systems.json against the catalog: known systems, known parameters in range and of the right type, composed parameters
+ * left alone, every feedback event bindable. A curated game takes its genre's systems, and its required ones; a freeform
+ * game takes systems from every genre's catalog, held together by the composition rules (checkComposition) instead.
+ */
+export function checkSystems(systems: SystemsFile, catalog: SystemsCatalog, gdd?: Pick<GddFrontmatter, 'feedbackEvents'>): ValidationReport {
   const issues: Issue[] = [];
+  const freeform = systems.genre === 'freeform';
   const ids = new Set<string>();
   for (const s of systems.systems) {
     if (ids.has(s.id)) issues.push(err('duplicate_system', `system '${s.id}' listed twice`, { path: s.id }));
@@ -97,7 +103,7 @@ export function checkSystems(systems: SystemsJson, catalog: SystemsCatalog, gdd?
       issues.push(err('unknown_system', `system '${s.id}' is not in the catalog`, { path: s.id }));
       continue;
     }
-    if (cat.genres !== '*' && !cat.genres.includes(systems.genre)) issues.push(err('system_wrong_genre', `system '${s.id}' is not available for genre '${systems.genre}'`, { path: s.id }));
+    if (!freeform && cat.genres !== '*' && !cat.genres.includes(systems.genre)) issues.push(err('system_wrong_genre', `system '${s.id}' is not available for genre '${systems.genre}'`, { path: s.id }));
     for (const [k, v] of Object.entries(s.params)) {
       const p = cat.params[k];
       if (!p) {
@@ -111,7 +117,7 @@ export function checkSystems(systems: SystemsJson, catalog: SystemsCatalog, gdd?
     }
   }
   for (const [id, cat] of Object.entries(catalog)) {
-    if (cat.required && (cat.genres === '*' || cat.genres.includes(systems.genre)) && !ids.has(id)) issues.push(err('required_system_missing', `required system '${id}' is missing for genre '${systems.genre}'`, { path: id }));
+    if (!freeform && cat.required && (cat.genres === '*' || cat.genres.includes(systems.genre)) && !ids.has(id)) issues.push(err('required_system_missing', `required system '${id}' is missing for genre '${systems.genre}'`, { path: id }));
   }
   if (gdd) {
     const bindable = new Set(systems.systems.flatMap((s) => catalog[s.id]?.feedbackFor ?? []));
@@ -121,7 +127,7 @@ export function checkSystems(systems: SystemsJson, catalog: SystemsCatalog, gdd?
 }
 
 /** Which downstream artifacts a systems.json change invalidates, by the catalog's `affects` metadata. */
-export function impact(before: SystemsJson, after: SystemsJson, catalog: SystemsCatalog): { levels: boolean; assets: boolean; code: boolean; changed: string[] } {
+export function impact(before: Pick<SystemsJson, 'feelPreset' | 'systems'>, after: Pick<SystemsJson, 'feelPreset' | 'systems'>, catalog: SystemsCatalog): { levels: boolean; assets: boolean; code: boolean; changed: string[] } {
   const changed: string[] = [];
   let levels = false;
   let assets = false;

@@ -3,10 +3,11 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, wri
 import { join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { mergeReports, runSmoke } from '@gg/bots';
-import { GddFrontmatter, LevelJson, StyleCard, SystemsJson, type GateReport, type PlaytestReport } from '@gg/schemas';
-import { CATALOG, GENRES } from '@gg/templates/node';
+import { LevelJson, Objectives, parseAnyGdd, parseSystemsFile, StyleCard, type AnyGddFrontmatter, type GateReport, type PlaytestReport } from '@gg/schemas';
+import { catalogFor, manifestFor, readGameFiles, rolesPresent } from '@gg/templates/node';
+import { checkFreeformObjectives } from '@gg/template-freeform/node';
 import { sfxPresetFor } from '@gg/sdk/art';
-import { checkGdd, checkSystems, juiceLintRuns, parseFrontmatter, silentSfx, validateRamp, type FeedbackTable } from '@gg/validators';
+import { checkComposition, checkGdd, checkSystems, juiceLintRuns, parseFrontmatter, silentSfx, validateRamp, type FeedbackTable, type Issue } from '@gg/validators';
 
 /**
  * `pnpm gate`: the deterministic definition of done for the current stage.
@@ -35,11 +36,11 @@ function run(cmd: string, args: string[], cwd: string): { ok: boolean; out: stri
   return { ok: r.status === 0, out };
 }
 
-function readGdd(): GddFrontmatter | null {
+function readGdd(): AnyGddFrontmatter | null {
   const gddPath = join(gameDir, 'design', 'gdd.md');
   if (!existsSync(gddPath)) return null;
   const fm = parseFrontmatter(readFileSync(gddPath, 'utf8'));
-  const parsed = fm ? GddFrontmatter.safeParse(fm.data) : null;
+  const parsed = fm ? parseAnyGdd(fm.data) : null;
   return parsed?.success ? parsed.data : null;
 }
 
@@ -104,7 +105,8 @@ async function check(name: string): Promise<Check> {
       if (!existsSync(gddPath)) return { name, passed: false, detail: 'design/gdd.md missing' };
       const md = readFileSync(gddPath, 'utf8');
       const fm = readGdd();
-      const budget = fm ? GENRES[fm.genre]?.scopeBudget[fm.scopeTier] : undefined;
+      // A freeform game's budget is its base genre's.
+      const budget = fm ? manifestFor({ gdd: fm }).scopeBudget[fm.scopeTier] : undefined;
       const r = checkGdd(md, budget);
       const issues = [...r.issues, ...(fm ? silentSfx(fm, sfxPresetFor) : [])];
       return { name, passed: issues.every((i) => i.severity !== 'error'), detail: issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
@@ -118,10 +120,24 @@ async function check(name: string): Promise<Check> {
     case 'validate:systems': {
       const p = join(gameDir, 'design', 'systems.json');
       if (!existsSync(p)) return { name, passed: false, detail: 'design/systems.json missing' };
-      const parsed = SystemsJson.safeParse(readJson(p));
+      const parsed = parseSystemsFile(readJson(p));
       if (!parsed.success) return { name, passed: false, detail: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n') };
-      const r = checkSystems(parsed.data, CATALOG, readGdd() ?? undefined);
-      return { name, passed: r.ok, detail: r.issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
+      const issues: Issue[] = [...checkSystems(parsed.data, catalogFor(parsed.data), readGdd() ?? undefined).issues];
+      if (parsed.data.genre === 'freeform') {
+        // A freeform game is held together by the composition rules, over the roster's roles and the content it ships.
+        const files = readGameFiles(gameDir);
+        const m = manifestFor(files);
+        const content = existsSync(join(gameDir, 'content')) ? readdirSync(join(gameDir, 'content')).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')) : [];
+        issues.push(...checkComposition(Object.values(m.systems).map((s) => s.meta), { roles: rolesPresent(m), content }).issues);
+        const objectivesPath = join(gameDir, 'content', 'objectives.json');
+        if (existsSync(objectivesPath) && files.roster) {
+          const o = Objectives.safeParse(readJson(objectivesPath));
+          if (o.success) issues.push(...checkFreeformObjectives(parsed.data, files.roster, o.data).issues);
+          else issues.push(...o.error.issues.map((i) => ({ code: 'objectives_invalid', message: `content/objectives.json ${i.path.join('.')}: ${i.message}`, severity: 'error' as const })));
+        }
+      }
+      const passed = issues.every((i) => i.severity !== 'error');
+      return { name, passed, detail: issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
     }
     case 'validate:ramp': {
       const dir = join(gameDir, 'content', 'levels');
