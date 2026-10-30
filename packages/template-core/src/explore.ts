@@ -1,5 +1,5 @@
 import type { HintStep } from '@gg/schemas';
-import { centerX, centerY, compactScript, emptyInput, Rng, type InputFrame, type InputSegment, type InputState, type Sim, type SimSave } from '@gg/sdk';
+import { centerX, centerY, compactScript, emptyInput, EXTRA_KEYS, Rng, type InputFrame, type InputSegment, type InputState, type Sim, type SimSave } from '@gg/sdk';
 
 /** A step toward the win for the explorer to climb, in order (made from a level's hints by subgoalsFrom). */
 export interface Subgoal {
@@ -168,7 +168,7 @@ type Controls = ReadonlyArray<{ controls?: Partial<Record<string, string>>; take
 
 /**
  * Keys an explorer may press for a set of systems: every key but those a system uses to undo or restart, and those a
- * system takes over (a runner's left and right do nothing).
+ * system takes over (a runner's left and right do nothing), plus guard and item where a system declares them.
  */
 export function explorerKeys(systems: Controls): Array<keyof InputState> {
   const skip = new Set<string>();
@@ -176,7 +176,8 @@ export function explorerKeys(systems: Controls): Array<keyof InputState> {
     for (const [k, v] of Object.entries(s.controls ?? {})) if (v === 'undo' || v === 'restart') skip.add(k);
     for (const k of s.takesOver ?? []) skip.add(k);
   }
-  return DEFAULT_KEYS.filter((k) => !skip.has(k));
+  const extras = EXTRA_KEYS.filter((k) => systems.some((s) => s.controls?.[k]));
+  return [...DEFAULT_KEYS, ...extras].filter((k) => !skip.has(k));
 }
 
 /** Explorer options a game's systems imply from their controls: the keys, and taps for grid steppers. */

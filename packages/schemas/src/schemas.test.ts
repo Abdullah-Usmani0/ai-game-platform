@@ -174,6 +174,8 @@ describe('freeform', () => {
     expect(LevelProof.parse(proof).script).toHaveLength(2);
     expect(LevelProof.safeParse({ ...proof, by: 'guess' }).success).toBe(false);
     expect(LevelProof.safeParse({ ...proof, script: [{ from: 0, to: 10, input: { fly: true } }] }).success).toBe(false);
+    // Guard and item, keys only some games bind, record like the rest.
+    expect(LevelProof.safeParse({ ...proof, script: [{ from: 0, to: 10, input: { guard: true, item: false } }] }).success).toBe(true);
     expect(LevelProof.safeParse({ ...proof, script: [{ from: 10, to: 10, input: {} }] }).success).toBe(false);
     expect(LevelProof.safeParse({ ...proof, ticks: 0 }).success).toBe(false);
   });

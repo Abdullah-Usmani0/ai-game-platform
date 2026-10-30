@@ -26,6 +26,11 @@ export interface Entity extends Body {
   fsm: FsmRuntime | null;
   invulnTicks: number;
   tookDamageTick: number;
+  /**
+   * Asleep: the sim neither moves it nor runs its behaviour (an enemy in a room the player is not in). Set by systems;
+   * absent means awake.
+   */
+  dormant?: boolean;
   /** Visual-only squash/stretch scale, written by systems, read by the renderer. */
   scaleX: number;
   scaleY: number;

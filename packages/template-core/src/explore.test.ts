@@ -90,6 +90,11 @@ describe('explorer options from system metadata', () => {
     expect(explorerOptionsFor([{}, { controls: { action: 'attack' } }])).toEqual({ keys: ['left', 'right', 'up', 'down', 'jump', 'dash', 'action'], taps: false });
   });
 
+  it('presses guard and item only for a game whose systems read them', () => {
+    expect(explorerKeys([{ controls: { action: 'attack' } }])).not.toContain('guard');
+    expect(explorerKeys([{ controls: { action: 'attack', guard: 'parry', item: 'drink a flask' } }])).toEqual(['left', 'right', 'up', 'down', 'jump', 'dash', 'action', 'guard', 'item']);
+  });
+
   it('never presses a key a system takes over: a runner\'s left and right do nothing', () => {
     const runner = [{ controls: { left: 'run', right: 'run', jump: 'jump', dash: 'dash' } }, { controls: {}, takesOver: ['left', 'right'] }];
     expect(explorerKeys(runner)).toEqual(['up', 'down', 'jump', 'dash', 'action']);

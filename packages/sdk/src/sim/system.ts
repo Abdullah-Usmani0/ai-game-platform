@@ -62,6 +62,12 @@ export interface SystemDef<S> {
   fixedUpdate(state: S, input: InputState, ctx: SimCtx): void;
   onEvent?(state: S, ev: GameEventRecord, ctx: SimCtx): void;
   /**
+   * A hit about to land, before it does: return the damage it deals, 0 to stop it (a parry, the i-frames of a dodge)
+   * or less to soften it (a block). Systems with this hook see each hit in turn, each given what the one before let
+   * through; a hit stopped is not a hit (no event, no invulnerability).
+   */
+  onDamage?(state: S, hit: { target: Entity; amount: number; source: Entity | null }, ctx: SimCtx): number;
+  /**
    * How close this system's win condition is, from 0 to 1 (kills of the total, time survived, crates placed). Bots and
    * analytics read it; it never changes the game. The universal explorer bot steers by it.
    */

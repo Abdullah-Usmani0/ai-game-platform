@@ -8,7 +8,7 @@ export const ScriptSegment = z
   .object({
     from: z.int().min(0),
     to: z.int().min(1),
-    input: z.strictObject({ left: Held, right: Held, up: Held, down: Held, jump: Held, dash: Held, action: Held, pause: Held }),
+    input: z.strictObject({ left: Held, right: Held, up: Held, down: Held, jump: Held, dash: Held, action: Held, pause: Held, guard: Held, item: Held }),
   })
   .refine((s) => s.to > s.from, 'a segment holds for at least one tick');
 export type ScriptSegment = z.infer<typeof ScriptSegment>;

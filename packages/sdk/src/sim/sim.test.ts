@@ -1,7 +1,7 @@
 import type { BehaviourFsm, LevelJson } from '@gg/schemas';
 import { describe, expect, it } from 'vitest';
 import { CELESTE_CLASS } from './feel.js';
-import { compactScript, emptyInput, inputAtTick } from './input.js';
+import { compactScript, emptyInput, inputAtTick, inputEquals } from './input.js';
 import { moveBody } from './physics.js';
 import { Rng } from './rng.js';
 import { createSim, goalCloseness, replay, type SimOptions } from './sim.js';
@@ -494,5 +494,80 @@ describe('progress', () => {
       const sim = createSim({ ...options, systems: [mover, defineSystem<null>({ id: `cheat-${name}`, init: () => null, fixedUpdate: () => {}, progress: (_s, ctx) => Number(cheat(ctx)) })] });
       expect(() => sim.progress(), name).toThrow(/progress\(\) only reads the game/);
     }
+  });
+});
+
+describe('hooks for rooms, saves and defence', () => {
+  /** Hits the player for 4 on the first tick. */
+  const hitter = defineSystem<{ done: boolean }>({
+    id: 'hitter',
+    init: () => ({ done: false }),
+    fixedUpdate(s, _input, ctx) {
+      if (s.done) return;
+      s.done = true;
+      ctx.damage(ctx.world.player, 4, null);
+    },
+  });
+  const hpAfterHit = (systems: SimOptions['systems']) => {
+    const sim = createSim({ ...options, player: { w: 6, h: 8, hp: 10 }, systems: [...systems, hitter] });
+    const hits: unknown[] = [];
+    sim.events.on('hit', (ev) => hits.push(ev.payload));
+    sim.step(emptyInput());
+    return { hp: sim.world.player.hp, hits, invuln: sim.world.player.invulnTicks };
+  };
+
+  it('lets systems stop a hit or soften it before it lands, and a hit stopped is no hit at all', () => {
+    const parry = defineSystem<null>({ id: 'parry', init: () => null, fixedUpdate() {}, onDamage: () => 0 });
+    const block = defineSystem<null>({ id: 'block', init: () => null, fixedUpdate() {}, onDamage: (_s, hit) => hit.amount / 2 });
+    expect(hpAfterHit([])).toMatchObject({ hp: 6, hits: [{ amount: 4 }] });
+    expect(hpAfterHit([parry])).toEqual({ hp: 10, hits: [], invuln: 0 });
+    expect(hpAfterHit([block])).toMatchObject({ hp: 8, hits: [{ amount: 2 }] });
+    // In order: a block halves what reaches it, a parry after it still stops the rest.
+    expect(hpAfterHit([block, parry]).hp).toBe(10);
+  });
+
+  it('leaves a dormant entity where it is, behaviour and all, until it wakes', () => {
+    const sim = createSim(options);
+    const walkerEntity = sim.world.entities.find((e) => e.type === 'walker')!;
+    walkerEntity.dormant = true;
+    const x = walkerEntity.x;
+    for (let i = 0; i < 60; i++) sim.step(emptyInput());
+    expect(walkerEntity.x).toBe(x);
+    expect(walkerEntity.fsm!.state).toBe('');
+    walkerEntity.dormant = false;
+    for (let i = 0; i < 60; i++) sim.step(emptyInput());
+    expect(walkerEntity.x).not.toBe(x);
+  });
+
+  it('picks a level up from a save: where the player stood, their props, what is gone and what was opened', () => {
+    const resume = { at: { x: 104, y: 32 }, props: { 'ab:dash': true }, removed: [0], tiles: [[14, 4, 'air']] as Array<[number, number, 'air']> };
+    const sim = createSim({ ...options, carry: { power: 2 }, resume });
+    const p = sim.world.player;
+    expect([p.x, p.y]).toEqual([104, 32]);
+    expect(sim.world.checkpoint).toEqual({ x: 104, y: 32 });
+    expect(p.props).toMatchObject({ power: 2, 'ab:dash': true });
+    expect(sim.world.entities.some((e) => e.type === 'walker')).toBe(false);
+    expect(sim.map.kindAt(14, 4)).toBe('air');
+    // The same save and inputs play the same game; a level without one is as authored.
+    const a = replay({ ...options, resume }, [{ from: 0, to: 200, input: { right: true } }], 200);
+    const b = replay({ ...options, resume }, [{ from: 0, to: 200, input: { right: true } }], 200);
+    expect(a.hash).toBe(b.hash);
+    expect(createSim(options).map.kindAt(14, 4)).toBe('solid');
+  });
+});
+
+describe('keys only some games have', () => {
+  it('read as up when absent, so every script recorded before them still compares and compacts the same', () => {
+    expect(inputEquals(emptyInput(), { ...emptyInput(), guard: false, item: false })).toBe(true);
+    expect(inputEquals(emptyInput(), { ...emptyInput(), guard: true })).toBe(false);
+    const script = compactScript([
+      { from: 0, to: 5, input: { right: true } },
+      { from: 5, to: 9, input: { right: true, guard: false } },
+      { from: 9, to: 12, input: { right: true, guard: true } },
+    ]);
+    expect(script).toEqual([
+      { from: 0, to: 9, input: { right: true } },
+      { from: 9, to: 12, input: { right: true, guard: true } },
+    ]);
   });
 });

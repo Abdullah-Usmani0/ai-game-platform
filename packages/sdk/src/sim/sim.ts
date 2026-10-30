@@ -1,4 +1,4 @@
-import type { BehaviourFsm, EcaRule, GameEventRecord, LevelJson, LevelProof, ParamValue, StateSnapshot } from '@gg/schemas';
+import type { BehaviourFsm, EcaRule, GameEventRecord, LevelJson, LevelProof, ParamValue, StateSnapshot, TileKind } from '@gg/schemas';
 import { EventBus } from './events.js';
 import type { FeelPreset } from './feel.js';
 import { fireRule, stepFsm } from './fsm.js';
@@ -36,6 +36,20 @@ export interface SimOptions {
   carry?: Readonly<Record<string, ParamValue>>;
   /** The systems whose progress hooks count toward progress() (a composed game's win owner); every system's when unset. */
   progressFrom?: readonly string[];
+  /** Pick the level up where a save left it, instead of at its spawn (resting at a save altar reloads the region). */
+  resume?: ProgressSave;
+}
+
+/**
+ * Where a player left a level, as little as picks it up again: where they stood, their props (abilities, flags,
+ * inventory, the map), the level's entities gone for good (picked up, beaten) by their place in its list, and the tiles
+ * changed for good ([x, y, kind]: a door opened, a wall broken). Enemies come back, as they do after a rest.
+ */
+export interface ProgressSave {
+  at: { x: number; y: number };
+  props: Readonly<Record<string, ParamValue>>;
+  removed: readonly number[];
+  tiles: ReadonlyArray<readonly [number, number, TileKind]>;
 }
 
 /** A save point: everything the steps after it depend on, as plain data (see Sim.save). */
@@ -120,9 +134,11 @@ class SimImpl implements Sim {
     const lvl = this.options.level;
     const ts = lvl.tileSize;
     const playerDef: EntityDef = { type: 'player', w: this.options.player.w, h: this.options.player.h, hp: this.options.player.hp };
-    const player = makeEntity(1, playerDef, lvl.spawn.x * ts, lvl.spawn.y * ts + (ts - playerDef.h));
+    const resume = this.options.resume;
+    const player = makeEntity(1, playerDef, resume ? resume.at.x : lvl.spawn.x * ts, resume ? resume.at.y : lvl.spawn.y * ts + (ts - playerDef.h));
     player.isPlayer = true;
-    Object.assign(player.props, this.options.carry ?? {});
+    Object.assign(player.props, this.options.carry ?? {}, resume?.props ?? {});
+    for (const [tx, ty, kind] of resume?.tiles ?? []) this.map.setKind(tx, ty, kind);
     this.world = {
       levelId: lvl.id,
       entities: [player],
@@ -135,9 +151,9 @@ class SimImpl implements Sim {
       checkpoint: { x: player.x, y: player.y },
       menu: null,
     };
-    for (const le of lvl.entities) {
+    for (const [i, le] of lvl.entities.entries()) {
       const def = this.defs.get(le.type);
-      if (!def) continue;
+      if (!def || resume?.removed.includes(i)) continue;
       const e = this.spawn(le.type, le.x * ts, le.y * ts + (ts - def.h));
       Object.assign(e.props, le.props);
     }
@@ -287,6 +303,12 @@ class SimImpl implements Sim {
 
   damage(target: Entity, amount: number, source: Entity | null): void {
     if (!target.alive || target.invulnTicks > 0 || amount <= 0) return;
+    // Systems that parry, dodge or block see the hit first.
+    for (const s of this.options.systems) {
+      if (!s.onDamage) continue;
+      amount = s.onDamage(this.states.get(s.id), { target, amount, source }, this.ctx(s.id));
+      if (amount <= 0) return;
+    }
     target.hp -= amount;
     target.tookDamageTick = this.tick;
     target.invulnTicks = target.isPlayer ? 60 : 0;
@@ -348,7 +370,7 @@ class SimImpl implements Sim {
     const ctx = this.ctx('');
     const feel = this.options.feel;
     for (const e of this.world.entities) {
-      if (!e.alive || e.isPlayer) continue;
+      if (!e.alive || e.isPlayer || e.dormant) continue;
       if (e.fsm) {
         const fsm = this.behaviours.get(e.fsm.id);
         if (fsm) stepFsm(fsm, e, ctx);

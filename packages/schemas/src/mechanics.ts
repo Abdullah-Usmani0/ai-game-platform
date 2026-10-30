@@ -5,7 +5,8 @@ import { GAME_EVENTS } from './events';
 /** An event a bespoke system emits: one from the fixed table, or the game's own as custom:<name>. */
 export const MechanicEvent = z.union([z.enum(GAME_EVENTS), z.string().regex(/^custom:[a-z][a-z0-9_-]{0,31}$/, 'custom:<name>')]);
 
-export const INPUT_KEYS = ['left', 'right', 'up', 'down', 'jump', 'dash', 'action', 'pause'] as const;
+/** The keys a system may read: the eight every game has, then guard and item, which only a game that declares them binds. */
+export const INPUT_KEYS = ['left', 'right', 'up', 'down', 'jump', 'dash', 'action', 'pause', 'guard', 'item'] as const;
 const MOVEMENT = z.enum(['platformer', 'topdown', 'grid']);
 const ROLES = z.enum(['hostile', 'collectible', 'relic', 'key', 'door', 'crate', 'target', 'plot', 'shop', 'bin', 'bed', 'cargo', 'source', 'dropoff']);
 
