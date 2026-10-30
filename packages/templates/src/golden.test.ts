@@ -1,8 +1,8 @@
 /**
  * The golden lock: what every curated genre does today, pinned. Generated levels, every bot's run on them (final hash,
  * ticks, deaths, event counts), the runtime data (entity defs, feel, behaviours, vocab, panels, exemplars, prompts'
- * fragments, system metadata, the content the design stage writes), every sprite's pixels and terrain painting under
- * two palettes, and the sound presets.
+ * fragments, system metadata, the content the design stage writes), every sprite's and every rig's pixels and terrain
+ * painting under two palettes, and the sound presets.
  * Shared code may change freely as long as this stays green; an intended change to a curated game updates the lock in
  * the same commit, with the reason in the message: `GOLDEN_UPDATE=1 pnpm --filter @gg/templates test golden`.
  */
@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { LevelJson } from '@gg/schemas';
 import { createSim, hashValue, Tilemap, type FeelPreset } from '@gg/sdk';
-import { artPalette, paintFrames, paintRegion, prepareLevelArt, PixelCanvas, RECIPES, SETTING_BY_GENRE, SFX_PRESETS, type PaletteRoles } from '@gg/sdk/art';
+import { artPalette, paintFrames, paintRegion, paintRig, prepareLevelArt, PixelCanvas, RECIPES, RIGS, SETTING_BY_GENRE, SFX_PRESETS, type PaletteRoles } from '@gg/sdk/art';
 import { runBot, simOptionsFor, systemsJsonFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import { GENRES } from './node.js';
@@ -120,6 +120,17 @@ describe('golden lock: art and sound', () => {
       }
     }
     check('sprites', golden);
+  });
+
+  it('every rig paints the same pixels, colour and normal map', () => {
+    const golden: Golden = {};
+    for (const [palName, roles] of Object.entries(PALETTES)) {
+      for (const outline of ['dark', 'selective'] as const) {
+        const pal = artPalette(roles, outline);
+        for (const [name, rig] of Object.entries(RIGS)) golden[`${palName}:${outline}:${name}`] = hashValue(paintRig(rig, pal).map((f) => [f.clip, f.frame, pixels(f.color), pixels(f.normal)]));
+      }
+    }
+    check('rigs', golden);
   });
 
   it('terrain paints the same pixels in every setting', () => {

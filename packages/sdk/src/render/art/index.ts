@@ -1,4 +1,4 @@
-/** The art kit: palettes, pixel sprites, the font, terrain, scenery and sound presets. No Phaser and no DOM at import time. */
+/** The art kit: palettes, pixel sprites, rigged characters, the font, terrain, scenery and sound presets. No Phaser and no DOM at import time. */
 export * from './audio.js';
 export * from './color.js';
 export * from './font.js';
@@ -8,3 +8,4 @@ export * from './scenery.js';
 export * from './sprites.js';
 export * from './terrain.js';
 export * from './designs.js';
+export * from './rig/index.js';

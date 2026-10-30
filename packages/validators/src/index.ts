@@ -8,3 +8,4 @@ export * from './juice.js';
 export * from './composition.js';
 export * from './objectives.js';
 export * from './art.js';
+export * from './rig-qa.js';
