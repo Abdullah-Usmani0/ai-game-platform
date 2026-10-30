@@ -48,7 +48,7 @@ const MAX_WAYPOINTS = 11;
  * go: an arena, held where it stands, or a goal no walk reaches. The dry run's answer when a level's hints are asked
  * for, and a fair start for better ones.
  */
-export function suggestHints(level: LevelJson, ctx: { movementMode: 'topdown' | 'platformer'; feel: FeelPreset; every?: number }): LevelHints | null {
+export function suggestHints(level: LevelJson, ctx: { movementMode: 'topdown' | 'platformer'; feel: FeelPreset; every?: number; playerH?: number }): LevelHints | null {
   const { spawn, goal } = level;
   if (Math.abs(goal.x - spawn.x) + Math.abs(goal.y - spawn.y) < 4) return null;
   const map = new Tilemap(level);
@@ -60,7 +60,7 @@ export function suggestHints(level: LevelJson, ctx: { movementMode: 'topdown' | 
     way = path.filter((_, i) => i > 0 && i % every === 0 && i < path.length - 2);
   } else {
     const ts = level.tileSize;
-    const reach = reachableTiles(map, spawn, jumpEnvelope(ctx.feel, ts), Math.max(1, Math.ceil(11 / ts)));
+    const reach = reachableTiles(map, spawn, jumpEnvelope(ctx.feel, ts), Math.max(1, Math.ceil((ctx.playerH ?? 11) / ts)));
     const dir = Math.sign(goal.x - spawn.x) || 1;
     const every = Math.max(ctx.every ?? 8, Math.ceil(Math.abs(goal.x - spawn.x) / (MAX_WAYPOINTS + 1)));
     for (let x = spawn.x + dir * every; dir > 0 ? x < goal.x - 2 : x > goal.x + 2; x += dir * every) {

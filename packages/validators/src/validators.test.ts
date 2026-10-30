@@ -1,5 +1,5 @@
 import type { BehaviourFsm, FreeformSystemsJson, GameEventRecord, LevelJson, SystemsJson } from '@gg/schemas';
-import { CELESTE_CLASS } from '@gg/sdk';
+import { CASTLE_AGILE, CASTLE_WEIGHTY, CELESTE_CLASS, scaleFeel } from '@gg/sdk';
 import { describe, expect, it } from 'vitest';
 import { MIN_WINDUP_MS, validateBehaviour } from './behaviour.js';
 import { checkGdd } from './gdd.js';
@@ -334,3 +334,39 @@ describe('controlsLegend', () => {
   });
 });
 
+
+describe('the castle tier', () => {
+  it('a preset scaled for 16 px tiles reaches exactly as many tiles as the original on 8 px ones', () => {
+    const a = jumpEnvelope(CELESTE_CLASS, 8);
+    const b = jumpEnvelope(scaleFeel(CELESTE_CLASS, 2, 'celeste-16'), 16);
+    expect(b.jumpUpTiles).toBe(a.jumpUpTiles);
+    expect([...b.maxDx]).toEqual([...a.maxDx]);
+  });
+
+  it('jumps about three tiles agile, less weighty', () => {
+    const agile = jumpEnvelope(CASTLE_AGILE, 16).jumpUpTiles;
+    const weighty = jumpEnvelope(CASTLE_WEIGHTY, 16).jumpUpTiles;
+    expect(agile).toBeGreaterThanOrEqual(2.5);
+    expect(agile).toBeLessThanOrEqual(3.5);
+    expect(weighty).toBeLessThan(agile);
+  });
+
+  it('needs headroom for a tall hero: a passage two tiles high lets an 11 px hero through and stops a 42 px one', () => {
+    const level: LevelJson = {
+      version: 1,
+      id: 'low',
+      name: 'low',
+      tileSize: 16,
+      width: 12,
+      height: 6,
+      legend: { '#': 'solid', '.': 'air' },
+      rows: ['############', '#..........#', '#..######..#', '#..........#', '#..........#', '############'],
+      entities: [],
+      spawn: { x: 1, y: 4 },
+      goal: { x: 10, y: 4 },
+    };
+    const codes = (playerH: number) => validateLevel(level, { feel: CASTLE_AGILE, playerH }).issues.map((i) => i.code);
+    expect(codes(11)).not.toContain('goal_unreachable');
+    expect(codes(42)).toContain('goal_unreachable');
+  });
+});

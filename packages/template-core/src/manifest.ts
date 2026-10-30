@@ -98,6 +98,11 @@ export interface GenreRuntime {
   id: CuratedGenre | 'freeform';
   name: string;
   movementMode: 'platformer' | 'topdown';
+  /**
+   * The castle tier (16 px tiles, a hero about 42 px tall, a 480x270 view, its own feel and budgets), where a template
+   * asks for it; absent, the 8 px tier every game has had.
+   */
+  tier?: 'castle';
   systems: Record<string, SystemModule>;
   requiredSystems: string[];
   optionalSystems: string[];

@@ -25,7 +25,19 @@ const harnessDir = resolve(process.cwd());
 const gameDir = resolve(harnessDir, process.env['GG_GAME_DIR'] ?? 'game');
 const reportsDir = join(gameDir, 'reports');
 const stage: StageFile = JSON.parse(readFileSync(join(harnessDir, 'stage.json'), 'utf8'));
-const budgets = JSON.parse(readFileSync(join(harnessDir, 'budgets.json'), 'utf8')) as Record<string, number>;
+const budgetFile = JSON.parse(readFileSync(join(harnessDir, 'budgets.json'), 'utf8')) as Record<string, number> & { tiers?: Record<string, Record<string, number>> };
+
+/** The game's budgets: the defaults, with its tier's own over them where it has a tier (the castle tier's art is larger). */
+function budgetsFor(): Record<string, number> {
+  let tier: string | undefined;
+  try {
+    tier = manifestFor(readGameFiles(gameDir)).tier;
+  } catch {
+    tier = undefined;
+  }
+  const { tiers, ...base } = budgetFile;
+  return { ...base, ...(tier ? tiers?.[tier] : undefined) };
+}
 
 type Check = GateReport['checks'][number];
 
@@ -218,6 +230,7 @@ async function check(name: string): Promise<Check> {
       return { name, passed: failures.length === 0, detail: failures.join('\n') };
     }
     case 'budget': {
+      const budgets = budgetsFor();
       const problems: string[] = [];
       const gameJs = join(gameDir, 'dist', 'game.js');
       if (existsSync(gameJs)) {

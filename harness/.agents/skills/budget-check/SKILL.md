@@ -14,5 +14,7 @@ Defined in `budgets.json` at the harness root and enforced by `pnpm gate` (check
 | `frameMsP95` | 16.7 (x1.5 allowance headless) | `playtest-report.json` bots[0].metrics.frameMsP95 |
 | `heapMb` | 128 | bots[0].metrics.heapMB |
 
+A game on the castle tier (its template says `tier: 'castle'`: 16 px tiles, larger rigged characters, painted backdrops) has its own limits in `budgets.json` under `tiers.castle`, over the defaults: `gameJsKbGzip` 350, `assetsMb` 8, `heapMb` 192.
+
 Fixes in order: remove per-frame allocations in systems, cap entity counts in waves, reduce atlas sizes, split large levels.
 Never raise a budget to pass the gate; budgets change only through the template, not per game.

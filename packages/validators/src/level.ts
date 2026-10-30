@@ -10,6 +10,8 @@ export interface LevelValidationOptions {
   /** Require a hazard-free run of at least this many tiles from the spawn (the "can't-fail first 30 s" rule). */
   safeStartTiles?: number;
   envelope?: Envelope;
+  /** The player's height in px, for the headroom a passage needs (11: the 8 px tiers' hero). */
+  playerH?: number;
 }
 
 interface Node {
@@ -104,7 +106,7 @@ export function validateLevel(level: LevelJson, opts: LevelValidationOptions): V
   const issues: Issue[] = [];
   const map = new Tilemap(level);
   const env = opts.envelope ?? jumpEnvelope(opts.feel, level.tileSize);
-  const tallTiles = Math.max(1, Math.ceil(11 / level.tileSize));
+  const tallTiles = Math.max(1, Math.ceil((opts.playerH ?? 11) / level.tileSize));
   const spawn = { x: level.spawn.x, y: level.spawn.y };
   const goal = { x: level.goal.x, y: level.goal.y };
 

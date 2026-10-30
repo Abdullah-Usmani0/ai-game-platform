@@ -3,5 +3,8 @@
   "assetsMb": 4,
   "readyMs": 2000,
   "frameMsP95": 16.7,
-  "heapMb": 128
+  "heapMb": 128,
+  "tiers": {
+    "castle": { "gameJsKbGzip": 350, "assetsMb": 8, "heapMb": 192 }
+  }
 }
