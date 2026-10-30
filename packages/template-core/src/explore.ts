@@ -1,4 +1,105 @@
-import { compactScript, emptyInput, Rng, type InputFrame, type InputSegment, type InputState, type Sim, type SimSave } from '@gg/sdk';
+import type { HintStep } from '@gg/schemas';
+import { centerX, centerY, compactScript, emptyInput, Rng, type InputFrame, type InputSegment, type InputState, type Sim, type SimSave } from '@gg/sdk';
+
+/** A step toward the win for the explorer to climb, in order (made from a level's hints by subgoalsFrom). */
+export interface Subgoal {
+  /** Whether the step is done at this moment. */
+  done: (sim: Sim) => boolean;
+  /** How close the moment is to it, from 0 to 1 (1 when done). */
+  closeness: (sim: Sim) => number;
+  /** The way toward it from here, a step on each axis (-1, 0 or 1), when it is a place to go. */
+  toward?: (sim: Sim) => { dx: number; dy: number };
+}
+
+/**
+ * A level's hints as the explorer climbs them. A place is done once the player is within r tiles of it by a walk over
+ * open tiles (never through a wall: a way that doubles back would otherwise lure the explorer to the wrong side), and
+ * nearer as that walk shortens, evenly over the leg from the place before it (the spawn, for the first): a tile nearer
+ * counts as much at the leg's start as at its end. A HUD number, or the score, is done at its value and nearer as it
+ * grows.
+ */
+export function subgoalsFrom(steps: readonly HintStep[]): Subgoal[] {
+  return steps.map((step, index): Subgoal => {
+    if (step.kind === 'reach') {
+      // Where the leg to this place starts: the place before it, else the spawn.
+      const before = steps.slice(0, index).reverse().find((s) => s.kind === 'reach');
+      const r = step.r ?? 1;
+      // Tiles of walk from every open tile to the place, kept per map until its tiles change (a door opens).
+      const fields = new WeakMap<object, { version: number; dist: Int32Array }>();
+      const fieldOf = (sim: Sim): Int32Array => {
+        const map = sim.map;
+        const known = fields.get(map);
+        if (known && known.version === map.version) return known.dist;
+        const { width: w, height: h } = map;
+        const dist = new Int32Array(w * h).fill(-1);
+        const open = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && map.kindAt(x, y) !== 'solid';
+        if (open(step.x, step.y)) {
+          dist[step.y * w + step.x] = 0;
+          const queue = [step.y * w + step.x];
+          for (let q = 0; q < queue.length; q++) {
+            const i = queue[q]!;
+            const x = i % w;
+            const y = (i - x) / w;
+            for (const [nx, ny] of [
+              [x + 1, y],
+              [x - 1, y],
+              [x, y + 1],
+              [x, y - 1],
+            ] as const) {
+              if (!open(nx, ny) || dist[ny * w + nx]! >= 0) continue;
+              dist[ny * w + nx] = dist[i]! + 1;
+              queue.push(ny * w + nx);
+            }
+          }
+        }
+        fields.set(map, { version: map.version, dist });
+        return dist;
+      };
+      // The walk from a tile, or the straight line when no walk joins them (a place in a wall, a sealed room).
+      const walkFrom = (sim: Sim, tx: number, ty: number): number => {
+        const d = tx >= 0 && ty >= 0 && tx < sim.map.width && ty < sim.map.height ? fieldOf(sim)[ty * sim.map.width + tx]! : -1;
+        return d >= 0 ? d : Math.hypot(tx - step.x, ty - step.y);
+      };
+      const away = (sim: Sim): number => {
+        const ts = sim.map.tileSize;
+        const p = sim.world.player;
+        return walkFrom(sim, Math.floor(centerX(p) / ts), Math.floor(centerY(p) / ts));
+      };
+      const leg = (sim: Sim): number => {
+        const from = before && before.kind === 'reach' ? before : sim.map.level.spawn;
+        return Math.max(1, walkFrom(sim, from.x, from.y) - r);
+      };
+      // Downhill on the walk: the open neighbour nearest the place, else straight at it.
+      const toward = (sim: Sim): { dx: number; dy: number } => {
+        const ts = sim.map.tileSize;
+        const p = sim.world.player;
+        const tx = Math.floor(centerX(p) / ts);
+        const ty = Math.floor(centerY(p) / ts);
+        let best = { dx: Math.sign(step.x - tx), dy: Math.sign(step.y - ty) };
+        let bestD = walkFrom(sim, tx, ty);
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ] as const) {
+          const nx = tx + dx;
+          const ny = ty + dy;
+          if (nx < 0 || ny < 0 || nx >= sim.map.width || ny >= sim.map.height) continue;
+          const d = fieldOf(sim)[ny * sim.map.width + nx]!;
+          if (d >= 0 && d < bestD) {
+            bestD = d;
+            best = { dx, dy };
+          }
+        }
+        return best;
+      };
+      return { done: (sim) => sim.world.player.alive && away(sim) <= r, closeness: (sim) => Math.max(0, 1 - Math.max(0, away(sim) - r) / leg(sim)), toward };
+    }
+    const value = (sim: Sim) => (step.key === 'score' ? sim.world.score : Number(sim.world.hud[step.key] ?? 0));
+    return { done: (sim) => value(sim) >= step.value, closeness: (sim) => Math.max(0, Math.min(1, value(sim) / Math.max(1e-9, step.value))) };
+  });
+}
 
 export interface ExploreOptions {
   /** Simulated ticks to spend before giving up (default 150 000, about 40 minutes of play). */
@@ -17,6 +118,11 @@ export interface ExploreOptions {
   frontier?: number;
   /** Grid games (a system's directions are 'step'): tap one direction, release, tap again, instead of holding keys. */
   taps?: boolean;
+  /**
+   * Steps toward the win to climb in order (a level's hints). A moment's stage is how many it has done along its way;
+   * the stage is part of where it is, and progress goes stage first. None: the game's own progress alone.
+   */
+  subgoals?: readonly Subgoal[];
 }
 
 export interface ExploreResult {
@@ -29,8 +135,11 @@ export interface ExploreResult {
   explored: number;
   /** Distinct cells reached. */
   cells: number;
-  /** The most progressed moment: the sim's progress (0 to 1), score, HUD and distance from the goal tile (in tiles). */
-  best: { progress: number; score: number; hud: Record<string, number | string>; goalDistance: number };
+  /**
+   * The most progressed moment: the sim's progress (0 to 1), score, HUD, distance from the goal tile (in tiles), where
+   * the player stood (in tiles) and, with subgoals, how many it had done.
+   */
+  best: { progress: number; score: number; hud: Record<string, number | string>; goalDistance: number; at: { x: number; y: number }; stage?: number };
 }
 
 interface Cell {
@@ -45,8 +154,10 @@ interface Cell {
   /** Null once the cell was dropped from the archive (its frames stay, for the scripts of its descendants). */
   save: SimSave | null;
   score: number;
-  /** What the game's own systems say about how close the level is to won (Sim.progress). */
+  /** What the game's own systems say about how close the level is to won (Sim.progress), stage first with subgoals. */
   progress: number;
+  /** Subgoals done in order on the way here. */
+  stage: number;
   chosen: number;
   seen: number;
 }
@@ -136,10 +247,25 @@ export function explore(make: () => Sim, opts: ExploreOptions = {}): ExploreResu
   const platformer = (sim.options.movementMode ?? 'platformer') === 'platformer';
   const cells: Cell[] = [];
   const archive = new Map<string, Cell>();
+  const subgoals = opts.subgoals ?? [];
+  const n = subgoals.length;
+  // Steps done in order from a stage, at this moment (several can fall at once).
+  const climb = (stage: number): number => {
+    let s = stage;
+    while (s < n && subgoals[s]!.done(sim)) s++;
+    return s;
+  };
+  // Stage first, then how near the next step is (with the game's own word on it), then the game's own progress.
+  const progressAt = (stage: number): number => {
+    const game = sim.progress();
+    if (n === 0) return game;
+    return (stage + (stage < n ? 0.7 * subgoals[stage]!.closeness(sim) + 0.3 * game : game)) / (n + 1);
+  };
+  const keyAt = (stage: number): string => (n === 0 ? cellKey(sim, cellPx) : `${cellKey(sim, cellPx)}|s${stage}`);
   // Rarely chosen, rarely seen, and above all closer to winning by the game's own account.
   const weight = (c: Cell): number => (1 / Math.sqrt(1 + c.chosen) + 0.5 / Math.sqrt(1 + c.seen)) * (1 + 8 * c.progress * c.progress);
-  const add = (key: string, parent: number, frames: InputFrame[]): Cell => {
-    const cell: Cell = { id: cells.length, key, live: true, parent, frames, tick: sim.tick, save: sim.save(), score: sim.world.score, progress: sim.progress(), chosen: 0, seen: 0 };
+  const add = (key: string, parent: number, frames: InputFrame[], stage: number): Cell => {
+    const cell: Cell = { id: cells.length, key, live: true, parent, frames, tick: sim.tick, save: sim.save(), score: sim.world.score, progress: progressAt(stage), stage, chosen: 0, seen: 0 };
     const old = archive.get(key);
     if (old) drop(old);
     archive.set(key, cell);
@@ -161,10 +287,24 @@ export function explore(make: () => Sim, opts: ExploreOptions = {}): ExploreResu
     c.save = null;
     liveCount--;
   }
-  add(cellKey(sim, cellPx), -1, []);
+  const start = climb(0);
+  add(keyAt(start), -1, [], start);
 
-  const randomInput = (): InputState => {
+  const randomInput = (stage: number): InputState => {
     const input = emptyInput();
+    const way = stage < n && !sim.world.menu ? subgoals[stage]!.toward?.(sim) : undefined;
+    // Half the time, toward the next step of the hints (a jump now and then in a side view); the rest, at random.
+    if (way && rng.chance(0.5)) {
+      input.right = way.dx > 0;
+      input.left = way.dx < 0;
+      if (platformer) input.jump = way.dy < 0 || rng.chance(0.3);
+      else {
+        input.down = way.dy > 0;
+        input.up = way.dy < 0;
+      }
+      for (const k of Object.keys(input) as Array<keyof InputState>) if (!keys.has(k)) input[k] = false;
+      return input;
+    }
     if (sim.world.menu) {
       // Menus: move the highlight now and then, and pick.
       const r = rng.int(4);
@@ -230,6 +370,7 @@ export function explore(make: () => Sim, opts: ExploreOptions = {}): ExploreResu
     }
     from.chosen++;
     sim.load(from.save!);
+    let stage = from.stage;
     const frames: InputFrame[] = [];
     const length = 15 + rng.int(burstMax);
     let input = emptyInput();
@@ -239,7 +380,7 @@ export function explore(make: () => Sim, opts: ExploreOptions = {}): ExploreResu
       if (hold <= 0) {
         // Taps alternate a short press with a release long enough for one grid step to finish.
         tapped = opts.taps === true && !tapped;
-        input = opts.taps && !tapped ? emptyInput() : randomInput();
+        input = opts.taps && !tapped ? emptyInput() : randomInput(stage);
         hold = opts.taps ? (tapped ? 2 : 6 + rng.int(4)) : 2 + rng.int(sim.world.menu ? 3 : 18);
         frames.push({ tick: sim.tick, input: { ...input } });
       }
@@ -252,15 +393,16 @@ export function explore(make: () => Sim, opts: ExploreOptions = {}): ExploreResu
         const check = make();
         check.run(script, sim.tick);
         const proved = check.world.flags.won;
-        return { completed: proved, script: proved ? script : null, ticks: proved ? sim.tick : -1, explored, cells: archive.size, best: report(sim) };
+        return { completed: proved, script: proved ? script : null, ticks: proved ? sim.tick : -1, explored, cells: archive.size, best: report(sim, stage) };
       }
       if (sim.world.flags.gameOver) break;
-      const key = cellKey(sim, cellPx);
+      stage = climb(stage);
+      const key = keyAt(stage);
       const known = archive.get(key);
-      const progress = sim.progress();
+      const progress = progressAt(stage);
       if (!known || progress > known.progress || (progress === known.progress && (sim.world.score > known.score || (sim.world.score === known.score && sim.tick < known.tick)))) {
         // A burst that goes on from a new cell continues as that cell's child.
-        const cell = add(key, from.id, frames.slice());
+        const cell = add(key, from.id, frames.slice(), stage);
         if (cell.progress > best.progress || (cell.progress === best.progress && cell.score > best.score)) best = cell;
         frames.length = 0;
         frames.push({ tick: sim.tick, input: { ...input } });
@@ -268,10 +410,21 @@ export function explore(make: () => Sim, opts: ExploreOptions = {}): ExploreResu
       } else known.seen++;
     }
   }
+  // The most progressed moment still kept (a better one for the same cell takes the place of the one found first).
+  for (const c of cells) if (c.live && (!best.live || c.progress > best.progress || (c.progress === best.progress && c.score > best.score))) best = c;
   if (best.save) sim.load(best.save);
-  return { completed: false, script: null, ticks: -1, explored, cells: archive.size, best: report(sim) };
+  return { completed: false, script: null, ticks: -1, explored, cells: archive.size, best: report(sim, best.stage) };
 
-  function report(s: Sim): ExploreResult['best'] {
-    return { progress: Math.round(s.progress() * 100) / 100, score: s.world.score, hud: { ...s.world.hud }, goalDistance: Math.round(goalDistance(s) * 10) / 10 };
+  function report(s: Sim, stage?: number): ExploreResult['best'] {
+    const ts = s.map.tileSize;
+    const p = s.world.player;
+    return {
+      progress: Math.round(s.progress() * 100) / 100,
+      score: s.world.score,
+      hud: { ...s.world.hud },
+      goalDistance: Math.round(goalDistance(s) * 10) / 10,
+      at: { x: Math.floor(centerX(p) / ts), y: Math.floor(centerY(p) / ts) },
+      ...(n > 0 && stage !== undefined ? { stage } : {}),
+    };
   }
 }

@@ -19,6 +19,12 @@ For a freeform game, pass `freeform` as the genre: its levels come from its base
 entity names. Its solver is the recorded winning run of each level (`game/content/proofs/<id>.json`): after you change a
 level, its old run no longer proves it, and the worker records a new one (the `prove` check fails while a run that stops
 winning is on file). A level no bot wins waits for a player's winning run, and the game is not listed until then.
+Where the search loses its way (a maze, a long walk round, a goal behind a detour), hints guide it:
+`game/content/hints/<id>.json` (`LevelHints`, checked by `pnpm validate`) lists up to twelve steps in order, each
+`{"kind": "reach", "x": .., "y": .., "r": 1}` (stand within r tiles of a tile) or `{"kind": "hud_at_least", "key": ..,
+"value": ..}` (a HUD number, or the score, at least so much). Put a step at each turn the way takes, not on every tile,
+never inside a wall, and end at the goal. The worker writes them when no bot wins a level and keeps only hints that
+found the win; after an edit that moves the way, hints that no longer find it are dropped with the run.
 A game with `carry` has its stations placed on every level as it is generated (a source and its dropoffs): top-down
 they stand on solid tiles of their own, on open floor away from the spawn and the goal, all within a screen of the spawn,
 with no one-tile squeezes between them; side view they stand on the main path, the source near the start and the dropoffs

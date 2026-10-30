@@ -12,6 +12,7 @@ export { orders, meta as ordersMeta, orderTiming, HURRY_TICKS, ORDER_MAX, ORDER_
 export { courier } from './courier.js';
 export { carryBlock, ordersBlock } from './blocks.js';
 export { checkStations, dressStations, SERVICE_WINDOW, SIDE_REACH, type StationsCtx } from './level/stations.js';
+export { suggestHints } from './level/hints.js';
 export { validateArena, validateWaves } from './level/arena.js';
 export * from './sim-options.js';
 export * from './check.js';

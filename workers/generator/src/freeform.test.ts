@@ -1,10 +1,10 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FileStore, waitingLevels, type Store } from '@gg/db';
 import { registerProvider } from '@gg/llm';
-import { ARTIFACT_SCHEMAS, CreateRequest, CURATED_GENRES, Objectives, SpriteSheet, type BehaviourFsm, type LevelJson } from '@gg/schemas';
+import { ARTIFACT_SCHEMAS, CreateRequest, CURATED_GENRES, LevelJson, Objectives, SpriteSheet, type BehaviourFsm, type LevelHints } from '@gg/schemas';
 import { BASE_MANIFESTS, EXAMPLES, freeformManifest, HEIST, LANTERN, type FreeformExample } from '@gg/template-freeform/node';
 import { checkGameSprites, checkProofs, readGameFiles, readGameLevels } from '@gg/templates/node';
 import { validateBehaviour } from '@gg/validators';
@@ -14,7 +14,7 @@ import { FakeProvider } from './fake-provider.js';
 import { baseSystems, defaultObjectives, draftFreeformFrontmatter, exampleFor, guessBase } from './freeform.js';
 import { createPlan, editPlan } from './plan.js';
 import { loadPresets } from './presets.js';
-import { verifyFreeformGdd, verifyFreeformSystems } from './runners/freeform-stages.js';
+import { hintIssues, hintsFor, verifyFreeformGdd, verifyFreeformSystems } from './runners/freeform-stages.js';
 import type { StageContext } from './runners/types.js';
 import { WorkerRunner } from './runners/worker.js';
 import { restorePlayerRuns, verifyProof } from './verify-proof.js';
@@ -23,6 +23,35 @@ const harness = resolve(fileURLToPath(new URL('../../../harness', import.meta.ur
 const dirs: string[] = [];
 afterAll(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
+});
+
+describe('hints a model writes for a level', () => {
+  const rows = ['########', '#S....G#', '########', '########', '########', '########'];
+  const level = LevelJson.parse({ version: 1, id: 'l01', name: 'L', tileSize: 8, width: 8, height: 6, legend: { '.': 'air', '#': 'solid', S: 'spawn', G: 'goal' }, rows, spawn: { x: 1, y: 1 }, goal: { x: 6, y: 1 } });
+  const hints = (steps: LevelHints['steps']): LevelHints => ({ version: 1, level: 'l01', steps });
+
+  it('are turned down when a place is off the level or inside a wall, or a HUD number is one the game does not keep', () => {
+    expect(hintIssues(hints([{ kind: 'reach', x: 2, y: 1, r: 1 }, { kind: 'hud_at_least', key: 'coins', value: 3 }, { kind: 'hud_at_least', key: 'score', value: 50 }]), level, ['coins'])).toEqual([]);
+    expect(hintIssues(hints([{ kind: 'reach', x: 2, y: 2, r: 1 }, { kind: 'reach', x: 9, y: 1, r: 1 }, { kind: 'hud_at_least', key: 'keys', value: 1 }]), level, ['coins'])).toEqual([
+      'step 1: (2, 2) is inside a wall',
+      'step 2: (9, 1) is off the 8 x 6 level',
+      "step 3: the game keeps no HUD number 'keys' (it keeps coins, and the score)",
+    ]);
+    expect(hintIssues({ ...hints([{ kind: 'reach', x: 2, y: 1, r: 1 }]), level: 'l02' }, level, [])).toEqual(["level must be 'l01'"]);
+  });
+
+  it('stay with their level while they fit it: an edit that walls a step in drops them', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gg-hints-'));
+    try {
+      mkdirSync(join(dir, 'content', 'hints'), { recursive: true });
+      writeFileSync(join(dir, 'content', 'hints', 'l01.json'), JSON.stringify(hints([{ kind: 'reach', x: 3, y: 1, r: 1 }, { kind: 'hud_at_least', key: 'coins', value: 3 }])));
+      expect(hintsFor(dir, level)?.steps).toHaveLength(2);
+      expect(hintsFor(dir, { ...level, rows: ['########', '#S.#..G#', ...rows.slice(2)] })).toBeUndefined();
+      expect(hintsFor(dir, { ...level, id: 'l02' })).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('freeform ideas', () => {

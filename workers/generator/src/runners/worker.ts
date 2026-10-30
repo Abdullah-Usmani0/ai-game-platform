@@ -3,17 +3,17 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { join } from 'node:path';
 import { blockedTermsFor, resolveReferences, sanitize, styleFromReferences } from '@gg/catalog';
 import { costUsd, generateArtifact, providerFor, type GenerateResult, type Usage } from '@gg/llm';
-import { BundleManifest, LevelJson, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type CreateRequest, type GddFrontmatter, type LevelProof, type SystemsJson } from '@gg/schemas';
+import { BundleManifest, LevelJson, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type CreateRequest, type GddFrontmatter, type LevelHints, type LevelProof, type SystemsJson } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from '@gg/scaffold';
-import { checkLevel, EXPERT_SHARE, levelPlan, levelTicksOf, plannedLevelCount, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
+import { checkLevel, EXPERT_SHARE, levelPlan, levelTicksOf, plannedLevelCount, runBot, simOptionsFor, suggestHints, type GenreManifest, type LevelGenParams } from '@gg/template-core';
 import { BASE_MANIFESTS, generatorParams, IDENTITY_ROSTER, idleWins, proveLevel } from '@gg/template-freeform/node';
 import { CATALOG, catalogFor, genre as genreOf, readGameFiles, readGameInputs, readGameLevels, readMechanics, resolveGame } from '@gg/templates/node';
 import { sfxPresetFor } from '@gg/sdk/art';
 import { checkGdd, checkSystems, controlsLegend, impact, mechanicMeta, silentSfx, validateBehaviour, type ValidationReport } from '@gg/validators';
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
 import { designContentOf, writeDesignContent } from './design-content.js';
-import { composition, compositionOf, freeformFrontmatter, freeformSystems, reproveLevels } from './freeform-stages.js';
+import { composition, compositionOf, freeformFrontmatter, freeformSystems, hintLevels, hintsFor, reproveLevels } from './freeform-stages.js';
 import { sprites } from './sprites.js';
 import type { PairDraft, Runner, StageContext, StageOutcome } from './types.js';
 import { add, fail, listJson, ok, readGdd, readJson, readSystems, sumUsage, writeJson, ZERO, type StageFn } from './stage-kit.js';
@@ -249,11 +249,16 @@ const scaffoldStage: StageFn = async (ctx) => {
   return ok(`scaffolded ${result.files.length} files; placeholder levels ${result.levels.join(', ')}`, { durationMs: Date.now() - t0, artifactPath: ctx.gameDir });
 };
 
-/** Re-proves a freeform game's levels after a change to how it plays (worker stage 'prove'; a no-op for curated games). */
+/**
+ * Re-proves a freeform game's levels after a change to how it plays (worker stage 'prove'; a no-op for curated games),
+ * and asks for hints for the levels nothing wins.
+ */
 const prove: StageFn = async (ctx) => {
   const t0 = Date.now();
   const r = reproveLevels(ctx);
-  return r.ok ? ok(r.summary, { durationMs: Date.now() - t0 }) : fail(r.summary, 'semantic_invalid', { durationMs: Date.now() - t0 });
+  if (!r.ok) return fail(r.summary, 'semantic_invalid', { durationMs: Date.now() - t0 });
+  const h = await hintLevels(ctx, r.unproven, r.stuck);
+  return ok(h.summary ? `${r.summary}; ${h.summary}` : r.summary, { durationMs: Date.now() - t0, usage: h.usage, costUsd: h.costUsd, turns: h.turns, pairs: h.pairs });
 };
 
 // ---------------------------------------------------------------- behaviour
@@ -378,6 +383,7 @@ const levels: StageFn = async (ctx) => {
     return { ok: r.completed, ticks: r.ticks };
   };
   const proofsDir = join(ctx.gameDir, 'content', 'proofs');
+  const hintsDir = join(ctx.gameDir, 'content', 'hints');
   const plan = levelPlan(g.levelGrammar.kind, { levels: fm.scope.levels, bosses: fm.scope.bosses, tier: fm.scopeTier });
 
   const written: string[] = [];
@@ -403,16 +409,16 @@ const levels: StageFn = async (ctx) => {
     rmSync(levelsDir, { recursive: true, force: true });
     writeJson(join(levelsDir, 'L01-arena.json'), best.level);
     for (const [key, value] of Object.entries(best.content)) writeJson(join(ctx.gameDir, 'content', `${key}.json`), value);
-    if (freeform) rmSync(proofsDir, { recursive: true, force: true });
+    if (freeform) for (const dir of [proofsDir, hintsDir]) rmSync(dir, { recursive: true, force: true });
     if (best.proof) writeJson(join(proofsDir, `${best.level.id}.json`), best.proof);
     written.push('arena');
   } else {
     const targets = new Set((ctx.route?.targets ?? []).filter((t) => /^l\d{2}$/.test(t)));
     const existing = new Map(listJson(levelsDir).map((f) => [readJson<LevelJson>(f).id, f]));
-    const out: Array<{ file: string; level: LevelJson; proof?: LevelProof }> = [];
+    const out: Array<{ file: string; level: LevelJson; proof?: LevelProof; kept?: boolean }> = [];
     for (const { index: i, id, difficulty, boss, seed: playSeed } of plan) {
       if (targets.size && !targets.has(id) && existing.has(id)) {
-        out.push({ file: `L${String(i + 1).padStart(2, '0')}-${id}.json`, level: readJson<LevelJson>(existing.get(id)!) });
+        out.push({ file: `L${String(i + 1).padStart(2, '0')}-${id}.json`, level: readJson<LevelJson>(existing.get(id)!), kept: true });
         continue;
       }
       let best: { level: LevelJson; dist: number; solved: boolean; proof?: LevelProof } | null = null;
@@ -440,18 +446,28 @@ const levels: StageFn = async (ctx) => {
     for (const o of out) {
       writeJson(join(levelsDir, o.file), o.level);
       if (o.proof) writeJson(join(proofsDir, `${o.level.id}.json`), o.proof);
+      // Hints were the way through the level that stood here before: a new one is given its own.
+      if (!o.kept) rmSync(join(hintsDir, `${o.level.id}.json`), { force: true });
       written.push(o.level.id);
     }
   }
   // Levels kept from before keep their proofs while those still win; a stale one, or one that had none, is tried again
   // with a bigger budget, and a level nothing wins waits for a player's run.
+  // A level nothing wins gets hints, written from it and from where the search got stuck, and is proven again with them.
   let waits = '';
+  let hinted: Awaited<ReturnType<typeof hintLevels>> | null = null;
   if (freeform) {
     const proven = reproveLevels(ctx);
     if (!proven.ok) return fail(proven.summary, 'semantic_invalid', { durationMs: Date.now() - t0 });
-    if (proven.unproven.length) waits = `; waiting for a winning run: ${proven.unproven.join(', ')} (the game is not listed until a player records one)`;
+    hinted = await hintLevels(ctx, proven.unproven, proven.stuck);
+    if (hinted.summary) waits = `; ${hinted.summary}`;
+    if (hinted.unproven.length) waits += `; waiting for a winning run: ${hinted.unproven.join(', ')} (the game is not listed until a player records one)`;
   }
-  return ok(`wrote ${written.length} level(s): ${written.join(', ')} (target ${targetTicks} ticks; ${tried.length} candidates)${waits}`, { durationMs: Date.now() - t0, artifactPath: levelsDir });
+  return ok(`wrote ${written.length} level(s): ${written.join(', ')} (target ${targetTicks} ticks; ${tried.length} candidates)${waits}`, {
+    durationMs: Date.now() - t0,
+    artifactPath: levelsDir,
+    ...(hinted ? { usage: hinted.usage, costUsd: hinted.costUsd, turns: hinted.turns, pairs: hinted.pairs } : {}),
+  });
 };
 
 // ---------------------------------------------------------------- publish
@@ -670,7 +686,7 @@ const applyContent: StageFn = async (ctx) => {
   const levelsDir = join(ctx.gameDir, 'content', 'levels');
   const files = listJson(levelsDir);
   const existing = new Map(files.map((f) => [readJson<LevelJson>(f).id, f]));
-  const accepted: Array<{ file: string; level: LevelJson; ticks: number; proof?: LevelProof }> = [];
+  const accepted: Array<{ file: string; level: LevelJson; ticks: number; proof?: LevelProof; hints?: LevelHints }> = [];
   for (const raw of content.levels) {
     const parsed = LevelJson.safeParse(raw);
     if (!parsed.success) return fail(`level rejected by the schema: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`, 'schema_invalid', { durationMs: Date.now() - t0 });
@@ -682,13 +698,23 @@ const applyContent: StageFn = async (ctx) => {
     const rejected = (r: ValidationReport) => fail(`level '${level.id}' rejected: ${r.issues.filter((i) => i.severity === 'error').map((i) => i.message).join('; ')}`, 'semantic_invalid', { durationMs: Date.now() - t0 });
     if (sys.genre === 'freeform') {
       // A freeform game's solver replays recorded runs, which an authored level has not got: the validator, then a run
-      // that wins it at its seed (the base genre's solver under the base names, else the explorer).
-      const report = g.levelGrammar.validate(level, g.feelPresets[sys.feelPreset] ?? g.feelPresets[g.defaultFeel]!);
+      // that wins it at its seed (the base genre's solver under the base names, a block's bot, else the explorer, on
+      // the level's hints while they still fit it, or on the floor's own walk to the goal when nothing wins without).
+      const feel = g.feelPresets[sys.feelPreset] ?? g.feelPresets[g.defaultFeel]!;
+      const report = g.levelGrammar.validate(level, feel);
       if (!report.ok) return rejected(report);
       const base = BASE_MANIFESTS[sys.composition.base];
-      const proven = proveLevel(level, index, { file: sys, roster: compositionOf(ctx.gameDir).roster, ...inputs, solver: base.bots[base.solverBot], budget: 40_000 });
+      const prove = (hints?: LevelHints) => proveLevel(level, index, { file: sys, roster: compositionOf(ctx.gameDir).roster, ...inputs, solver: base.bots[base.solverBot], budget: 40_000, ...(hints ? { hints } : {}) });
+      let hints = hintsFor(ctx.gameDir, level);
+      let proven = prove(hints);
+      const walk = !proven.proof && !hints ? suggestHints(level, { movementMode: g.movementMode, feel }) : null;
+      if (walk) {
+        const again = prove(walk);
+        if (again.proof) [proven, hints] = [again, walk];
+        else proven = { ...proven, tried: [...proven.tried, again.tried.at(-1)!] };
+      }
       if (!proven.proof) return fail(`no winning run found for '${level.id}': ${proven.tried.join('; ')}`, 'semantic_invalid', { durationMs: Date.now() - t0 });
-      accepted.push({ file, level, ticks: proven.proof.ticks, proof: proven.proof });
+      accepted.push({ file, level, ticks: proven.proof.ticks, proof: proven.proof, ...(hints ? { hints } : {}) });
       continue;
     }
     // Checked at the seed the game plays it with: level i at levelSeed(1, i), as every oracle proves it.
@@ -701,6 +727,10 @@ const applyContent: StageFn = async (ctx) => {
   for (const a of accepted) {
     writeJson(a.file, a.level);
     if (a.proof) writeJson(join(ctx.gameDir, 'content', 'proofs', `${a.level.id}.json`), a.proof);
+    // The level keeps the hints that fit it; hints that no longer do go.
+    const hintsFile = join(ctx.gameDir, 'content', 'hints', `${a.level.id}.json`);
+    if (a.hints) writeJson(hintsFile, a.hints);
+    else if (a.proof) rmSync(hintsFile, { force: true });
   }
   return ok(`applied ${accepted.length} authored level(s): ${accepted.map((a) => `${a.level.id} (${a.proof?.by ?? 'solver'} ${Math.round(a.ticks / 60)} s)`).join(', ')}`, { durationMs: Date.now() - t0, artifactPath: levelsDir });
 };

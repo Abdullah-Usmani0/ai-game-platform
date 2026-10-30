@@ -1,6 +1,6 @@
-import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson, LevelProof, Mechanic } from '@gg/schemas';
+import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelHints, LevelJson, LevelProof, Mechanic } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding, type Sim, type SystemDef } from '@gg/sdk';
-import { afkWins, explore, explorerOptionsFor, levelTicksOf, runBot, scriptFromLog, simOptionsFor, type BotPolicy } from '@gg/template-core';
+import { afkWins, explore, explorerOptionsFor, levelTicksOf, runBot, scriptFromLog, simOptionsFor, subgoalsFrom, type BotPolicy } from '@gg/template-core';
 import { blockBots } from './blocks.js';
 import { compose, type Composed } from './compose.js';
 import { inverse, retypeContent, retypeFsm, retypeLevel, retypeRule, type Rename } from './retype.js';
@@ -20,12 +20,19 @@ export interface ProveInputs {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   bespoke?: SystemDef<any>[];
   mechanics?: readonly Mechanic[];
+  /** The level's hints (content/hints/<level>.json): steps toward the win the explorer climbs in order. */
+  hints?: LevelHints;
 }
 
 export interface Proving {
   proof: LevelProof | null;
   /** What was tried, in order, and how it went. */
   tried: string[];
+  /**
+   * Where the explorer got stuck when nothing won: how far it got by the game's own account (and through the hints'
+   * steps), what the HUD said and where the player stood. What a hint writer starts from.
+   */
+  stuck?: ReturnType<typeof explore>['best'];
 }
 
 /** A fresh sim of a level of the game, at the seed it is played with, and the longest the level lasts. */
@@ -109,7 +116,15 @@ export function proveLevel(level: LevelJson, index: number, inputs: ProveInputs,
     if (wins(script, sim.tick)) return { proof: { version: 1, level: level.id, seed, ticks: sim.tick, by: 'bot', script }, tried: [...tried, `${name}: wins in ${sim.tick} ticks`] };
     tried.push(`${name}: won, but the run does not replay`);
   }
-  const ex = explore(fresh, { budget: inputs.budget, ...explorerOptionsFor([...Object.values(game.runtime.systems).map((m) => m.meta), ...(inputs.mechanics ?? [])]) });
-  if (ex.completed && ex.script) return { proof: { version: 1, level: level.id, seed, ticks: ex.ticks, by: 'explorer', script: ex.script }, tried: [...tried, `explorer: wins in ${ex.ticks} ticks (${ex.explored} explored)`] };
-  return { proof: null, tried: [...tried, `explorer: no win in ${ex.explored} ticks (best progress ${ex.best.progress.toFixed(2)})`] };
+  // With the level's hints the explorer climbs their steps in order; without, the game's own progress guides it alone.
+  const steps = inputs.hints?.steps ?? [];
+  const who = steps.length > 0 ? `explorer with ${steps.length} hints` : 'explorer';
+  const ex = explore(fresh, {
+    budget: inputs.budget,
+    ...explorerOptionsFor([...Object.values(game.runtime.systems).map((m) => m.meta), ...(inputs.mechanics ?? [])]),
+    ...(steps.length > 0 ? { subgoals: subgoalsFrom(steps) } : {}),
+  });
+  if (ex.completed && ex.script) return { proof: { version: 1, level: level.id, seed, ticks: ex.ticks, by: 'explorer', script: ex.script }, tried: [...tried, `${who}: wins in ${ex.ticks} ticks (${ex.explored} explored)`] };
+  const reached = steps.length > 0 ? `${ex.best.stage ?? 0} of ${steps.length} steps, ` : '';
+  return { proof: null, tried: [...tried, `${who}: no win in ${ex.explored} ticks (best: ${reached}progress ${ex.best.progress.toFixed(2)} at ${ex.best.at.x},${ex.best.at.y})`], stuck: ex.best };
 }

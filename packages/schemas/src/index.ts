@@ -12,7 +12,7 @@ import { FreeformSystemsJson, SystemsFile, SystemsJson } from './systems';
 import { Trajectory } from './trajectory';
 import { WaveTable } from './waves';
 import { Objectives } from './objectives';
-import { LevelProof } from './proof';
+import { LevelHints, LevelProof } from './proof';
 import { EntityRoster } from './roster';
 import { CropTable } from './farm';
 import { MechanicsFile } from './mechanics';
@@ -50,6 +50,7 @@ export const ARTIFACT_SCHEMAS = {
   FreeformGddFrontmatter,
   EntityRoster,
   LevelProof,
+  LevelHints,
   LevelJson,
   BehaviourFsm,
   EcaRule,

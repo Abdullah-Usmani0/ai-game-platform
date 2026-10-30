@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { EntityRoster, LevelJson, LevelProof, MechanicsFile, Objectives, parseAnyGdd, parseSystemsFile, SpriteSheet, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type EcaRule, type Mechanic, type SystemsFile } from '@gg/schemas';
+import { EntityRoster, LevelHints, LevelJson, LevelProof, MechanicsFile, Objectives, parseAnyGdd, parseSystemsFile, SpriteSheet, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type EcaRule, type Mechanic, type SystemsFile } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding, type SimOptions } from '@gg/sdk';
 import { artPalette, settingFor, type Setting } from '@gg/sdk/art';
 import { rolesPresent, simOptionsFor, type GenreManifest } from '@gg/template-core';
@@ -14,6 +14,8 @@ export interface GameFiles {
   gdd: AnyGddFrontmatter | null;
   roster: EntityRoster | null;
   proofs: LevelProof[];
+  /** Hints for levels the explorer could not finish alone (content/hints/<level>.json). */
+  hints: LevelHints[];
 }
 
 function readJson(path: string): unknown {
@@ -24,24 +26,26 @@ function readJson(path: string): unknown {
   }
 }
 
-/** Reads a game directory's design/systems.json, design/gdd.md front matter, content/entities.json and content/proofs/. */
+/** Reads a game directory's design/systems.json, design/gdd.md front matter, content/entities.json, content/proofs/ and content/hints/. */
 export function readGameFiles(gameDir: string): GameFiles {
   const systems = parseSystemsFile(readJson(join(gameDir, 'design', 'systems.json')));
   const gddPath = join(gameDir, 'design', 'gdd.md');
   const fm = existsSync(gddPath) ? parseFrontmatter(readFileSync(gddPath, 'utf8')) : null;
   const gdd = fm ? parseAnyGdd(fm.data) : null;
   const roster = EntityRoster.safeParse(readJson(join(gameDir, 'content', 'entities.json')));
-  const proofsDir = join(gameDir, 'content', 'proofs');
-  const proofs = existsSync(proofsDir)
-    ? readdirSync(proofsDir)
-        .filter((f) => f.endsWith('.json'))
-        .sort()
-        .flatMap((f) => {
-          const p = LevelProof.safeParse(readJson(join(proofsDir, f)));
-          return p.success ? [p.data] : [];
-        })
-    : [];
-  return { systems: systems.success ? systems.data : null, gdd: gdd?.success ? gdd.data : null, roster: roster.success ? roster.data : null, proofs };
+  const each = <T>(dir: string, parse: (v: unknown) => { success: true; data: T } | { success: false }): T[] =>
+    existsSync(dir)
+      ? readdirSync(dir)
+          .filter((f) => f.endsWith('.json'))
+          .sort()
+          .flatMap((f) => {
+            const p = parse(readJson(join(dir, f)));
+            return p.success ? [p.data] : [];
+          })
+      : [];
+  const proofs = each(join(gameDir, 'content', 'proofs'), (v) => LevelProof.safeParse(v));
+  const hints = each(join(gameDir, 'content', 'hints'), (v) => LevelHints.safeParse(v));
+  return { systems: systems.success ? systems.data : null, gdd: gdd?.success ? gdd.data : null, roster: roster.success ? roster.data : null, proofs, hints };
 }
 
 /**

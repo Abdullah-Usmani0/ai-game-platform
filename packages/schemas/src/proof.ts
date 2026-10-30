@@ -31,6 +31,26 @@ export const LevelProof = z.object({
 });
 export type LevelProof = z.infer<typeof LevelProof>;
 
+/** One step on the way to a level's win: be near a tile (within r tiles), or get a HUD number (or the score) to a value. */
+export const HintStep = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('reach'), x: z.int().min(0).max(4096), y: z.int().min(0).max(4096), r: z.int().min(0).max(16).default(1) }),
+  z.object({ kind: z.literal('hud_at_least'), key: z.string().min(1).max(32), value: z.number().min(0).max(1e9) }),
+]);
+export type HintStep = z.infer<typeof HintStep>;
+
+/**
+ * content/hints/<level>.json: the steps of a level's win, in order, for the explorer to climb when it cannot find the
+ * win alone (the key behind a long detour, the lever before the door). Written from the level; a run found with them
+ * is a proof like any other.
+ */
+export const LevelHints = z.object({
+  version: z.literal(1),
+  /** The level's id. */
+  level: Id,
+  steps: z.array(HintStep).min(1).max(12),
+});
+export type LevelHints = z.infer<typeof LevelHints>;
+
 /** A player's winning run on a level its version waits for, as the play page sends it to be replayed on that version. */
 export const ProofSubmission = z.object({
   versionId: z.string().min(1).max(64),

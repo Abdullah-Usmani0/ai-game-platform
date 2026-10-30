@@ -87,7 +87,7 @@
   "prove": {
     "runner": "worker",
     "gate": ["prove", "test"],
-    "allowedWrite": ["game/content/proofs/**"],
+    "allowedWrite": ["game/content/proofs/**", "game/content/hints/**"],
     "caps": {
       "turns": 0,
       "usd": 0,

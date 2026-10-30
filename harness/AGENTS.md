@@ -44,10 +44,13 @@ every genre whose player moves the same way. Its entities are shipped ones under
 (`content/entities.json`, an `EntityRoster`), and its win and lose rules are data for the `objectives` system
 (`content/objectives.json`). Each level has a recorded winning run (`content/proofs/<level>.json`, a `LevelProof`)
 at the seed the level is played with; the game's `proof` bot replays it, the `prove` check replays it in Node and smoke
-replays it in the browser. The worker records the runs (the base genre's solver under the base names, else the
-explorer) and records them again whenever a change can break one. A level no bot wins ships without a run (the `prove`
-check warns; a run on file that stops winning fails it): the game is published and played, privately and in the test
-queue, and is listed once a player wins the level and the worker, replaying that run on the version, sees it win.
+replays it in the browser. The worker records the runs (the base genre's solver under the base names, a block's own
+bot, else the explorer) and records them again whenever a change can break one. Where the explorer loses its way, the
+level's hints guide it (`content/hints/<level>.json`, a `LevelHints`: up to twelve steps in order, a tile to reach or a
+HUD number to get to); the worker asks the model for them and keeps only hints that found the win. A level no bot wins
+ships without a run (the `prove` check warns; a run on file that stops winning fails it): the game is published and
+played, privately and in the test queue, and is listed once a player wins the level and the worker, replaying that run
+on the version, sees it win.
 `pnpm catalog freeform <base>` lists the systems a freeform game on that base can use.
 
 ## Project map
@@ -58,7 +61,8 @@ queue, and is listed once a player wins the level and the worker, replaying that
   a farm has crops.json (written from the idea after the systems and held to their rules by validate:systems); every
   game may have sprites.json (its cast's own look: per type a shipped sprite of its build, ramp colours and overlays,
   held to the art rules by validate:sprites; a type without one draws as it ships); a freeform game also has
-  entities.json, objectives.json and proofs/*.json (recorded winning runs, written by the worker)
+  entities.json, objectives.json, proofs/*.json (recorded winning runs, written by the worker) and hints/*.json (the
+  way through a level for the explorer, kept beside the run it found)
 - `game/src/systems/` bespoke simulation systems in GlueTS (see rules), each with its contract in design/mechanics.json;
   a freeform game records its runs with them (`pnpm -C game prove`); `game/src/main.ts` is scaffolded, do not edit
 - `game/assets/` requests.json and manifest.json; binary assets are produced by the asset pipeline, never by hand

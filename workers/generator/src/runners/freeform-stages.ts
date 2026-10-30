@@ -2,9 +2,9 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateArtifact, providerFor, type GenerateResult } from '@gg/llm';
-import { CURATED_GENRES, type CreateRequest, type CuratedGenre, type EntityRoster, type FreeformGddFrontmatter, type FreeformSystemsJson, type Objectives, type ScopeTier } from '@gg/schemas';
+import { CURATED_GENRES, type CreateRequest, type CuratedGenre, type EntityRoster, type FreeformGddFrontmatter, type FreeformSystemsJson, type LevelHints, type LevelJson, type Objectives, type ScopeTier } from '@gg/schemas';
 import { sfxPresetFor } from '@gg/sdk/art';
-import { grammarHasGoal, plannedLevelCount, rolesPresent, type GenreManifest } from '@gg/template-core';
+import { grammarHasGoal, plannedLevelCount, rolesPresent, suggestHints, type GenreManifest } from '@gg/template-core';
 import { ARCHETYPES, BASE_MANIFESTS, checkFreeformObjectives, compileRoster, compose, designContentFor, FREEFORM_CATALOG, freeformDesignManifest, hudKeysOf, IDENTITY_ROSTER, movementOf, proveLevel, RUNTIMES, SYSTEMS, usableSystems } from '@gg/template-freeform/node';
 import { hasBespokeSystems, readGameFiles, readGameInputs, readGameLevels } from '@gg/templates/node';
 import { checkComposition, checkSystems, silentSfx } from '@gg/validators';
@@ -263,41 +263,144 @@ export function compositionOf(gameDir: string): { roster: EntityRoster; content:
  * proofs of levels the game no longer has, and those that no longer win). A level no bot can win is left without one:
  * the game is still published and played, and is listed once a player records a winning run of it.
  */
-export function reproveLevels(ctx: Pick<StageContext, 'gameDir'>, budget = 40_000): { ok: boolean; summary: string; unproven: string[] } {
+export function reproveLevels(ctx: Pick<StageContext, 'gameDir'>, budget = 40_000): { ok: boolean; summary: string; unproven: string[]; stuck: Record<string, Stuck> } {
   const files = readGameFiles(ctx.gameDir);
   const sys = files.systems;
-  if (sys?.genre !== 'freeform') return { ok: true, summary: 'curated: the genre solver proves the levels', unproven: [] };
+  if (sys?.genre !== 'freeform') return { ok: true, summary: 'curated: the genre solver proves the levels', unproven: [], stuck: {} };
   const proofsDir = join(ctx.gameDir, 'content', 'proofs');
+  const hintsDir = join(ctx.gameDir, 'content', 'hints');
   const levels = readGameLevels(ctx.gameDir);
+  // Runs and hints of levels the game no longer has go with them.
   const prune = () => {
     const ids = new Set(levels.map((l) => `${l.level.id}.json`));
-    if (existsSync(proofsDir)) for (const f of readdirSync(proofsDir)) if (!ids.has(f)) rmSync(join(proofsDir, f));
+    for (const dir of [proofsDir, hintsDir]) if (existsSync(dir)) for (const f of readdirSync(dir)) if (!ids.has(f)) rmSync(join(dir, f));
   };
   // A game with systems of its own records its runs with its own code: its prover runs in the game's test runner.
   const waiting = (ids: string[]) => (ids.length ? `; waiting for a winning run: ${ids.join(', ')}` : '');
   if (hasBespokeSystems(ctx.gameDir)) {
     const r = spawnSync('pnpm', ['run', 'prove'], { cwd: ctx.gameDir, encoding: 'utf8', env: { ...process.env, CI: '1' }, maxBuffer: 16 * 1024 * 1024 });
     prune();
-    if (r.status !== 0) return { ok: false, summary: `the game's prover did not run: ${`${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n').slice(-12).join(' / ')}`, unproven: [] };
+    if (r.status !== 0) return { ok: false, summary: `the game's prover did not run: ${`${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n').slice(-12).join(' / ')}`, unproven: [], stuck: {} };
     const unproven = levels.map((l) => l.level.id).filter((id) => !existsSync(join(proofsDir, `${id}.json`)));
-    return { ok: true, summary: `proved ${levels.length - unproven.length} level(s) with the game's own systems (pnpm prove)${waiting(unproven)}`, unproven };
+    for (const id of unproven) rmSync(join(hintsDir, `${id}.json`), { force: true });
+    return { ok: true, summary: `proved ${levels.length - unproven.length} level(s) with the game's own systems (pnpm prove)${waiting(unproven)}`, unproven, stuck: {} };
   }
   const base = BASE_MANIFESTS[sys.composition.base];
   const inputs = { file: sys, roster: files.roster ?? IDENTITY_ROSTER, ...readGameInputs(ctx.gameDir), solver: base.bots[base.solverBot], budget };
   const done: string[] = [];
   const unproven: string[] = [];
+  const stuck: Record<string, Stuck> = {};
   for (const { level, index } of levels) {
-    const r = proveLevel(level, index, inputs, files.proofs.find((p) => p.level === level.id));
+    const hints = files.hints.find((h) => h.level === level.id);
+    const r = proveLevel(level, index, { ...inputs, ...(hints ? { hints } : {}) }, files.proofs.find((p) => p.level === level.id));
     const file = join(proofsDir, `${level.id}.json`);
     if (r.proof) {
       writeJson(file, r.proof);
-      done.push(`${level.id} (${r.proof.by}, ${Math.round(r.proof.ticks / 60)} s)`);
+      done.push(`${level.id} (${r.proof.by}${hints ? ' with hints' : ''}, ${Math.round(r.proof.ticks / 60)} s)`);
     } else {
-      // A run that no longer wins is no evidence: the level waits for a new one.
+      // A run that no longer wins is no evidence, nor are hints that no longer find one (the level was edited): the
+      // level waits for a new run, and may be given new hints.
       rmSync(file, { force: true });
+      if (hints) rmSync(join(hintsDir, `${level.id}.json`), { force: true });
       unproven.push(level.id);
+      if (r.stuck) stuck[level.id] = r.stuck;
     }
   }
   prune();
-  return { ok: true, summary: `proved ${done.length} level(s): ${done.join(', ')}${waiting(unproven)}`, unproven };
+  return { ok: true, summary: `proved ${done.length} level(s): ${done.join(', ')}${waiting(unproven)}`, unproven, stuck };
+}
+
+/** Where the explorer got stuck on a level: how far it got by the game's own account, the HUD, where the player stood. */
+export type Stuck = NonNullable<ReturnType<typeof proveLevel>['stuck']>;
+
+const HINTS_SYSTEM = [
+  'A search plays a game level to prove it can be finished, and could not finish this one alone. You write the way, as data (LevelHints): its steps in the order a player takes them.',
+  "A step is a place to reach (a tile x, y; done once the player is within r tiles of it by walking, never through a wall) or a HUD number to get to a value (the score counts as one, as 'score').",
+  'Put places on the way the player must go: open tiles, a few to a dozen tiles apart, each one where the way turns or opens (a gap, a ledge, a door, the key before the door). Never a tile inside a wall.',
+  'Use the fewest steps that make the way plain, at most twelve. When the win is reaching the goal, the goal is the last step.',
+].join('\n');
+
+/** What is wrong with hints for a level: places off the level or inside its walls, HUD numbers the game does not keep. */
+export function hintIssues(hints: LevelHints, level: LevelJson, hud: readonly string[]): string[] {
+  const issues: string[] = [];
+  if (hints.level !== level.id) issues.push(`level must be '${level.id}'`);
+  hints.steps.forEach((s, i) => {
+    if (s.kind === 'reach') {
+      if (s.x >= level.width || s.y >= level.height) issues.push(`step ${i + 1}: (${s.x}, ${s.y}) is off the ${level.width} x ${level.height} level`);
+      else if (level.legend[level.rows[s.y]![s.x]!] === 'solid') issues.push(`step ${i + 1}: (${s.x}, ${s.y}) is inside a wall`);
+    } else if (s.key !== 'score' && !hud.includes(s.key)) issues.push(`step ${i + 1}: the game keeps no HUD number '${s.key}' (it keeps ${hud.length ? hud.join(', ') : 'none'}, and the score)`);
+  });
+  return issues;
+}
+
+/** A level's hints on file while they still fit it: an edit can wall a step in or cut the level short. */
+export function hintsFor(gameDir: string, level: LevelJson): LevelHints | undefined {
+  const hints = readGameFiles(gameDir).hints.find((h) => h.level === level.id);
+  // Only the places can stop fitting: the HUD numbers were checked when the hints were written.
+  const counted = hints?.steps.flatMap((s) => (s.kind === 'hud_at_least' ? [s.key] : [])) ?? [];
+  return hints && hintIssues(hints, level, counted).length === 0 ? hints : undefined;
+}
+
+/**
+ * The levels of a freeform game nothing could win, given hints and proven again: the model writes the way for each
+ * (at most three, from the level, the win and where the search got stuck, with the floor's own walk as a start) and
+ * hints that win their level are kept with it (content/hints/). Hints that do not are dropped: a hint file is only
+ * ever beside the run it found.
+ */
+export async function hintLevels(ctx: StageContext, unproven: readonly string[], stuck: Readonly<Record<string, Stuck>>): Promise<{ summary: string; unproven: string[]; usage: ReturnType<typeof sumUsage>; costUsd: number; turns: number; pairs: PairDraft[] }> {
+  const files = readGameFiles(ctx.gameDir);
+  const sys = files.systems;
+  let usage = { ...ZERO };
+  let costUsd = 0;
+  let turns = 0;
+  const pairs: PairDraft[] = [];
+  const none = { summary: '', unproven: [...unproven], usage, costUsd, turns, pairs };
+  if (sys?.genre !== 'freeform' || unproven.length === 0) return none;
+  const levels = readGameLevels(ctx.gameDir);
+  const game = compose(sys, files.roster ?? IDENTITY_ROSTER);
+  const hud = hudKeysOf(game.runtime);
+  const feel = game.runtime.feelPresets[sys.feelPreset] ?? Object.values(game.runtime.feelPresets)[0]!;
+  const objectives = readGameInputs(ctx.gameDir).content['objectives'];
+  const hintsDir = join(ctx.gameDir, 'content', 'hints');
+  const asked: string[] = [];
+  for (const id of unproven.slice(0, 3)) {
+    const level = levels.find((l) => l.level.id === id)?.level;
+    if (!level) continue;
+    const start = suggestHints(level, { movementMode: game.runtime.movementMode, feel });
+    const where = stuck[id];
+    const prompt = [
+      `Level ${id} (${level.width} x ${level.height} tiles, ${game.runtime.movementMode === 'topdown' ? 'seen from above' : 'side view, with gravity'}). Legend: ${Object.entries(level.legend).map(([ch, kind]) => `'${ch}' ${kind}`).join(', ')}. The spawn is at (${level.spawn.x}, ${level.spawn.y}) and the goal at (${level.goal.x}, ${level.goal.y}).`,
+      level.rows.map((r, y) => `${String(y).padStart(3)} ${r}`).join('\n'),
+      level.entities.length ? `Entities: ${level.entities.map((e) => `${e.type} at (${e.x}, ${e.y})`).join('; ')}.` : 'No entities.',
+      `The win and the loss: ${JSON.stringify(objectives ?? 'reach the goal')}. HUD numbers the game keeps: ${hud.length ? hud.join(', ') : 'none'} (and the score).`,
+      where ? `Where the search got stuck: progress ${where.progress.toFixed(2)} by the game's own account, the player at (${where.at.x}, ${where.at.y}), the HUD ${JSON.stringify(where.hud)}.` : '',
+      start ? `The floor's own walk from the spawn to the goal, as steps (keep, cut or replace them):\n${JSON.stringify(start)}` : '',
+    ].join('\n\n');
+    const res = await generateArtifact<LevelHints>({
+      provider: providerFor(ctx.provider),
+      model: ctx.model,
+      artifact: 'LevelHints',
+      system: HINTS_SYSTEM,
+      prompt,
+      k: ctx.policy?.k ?? 1,
+      repairRounds: ctx.policy?.repairRounds ?? 1,
+      verify: (v) => hintIssues(v, level, hud),
+      score: (v) => 1 - v.steps.length / 100,
+    });
+    usage = add(usage, sumUsage(res));
+    costUsd += res.totalCostUsd;
+    turns += res.samples.length;
+    const hints = res.selected?.value;
+    if (!hints) continue;
+    writeJson(join(hintsDir, `${id}.json`), hints);
+    pairs.push({ artifact: 'LevelHints', system: HINTS_SYSTEM, prompt, output: hints });
+    asked.push(id);
+  }
+  if (asked.length === 0) return { ...none, usage, costUsd, turns };
+  const proven = reproveLevels(ctx);
+  // Hints that did not find the win are no help to anyone: only those beside a run are kept.
+  for (const id of asked) if (proven.unproven.includes(id)) rmSync(join(hintsDir, `${id}.json`), { force: true });
+  const helped = asked.filter((id) => !proven.unproven.includes(id));
+  const summary = `hints for ${asked.join(', ')}: ${helped.length ? `won ${helped.join(', ')}` : 'no win'}`;
+  return { summary, unproven: proven.unproven, usage, costUsd, turns, pairs: pairs.filter((p) => helped.some((id) => (p.output as LevelHints).level === id)) };
 }

@@ -235,7 +235,7 @@ export const SOLVER_BOT = kit.solverBot;
  */
 export const FREEFORM_PROVE_TEST = `import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { LevelProof, MechanicsFile } from '@gg/schemas';
+import { LevelHints, LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
 import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
@@ -243,9 +243,10 @@ import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '.
 import { BESPOKE } from '../../src/systems/index.js';
 
 const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
+const hints = fileURLToPath(new URL('../../content/hints/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer (on the level's hints when it has them)", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
@@ -253,7 +254,9 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
     for (const [i, level] of LEVELS.entries()) {
       const file = \`\${proofs}\${level.id}.json\`;
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
-      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000 };
+      const hinted = \`\${hints}\${level.id}.json\`;
+      const steps = existsSync(hinted) ? { hints: LevelHints.parse(JSON.parse(readFileSync(hinted, 'utf8'))) } : {};
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000, ...steps };
       const r = proveLevel(level, i, inputs, stored);
       // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
       if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');

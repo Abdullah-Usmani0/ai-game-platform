@@ -131,6 +131,13 @@ export class FakeProvider implements Provider {
         data = designs && designs.sprites.length > 0 && designs.sprites.every((d) => cast.has(d.type)) ? designs : { version: 1, sprites: [] };
         break;
       }
+      case 'LevelHints': {
+        // The prompt ends with the floor's own walk as steps: the dry run keeps them as they are.
+        const walk = /^The floor's own walk[^\n]*\n(\{.*\})$/m.exec(req.prompt)?.[1];
+        if (!walk) throw new Error('fake provider: the level has no walk to the goal to hint');
+        data = JSON.parse(walk) as unknown;
+        break;
+      }
       case 'EditRoute': {
         // The router's prompt lists the game's behaviours ("Behaviours: grunt, brute.").
         const listed = (marker(/^Genre: .*Behaviours: ([^.]*)\./m) ?? '').split(', ').filter((b) => b && b !== '(none)');
