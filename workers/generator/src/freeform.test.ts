@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -204,4 +204,24 @@ describe("a freeform game's authored levels", () => {
     expect(files()).toEqual(proofs);
     expect(readGameLevels(gameDir)[0]!.level).toEqual(level);
   }, 120_000);
+});
+
+describe('a freeform game with systems of its own', () => {
+  it("is proven by its own prover, with its own code: the worker's prover in Node knows only the catalog", async () => {
+    const gameDir = await build(HEIST);
+    // A steady current that drags the player west: the runs recorded without it no longer win.
+    writeFileSync(
+      join(gameDir, 'src', 'systems', 'current.ts'),
+      "import { defineSystem } from '@gg/sdk';\n\nexport const current = defineSystem<null>({\n  id: 'current',\n  init: () => null,\n  fixedUpdate(_s, _input, ctx) {\n    if (ctx.world.player.alive) ctx.move(ctx.world.player, -0.25, 0);\n  },\n});\n",
+    );
+    writeFileSync(join(gameDir, 'src', 'systems', 'index.ts'), "import type { SystemDef } from '@gg/sdk';\nimport { current } from './current.js';\n\n// eslint-disable-next-line @typescript-eslint/no-explicit-any\nexport const BESPOKE: SystemDef<any>[] = [current];\n");
+    writeFileSync(join(gameDir, 'design', 'mechanics.json'), JSON.stringify({ version: 1, mechanics: [{ id: 'current', summary: 'A steady current that drags the player west.' }] }));
+    const before = readGameFiles(gameDir).proofs.map((p) => p.ticks);
+    const out = await new WorkerRunner().run({ ...ctxFor(gameDir, {}), spec: { stage: 'prove', gate: [] } });
+    expect(out.ok, out.summary).toBe(true);
+    expect(out.summary).toMatch(/^proved 2 level\(s\) with the game's own systems/);
+    expect(readGameFiles(gameDir).proofs.map((p) => p.ticks)).not.toEqual(before);
+    // The gate leaves the replay to the game's own test, which has its code.
+    expect(checkProofs(gameDir).metrics).toMatchObject({ replayed: false });
+  }, 180_000);
 });

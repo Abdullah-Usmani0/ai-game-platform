@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "mechanics": [
+    {
+      "id": "timed-switch",
+      "summary": "Standing on a switch opens the door for openTicks; the HUD says whether it is open.",
+      "emits": ["custom:door_open"],
+      "hud": ["door"]
+    },
+    {
+      "id": "homing-pickup",
+      "summary": "Pickups within magnetPx drift toward the player; the pickups system collects them.",
+      "emits": [],
+      "hud": []
+    }
+  ]
+}

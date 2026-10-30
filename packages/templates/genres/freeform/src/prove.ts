@@ -1,5 +1,5 @@
-import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson, LevelProof } from '@gg/schemas';
-import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding, type Sim } from '@gg/sdk';
+import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson, LevelProof, Mechanic } from '@gg/schemas';
+import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding, type Sim, type SystemDef } from '@gg/sdk';
 import { explore, explorerOptionsFor, levelTicksOf, runBot, scriptFromLog, simOptionsFor, type BotPolicy } from '@gg/template-core';
 import { compose, type Composed } from './compose.js';
 import { inverse, retypeContent, retypeFsm, retypeLevel, retypeRule, type Rename } from './retype.js';
@@ -15,6 +15,10 @@ export interface ProveInputs {
   solver?: BotPolicy;
   /** Ticks the explorer may spend on a level (default 150 000). */
   budget?: number;
+  /** The game's bespoke systems (its own code, run by its own test), and their contracts: the keys they read. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  bespoke?: SystemDef<any>[];
+  mechanics?: readonly Mechanic[];
 }
 
 export interface Proving {
@@ -39,7 +43,7 @@ function underBaseNames(inputs: ProveInputs, game: Composed): { composed: Compos
 export function proveLevel(level: LevelJson, index: number, inputs: ProveInputs, stored?: LevelProof): Proving {
   const seed = levelSeed(DEFAULT_SEED, index);
   const game = compose(inputs.file, inputs.roster);
-  const options = simOptionsFor(game.runtime, inputs.file, { behaviours: inputs.behaviours, rules: inputs.rules, content: inputs.content, feedback: inputs.feedback });
+  const options = simOptionsFor(game.runtime, inputs.file, { behaviours: inputs.behaviours, rules: inputs.rules, content: inputs.content, feedback: inputs.feedback, bespoke: inputs.bespoke });
   const fresh = (): Sim => createSim({ ...options, level, seed });
   const wins = (script: LevelProof['script'], ticks: number) => {
     const sim = fresh();
@@ -60,17 +64,23 @@ export function proveLevel(level: LevelJson, index: number, inputs: ProveInputs,
         rules: inputs.rules?.map((r) => retypeRule(r, plain.back)),
         content: retypeContent(inputs.content ?? {}, plain.back),
         feedback: inputs.feedback,
+        bespoke: inputs.bespoke,
       });
       const sim = createSim({ ...o, level: retypeLevel(level, plain.back), seed });
-      const r = runBot(sim, inputs.solver, levelTicksOf(o));
-      if (r.completed) {
-        const script = scriptFromLog(sim, sim.tick);
-        if (wins(script, sim.tick)) return { proof: { version: 1, level: level.id, seed, ticks: sim.tick, by: 'solver', script }, tried: [...tried, `solver: wins in ${sim.tick} ticks`] };
-        tried.push('solver: won under the base names, but the run does not replay on the game');
-      } else tried.push(`solver: no win in ${r.ticks} ticks (${r.deaths} deaths)`);
+      try {
+        const r = runBot(sim, inputs.solver, levelTicksOf(o));
+        if (r.completed) {
+          const script = scriptFromLog(sim, sim.tick);
+          if (wins(script, sim.tick)) return { proof: { version: 1, level: level.id, seed, ticks: sim.tick, by: 'solver', script }, tried: [...tried, `solver: wins in ${sim.tick} ticks`] };
+          tried.push('solver: won under the base names, but the run does not replay on the game');
+        } else tried.push(`solver: no win in ${r.ticks} ticks (${r.deaths} deaths)`);
+      } catch (e) {
+        // The game's own code may know its own names only (it spawns a 'wasp', which the base calls a chaser).
+        tried.push(`solver: the game under the base names stopped (${(e as Error).message})`);
+      }
     }
   }
-  const ex = explore(fresh, { budget: inputs.budget, ...explorerOptionsFor(Object.values(game.runtime.systems).map((m) => m.meta)) });
+  const ex = explore(fresh, { budget: inputs.budget, ...explorerOptionsFor([...Object.values(game.runtime.systems).map((m) => m.meta), ...(inputs.mechanics ?? [])]) });
   if (ex.completed && ex.script) return { proof: { version: 1, level: level.id, seed, ticks: ex.ticks, by: 'explorer', script: ex.script }, tried: [...tried, `explorer: wins in ${ex.ticks} ticks (${ex.explored} explored)`] };
   return { proof: null, tried: [...tried, `explorer: no win in ${ex.explored} ticks (best progress ${ex.best.progress.toFixed(2)})`] };
 }

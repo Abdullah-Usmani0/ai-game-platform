@@ -22,6 +22,7 @@ function schemaFor(file: string): ArtifactName | null {
   if (/\/content\/crops\.json$/.test(f)) return 'CropTable';
   if (/\/content\/proofs\/[^/]+\.json$/.test(f)) return 'LevelProof';
   if (name === 'systems.json') return 'SystemsFile';
+  if (name === 'mechanics.json') return 'MechanicsFile';
   if (name === 'style.json') return 'StyleCard';
   if (name === 'playtest-report.json') return 'PlaytestReport';
   if (name === 'manifest.json' && /\/dist\//.test(f)) return 'BundleManifest';

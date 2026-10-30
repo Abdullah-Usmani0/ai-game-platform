@@ -137,6 +137,25 @@ describe('checkGameSystems', () => {
     expect(checkGameSystems(platformer).issues.filter((i) => i.severity === 'error')).toEqual([]);
   });
 
+  it("weighs a game's bespoke systems in the composition rules by their contracts (design/mechanics.json)", () => {
+    const bell = { id: 'bell', summary: 'A bell rung with the action key.', controls: { action: 'ring the bell' }, emits: ['custom:ring'], hud: ['rings'] };
+    const freeform = (mechanics: unknown) => checkGameSystems(gameDir({ 'design/gdd.md': gddMd(HIVE.gdd), 'design/systems.json': HIVE.systems, 'content/entities.json': HIVE.roster, 'content/objectives.json': HIVE.objectives, 'design/mechanics.json': { version: 1, mechanics } }));
+    expect(freeform([]).issues.filter((i) => i.severity === 'error')).toEqual([]);
+    // The hive's melee strikes on the action key: a bell on the same key gives it two uses.
+    expect(freeform([bell]).issues.map((i) => i.code)).toContain('key_twice');
+    expect(freeform([{ ...bell, controls: { jump: 'ring the bell' } }]).issues.filter((i) => i.severity === 'error')).toEqual([]);
+    // A second way to move the player, or to win, does not fit.
+    expect(freeform([{ ...bell, controls: {}, provides: { movement: 'topdown' } }]).issues.map((i) => i.code)).toContain('two_movements');
+    expect(freeform([{ ...bell, controls: {}, provides: { win: 'survive' } }]).issues.map((i) => i.code)).toContain('two_wins');
+    expect(freeform([{ ...bell, id: 'melee-attack', controls: {} }]).issues.map((i) => i.code)).toContain('mechanic_shadows');
+    expect(freeform([{ id: 'Bell' }]).issues.map((i) => i.code)).toContain('mechanics_invalid');
+
+    // A curated game answers only for what its bespoke systems add: a second win beside the platformer's goal.
+    const platformer = (mechanics: unknown) => checkGameSystems(gameDir({ 'design/systems.json': systemsJsonFor(GENRES['platformer']!), 'design/gdd.md': readFileSync(join(samples, 'platformer', 'design', 'gdd.md'), 'utf8'), 'design/mechanics.json': { version: 1, mechanics } }));
+    expect(platformer([{ ...bell, controls: { action: 'ring the bell' } }]).issues.filter((i) => i.severity === 'error')).toEqual([]);
+    expect(platformer([{ ...bell, controls: {}, provides: { win: 'objectives' } }]).issues.filter((i) => i.severity === 'error').map((i) => i.code)).toEqual(['two_wins']);
+  });
+
   it("holds a freeform game's objectives to its roster: a rule about an entity the game has not got is an error", () => {
     const objectives = { ...LANTERN.objectives!, win: { mode: 'all' as const, clauses: [{ kind: 'collect' as const, type: 'firefly', count: 2 }] } };
     const dir = gameDir({ 'design/gdd.md': gddMd(LANTERN.gdd), 'design/systems.json': LANTERN.systems, 'content/entities.json': LANTERN.roster, 'content/objectives.json': objectives });

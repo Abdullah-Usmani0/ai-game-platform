@@ -1,4 +1,4 @@
-import type { GddFrontmatter, SystemsFile, SystemsJson } from '@gg/schemas';
+import type { GddFrontmatter, Mechanic, SystemsFile, SystemsJson } from '@gg/schemas';
 import { err, report, warn, type Issue, type ValidationReport } from './report.js';
 
 export interface CatalogParam {
@@ -90,6 +90,15 @@ export interface CatalogSystem {
 }
 
 export type SystemsCatalog = Record<string, CatalogSystem>;
+
+/**
+ * A bespoke system's contract (design/mechanics.json) as catalog metadata, so the composition rules weigh it with the
+ * catalog systems beside it: one movement, one win, one death rule, every need met, no key with two uses. Its own
+ * events are what it can bind feedback for.
+ */
+export function mechanicMeta(m: Mechanic): CatalogSystem {
+  return { id: m.id, genres: '*', summary: m.summary, params: {}, emits: m.emits, feedbackFor: m.emits, controls: m.controls, provides: m.provides, requires: m.requires };
+}
 
 /**
  * A systems.json against the catalog: known systems, known parameters in range and of the right type, composed parameters

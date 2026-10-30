@@ -7,7 +7,7 @@
  */
 import type { GameEventRecord } from '@gg/schemas';
 import { createSim, type FeedbackBinding, type SimCtx, type SystemDef } from '@gg/sdk';
-import { levelTicksOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
+import { conformance, levelTicksOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import { GENRES } from './node.js';
 
@@ -78,6 +78,19 @@ describe('systems do what their metadata says', () => {
       for (const [id, m] of Object.entries(g.systems)) {
         if (m.meta.provides?.win) expect(seen.get(id)?.won, `${g.id}/${id} declares a win no run reached`).toBe(true);
       }
+    });
+  }
+});
+
+describe('every genre passes the whole-game checks a bespoke system is held to', () => {
+  // A game built on a genre adds its own systems; the checks must find nothing in the genre itself: its state saves and
+  // loads, two games side by side play as one alone, and standing still never wins.
+  for (const g of Object.values(GENRES)) {
+    it(g.id, () => {
+      const params = { seed: 3, difficulty: 0.4 };
+      const options = simOptionsFor(g, systemsJsonFor(g), { behaviours: g.defaultBehaviours, content: g.extraContent?.(params) ?? {} });
+      const r = conformance({ options, levels: [{ level: g.levelGrammar.generate(params), seed: 1 }], contracts: [], bespoke: [], bots: { chaos: g.bots['chaos']! }, ticks: Math.min(levelTicksOf(options), 3600) });
+      expect(r.issues).toEqual([]);
     });
   }
 });

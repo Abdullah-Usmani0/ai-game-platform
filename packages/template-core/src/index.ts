@@ -13,3 +13,4 @@ export * from './check.js';
 export * from './level-plan.js';
 export * from './quality.js';
 export * from './roles.js';
+export * from './conformance.js';

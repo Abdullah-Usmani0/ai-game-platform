@@ -112,6 +112,8 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
       lint: 'eslint .',
       test: 'vitest run',
       build: 'vite build && node scripts/finish-build.mjs',
+      // A freeform game records its levels' winning runs with its own code (tests/unit/prove.test.ts).
+      ...(freeform ? { prove: 'GG_PROVE=1 vitest run tests/unit/prove.test.ts' } : {}),
     },
   }, null, 2) + '\n');
   write(files, out, 'index.html', F.INDEX_HTML(opts.title));
@@ -126,6 +128,7 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   write(files, out, 'src/systems/index.ts', F.SYSTEMS_INDEX);
   write(files, out, 'tests/unit/bots.ts', freeform ? F.FREEFORM_BOTS_TS : F.BOTS_TS(`${runtimeImport}/node`, manifestName));
   write(files, out, 'tests/unit/game.test.ts', F.GAME_TEST(g.id));
+  if (freeform) write(files, out, 'tests/unit/prove.test.ts', F.FREEFORM_PROVE_TEST);
   write(files, out, 'design/gdd.md', opts.gddMarkdown.endsWith('\n') ? opts.gddMarkdown : `${opts.gddMarkdown}\n`);
   write(files, out, 'design/systems.json', JSON.stringify(opts.systems, null, 2) + '\n');
   write(files, out, 'design/style.json', JSON.stringify(opts.style, null, 2) + '\n');
@@ -133,6 +136,7 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   const feedback: FeedbackBinding[] = [...(gdd.data.feedbackEvents as FeedbackBinding[])];
   for (const x of g.feedbackExtras ?? []) if (!feedback.some((f) => f.event === x.event)) feedback.push(x as FeedbackBinding);
   write(files, out, 'design/feedback.json', JSON.stringify(feedback, null, 2) + '\n');
+  write(files, out, 'design/mechanics.json', F.MECHANICS_JSON);
   write(files, out, 'design/deviations.md', F.DEVIATIONS_MD);
   write(files, out, 'assets/manifest.json', F.ASSET_MANIFEST);
   write(files, out, 'assets/requests.json', F.ASSET_REQUESTS);

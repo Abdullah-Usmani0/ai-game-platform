@@ -15,6 +15,7 @@ import { Objectives } from './objectives';
 import { LevelProof } from './proof';
 import { EntityRoster } from './roster';
 import { CropTable } from './farm';
+import { MechanicsFile } from './mechanics';
 
 export * from './common';
 export * from './events';
@@ -28,6 +29,7 @@ export * from './objectives';
 export * from './roster';
 export * from './proof';
 export * from './farm';
+export * from './mechanics';
 export * from './playtest';
 export * from './bundle';
 export * from './bridge';
@@ -52,6 +54,7 @@ export const ARTIFACT_SCHEMAS = {
   WaveTable,
   Objectives,
   CropTable,
+  MechanicsFile,
   PlaytestReport,
   GateReport,
   BundleManifest,

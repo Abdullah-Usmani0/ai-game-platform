@@ -59,7 +59,8 @@ export const SYSTEMS_INDEX = `import type { SystemDef } from '@gg/sdk';
 
 /**
  * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
- * with \`defineSystem\` from '@gg/sdk', and list it here. Template systems come from systems.json instead.
+ * with \`defineSystem\` from '@gg/sdk', list it here, and write its contract in design/mechanics.json: the game's
+ * test holds the code to it. Template systems come from systems.json instead.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const BESPOKE: SystemDef<any>[] = [];
@@ -143,11 +144,16 @@ void createGame({
 });
 `;
 
-export const GAME_TEST = (genre: string) => `import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
-import { levelTicksOf, runBot } from '@gg/template-core';
+export const GAME_TEST = (genre: string) => `import { MechanicsFile } from '@gg/schemas';
+import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
+import { conformance, levelTicksOf, runBot } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
 import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
 import { BOTS, SOLVER_BOT } from './bots.js';
+
+const MECHANICS = MechanicsFile.parse(mechanicsJson).mechanics;
 
 describe('${genre} game', () => {
   it('every level is completable by the solver bot, at the seed the level is played with', () => {
@@ -162,6 +168,13 @@ describe('${genre} game', () => {
     const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
     expect(a.finalHash).toBe(b.finalHash);
   });
+  // The game's own systems (src/systems) do what their contracts (design/mechanics.json) say, and keep the game sound.
+  it.runIf(BESPOKE.length > 0 || MECHANICS.length > 0)('its own systems keep to their contracts', () => {
+    const levels = LEVELS.map((level, i) => ({ level, seed: levelSeed(DEFAULT_SEED, i) }));
+    const bots = { [SOLVER_BOT]: BOTS[SOLVER_BOT]!, chaos: BOTS['chaos']! };
+    const r = conformance({ options: SIM_OPTIONS, levels, contracts: MECHANICS, bespoke: BESPOKE.map((s) => s.id), bots, ticks: levelTicksOf(SIM_OPTIONS) });
+    expect(r.issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
 });
 `;
 
@@ -175,7 +188,7 @@ import systemsJson from '../design/systems.json';
 import { BESPOKE } from './systems/index.js';
 
 /** A freeform game on ${base}: its systems from any genre's catalog, its roster's entities, composed at load. */
-const SYSTEMS = systemsJson as unknown as FreeformSystemsJson;
+export const SYSTEMS = systemsJson as unknown as FreeformSystemsJson;
 export const ROSTER = rosterJson as unknown as EntityRoster;
 const runtime = compose(SYSTEMS, ROSTER).runtime;
 
@@ -210,6 +223,43 @@ const kit = freeformCheck(systemsJson as unknown as FreeformSystemsJson, rosterJ
 /** The proof bot replays each level's recorded winning run; chaos presses keys at random. */
 export const BOTS = kit.bots;
 export const SOLVER_BOT = kit.solverBot;
+`;
+
+/**
+ * A freeform game's prover (`pnpm prove`): a winning run for every level, recorded with the game's own code, its
+ * bespoke systems included (the worker's prover in Node knows only the catalog's). The worker runs it when the game has
+ * systems of its own; the game's test replays the runs.
+ */
+export const FREEFORM_PROVE_TEST = `import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { LevelProof, MechanicsFile } from '@gg/schemas';
+import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
+import { describe, expect, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
+import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
+
+const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
+
+describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
+  it("every level gets one, played with the game's own systems: the stored run while it wins, else the solver, else the explorer", () => {
+    const base = BASE_MANIFESTS[SYSTEMS.composition.base];
+    const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
+    mkdirSync(proofs, { recursive: true });
+    for (const [i, level] of LEVELS.entries()) {
+      const file = \`\${proofs}\${level.id}.json\`;
+      const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000 };
+      const r = proveLevel(level, i, inputs, stored);
+      expect(r.proof, \`\${level.id}: \${r.tried.join('; ')}\`).not.toBeNull();
+      writeFileSync(file, JSON.stringify(r.proof) + '\\n');
+    }
+  });
+});
+`;
+
+/** design/mechanics.json: the contracts of the game's own systems; none until the implement stage writes one. */
+export const MECHANICS_JSON = `{ "version": 1, "mechanics": [] }
 `;
 
 export const BOTS_TS = (nodeImport: string, manifestName: string) => `import { ${manifestName} } from '${nodeImport}';

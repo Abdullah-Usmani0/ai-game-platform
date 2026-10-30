@@ -62,15 +62,15 @@
   },
   "implement": {
     "runner": "claude-sdk",
-    "gate": ["typecheck", "lint", "test", "build", "smoke"],
-    "allowedWrite": ["game/src/systems/**", "game/tests/**", "game/design/deviations.md"],
+    "gate": ["validate:systems", "typecheck", "lint", "test", "build", "smoke"],
+    "allowedWrite": ["game/src/systems/**", "game/tests/**", "game/design/mechanics.json", "game/design/deviations.md"],
     "caps": {
       "turns": 120,
       "usd": 4,
       "wallMin": 30
     },
     "skills": ["mechanic-author", "verify"],
-    "task": "Implement any mechanic the GDD requires that no selected catalog system provides, as bespoke GlueTS systems under game/src/systems with unit tests. If every GDD mechanic is already covered, append one line to game/design/deviations.md saying so and stop."
+    "task": "Implement any mechanic the GDD requires that no selected catalog system provides, as bespoke GlueTS systems under game/src/systems with unit tests, each with its contract in game/design/mechanics.json (the game's own test holds the code to it). If every GDD mechanic is already covered, append one line to game/design/deviations.md saying so and stop."
   },
   "prove": {
     "runner": "worker",

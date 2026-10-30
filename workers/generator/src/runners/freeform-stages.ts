@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateArtifact, providerFor, type GenerateResult } from '@gg/llm';
@@ -5,7 +6,7 @@ import { CURATED_GENRES, type CreateRequest, type CuratedGenre, type EntityRoste
 import { sfxPresetFor } from '@gg/sdk/art';
 import { grammarHasGoal, plannedLevelCount, rolesPresent, type GenreManifest } from '@gg/template-core';
 import { ARCHETYPES, BASE_MANIFESTS, checkFreeformObjectives, compileRoster, compose, designContentFor, FREEFORM_CATALOG, freeformDesignManifest, IDENTITY_ROSTER, movementOf, proveLevel, RUNTIMES, SYSTEMS, usableSystems } from '@gg/template-freeform/node';
-import { readGameFiles, readGameInputs, readGameLevels } from '@gg/templates/node';
+import { hasBespokeSystems, readGameFiles, readGameInputs, readGameLevels } from '@gg/templates/node';
 import { checkComposition, checkSystems, silentSfx } from '@gg/validators';
 import { baseSystems, defaultObjectives, draftFreeformFrontmatter, exampleFor, guessBase } from '../freeform.js';
 import { designContentOf, writeDesignContent } from './design-content.js';
@@ -261,10 +262,21 @@ export function reproveLevels(ctx: Pick<StageContext, 'gameDir'>, budget = 40_00
   const files = readGameFiles(ctx.gameDir);
   const sys = files.systems;
   if (sys?.genre !== 'freeform') return { ok: true, summary: 'curated: the genre solver proves the levels' };
-  const base = BASE_MANIFESTS[sys.composition.base];
-  const inputs = { file: sys, roster: files.roster ?? IDENTITY_ROSTER, ...readGameInputs(ctx.gameDir), solver: base.bots[base.solverBot], budget };
   const proofsDir = join(ctx.gameDir, 'content', 'proofs');
   const levels = readGameLevels(ctx.gameDir);
+  const prune = () => {
+    const ids = new Set(levels.map((l) => `${l.level.id}.json`));
+    if (existsSync(proofsDir)) for (const f of readdirSync(proofsDir)) if (!ids.has(f)) rmSync(join(proofsDir, f));
+  };
+  // A game with systems of its own records its runs with its own code: its prover runs in the game's test runner.
+  if (hasBespokeSystems(ctx.gameDir)) {
+    const r = spawnSync('pnpm', ['run', 'prove'], { cwd: ctx.gameDir, encoding: 'utf8', env: { ...process.env, CI: '1' }, maxBuffer: 16 * 1024 * 1024 });
+    prune();
+    if (r.status === 0) return { ok: true, summary: `proved ${levels.length} level(s) with the game's own systems (pnpm prove)` };
+    return { ok: false, summary: `the game's prover found no winning run: ${`${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n').slice(-12).join(' / ')}` };
+  }
+  const base = BASE_MANIFESTS[sys.composition.base];
+  const inputs = { file: sys, roster: files.roster ?? IDENTITY_ROSTER, ...readGameInputs(ctx.gameDir), solver: base.bots[base.solverBot], budget };
   const done: string[] = [];
   for (const { level, index } of levels) {
     const r = proveLevel(level, index, inputs, files.proofs.find((p) => p.level === level.id));
@@ -272,7 +284,6 @@ export function reproveLevels(ctx: Pick<StageContext, 'gameDir'>, budget = 40_00
     writeJson(join(proofsDir, `${level.id}.json`), r.proof);
     done.push(`${level.id} (${r.proof.by}, ${Math.round(r.proof.ticks / 60)} s)`);
   }
-  const ids = new Set(levels.map((l) => `${l.level.id}.json`));
-  if (existsSync(proofsDir)) for (const f of readdirSync(proofsDir)) if (!ids.has(f)) rmSync(join(proofsDir, f));
+  prune();
   return { ok: true, summary: `proved ${done.length} level(s): ${done.join(', ')}` };
 }

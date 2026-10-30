@@ -1,10 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { EntityRoster, LevelJson, LevelProof, Objectives, parseAnyGdd, parseSystemsFile, type AnyGddFrontmatter, type BehaviourFsm, type EcaRule, type SystemsFile } from '@gg/schemas';
+import { EntityRoster, LevelJson, LevelProof, MechanicsFile, Objectives, parseAnyGdd, parseSystemsFile, type AnyGddFrontmatter, type BehaviourFsm, type EcaRule, type Mechanic, type SystemsFile } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding } from '@gg/sdk';
 import { rolesPresent, simOptionsFor, type GenreManifest } from '@gg/template-core';
 import { checkFreeformObjectives, FREEFORM_CATALOG, freeformDesignManifest, freeformManifest, IDENTITY_ROSTER } from '@gg/template-freeform/node';
-import { checkComposition, checkSystems, err, parseFrontmatter, report, type Issue, type SystemsCatalog, type ValidationReport } from '@gg/validators';
+import { checkComposition, checkSystems, err, mechanicMeta, parseFrontmatter, report, type Issue, type SystemsCatalog, type ValidationReport } from '@gg/validators';
 import { CATALOG, genre, GENRES } from './genres.js';
 
 /** What a game's design files say about it; a file that is missing or invalid is null (proofs: left out). */
@@ -97,6 +97,12 @@ export function readGameLevels(gameDir: string): Array<{ level: LevelJson; index
     .map((f, index) => ({ level: LevelJson.parse(readJson(join(dir, f))), index, seed: levelSeed(DEFAULT_SEED, index) }));
 }
 
+/** Whether a game has systems of its own (src/systems/*.ts beside the index): its own code then checks and proves them. */
+export function hasBespokeSystems(gameDir: string): boolean {
+  const dir = join(gameDir, 'src', 'systems');
+  return existsSync(dir) && readdirSync(dir).some((f) => f.endsWith('.ts') && f !== 'index.ts');
+}
+
 /**
  * A freeform game's proofs against the game as it is now: every level has a recorded winning run, recorded at the seed
  * the level is played with, that still wins. Replayed here unless the game has bespoke systems (the game's own test
@@ -108,8 +114,7 @@ export function checkProofs(gameDir: string): ValidationReport {
   if (systems?.genre !== 'freeform') return report([], { curated: true });
   const m = manifestFor(files);
   const inputs = readGameInputs(gameDir);
-  const srcSystems = join(gameDir, 'src', 'systems');
-  const bespoke = existsSync(srcSystems) && readdirSync(srcSystems).some((f) => f.endsWith('.ts') && f !== 'index.ts');
+  const bespoke = hasBespokeSystems(gameDir);
   const options = simOptionsFor(m, systems, inputs);
   const issues: Issue[] = [];
   let proven = 0;
@@ -132,12 +137,24 @@ export function catalogFor(systems: Pick<SystemsFile, 'genre'>): SystemsCatalog 
   return systems.genre === 'freeform' ? FREEFORM_CATALOG : CATALOG;
 }
 
+/** design/mechanics.json's contracts (none when the game has no such file); a file that does not parse is an error. */
+export function readMechanics(gameDir: string, issues: Issue[]): Mechanic[] {
+  const path = join(gameDir, 'design', 'mechanics.json');
+  if (!existsSync(path)) return [];
+  const parsed = MechanicsFile.safeParse(readJson(path));
+  if (parsed.success) return parsed.data.mechanics;
+  issues.push(...parsed.error.issues.map((i) => err('mechanics_invalid', `design/mechanics.json ${i.path.join('.') || '(root)'}: ${i.message}`)));
+  return [];
+}
+
 /**
  * A game's design/systems.json against everything that holds it together: the catalog's ranges and the GDD's feedback
  * events; for a freeform game also the composition rules, over its roster's roles and the content it ships, and its
  * objectives. Content still to come counts as there: what its levels' generator writes with them (an arena's waves,
  * before the scaffold has run), and the rules the composition stage writes, until that stage has written the roster.
- * The content the design stage wrote from the idea (a farm's crops) is held to the rules these systems set.
+ * The contracts of the game's bespoke systems (design/mechanics.json) take part in the composition rules: for a curated
+ * game, what they add to its own systems' check. The content the design stage wrote from the idea (a farm's crops) is
+ * held to the rules these systems set.
  */
 export function checkGameSystems(gameDir: string): ValidationReport {
   const path = join(gameDir, 'design', 'systems.json');
@@ -145,23 +162,34 @@ export function checkGameSystems(gameDir: string): ValidationReport {
   const parsed = parseSystemsFile(readJson(path));
   if (!parsed.success) return report(parsed.error.issues.map((i) => err('systems_schema', `${i.path.join('.')}: ${i.message}`)));
   const files = readGameFiles(gameDir);
-  const issues: Issue[] = [...checkSystems(parsed.data, catalogFor(parsed.data), files.gdd ?? undefined).issues];
+  const catalog = catalogFor(parsed.data);
+  const issues: Issue[] = [...checkSystems(parsed.data, catalog, files.gdd ?? undefined).issues];
+  const mechanics = readMechanics(gameDir, issues);
+  for (const m of mechanics) if (catalog[m.id]) issues.push(err('mechanic_shadows', `bespoke system '${m.id}' has the id of a catalog system`, { path: m.id }));
+  const bespoke = mechanics.map(mechanicMeta);
+  // A genre without a template has no runtime of its own: checkSystems has already said what is wrong with it.
+  const own = parsed.data.genre === 'freeform' ? manifestFor(files) : GENRES[parsed.data.genre];
+  const dir = join(gameDir, 'content');
+  const written = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')) : [];
+  const toCome = (m: GenreManifest) => Object.keys(m.extraContent?.({ seed: 1, difficulty: 0.3 }) ?? {});
   if (parsed.data.genre === 'freeform') {
-    const m = manifestFor(files);
-    const dir = join(gameDir, 'content');
-    const written = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')) : [];
+    const m = own!;
     const composed = existsSync(join(dir, 'entities.json'));
-    const content = [...new Set([...written, ...Object.keys(m.extraContent?.({ seed: 1, difficulty: 0.3 }) ?? {}), ...(composed ? [] : ['objectives'])])];
-    issues.push(...checkComposition(Object.values(m.systems).map((s) => s.meta), { roles: rolesPresent(m), content }).issues);
+    const content = [...new Set([...written, ...toCome(m), ...(composed ? [] : ['objectives'])])];
+    issues.push(...checkComposition([...Object.values(m.systems).map((s) => s.meta), ...bespoke], { roles: rolesPresent(m), content }).issues);
     const objectivesPath = join(dir, 'objectives.json');
     if (existsSync(objectivesPath)) {
       const o = Objectives.safeParse(readJson(objectivesPath));
       if (o.success) issues.push(...checkFreeformObjectives(parsed.data, files.roster ?? IDENTITY_ROSTER, o.data).issues);
       else issues.push(...o.error.issues.map((i) => err('objectives_invalid', `content/objectives.json ${i.path.join('.')}: ${i.message}`)));
     }
+  } else if (own && bespoke.length > 0) {
+    // A curated genre's systems are held together by the genre; what the game's own add to the rules is its to answer.
+    const ctx = { roles: rolesPresent(own), content: [...new Set([...written, ...toCome(own), ...(own.designContent ?? []).map((d) => d.key)])] };
+    const metas = parsed.data.systems.flatMap((s) => (catalog[s.id] ? [catalog[s.id]!] : []));
+    const before = new Set(checkComposition(metas, ctx).issues.map((i) => `${i.code}|${i.message}`));
+    issues.push(...checkComposition([...metas, ...bespoke], ctx).issues.filter((i) => !before.has(`${i.code}|${i.message}`)));
   }
-  // A genre without a template has no content of its own: checkSystems has already said what is wrong with it.
-  const own = parsed.data.genre === 'freeform' ? manifestFor(files) : GENRES[parsed.data.genre];
   for (const d of own?.designContent ?? []) {
     const path = join(gameDir, 'content', `${d.key}.json`);
     if (existsSync(path)) issues.push(...d.check(readJson(path), parsed.data));
