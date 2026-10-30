@@ -119,6 +119,24 @@ describe('checkGameSystems', () => {
     expect(checkGameSystems(dir).issues.filter((i) => i.severity === 'error')).toEqual([]);
   });
 
+  it("holds the content the design stage wrote to the game's rules: what leaves nothing to farm fails, a poor buy warns", () => {
+    const sys = systemsJsonFor(GENRES['lifesim']!);
+    const gdd = readFileSync(join(samples, 'lifesim', 'design', 'gdd.md'), 'utf8');
+    const crops = JSON.parse(readFileSync(join(samples, 'lifesim', 'content', 'crops.json'), 'utf8')) as { version: 1; crops: Array<Record<string, unknown>> };
+    const farm = (systems: unknown, table: unknown) => checkGameSystems(gameDir({ 'design/systems.json': systems, 'design/gdd.md': gdd, 'content/crops.json': table }));
+    expect(farm(sys, crops).issues).toEqual([]);
+    // A three-day season: three of the sample's four crops never ripen in it, a warning each.
+    const short = { ...sys, systems: sys.systems.map((x) => (x.id === 'season' ? { ...x, params: { ...x.params, days: 3 } } : x)) };
+    const r = farm(short, crops);
+    expect(r.ok).toBe(true);
+    expect(r.issues.map((i) => i.code)).toEqual(['crop_trap', 'crop_trap', 'crop_trap']);
+    expect(farm(sys, { version: 1, crops: crops.crops.map((c) => ({ ...c, growDays: 9 })) }).issues.filter((i) => i.severity === 'error').map((i) => i.code)).toContain('crops_unripe');
+    expect(farm(sys, { version: 1 }).issues.map((i) => i.code)).toEqual(['crops_schema']);
+    // A game whose systems read no crops has none to check.
+    const platformer = gameDir({ 'design/systems.json': systemsJsonFor(GENRES['platformer']!), 'design/gdd.md': readFileSync(join(samples, 'platformer', 'design', 'gdd.md'), 'utf8'), 'content/crops.json': { version: 1 } });
+    expect(checkGameSystems(platformer).issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+
   it("holds a freeform game's objectives to its roster: a rule about an entity the game has not got is an error", () => {
     const objectives = { ...LANTERN.objectives!, win: { mode: 'all' as const, clauses: [{ kind: 'collect' as const, type: 'firefly', count: 2 }] } };
     const dir = gameDir({ 'design/gdd.md': gddMd(LANTERN.gdd), 'design/systems.json': LANTERN.systems, 'content/entities.json': LANTERN.roster, 'content/objectives.json': objectives });

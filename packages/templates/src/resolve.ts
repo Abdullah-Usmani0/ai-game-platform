@@ -5,7 +5,7 @@ import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding } from '@gg/sd
 import { rolesPresent, simOptionsFor, type GenreManifest } from '@gg/template-core';
 import { checkFreeformObjectives, FREEFORM_CATALOG, freeformDesignManifest, freeformManifest, IDENTITY_ROSTER } from '@gg/template-freeform/node';
 import { checkComposition, checkSystems, err, parseFrontmatter, report, type Issue, type SystemsCatalog, type ValidationReport } from '@gg/validators';
-import { CATALOG, genre } from './genres.js';
+import { CATALOG, genre, GENRES } from './genres.js';
 
 /** What a game's design files say about it; a file that is missing or invalid is null (proofs: left out). */
 export interface GameFiles {
@@ -137,6 +137,7 @@ export function catalogFor(systems: Pick<SystemsFile, 'genre'>): SystemsCatalog 
  * events; for a freeform game also the composition rules, over its roster's roles and the content it ships, and its
  * objectives. Content still to come counts as there: what its levels' generator writes with them (an arena's waves,
  * before the scaffold has run), and the rules the composition stage writes, until that stage has written the roster.
+ * The content the design stage wrote from the idea (a farm's crops) is held to the rules these systems set.
  */
 export function checkGameSystems(gameDir: string): ValidationReport {
   const path = join(gameDir, 'design', 'systems.json');
@@ -158,6 +159,12 @@ export function checkGameSystems(gameDir: string): ValidationReport {
       if (o.success) issues.push(...checkFreeformObjectives(parsed.data, files.roster ?? IDENTITY_ROSTER, o.data).issues);
       else issues.push(...o.error.issues.map((i) => err('objectives_invalid', `content/objectives.json ${i.path.join('.')}: ${i.message}`)));
     }
+  }
+  // A genre without a template has no content of its own: checkSystems has already said what is wrong with it.
+  const own = parsed.data.genre === 'freeform' ? manifestFor(files) : GENRES[parsed.data.genre];
+  for (const d of own?.designContent ?? []) {
+    const path = join(gameDir, 'content', `${d.key}.json`);
+    if (existsSync(path)) issues.push(...d.check(readJson(path), parsed.data));
   }
   return report(issues);
 }

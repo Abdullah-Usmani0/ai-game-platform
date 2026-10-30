@@ -49,7 +49,7 @@ function draftFarmBody(req: CreateRequest, g: GenreManifest, fm: AnyGddFrontmatt
     '## Concept',
     req.prompt.trim(),
     '',
-    `A ${fm.scopeTier} ${g.name.toLowerCase()} built on the fixed runtime: ${seasons} on a farm, the default crops (turnip, lettuce, tomato that bears again, corn) unless content/crops.json names others. The player's verbs are ${fm.verbs.join(', ')}.`,
+    `A ${fm.scopeTier} ${g.name.toLowerCase()} built on the fixed runtime: ${seasons} on a farm, with three or four crops written for the idea after the systems (content/crops.json), the starter seeds first, a quick cheap crop to start on and a slow valuable one to save up for. The player's verbs are ${fm.verbs.join(', ')}.`,
     '',
     '## Pillars',
     ...fm.pillars.map((p, i) => `${i + 1}. ${p[0]!.toUpperCase()}${p.slice(1)}: every system and season is judged against this.`),

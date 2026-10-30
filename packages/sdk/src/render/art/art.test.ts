@@ -8,6 +8,7 @@ import {
   artPalette,
   recipeForType,
   depthField,
+  fitRow,
   frameSize,
   luminance,
   measure,
@@ -123,6 +124,19 @@ describe('font', () => {
     expect(lines.length).toBeGreaterThan(1);
     expect(wrapText('UNBREAKABLEWORD', 10)).toEqual(['UNBREAKABLEWORD']);
     expect(wrapText('  ', 50)).toEqual([]);
+  });
+
+  it('fits a row by shortening its longest word, the number beside it kept, and leaves a row that fits alone', () => {
+    const row = ['7/14', '12:30', 'MOONMELONSEEDS 30', '99999', '99999'];
+    const extra = row.map(() => 14);
+    const room = row.reduce((w, t, i) => w + measure(t) + extra[i]!, 0) - 20;
+    const fitted = fitRow(row, room, extra);
+    expect(fitted.reduce((w, t, i) => w + measure(t) + extra[i]!, 0)).toBeLessThanOrEqual(room);
+    expect(fitted[2]).toMatch(/^MOONMELON\w*\. 30$/);
+    expect(fitted.filter((t, i) => t !== row[i])).toEqual([fitted[2]]);
+    expect(fitRow(row, 10_000, extra)).toEqual(row);
+    // Words stop at three letters: a row that cannot fit stays as short as it gets.
+    expect(fitRow(['ABCDEFGH'], 1)).toEqual(['ABC.']);
   });
 
   it('scaled blits turn each pixel into a block and skip transparency', () => {

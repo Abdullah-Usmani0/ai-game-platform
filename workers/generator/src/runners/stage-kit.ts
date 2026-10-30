@@ -20,13 +20,14 @@ export const writeJson = (p: string, v: unknown): void => {
   writeFileSync(p, JSON.stringify(v, null, 2) + '\n');
 };
 
-export function readGdd(gameDir: string): { md: string; fm: AnyGddFrontmatter } | null {
+/** A game's GDD: the whole file, its front matter, and the markdown body under it. */
+export function readGdd(gameDir: string): { md: string; fm: AnyGddFrontmatter; body: string } | null {
   const p = join(gameDir, 'design', 'gdd.md');
   if (!existsSync(p)) return null;
   const md = readFileSync(p, 'utf8');
   const fm = parseFrontmatter(md);
   const parsed = fm ? parseAnyGdd(fm.data) : null;
-  return parsed?.success ? { md, fm: parsed.data } : null;
+  return fm && parsed?.success ? { md, fm: parsed.data, body: fm.body } : null;
 }
 
 export function readSystems(gameDir: string): SystemsFile | null {

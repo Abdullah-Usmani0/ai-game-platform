@@ -30,7 +30,7 @@
     "systemsMeta": "3c8212747870f6a2",
     "scopeBudget": "11b105ed9c2558f3",
     "gddDefaults": "b417300e30ecadc1",
-    "gddFragment": "4a5b1f3a9b3f9117",
+    "gddFragment": "372cad44785a50d0",
     "interviewFragment": "bfb5d782c24daa16",
     "panels": "746d1fddffb3b203",
     "exemplars": "42064c46353036f6",
@@ -40,7 +40,8 @@
       "afk",
       "chaos",
       "farmer"
-    ]
+    ],
+    "designContent": "8e73b2d2fa56aefd"
   },
   "levels": {
     "seed1-difficulty0.2": "de8e4fbf21357be8",

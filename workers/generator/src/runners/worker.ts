@@ -12,6 +12,7 @@ import { CATALOG, catalogFor, genre as genreOf, readGameInputs, resolveGame } fr
 import { sfxPresetFor } from '@gg/sdk/art';
 import { checkGdd, checkSystems, impact, silentSfx, validateBehaviour, type ValidationReport } from '@gg/validators';
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
+import { designContentOf, writeDesignContent } from './design-content.js';
 import { composition, compositionOf, freeformFrontmatter, freeformSystems, reproveLevels } from './freeform-stages.js';
 import type { PairDraft, Runner, StageContext, StageOutcome } from './types.js';
 import { add, fail, listJson, ok, readGdd, readJson, readSystems, sumUsage, writeJson, ZERO, type StageFn } from './stage-kit.js';
@@ -214,7 +215,12 @@ const systems: StageFn = async (ctx) => {
   }
   writeJson(join(ctx.gameDir, 'design', 'systems.json'), value);
   const pairs: PairDraft[] = res.selected ? [{ artifact: 'SystemsJson', system: SYSTEMS_SYSTEM, prompt, output: value }] : [];
-  return { ok: true, summary: `wrote design/systems.json (${value.systems.map((s) => s.id).join(', ')}; feel ${value.feelPreset})${notes.length ? `; ${notes.join('; ')}` : ''}`, usage: sumUsage(res), costUsd: res.totalCostUsd, durationMs: Date.now() - t0, turns: res.samples.length, artifactPath: join(ctx.gameDir, 'design', 'systems.json'), promptHash: res.selected?.promptHash, pairs };
+  // What these systems read and the idea decides (a farm's crops), written for the rules they set.
+  const content = await writeDesignContent(ctx, g.designContent ?? [], value, { title: gddInfo.fm.title, pillars: gddInfo.fm.pillars, body: gddInfo.body });
+  notes.push(...content.notes);
+  pairs.push(...content.pairs);
+  const written = content.written.length ? ` and ${content.written.join(', ')}` : '';
+  return { ok: true, summary: `wrote design/systems.json (${value.systems.map((s) => s.id).join(', ')}; feel ${value.feelPreset})${written}${notes.length ? `; ${notes.join('; ')}` : ''}`, usage: add(sumUsage(res), content.usage), costUsd: res.totalCostUsd + content.costUsd, durationMs: Date.now() - t0, turns: res.samples.length + content.turns, artifactPath: join(ctx.gameDir, 'design', 'systems.json'), promptHash: res.selected?.promptHash, pairs };
 };
 
 // ---------------------------------------------------------------- scaffold
@@ -236,7 +242,8 @@ const scaffoldStage: StageFn = async (ctx) => {
     gddMarkdown: gddInfo.md,
     levels: gddInfo.fm.scope.levels,
     seed: ctx.request?.seed ?? 1,
-    ...(sys.genre === 'freeform' ? compositionOf(ctx.gameDir) : {}),
+    // The placeholder levels are proven with what the design stages wrote: a freeform game's composition, a farm's crops.
+    ...(sys.genre === 'freeform' ? compositionOf(ctx.gameDir) : { content: designContentOf(ctx.gameDir, genreOfGame(ctx).designContent ?? []) }),
   });
   return ok(`scaffolded ${result.files.length} files; placeholder levels ${result.levels.join(', ')}`, { durationMs: Date.now() - t0, artifactPath: ctx.gameDir });
 };

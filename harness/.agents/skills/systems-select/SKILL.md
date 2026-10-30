@@ -14,6 +14,17 @@ description: Choose and parameterise template systems for the game in game/desig
 
 Bespoke behaviour that no catalog system covers goes through `mechanic-author`, not into systems.json.
 
+## Content the systems read
+
+Some systems play with content the idea decides, written right after systems.json and held to the rules it sets. A farm
+(`farming`, `shop`, `shipping`, `season`) reads `game/content/crops.json` (`CropTable`): three or four crops in shop
+order, the first being the starter seeds, each `{ id, name (at most 10 letters), seedPrice, sellPrice, growDays,
+regrowDays?, look: { shape: root|leafy|tall|bush, color } }`. A crop must ripen within the season (growDays at most
+days - 1) and pay for its seeds; no crop may be worse than another in every way, two crops of one shape need clearly
+different colours, and an ideal season on a small field has to earn a real purse. `pnpm validate game/content/crops.json`
+runs the same check against the game's systems.json: errors leave nothing worth farming, warnings are cards no player
+should see. Changing the season's rules later (fewer days, a pricier pack) can turn a good table into a warning.
+
 ## Freeform games
 
 A freeform game's `systems.json` (`FreeformSystemsJson`) has `genre: "freeform"` and `composition: { base }`, the GDD's
@@ -28,5 +39,6 @@ The composition stage then writes, as data:
   with `hp` a health scale from 0.5 to 3; entities left out keep their own names.
 - `game/content/objectives.json` (`Objectives`) when `objectives` is selected: `win { mode: all|any, clauses }` and `lose`
   rules; a `survive` clause needs a `lives` rule, so dying always costs something.
+- the content its systems read (above), named to go with its entities: a moon garden's glowcaps and starberries.
 
 The check script runs the same rules as the gate's `validate:systems`, composition and objectives included.

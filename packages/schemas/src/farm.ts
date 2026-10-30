@@ -22,11 +22,14 @@ export const Crop = z.object({
 });
 export type Crop = z.infer<typeof Crop>;
 
-/** content/crops.json: the crops a farm grows, in the order the shop offers them (it shows the first four). */
+/**
+ * content/crops.json: the crops a farm grows, in the order the seed shop shows them (a menu of four cards). The farmer
+ * starts a season with seeds of the first.
+ */
 export const CropTable = z
   .object({
     version: z.literal(1),
-    crops: z.array(Crop).min(1).max(8),
+    crops: z.array(Crop).min(1).max(4),
   })
   .refine((t) => new Set(t.crops.map((c) => c.id)).size === t.crops.length, { message: 'crop ids must be unique', path: ['crops'] });
 export type CropTable = z.infer<typeof CropTable>;

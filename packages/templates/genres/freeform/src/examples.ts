@@ -9,6 +9,8 @@ export interface FreeformExample {
   roster: EntityRoster;
   /** content/objectives.json, where the objectives decide the win. */
   objectives?: Objectives;
+  /** Content files the idea decides, by key (a farm's crops: content/crops.json). */
+  content?: Readonly<Record<string, unknown>>;
 }
 
 /** A survivors arena fought with a top-down action blade, won by holding out for a minute on two lives. */
@@ -201,6 +203,19 @@ export const MOON: FreeformExample = {
       { type: 'beetle_stall', archetype: 'lifesim:shop', hp: 1 },
       { type: 'hollow', archetype: 'lifesim:bed', hp: 1 },
     ],
+  },
+  // What grows by moonlight: glowcaps, quick and cheap to start on; dew-heavy leaves; berries that ripen night after
+  // night once they bear; and a slow lily worth the wait.
+  content: {
+    crops: {
+      version: 1,
+      crops: [
+        { id: 'glowcap', name: 'Glowcap', seedPrice: 10, sellPrice: 30, growDays: 2, look: { shape: 'root', color: '#a9dcff' } },
+        { id: 'dewleaf', name: 'Dewleaf', seedPrice: 20, sellPrice: 65, growDays: 3, look: { shape: 'leafy', color: '#7fe0b8' } },
+        { id: 'starberry', name: 'Starberry', seedPrice: 45, sellPrice: 35, growDays: 4, regrowDays: 1, look: { shape: 'bush', color: '#ffd75e' } },
+        { id: 'nightlily', name: 'Nightlily', seedPrice: 50, sellPrice: 175, growDays: 5, look: { shape: 'tall', color: '#c59bff' } },
+      ],
+    },
   },
 };
 

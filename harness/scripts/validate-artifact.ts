@@ -4,7 +4,7 @@ import { ARTIFACT_SCHEMAS, parseAnyGdd, parseSystemsFile, type AnyGddFrontmatter
 import { CELESTE_CLASS } from '@gg/sdk';
 import { manifestFor, resolveGame } from '@gg/templates/node';
 import type { GenreManifest } from '@gg/template-core';
-import { checkGdd, parseFrontmatter, validateBehaviour, validateLevel, type ValidationReport } from '@gg/validators';
+import { checkGdd, parseFrontmatter, report, validateBehaviour, validateLevel, type ValidationReport } from '@gg/validators';
 
 /**
  * Picks the schema for a design/content artifact by its path, validates it, then runs the semantic
@@ -19,6 +19,7 @@ function schemaFor(file: string): ArtifactName | null {
   if (name === 'waves.json') return 'WaveTable';
   if (name === 'objectives.json') return 'Objectives';
   if (/\/content\/entities\.json$/.test(f)) return 'EntityRoster';
+  if (/\/content\/crops\.json$/.test(f)) return 'CropTable';
   if (/\/content\/proofs\/[^/]+\.json$/.test(f)) return 'LevelProof';
   if (name === 'systems.json') return 'SystemsFile';
   if (name === 'style.json') return 'StyleCard';
@@ -117,6 +118,12 @@ for (const file of files) {
     if (!printReport(file, `level (${g?.id ?? 'generic'})`, r)) failed++;
   } else if (name === 'BehaviourFsm') {
     if (!printReport(file, 'behaviour', validateBehaviour(result.data as BehaviourFsm, g?.behaviourVocab, g?.entityDefs.map((e) => e.type)))) failed++;
+  } else if (g?.designContent?.some((d) => d.artifact === name)) {
+    // Content the design stage writes from the idea (a farm's crops), held to the rules the game's systems set.
+    const d = g.designContent.find((x) => x.artifact === name)!;
+    const systems = systemsOf(gameRoot);
+    if (!systems) console.log(`${file}: OK (${name}; no design/systems.json to hold it to)`);
+    else if (!printReport(file, d.key, report(d.check(result.data, systems)))) failed++;
   } else {
     console.log(`${file}: OK (${name})`);
   }

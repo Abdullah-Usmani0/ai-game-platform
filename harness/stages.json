@@ -15,26 +15,26 @@
   "systems": {
     "runner": "worker",
     "gate": ["validate:systems"],
-    "allowedWrite": ["game/design/systems.json"],
+    "allowedWrite": ["game/design/systems.json", "game/content/crops.json"],
     "caps": {
       "turns": 0,
       "usd": 0.5,
       "wallMin": 5
     },
     "skills": ["systems-select"],
-    "task": "Select and parameterise catalog systems in game/design/systems.json so every GDD verb and feedback event is covered."
+    "task": "Select and parameterise catalog systems in game/design/systems.json so every GDD verb and feedback event is covered; then write the content those systems read that the idea decides (a farm's crops, content/crops.json), held to the rules they set."
   },
   "composition": {
     "runner": "worker",
     "gate": ["validate:systems"],
-    "allowedWrite": ["game/content/entities.json", "game/content/objectives.json"],
+    "allowedWrite": ["game/content/entities.json", "game/content/objectives.json", "game/content/crops.json"],
     "caps": {
       "turns": 0,
       "usd": 0.5,
       "wallMin": 5
     },
     "skills": ["systems-select"],
-    "task": "A freeform game only: name the game's entities (content/entities.json) from the shipped ones, and write its win and lose rules (content/objectives.json) when the objectives system is selected."
+    "task": "A freeform game only: name the game's entities (content/entities.json) from the shipped ones, write its win and lose rules (content/objectives.json) when the objectives system is selected, and the content its systems read that the idea decides (a farm's crops, content/crops.json)."
   },
   "scaffold": {
     "runner": "worker",

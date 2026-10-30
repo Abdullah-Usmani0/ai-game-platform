@@ -1,7 +1,8 @@
 /**
  * The golden lock: what every curated genre does today, pinned. Generated levels, every bot's run on them (final hash,
  * ticks, deaths, event counts), the runtime data (entity defs, feel, behaviours, vocab, panels, exemplars, prompts'
- * fragments, system metadata), every sprite's pixels and terrain painting under two palettes, and the sound presets.
+ * fragments, system metadata, the content the design stage writes), every sprite's pixels and terrain painting under
+ * two palettes, and the sound presets.
  * Shared code may change freely as long as this stays green; an intended change to a curated game updates the lock in
  * the same commit, with the reason in the message: `GOLDEN_UPDATE=1 pnpm --filter @gg/templates test golden`.
  */
@@ -78,6 +79,7 @@ describe('golden lock: curated genres', () => {
         levelGrammar: g.levelGrammar.kind,
         solverBot: g.solverBot,
         bots: Object.keys(g.bots).sort(),
+        ...(g.designContent ? { designContent: hashValue(g.designContent.map((d) => ({ key: d.key, artifact: d.artifact, readBy: d.readBy, guide: d.guide, fallback: d.fallback }))) } : {}),
       };
       const systems = systemsJsonFor(g);
       const feel: FeelPreset = g.feelPresets[g.defaultFeel]!;

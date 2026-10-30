@@ -19,7 +19,7 @@ from `stage.json`. Do not guess them; read the injected summary.
 | Stage | Who | Gate | Skill |
 |---|---|---|---|
 | gdd | worker (structured) or you | validate:gdd, validate:style | gdd-author |
-| systems | worker (structured) | validate:systems | systems-select |
+| systems | worker (structured), with a farm's crops | validate:systems | systems-select |
 | composition | worker (structured), freeform games only | validate:systems | systems-select |
 | scaffold | worker | typecheck, lint, prove, test, build, smoke | - |
 | behaviour | worker (structured) or you | validate:behaviour, prove, solver | behaviour-author |
@@ -51,7 +51,8 @@ unlisted. `pnpm catalog freeform <base>` lists the systems a freeform game on th
 
 - `game/design/` concept.md, gdd.md, systems.json, style.json, deviations.md (the spec; machine-read front matter)
 - `game/content/` levels/*.json, behaviour/*.fsm.json, rules/*.eca.json, waves.json, dialogue.json (data, validated on write);
-  a freeform game also has entities.json, objectives.json and proofs/*.json (recorded winning runs, written by the worker)
+  a farm has crops.json (written from the idea after the systems and held to their rules by validate:systems); a
+  freeform game also has entities.json, objectives.json and proofs/*.json (recorded winning runs, written by the worker)
 - `game/src/systems/` bespoke simulation systems in GlueTS (see rules); `game/src/main.ts` is scaffolded, do not edit
 - `game/assets/` requests.json and manifest.json; binary assets are produced by the asset pipeline, never by hand
 - `game/tests/` unit and playtest tests; `game/reports/` gate, playtest, juice, budget and screenshot evidence

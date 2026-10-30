@@ -12,7 +12,7 @@ function levelsOf(ex: (typeof EXAMPLES)[number]) {
   const plan = levelPlan(m.levelGrammar.kind, { levels: ex.gdd.scope.levels, bosses: ex.gdd.scope.bosses, tier: ex.gdd.scopeTier });
   return plan.map((slot) => {
     const params = { seed: slot.index + 1, difficulty: slot.difficulty, ...(slot.boss ? { boss: 1 } : {}) };
-    const content = { ...(m.extraContent?.(params) ?? {}), ...(ex.objectives ? { objectives: ex.objectives } : {}) };
+    const content = { ...(m.extraContent?.(params) ?? {}), ...(ex.objectives ? { objectives: ex.objectives } : {}), ...ex.content };
     return { level: { ...m.levelGrammar.generate(params), id: slot.id }, index: slot.index, content };
   });
 }

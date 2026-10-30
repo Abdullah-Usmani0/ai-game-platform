@@ -39,7 +39,7 @@ describe('scaffold output is pinned for curated genres', () => {
   }
 });
 
-/** A freeform example scaffolded as the worker would: its GDD, systems, roster and objectives. */
+/** A freeform example scaffolded as the worker would: its GDD, systems, roster, objectives and the content its idea decides. */
 function scaffoldExample(ex: FreeformExample, out: string, link: boolean) {
   const body = '## Concept\nx\n\n## Pillars\nx\n\n## Core loop\nx\n\n## Progression\nx\n\n## Scope\nx\n\n## Feedback\nx\n';
   return scaffold({
@@ -49,7 +49,7 @@ function scaffoldExample(ex: FreeformExample, out: string, link: boolean) {
     title: ex.gdd.title,
     systems: ex.systems,
     roster: ex.roster,
-    content: ex.objectives ? { objectives: ex.objectives } : {},
+    content: { ...(ex.objectives ? { objectives: ex.objectives } : {}), ...ex.content },
     style: DEFAULT_STYLE,
     gddMarkdown: `---\n${JSON.stringify(ex.gdd)}\n---\n${body}`,
     seed: 5,

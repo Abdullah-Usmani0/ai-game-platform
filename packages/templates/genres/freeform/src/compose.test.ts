@@ -4,8 +4,8 @@ import { rolesPresent, runBot, simOptionsFor, systemsJsonFor } from '@gg/templat
 import { checkComposition } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
 import { compose } from './compose.js';
-import { EXAMPLES, HEIST, HIVE, LANTERN } from './examples.js';
-import { BASE_MANIFESTS, checkFreeformObjectives } from './node.js';
+import { EXAMPLES, HEIST, HIVE, LANTERN, MOON } from './examples.js';
+import { BASE_MANIFESTS, checkFreeformObjectives, designContentFor, freeformManifest } from './node.js';
 import { CURATED_IDS } from './registry.js';
 
 describe('compose', () => {
@@ -37,7 +37,7 @@ describe('compose', () => {
       const { runtime, issues } = compose(ex.systems, ex.roster);
       expect(issues, ex.id).toEqual([]);
       const base = BASE_MANIFESTS[ex.systems.composition.base];
-      const content = [...Object.keys(base.extraContent?.({ seed: 1, difficulty: 0.3 }) ?? {}), ...(ex.objectives ? ['objectives'] : [])];
+      const content = [...Object.keys(base.extraContent?.({ seed: 1, difficulty: 0.3 }) ?? {}), ...(ex.objectives ? ['objectives'] : []), ...Object.keys(ex.content ?? {})];
       expect(checkComposition(Object.values(runtime.systems).map((m) => m.meta), { roles: rolesPresent(runtime), content }).issues, ex.id).toEqual([]);
       expect(runtime.movementMode, ex.id).toBe(base.movementMode);
       expect(runtime.feelPresets[ex.systems.feelPreset], ex.id).toBeDefined();
@@ -64,6 +64,19 @@ describe('compose', () => {
     // A hive arena has no goal tile to reach.
     const goal = { ...HIVE.objectives!, win: { mode: 'all' as const, clauses: [{ kind: 'reach_goal' as const }] } };
     expect(checkFreeformObjectives(HIVE.systems, HIVE.roster, goal).issues.map((i) => i.code)).toEqual(['no_goal']);
+  });
+
+  it('writes the content its systems read, whichever genre ships them; the examples\' hold for their rules', () => {
+    const ids = (ex: (typeof EXAMPLES)[number]) => ex.systems.systems.map((s) => s.id);
+    expect(designContentFor(ids(MOON)).map((d) => d.key)).toEqual(['crops']);
+    expect(freeformManifest(MOON.systems, MOON.roster).designContent?.map((d) => d.key)).toEqual(['crops']);
+    expect(designContentFor(ids(HIVE))).toEqual([]);
+    for (const ex of EXAMPLES) {
+      for (const d of designContentFor(ids(ex))) {
+        expect(ex.content?.[d.key], `${ex.id} has its ${d.key}`).toBeDefined();
+        expect(d.check(ex.content?.[d.key], ex.systems), `${ex.id}: ${d.key}`).toEqual([]);
+      }
+    }
   });
 
   it('names systems no genre ships', () => {

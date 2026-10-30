@@ -37,7 +37,7 @@ describe('golden lock: freeform examples', () => {
       for (const slot of plan) {
         const params = { seed: slot.index + 1, difficulty: slot.difficulty, ...(slot.boss ? { boss: 1 } : {}) };
         const level = { ...m.levelGrammar.generate(params), id: slot.id };
-        const content = { ...(m.extraContent?.(params) ?? {}), ...(ex.objectives ? { objectives: ex.objectives } : {}) };
+        const content = { ...(m.extraContent?.(params) ?? {}), ...(ex.objectives ? { objectives: ex.objectives } : {}), ...ex.content };
         const r = proveLevel(level, slot.index, { file: ex.systems, roster: ex.roster, content, solver: base.bots[base.solverBot], budget: 20_000 });
         golden[slot.id] = { level: hashValue(level), content: hashValue(content), by: r.proof?.by ?? null, ticks: r.proof?.ticks ?? null, script: r.proof ? hashValue(r.proof.script) : null };
       }

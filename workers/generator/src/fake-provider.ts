@@ -115,6 +115,13 @@ export class FakeProvider implements Provider {
         data = exampleFor(base, this.ctx.request?.prompt)?.objectives ?? defaultObjectives(base, Number(marker(/^Level time: (\d+)/m) ?? 60));
         break;
       }
+      case 'CropTable': {
+        // The prompt ends with the content to model on: the idea's example game's when it has one, else the genre's own.
+        const example = /^Example \(its shape[^\n]*\n(\{.*\})$/m.exec(req.prompt)?.[1];
+        if (!example) throw new Error('fake provider: the CropTable prompt carries no example');
+        data = JSON.parse(example) as unknown;
+        break;
+      }
       case 'EditRoute': {
         // The router's prompt lists the game's behaviours ("Behaviours: grunt, brute.").
         const listed = (marker(/^Genre: .*Behaviours: ([^.]*)\./m) ?? '').split(', ').filter((b) => b && b !== '(none)');

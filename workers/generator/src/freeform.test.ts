@@ -156,6 +156,8 @@ describe('freeform stages, end to end with the dry-run provider', () => {
       expect(files.systems).toEqual(ex.systems);
       expect(files.roster).toEqual(ex.roster);
       if (ex.objectives) expect(JSON.parse(readFileSync(join(gameDir, 'content', 'objectives.json'), 'utf8'))).toEqual(ex.objectives);
+      // The content its idea decides (the moon garden's crops), as the example has it.
+      for (const [key, value] of Object.entries(ex.content ?? {})) expect(JSON.parse(readFileSync(join(gameDir, 'content', `${key}.json`), 'utf8')), key).toEqual(value);
       expect(readFileSync(join(gameDir, 'design', 'concept.md'), 'utf8')).toMatch(/- Genre: freeform, built on /);
       // Every behaviour the game runs fires only the entities it has (a renamed projectile under its new name).
       const m = freeformManifest(ex.systems, ex.roster);

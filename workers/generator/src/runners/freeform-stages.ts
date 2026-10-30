@@ -4,10 +4,11 @@ import { generateArtifact, providerFor, type GenerateResult } from '@gg/llm';
 import { CURATED_GENRES, type CreateRequest, type CuratedGenre, type EntityRoster, type FreeformGddFrontmatter, type FreeformSystemsJson, type Objectives, type ScopeTier } from '@gg/schemas';
 import { sfxPresetFor } from '@gg/sdk/art';
 import { grammarHasGoal, plannedLevelCount, rolesPresent, type GenreManifest } from '@gg/template-core';
-import { ARCHETYPES, BASE_MANIFESTS, checkFreeformObjectives, compileRoster, compose, FREEFORM_CATALOG, freeformDesignManifest, IDENTITY_ROSTER, movementOf, proveLevel, RUNTIMES, SYSTEMS, usableSystems } from '@gg/template-freeform/node';
+import { ARCHETYPES, BASE_MANIFESTS, checkFreeformObjectives, compileRoster, compose, designContentFor, FREEFORM_CATALOG, freeformDesignManifest, IDENTITY_ROSTER, movementOf, proveLevel, RUNTIMES, SYSTEMS, usableSystems } from '@gg/template-freeform/node';
 import { readGameFiles, readGameInputs, readGameLevels } from '@gg/templates/node';
 import { checkComposition, checkSystems, silentSfx } from '@gg/validators';
 import { baseSystems, defaultObjectives, draftFreeformFrontmatter, exampleFor, guessBase } from '../freeform.js';
+import { designContentOf, writeDesignContent } from './design-content.js';
 import type { PairDraft, StageContext, StageOutcome } from './types.js';
 import { add, ok, readGdd, readSystems, sumUsage, writeJson, ZERO } from './stage-kit.js';
 
@@ -227,14 +228,28 @@ export async function composition(ctx: StageContext): Promise<StageOutcome> {
     }
     writeJson(join(ctx.gameDir, 'content', 'objectives.json'), objectives);
   }
+
+  // What the game's systems read and its idea decides (a farm's crops), named to go with its entities.
+  const content = await writeDesignContent(ctx, designContentFor(ids), sys, { title: gdd.title, pillars: gdd.pillars, body: gddInfo.body, notes: `Its entities: ${roster.designNotes}`, examples: example?.content });
+  usage = add(usage, content.usage);
+  cost += content.costUsd;
+  turns += content.turns;
+  pairs.push(...content.pairs);
+  notes.push(...content.notes);
   const named = roster.types.map((t) => `${t.type}<${t.archetype}`).join(', ') || 'base names';
-  return { ok: true, summary: `wrote content/entities.json (${named})${objectives ? ` and content/objectives.json (${objectives.win.clauses.map((c) => c.kind).join(` ${objectives.win.mode} `)})` : ''}${notes.length ? `; ${notes.join('; ')}` : ''}`, usage, costUsd: cost, durationMs: Date.now() - t0, turns, artifactPath: join(ctx.gameDir, 'content'), pairs };
+  const written = content.written.length ? `, ${content.written.join(', ')}` : '';
+  return { ok: true, summary: `wrote content/entities.json (${named})${objectives ? ` and content/objectives.json (${objectives.win.clauses.map((c) => c.kind).join(` ${objectives.win.mode} `)})` : ''}${written}${notes.length ? `; ${notes.join('; ')}` : ''}`, usage, costUsd: cost, durationMs: Date.now() - t0, turns, artifactPath: join(ctx.gameDir, 'content'), pairs };
 }
 
-/** A freeform game's composition as its stage wrote it: the roster, and the rules when the objectives system decides the win. */
+/**
+ * A freeform game's composition as its stage wrote it: the roster, the rules when the objectives system decides the win,
+ * and the content its idea decides (a farm's crops).
+ */
 export function compositionOf(gameDir: string): { roster: EntityRoster; content: Record<string, unknown> } {
+  const files = readGameFiles(gameDir);
   const objectives = readGameInputs(gameDir).content['objectives'];
-  return { roster: readGameFiles(gameDir).roster ?? IDENTITY_ROSTER, content: objectives === undefined ? {} : { objectives } };
+  const designed = designContentOf(gameDir, designContentFor(files.systems?.systems.map((s) => s.id) ?? []));
+  return { roster: files.roster ?? IDENTITY_ROSTER, content: { ...(objectives === undefined ? {} : { objectives }), ...designed } };
 }
 
 /**

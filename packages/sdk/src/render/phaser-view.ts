@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Entity, Menu } from '../sim/world.js';
 import { sfxFor } from './art/audio.js';
 import { mix, parseHex, toInt, type RGB } from './art/color.js';
-import { textImage, wrapText } from './art/font.js';
+import { fitRow, textImage, wrapText } from './art/font.js';
 import { artPalette, type ArtPalette, type OutlineMode } from './art/palette.js';
 import { PixelCanvas, hash2 } from './art/pixels.js';
 import { FLAG, PARTICLES, TORCH, paintClouds, paintGlow, paintNebula, paintParticle, paintPlanet, paintRidge, paintScanlines, paintShadow, paintSky, paintSkyOrb, paintStars, paintVignette, paintVoid } from './art/scenery.js';
@@ -950,20 +950,23 @@ export class MainScene extends Phaser.Scene {
       }
       x += 4;
     }
-    for (const e of entries) {
+    const counter = levels > 1 ? this.text(`${this.controller.levelIndex + 1}/${levels}`, this.pal.ui[3]) : null;
+    // A row too wide for the HUD (a long name beside a large purse) gives up letters rather than running under the
+    // level counter or off the screen. Each entry takes its icon, the text's outline and the gap after it.
+    const iconW = (e: (typeof entries)[number]) => (e.icon ? (this.icons.get(e.icon)?.w ?? 0) : 0);
+    const room = (counter ? this.style.canvas.w - counter.w - 7 : this.style.canvas.w - 3) - x + 5;
+    const texts = fitRow(entries.map((e) => e.text), room, entries.map((e) => iconW(e) + 2 + 5));
+    entries.forEach((e, i) => {
       const icon = e.icon ? this.icons.get(e.icon) : undefined;
       if (icon) {
         pc.blit(icon, x, 2 + Math.floor((9 - icon.h) / 2));
         x += icon.w;
       }
-      const t = this.text(e.text, this.pal.white);
+      const t = this.text(texts[i]!, this.pal.white);
       pc.blit(t, x, 2);
       x += t.w + 5;
-    }
-    if (levels > 1) {
-      const t = this.text(`${this.controller.levelIndex + 1}/${levels}`, this.pal.ui[3]);
-      pc.blit(t, this.style.canvas.w - t.w - 3, 2);
-    }
+    });
+    if (counter) pc.blit(counter, this.style.canvas.w - counter.w - 3, 2);
     this.repaint(this.hudTex, pc);
     this.hudImg.setVisible(true);
   }

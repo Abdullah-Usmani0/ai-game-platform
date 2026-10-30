@@ -1,10 +1,10 @@
 import type { CuratedGenre, EntityRoster, FreeformSystemsJson, LevelProof, Objectives } from '@gg/schemas';
-import { grammarHasGoal, rolesOf, type GenreManifest, type PanelSpec } from '@gg/template-core';
+import { grammarHasGoal, rolesOf, type DesignContent, type GenreManifest, type PanelSpec } from '@gg/template-core';
 import { checkObjectives, type ValidationReport } from '@gg/validators';
+import { lifesim } from '@gg/template-lifesim/node';
 import { metroidvania } from '@gg/template-metroidvania/node';
 import { platformer } from '@gg/template-platformer/node';
 import { puzzle } from '@gg/template-puzzle/node';
-import { lifesim } from '@gg/template-lifesim/node';
 import { shmup } from '@gg/template-shmup/node';
 import { survivors } from '@gg/template-survivors/node';
 import { topdownAction } from '@gg/template-topdown-action/node';
@@ -19,6 +19,15 @@ export * from './prove.js';
 
 /** The curated genres' full manifests: a freeform game takes its level grammar, budgets and prompts from its base's. */
 export const BASE_MANIFESTS: Readonly<Record<CuratedGenre, GenreManifest>> = { platformer, survivors, 'topdown-action': topdownAction, metroidvania, shmup, puzzle, lifesim };
+
+/** The content files a game's design stage writes for the systems it runs, from whichever genre ships them (a farm's crops). */
+export function designContentFor(systemIds: readonly string[]): DesignContent[] {
+  const out: DesignContent[] = [];
+  for (const m of Object.values(BASE_MANIFESTS)) {
+    for (const d of m.designContent ?? []) if (d.readBy.some((id) => systemIds.includes(id)) && !out.some((o) => o.key === d.key)) out.push(d);
+  }
+  return out;
+}
 
 /**
  * A freeform game's manifest, the same shape as a genre's: its composed runtime and check kit, and its base genre's
@@ -39,6 +48,7 @@ export function freeformManifest(file: FreeformSystemsJson, roster: EntityRoster
     ...kit.runtime,
     levelGrammar: { kind: base.levelGrammar.kind, generate: (params) => retypeLevel(base.levelGrammar.generate(params), rename), validate: kit.validate },
     extraContent: extra ? (params) => retypeContent(extra(params), rename) : undefined,
+    designContent: designContentFor(file.systems.map((s) => s.id)),
     bots: kit.bots,
     solverBot: kit.solverBot,
     panels,
