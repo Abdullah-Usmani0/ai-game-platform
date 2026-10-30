@@ -7,10 +7,11 @@ import { computeStats, quarantinePath, RANKING } from './ranking';
 import type { GameRow, PlayRow, RatingRow } from './types';
 
 /** The file store follows the same community rules as 0003_community.sql (see migrations.test.ts for the SQL side). */
-async function storeWithGame(opts: { playtestPassed?: boolean } = {}) {
+async function storeWithGame(opts: { playtestPassed?: boolean; proofs?: Record<string, unknown> } = {}) {
   const store = new FileStore(mkdtempSync(join(tmpdir(), 'gg-community-')));
   const game = await store.createGame({ ownerId: 'owner', slug: 'g-one', title: 'One', genre: 'platformer' });
-  const v = await store.insertVersion({ gameId: game.id, kind: 'stage', stage: 'publish', parentVersionId: null, jobId: null, sourcePath: 'checkpoints/x.tgz', bundlePath: `bundles/g/${game.id}/v/1`, manifest: null, design: { evidence: { playtest: { passed: opts.playtestPassed ?? true } } }, gateResults: {}, evidence: {}, engineVersion: null, contentHash: null, costUsd: 0, policyVersion: 1 });
+  const evidence = { playtest: { passed: opts.playtestPassed ?? true }, ...(opts.proofs ? { proofs: opts.proofs } : {}) };
+  const v = await store.insertVersion({ gameId: game.id, kind: 'stage', stage: 'publish', parentVersionId: null, jobId: null, sourcePath: 'checkpoints/x.tgz', bundlePath: `bundles/g/${game.id}/v/1`, manifest: null, design: { evidence }, gateResults: {}, evidence: {}, engineVersion: null, contentHash: null, costUsd: 0, policyVersion: 1 });
   await store.acceptVersion(v.id);
   return { store, gameId: game.id, versionId: v.id };
 }
@@ -87,6 +88,37 @@ describe('FileStore community', () => {
     expect((await store.gameStats(gameId)).broken).toBe(true);
     await expect(store.setListed(gameId, true)).rejects.toThrow(/reported this version broken/);
     expect(await store.claimTest('t3')).toBeNull();
+  });
+});
+
+describe('FileStore level proofs', () => {
+  const run = { version: 1, level: 'l02', seed: 2, ticks: 900, by: 'human', script: [{ from: 0, to: 900, input: { right: true } }] };
+
+  it('lists a game only once every level of its head has a winning run, a player\'s counting once replayed', async () => {
+    const { store, gameId, versionId } = await storeWithGame({ proofs: { l01: { by: 'explorer', ticks: 600 }, l02: null } });
+    await expect(store.setListed(gameId, true)).rejects.toThrow(/l02 has no recorded winning run yet: the game can be listed once a player finishes it/);
+    const submitted = await store.submitProof({ gameId, versionId, level: 'l02', submittedBy: 'p1', proof: run });
+    expect(submitted?.row).toMatchObject({ status: 'pending', level: 'l02', jobId: submitted?.job.id });
+    expect(submitted?.job).toMatchObject({ kind: 'verify_proof', userId: 'owner', input: { proofId: submitted?.row.id } });
+    // One run of a level waits at a time, and a proven level takes none.
+    expect(await store.submitProof({ gameId, versionId, level: 'l02', submittedBy: 'p2', proof: run })).toBeNull();
+    expect(await store.submitProof({ gameId, versionId, level: 'l01', submittedBy: 'p2', proof: { ...run, level: 'l01' } })).toBeNull();
+    expect(await store.resolveProof(submitted!.row.id, { accepted: true })).toMatchObject({ status: 'accepted', reason: null });
+    expect(((await store.getVersion(versionId))!.design['evidence'] as { proofs: unknown }).proofs).toEqual({ l01: { by: 'explorer', ticks: 600 }, l02: { by: 'human', ticks: 900 } });
+    expect(await store.setListed(gameId, true)).toMatchObject({ visibility: 'listed' });
+    expect((await store.listFeed()).map((f) => f.game.id)).toEqual([gameId]);
+    expect(await store.listProofs(versionId)).toHaveLength(1);
+  });
+
+  it('keeps a run that does not win on replay with the reason; the level still waits', async () => {
+    const { store, gameId, versionId } = await storeWithGame({ proofs: { l01: null } });
+    const submitted = await store.submitProof({ gameId, versionId, level: 'l01', submittedBy: 'p1', proof: { ...run, level: 'l01' } });
+    expect(await store.resolveProof(submitted!.row.id, { accepted: false, reason: 'l01 is not won at tick 900' })).toMatchObject({ status: 'rejected', reason: 'l01 is not won at tick 900' });
+    await expect(store.resolveProof(submitted!.row.id, { accepted: true })).rejects.toThrow(/rejected already/);
+    await expect(store.setListed(gameId, true)).rejects.toThrow(/l01 has no recorded winning run yet/);
+    // A version from before proofs were recorded names none, and waits for none.
+    const legacy = await storeWithGame();
+    expect(await legacy.store.setListed(legacy.gameId, true)).toMatchObject({ visibility: 'listed' });
   });
 });
 

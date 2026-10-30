@@ -1,9 +1,9 @@
-import type { BehaviourFsm, EcaRule, GameEventRecord, LevelJson, ParamValue, StateSnapshot } from '@gg/schemas';
+import type { BehaviourFsm, EcaRule, GameEventRecord, LevelJson, LevelProof, ParamValue, StateSnapshot } from '@gg/schemas';
 import { EventBus } from './events.js';
 import type { FeelPreset } from './feel.js';
 import { fireRule, stepFsm } from './fsm.js';
 import { hashValue } from './hash.js';
-import { emptyInput, inputAtTick, inputEquals, type InputFrame, type InputSegment, type InputState } from './input.js';
+import { emptyInput, inputAtTick, inputEquals, logToScript, type InputFrame, type InputSegment, type InputState } from './input.js';
 import { moveBody, overlaps } from './physics.js';
 import { Rng } from './rng.js';
 import type { MenuSpec, SimCtx, SystemDef } from './system.js';
@@ -487,6 +487,16 @@ export function levelSeed(seed: number, index: number): number {
 
 export function createSim(options: SimOptions): Sim {
   return new SimImpl(options);
+}
+
+/**
+ * The run a sim was played with, from its level's start to the step its level was won in (the tick of its
+ * level_complete event), as a level proof: replayed at the sim's seed, it wins again. The game sends it when a player
+ * wins a level.
+ */
+export function winningRun(sim: Sim, wonTick: number): LevelProof {
+  const ticks = wonTick + 1;
+  return { version: 1, level: sim.world.levelId, seed: sim.options.seed, ticks, by: 'human', script: logToScript(sim.inputLog(), ticks) };
 }
 
 /** Fresh sim from the same options, run under a script: the replay oracle. */

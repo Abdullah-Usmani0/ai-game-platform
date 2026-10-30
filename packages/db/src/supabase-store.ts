@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { ModelPolicy, PLAY_EVENT_LIMITS, type AppealDecision, type AppealInput, type JamInput, type JamSchedule, type JamVote, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
 import { quarantinePath } from './ranking';
 import { checkCell, HEAT_CELL, heatmapFrom, type HeatRow } from './heatmap';
-import type { AppealRow, FeedItem, GameRow, GameStats, Heatmap, JamEntryRow, JamResult, JamRow, JamVoteRow, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewTrainingPair, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, TrainingPairRow, VersionRow } from './types';
+import type { AppealRow, FeedItem, GameRow, GameStats, Heatmap, JamEntryRow, JamResult, JamRow, JamVoteRow, JobEvent, JobEventType, JobRow, LevelProofRow, LineageRow, NewGame, NewPlay, NewTrainingPair, NewVersion, PlayRow, RatingRow, ReportRow, Store, TakedownRow, TestAssignmentRow, TestQueueRow, TrainingPairRow, VersionRow } from './types';
 
 function snake(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -303,6 +303,33 @@ export class SupabaseStore implements Store {
   private async queueRow(id: string): Promise<TestQueueRow> {
     const res = await this.client.from('test_queue').select('*').eq('id', id).single();
     return camel<TestQueueRow>(this.unwrap(res, 'test_queue') as Record<string, unknown>);
+  }
+
+  // ---------------------------------------------------------------- level proofs (functions in 0010_level_proofs.sql)
+
+  async submitProof(input: Parameters<Store['submitProof']>[0]): Promise<{ row: LevelProofRow; job: JobRow } | null> {
+    const row = await this.rpcRow<LevelProofRow>('submit_level_proof', { p_user_id: input.submittedBy, p_version_id: input.versionId, p_level: input.level, p_proof: input.proof });
+    if (!row?.id || !row.jobId) return null;
+    const job = await this.getJob(row.jobId);
+    if (!job) throw new Error(`submit_level_proof: job ${row.jobId} not found`);
+    return { row, job };
+  }
+
+  async getProof(proofId: string): Promise<LevelProofRow | null> {
+    const res = await this.client.from('level_proofs').select('*').eq('id', proofId).maybeSingle();
+    if (res.error) throw new Error(`getProof: ${res.error.message}`);
+    return res.data ? camel<LevelProofRow>(res.data as Record<string, unknown>) : null;
+  }
+
+  async listProofs(versionId: string): Promise<LevelProofRow[]> {
+    const res = await this.client.from('level_proofs').select('*').eq('version_id', versionId).order('created_at');
+    return (this.unwrap(res, 'listProofs') as Record<string, unknown>[]).map((r) => camel<LevelProofRow>(r));
+  }
+
+  async resolveProof(proofId: string, verdict: { accepted: boolean; reason?: string }): Promise<LevelProofRow> {
+    const row = await this.rpcRow<LevelProofRow>('resolve_level_proof', { p_proof_id: proofId, p_accepted: verdict.accepted, p_reason: verdict.reason ?? null });
+    if (!row?.id) throw new Error('resolve_level_proof: no row');
+    return row;
   }
 
   async claimTest(testerId: string): Promise<{ assignment: TestAssignmentRow; queue: TestQueueRow } | null> {

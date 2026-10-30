@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writ
 import { dirname, join } from 'node:path';
 import { ModelPolicy, PLAY_EVENT_LIMITS, type AppealDecision, type AppealInput, type JamInput, type JamSchedule, type JamVote, type PlayEvent, type RatingTag, type ReportInput, type ResolveInput, type TestSubmission, type Trajectory } from '@gg/schemas';
 import { checkCell, HEAT_CELL, heatmapFrom, heatRows } from './heatmap';
-import { computeStats, feedEligible, headPlaytestPassed, JAM, jamPhase, MODERATION, quarantinePath, RANKING, rankJam, testOutcome } from './ranking';
-import type { AppealRow, CreditEntry, FeedItem, GameRow, GameStats, Heatmap, JamEntryRow, JamResult, JamRow, JamVoteRow, JobEvent, JobEventType, JobRow, LineageRow, NewGame, NewPlay, NewTrainingPair, NewVersion, PlayEventRow, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, TrainingPairRow, VersionRow } from './types';
+import { computeStats, feedEligible, headPlaytestPassed, JAM, jamPhase, MODERATION, quarantinePath, RANKING, rankJam, testOutcome, waitingLevels } from './ranking';
+import type { AppealRow, CreditEntry, FeedItem, GameRow, GameStats, Heatmap, JamEntryRow, JamResult, JamRow, JamVoteRow, JobEvent, JobEventType, JobRow, LevelProofRow, LineageRow, NewGame, NewPlay, NewTrainingPair, NewVersion, PlayEventRow, PlayRow, RatingRow, ReportRow, Store, StrikeRow, TakedownRow, TestAssignmentRow, TestQueueRow, TrainingPairRow, VersionRow } from './types';
 
 interface FileState {
   games: GameRow[];
@@ -32,6 +32,7 @@ interface FileState {
   jams: JamRow[];
   jamEntries: JamEntryRow[];
   jamVotes: JamVoteRow[];
+  levelProofs: LevelProofRow[];
 }
 
 /** How long a claimed test stays reserved for its tester. */
@@ -66,7 +67,7 @@ export class FileStore implements Store {
   constructor(private readonly dir: string) {
     mkdirSync(dir, { recursive: true });
     this.file = join(dir, 'store.json');
-    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], playEvents: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], appeals: [], moderators: ['moderator'], trainingPairs: [], trainingOptOut: [], jams: [], jamEntries: [], jamVotes: [] };
+    this.state = { games: [], lineage: [], jobs: [], events: [], versions: [], trajectories: [], policies: [DEFAULT_POLICY], plays: [], playEvents: [], ratings: [], testQueue: [], testAssignments: [], credits: [], reports: [], strikes: [], takedowns: [], appeals: [], moderators: ['moderator'], trainingPairs: [], trainingOptOut: [], jams: [], jamEntries: [], jamVotes: [], levelProofs: [] };
     this.load();
   }
 
@@ -99,6 +100,7 @@ export class FileStore implements Store {
       jams: parsed.jams ?? [],
       jamEntries: parsed.jamEntries ?? [],
       jamVotes: parsed.jamVotes ?? [],
+      levelProofs: parsed.levelProofs ?? [],
     };
     this.mtime = m;
   }
@@ -424,12 +426,64 @@ export class FileStore implements Store {
       if (g.headVersionId && unlistedVersion(g) === g.headVersionId) throw new Error('a moderator unlisted this version; publish a fixed version first');
       const head = this.state.versions.find((v) => v.id === g.headVersionId) ?? null;
       if (!head || !headPlaytestPassed(head)) throw new Error('the game needs an accepted version whose playtest passed before it can be listed');
+      const waiting = waitingLevels(head);
+      if (waiting.length) throw new Error(`${waiting.join(', ')} ${waiting.length === 1 ? 'has' : 'have'} no recorded winning run yet: the game can be listed once a player finishes ${waiting.length === 1 ? 'it' : 'them'}`);
       const last = this.state.testQueue.filter((q) => q.gameId === g.id && q.versionId === head.id && q.status === 'closed').pop();
       if (last?.outcome === 'broken') throw new Error('testers reported this version broken; publish a fixed version first');
     }
     Object.assign(g, { visibility: listed ? 'listed' : 'unlisted', state: listed ? 'published' : g.state === 'published' ? 'playable' : g.state, updatedAt: new Date().toISOString() });
     this.save();
     return { ...g };
+  }
+
+  async submitProof(input: Parameters<Store['submitProof']>[0]): Promise<{ row: LevelProofRow; job: JobRow } | null> {
+    this.load();
+    const version = this.state.versions.find((v) => v.id === input.versionId && v.gameId === input.gameId);
+    const game = this.state.games.find((g) => g.id === input.gameId);
+    if (!version || !game || !waitingLevels(version).includes(input.level)) return null;
+    if (game.state === 'removed' || game.state === 'suspended') return null;
+    if (this.state.levelProofs.some((p) => p.versionId === input.versionId && p.level === input.level && p.status === 'pending')) return null;
+    const row: LevelProofRow = { id: randomUUID(), gameId: input.gameId, versionId: input.versionId, level: input.level, submittedBy: input.submittedBy, proof: input.proof, status: 'pending', reason: null, jobId: null, createdAt: new Date().toISOString(), resolvedAt: null };
+    this.state.levelProofs.push(row);
+    this.save();
+    const job = await this.enqueueJob({ gameId: input.gameId, userId: game.ownerId, kind: 'verify_proof', input: { proofId: row.id }, priority: 1 });
+    this.load();
+    const stored = this.state.levelProofs.find((p) => p.id === row.id)!;
+    stored.jobId = job.id;
+    this.save();
+    return { row: { ...stored }, job };
+  }
+
+  async getProof(proofId: string): Promise<LevelProofRow | null> {
+    this.load();
+    const p = this.state.levelProofs.find((x) => x.id === proofId);
+    return p ? { ...p } : null;
+  }
+
+  async listProofs(versionId: string): Promise<LevelProofRow[]> {
+    this.load();
+    return this.state.levelProofs.filter((p) => p.versionId === versionId).map((p) => ({ ...p }));
+  }
+
+  async resolveProof(proofId: string, verdict: { accepted: boolean; reason?: string }): Promise<LevelProofRow> {
+    this.load();
+    const p = this.state.levelProofs.find((x) => x.id === proofId);
+    if (!p) throw new Error(`proof ${proofId} not found`);
+    if (p.status !== 'pending') throw new Error(`proof ${proofId} is ${p.status} already`);
+    const now = new Date().toISOString();
+    const version = this.state.versions.find((v) => v.id === p.versionId);
+    // A run that came in after another proved the level counts for nothing more.
+    const still = version ? waitingLevels(version).includes(p.level) : false;
+    if (verdict.accepted && version && still) {
+      const evidence = (version.design['evidence'] ?? {}) as { proofs?: Record<string, unknown> };
+      version.design = { ...version.design, evidence: { ...evidence, proofs: { ...evidence.proofs, [p.level]: { by: 'human', ticks: Number(p.proof['ticks'] ?? 0) } } } };
+      Object.assign(p, { status: 'accepted', reason: null, resolvedAt: now });
+      for (const other of this.state.levelProofs) if (other !== p && other.versionId === p.versionId && other.level === p.level && other.status === 'pending') Object.assign(other, { status: 'rejected', reason: 'another run proved the level first', resolvedAt: now });
+    } else {
+      Object.assign(p, { status: 'rejected', reason: verdict.accepted ? 'another run proved the level first' : (verdict.reason ?? 'the run does not win on replay'), resolvedAt: now });
+    }
+    this.save();
+    return { ...p };
   }
 
   async enqueueTest(input: { gameId: string; versionId: string; requestedBy: string; needed?: number; rewardCredits?: number }): Promise<TestQueueRow> {

@@ -21,6 +21,7 @@ import { StructuredRunner } from './runners/structured.js';
 import type { Runner, StageContext, StageOutcome, StageSpec } from './runners/types.js';
 import { WorkerRunner, genreOfGame } from './runners/worker.js';
 import { recordPairs, type VerifiedPair } from './training.js';
+import { restorePlayerRuns, verifyProof } from './verify-proof.js';
 
 /** Legacy explicit plan (the demo's gate-only job over an existing game package). */
 export interface JobPlan {
@@ -96,6 +97,8 @@ function listIds(dir: string, suffix: string): string[] {
  */
 export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed' | 'needs_human'> {
   const { store, job, log = () => {} } = opts;
+  // A player's winning run is replayed, not built: no plan, no stages, and the game's state is left as it is.
+  if (job.kind === 'verify_proof') return verifyProof({ store, job, templateDir: opts.templateDir, workRoot: opts.workRoot, log });
   const presets = loadPresets(opts.templateDir);
   const policy = opts.policy !== undefined ? opts.policy : await store.activePolicy().catch(() => null);
   const workDir = join(opts.workRoot, job.id);
@@ -148,6 +151,8 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
     const slash = base.sourcePath.indexOf('/');
     const tgz = await store.getObject(base.sourcePath.slice(0, slash), base.sourcePath.slice(slash + 1));
     ({ gameDir } = materialize({ templateDir: opts.templateDir, workDir, checkpoint: tgz }));
+    const runs = await restorePlayerRuns(store, baseId, gameDir);
+    if (runs.length) log(`players' winning runs restored for ${runs.join(', ')}`);
     const g = genreOfGame({ request: null, gameDir });
     genreId = g.id;
     if (dryRun) registerProvider('fake', new FakeProvider({ genre: g, request: null }));

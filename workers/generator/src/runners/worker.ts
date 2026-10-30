@@ -8,7 +8,7 @@ import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from '@gg/scaffold';
 import { checkLevel, EXPERT_SHARE, levelPlan, levelTicksOf, plannedLevelCount, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
 import { BASE_MANIFESTS, generatorParams, IDENTITY_ROSTER, idleWins, proveLevel } from '@gg/template-freeform/node';
-import { CATALOG, catalogFor, genre as genreOf, readGameInputs, readMechanics, resolveGame } from '@gg/templates/node';
+import { CATALOG, catalogFor, genre as genreOf, readGameFiles, readGameInputs, readGameLevels, readMechanics, resolveGame } from '@gg/templates/node';
 import { sfxPresetFor } from '@gg/sdk/art';
 import { checkGdd, checkSystems, controlsLegend, impact, mechanicMeta, silentSfx, validateBehaviour, type ValidationReport } from '@gg/validators';
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
@@ -361,12 +361,14 @@ const levels: StageFn = async (ctx) => {
   const baseSolver = freeform ? BASE_MANIFESTS[freeform.composition.base].bots[BASE_MANIFESTS[freeform.composition.base].solverBot] : undefined;
   // A runner's levels are as long as it runs in the target time; any other game's are as long as the grammar makes them.
   const genParams = freeform ? generatorParams(freeform, fm.targets.levelTimeS) : {};
-  const oracle = (level: LevelJson, content: Record<string, unknown>, playSeed: number, index: number): { ok: boolean; ticks: number; proof?: LevelProof; idle?: boolean } => {
+  // A freeform candidate that passes the validator, that no bot won and that standing still does not win either: the
+  // level the slot ships when no candidate gets a winning run (it waits for a player's, and the game is not listed).
+  const oracle = (level: LevelJson, content: Record<string, unknown>, playSeed: number, index: number): { ok: boolean; ticks: number; proof?: LevelProof; idle?: boolean; unproven?: boolean } => {
     if (!g.levelGrammar.validate(level, feel).ok) return { ok: false, ticks: 0 };
     if (freeform) {
       const inputs = { file: freeform, roster, behaviours, rules, content, feedback, solver: baseSolver, budget: 20_000 };
       const r = proveLevel(level, index, inputs);
-      if (!r.proof) return { ok: false, ticks: 0 };
+      if (!r.proof) return { ok: false, ticks: 0, unproven: !idleWins(level, index, inputs) };
       // A level that standing still wins asks nothing of the player: a runner's with nothing in the way.
       if (idleWins(level, index, inputs, r.proof.ticks)) return { ok: false, ticks: 0, idle: true };
       return { ok: true, ticks: r.proof.ticks, proof: r.proof };
@@ -384,23 +386,25 @@ const levels: StageFn = async (ctx) => {
     const slot = plan[0]!;
     const difficulty = slot.difficulty;
     let best: { level: LevelJson; content: Record<string, unknown>; dist: number; proof?: LevelProof } | null = null;
+    let waiting: { level: LevelJson; content: Record<string, unknown>; dist: number } | null = null;
     for (let s = baseSeed; s < baseSeed + kSeeds * 2 && !best; s++) {
       const params: LevelGenParams = { seed: s, difficulty };
       const level: LevelJson = { ...g.levelGrammar.generate(params), id: 'arena', name: 'Arena', ramp: { segment: 0, difficulty } };
       const content = g.extraContent?.(params) ?? {};
       // The game's other content (a freeform game's objectives) plays along with the arena's own waves.
       const r = oracle(level, { ...gameContent, ...content }, slot.seed, slot.index);
-      tried.push(`${s}:${r.ok ? 'ok' : r.idle ? 'idle' : 'x'}`);
+      tried.push(`${s}:${r.ok ? 'ok' : r.idle ? 'idle' : r.unproven ? 'unproven' : 'x'}`);
       if (r.ok) best = { level, content, dist: 0, proof: r.proof };
+      else if (r.unproven && !waiting) waiting = { level, content, dist: 0 };
     }
+    // No winning run on any seed: a freeform game ships the first sound arena, waiting for a player's run.
+    best ??= waiting;
     if (!best) return fail(`no arena seed from ${baseSeed} passed the solver at difficulty ${difficulty} (${tried.join(' ')})`, 'semantic_invalid', { durationMs: Date.now() - t0 });
     rmSync(levelsDir, { recursive: true, force: true });
     writeJson(join(levelsDir, 'L01-arena.json'), best.level);
     for (const [key, value] of Object.entries(best.content)) writeJson(join(ctx.gameDir, 'content', `${key}.json`), value);
-    if (best.proof) {
-      rmSync(proofsDir, { recursive: true, force: true });
-      writeJson(join(proofsDir, `${best.level.id}.json`), best.proof);
-    }
+    if (freeform) rmSync(proofsDir, { recursive: true, force: true });
+    if (best.proof) writeJson(join(proofsDir, `${best.level.id}.json`), best.proof);
     written.push('arena');
   } else {
     const targets = new Set((ctx.route?.targets ?? []).filter((t) => /^l\d{2}$/.test(t)));
@@ -412,12 +416,14 @@ const levels: StageFn = async (ctx) => {
         continue;
       }
       let best: { level: LevelJson; dist: number; solved: boolean; proof?: LevelProof } | null = null;
+      let waiting: LevelJson | null = null;
       for (let round = 0; round < 4 && !best; round++) {
         const from = baseSeed + i * 50 + round * kSeeds;
         for (let s = from; s < from + kSeeds; s++) {
           const level: LevelJson = { ...g.levelGrammar.generate({ seed: s, difficulty, boss, ...genParams }), id, name: `Level ${i + 1}`, ramp: { segment: i, difficulty } };
           const r = oracle(level, gameContent, playSeed, i);
-          tried.push(`${id}@${s}:${r.ok ? r.ticks : r.idle ? 'idle' : 'x'}`);
+          tried.push(`${id}@${s}:${r.ok ? r.ticks : r.idle ? 'idle' : r.unproven ? 'unproven' : 'x'}`);
+          if (r.unproven) waiting ??= level;
           if (!r.ok) continue;
           const dist = Math.abs(r.ticks - targetTicks);
           // A level the base genre's solver finishes beats one only the explorer won: it is won the way the base's are.
@@ -425,6 +431,8 @@ const levels: StageFn = async (ctx) => {
           if (!best || (solved !== best.solved ? solved : dist < best.dist)) best = { level, dist, solved, proof: r.proof };
         }
       }
+      // No winning run on any seed: a freeform game ships the first sound candidate, waiting for a player's run.
+      if (!best && waiting) best = { level: waiting, dist: Infinity, solved: false };
       if (!best) return fail(`no seed produced a solvable level for ${id} at difficulty ${difficulty} (tried ${tried.filter((x) => x.startsWith(id)).length} seeds)`, 'semantic_invalid', { durationMs: Date.now() - t0 });
       out.push({ file: `L${String(i + 1).padStart(2, '0')}-${id}.json`, level: best.level, proof: best.proof });
     }
@@ -434,13 +442,16 @@ const levels: StageFn = async (ctx) => {
       if (o.proof) writeJson(join(proofsDir, `${o.level.id}.json`), o.proof);
       written.push(o.level.id);
     }
-    // Levels kept from before keep their proofs while those still win; a stale one is found again.
-    if (freeform) {
-      const proven = reproveLevels(ctx);
-      if (!proven.ok) return fail(proven.summary, 'semantic_invalid', { durationMs: Date.now() - t0 });
-    }
   }
-  return ok(`wrote ${written.length} level(s): ${written.join(', ')} (target ${targetTicks} ticks; ${tried.length} candidates)`, { durationMs: Date.now() - t0, artifactPath: levelsDir });
+  // Levels kept from before keep their proofs while those still win; a stale one, or one that had none, is tried again
+  // with a bigger budget, and a level nothing wins waits for a player's run.
+  let waits = '';
+  if (freeform) {
+    const proven = reproveLevels(ctx);
+    if (!proven.ok) return fail(proven.summary, 'semantic_invalid', { durationMs: Date.now() - t0 });
+    if (proven.unproven.length) waits = `; waiting for a winning run: ${proven.unproven.join(', ')} (the game is not listed until a player records one)`;
+  }
+  return ok(`wrote ${written.length} level(s): ${written.join(', ')} (target ${targetTicks} ticks; ${tried.length} candidates)${waits}`, { durationMs: Date.now() - t0, artifactPath: levelsDir });
 };
 
 // ---------------------------------------------------------------- publish
@@ -541,9 +552,20 @@ const publish: StageFn = async (ctx) => {
   const playtestPath = join(reports, 'playtest-report.json');
   const playtest = existsSync(playtestPath) ? readJson<{ passed: boolean; replayHashMatch?: boolean; readyMs?: number; seeds: number[]; bots: Array<{ metrics?: Record<string, number>; ticks?: number; completed?: boolean }> }>(playtestPath) : null;
   const gameJs = readFileSync(join(bundleDir, 'game.js'));
+  // Who proved each level: a curated game's genre solver (the gate's solver check), a freeform game's recorded runs;
+  // null for a level that waits for a player's winning run (the game is not listed until it has one).
+  const recorded = readGameFiles(ctx.gameDir).proofs;
+  const proofs = Object.fromEntries(
+    readGameLevels(ctx.gameDir).map(({ level }) => {
+      if (sys.genre !== 'freeform') return [level.id, { by: 'solver' }];
+      const p = recorded.find((x) => x.level === level.id);
+      return [level.id, p ? { by: p.by, ticks: p.ticks } : null];
+    }),
+  );
   const evidence = {
     title: gddInfo.fm.title,
     gates,
+    proofs,
     playtest: playtest ? { passed: playtest.passed, replayHashMatch: playtest.replayHashMatch ?? null, readyMs: playtest.readyMs ?? null, seeds: playtest.seeds, metrics: playtest.bots[0]?.metrics ?? {}, ticks: playtest.bots[0]?.ticks ?? null } : null,
     budget: { gameJsBytes: gameJs.length, contentFiles: walk(join(bundleDir, 'content')).length },
     thumbnail: shots[0] ? 'thumbnail.png' : null,

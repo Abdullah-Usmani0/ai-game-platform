@@ -12,7 +12,7 @@ import { PlayFrame } from '@/components/PlayFrame';
 import { RemixButton } from '@/components/RemixButton';
 import { StyleEditor, type StyleLike } from '@/components/StyleEditor';
 import { gameGenreLabel } from '@/lib/genres';
-import { cap } from '@/lib/text';
+import { cap, levelName } from '@/lib/text';
 
 interface GameInfo {
   id: string;
@@ -44,10 +44,15 @@ interface GameView {
 const CREATE_STAGES = ['gdd', 'systems', 'sprites', 'scaffold', 'behaviour', 'implement', 'levels', 'integrate', 'playtest', 'juice', 'review', 'budget', 'publish'];
 /** A freeform game names its cast after its systems and records its winning runs again after its code changes. */
 const FREEFORM_STAGES = CREATE_STAGES.flatMap((s) => (s === 'systems' ? [s, 'composition'] : s === 'implement' ? [s, 'prove'] : [s]));
-const STAGE_LABELS: Record<string, string> = { gdd: 'Design', systems: 'Systems', composition: 'Cast', prove: 'Proofs', sprites: 'Sprites', scaffold: 'Scaffold', behaviour: 'Behaviour', implement: 'Code', levels: 'Levels', integrate: 'Integrate', playtest: 'Playtest', juice: 'Juice', review: 'Review', budget: 'Budget', publish: 'Publish' };
+const STAGE_LABELS: Record<string, string> = { verify: 'Replay', gdd: 'Design', systems: 'Systems', composition: 'Cast', prove: 'Proofs', sprites: 'Sprites', scaffold: 'Scaffold', behaviour: 'Behaviour', implement: 'Code', levels: 'Levels', integrate: 'Integrate', playtest: 'Playtest', juice: 'Juice', review: 'Review', budget: 'Budget', publish: 'Publish' };
 const JOB_TONE: Record<string, string> = { queued: 'info', running: 'brand', succeeded: 'ok', failed: 'err', needs_human: 'warn', cancelled: 'neutral' };
-const JOB_TITLE: Record<string, string> = { create: 'Building the game', edit: 'Applying an edit', edit_content: 'Applying a level edit' };
+const JOB_TITLE: Record<string, string> = { create: 'Building the game', edit: 'Applying an edit', edit_content: 'Applying a level edit', verify_proof: "Checking a player's winning run" };
 const EDIT_EXAMPLES = ['make the walker chase more aggressively', 'make jumps a little floatier', 'a warmer, sunset palette', 'add a third level that is harder'];
+/** Who recorded a level's winning run. */
+const PROVEN_BY: Record<string, string> = { solver: 'the solver bot', explorer: 'the explorer bot', bot: "the game's bot", human: 'a player' };
+
+type Proofs = Record<string, { by: string; ticks?: number } | null>;
+const waitingOf = (evidence: Record<string, unknown> | null | undefined): number => Object.values((evidence?.['proofs'] as Proofs | undefined) ?? {}).filter((p) => p === null).length;
 
 type StageState = 'pending' | 'running' | 'passed' | 'failed' | 'retry';
 type Tab = 'overview' | 'tune' | 'style' | 'levels' | 'code' | 'history';
@@ -101,8 +106,20 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
     if (data.head && data.head.id !== head?.id) {
       setHead({ id: data.head.id, number: data.head.number, bundleBase: data.head.bundleBase, evidence: data.head.design?.evidence ?? null, panels: data.head.design?.panels ?? null, style: data.head.design?.style ?? null });
       setFrameKey((k) => k + 1);
+    } else if (data.head) {
+      // The same version gains evidence when a player's run proves one of its levels.
+      const evidence = data.head.design?.evidence ?? null;
+      setHead((h) => (h && JSON.stringify(h.evidence) !== JSON.stringify(evidence) ? { ...h, evidence } : h));
     }
   }, [game.id, head?.id]);
+
+  // While a level waits for a winning run, look for the one that proves it.
+  const waiting = waitingOf(head?.evidence);
+  useEffect(() => {
+    if (!waiting) return;
+    const t = window.setInterval(() => void refreshGame(), 5000);
+    return () => window.clearInterval(t);
+  }, [waiting, refreshGame]);
 
   useEffect(() => {
     void refreshGame();
@@ -149,7 +166,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
   const active = status === 'queued' || status === 'running';
   const locked = sending || active || !game.headVersionId;
   const passed = stages.filter((s) => s.state === 'passed').length;
-  const evidence = head?.evidence as { gates?: Array<{ stage: string; passed: boolean; checks: string[]; durationMs: number }>; playtest?: { passed: boolean; replayHashMatch: boolean | null; readyMs: number | null; metrics: Record<string, number>; seeds: number[] } | null; budget?: { gameJsBytes: number }; thumbnail?: string | null } | null;
+  const evidence = head?.evidence as { gates?: Array<{ stage: string; passed: boolean; checks: string[]; durationMs: number }>; proofs?: Proofs; playtest?: { passed: boolean; replayHashMatch: boolean | null; readyMs: number | null; metrics: Record<string, number>; seeds: number[] } | null; budget?: { gameJsBytes: number }; thumbnail?: string | null } | null;
   const route = jobView?.events.find((e) => e.stage === 'route')?.payload as { route?: string; confidence?: number; designNotes?: string } | undefined;
   const tabs: Array<{ id: Tab; label: string; count?: number; show: boolean }> = [
     { id: 'overview', label: 'Overview', show: true },
@@ -353,6 +370,18 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
                     ))}
                   </tbody>
                 </table>
+                {evidence.proofs && Object.keys(evidence.proofs).length ? (
+                  <div className="stack-sm" data-testid="level-proofs">
+                    <span className="muted small">Winning runs (the game can be listed once every level has one)</span>
+                    <div className="cluster">
+                      {Object.entries(evidence.proofs).map(([level, p]) => (
+                        <span key={level} className="pill" data-tone={p ? 'ok' : 'warn'} data-level={level} data-by={p?.by ?? 'waiting'} title={p ? (p.ticks ? `won in ${(p.ticks / 60).toFixed(1)} s` : undefined) : 'no bot could finish it: the game is listed once a player does'}>
+                          {levelName(level)} · {p ? `won by ${PROVEN_BY[p.by] ?? p.by}` : 'waiting for a winning run'}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

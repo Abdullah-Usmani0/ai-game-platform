@@ -152,24 +152,25 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   const feel = g.feelPresets[opts.systems.feelPreset] ?? g.feelPresets[g.defaultFeel]!;
   // Oracle: the static validator, then a win at the seed the level gets in the game (same wiring as src/game.ts): the
   // genre's solver bot, or for a freeform game a recorded proof (its base genre's solver, else the explorer), which the
-  // game's own test then replays.
+  // game's own test then replays. A freeform level that passes the validator, that no bot wins and that standing still
+  // does not win either is sound but unproven: the slot ships the first such level when no seed gets a winning run.
   const solver = freeform ? BASE_MANIFESTS[freeform.composition.base].bots[BASE_MANIFESTS[freeform.composition.base].solverBot] : g.bots[g.solverBot];
   if (!solver) throw new Error(`genre ${g.id} names unknown solver bot '${g.solverBot}'`);
   const proofs: LevelProof[] = [];
-  const accept = (level: LevelJson, content: Record<string, unknown>, index: number, playSeed: number): boolean => {
-    if (!g.levelGrammar.validate(level, feel).ok) return false;
+  const judge = (level: LevelJson, content: Record<string, unknown>, index: number, playSeed: number): { won: boolean; sound: boolean; proof?: LevelProof } => {
+    if (!g.levelGrammar.validate(level, feel).ok) return { won: false, sound: false };
     // What the level's generator makes (an arena's waves) is written over the design stages' files, so it wins here too.
     const all = { ...opts.content, ...content };
     if (freeform) {
       const inputs = { file: freeform, roster, behaviours: g.defaultBehaviours, content: all, feedback, solver, budget: 20_000 };
       const r = proveLevel(level, index, inputs);
       // A level that standing still wins is no level, as in the levels stage.
-      if (!r.proof || idleWins(level, index, inputs, r.proof.ticks)) return false;
-      proofs.push(r.proof);
-      return true;
+      if (!r.proof) return { won: false, sound: !idleWins(level, index, inputs) };
+      return idleWins(level, index, inputs, r.proof.ticks) ? { won: false, sound: false } : { won: true, sound: true, proof: r.proof };
     }
     const so = simOptionsFor(g, systems, { behaviours: g.defaultBehaviours, content: all, feedback });
-    return runBot(createSim({ ...so, level, seed: playSeed }), solver, levelTicksOf(so)).completed;
+    const won = runBot(createSim({ ...so, level, seed: playSeed }), solver, levelTicksOf(so)).completed;
+    return { won, sound: won };
   };
   const arena = g.levelGrammar.kind === 'arena';
   const plan = levelPlan(g.levelGrammar.kind, { levels: opts.levels ?? gdd.data.scope.levels, bosses: gdd.data.scope.bosses, tier: gdd.data.scopeTier });
@@ -185,8 +186,22 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
     // Arena genres generate their content (waves) with the level; level-based genres ship none.
     let content = arena ? (g.extraContent?.(params) ?? {}) : {};
     let tries = 0;
-    while (!accept(level, content, slot.index, slot.seed)) {
-      if (++tries >= 20) throw new Error(`no seed from ${s - tries + 1} to ${s} gives ${slot.id} a level that passes the validator and ${freeform ? 'gets a winning run' : `the ${g.solverBot} bot`} at difficulty ${slot.difficulty}`);
+    let waiting: { level: LevelJson; content: Record<string, unknown> } | null = null;
+    for (;;) {
+      const v = judge(level, content, slot.index, slot.seed);
+      if (v.won) {
+        if (v.proof) proofs.push(v.proof);
+        break;
+      }
+      if (v.sound) waiting ??= { level, content };
+      if (++tries >= 20) {
+        // No winning run on any seed: the first sound level ships, waiting for a player's (the game is not listed till then).
+        if (waiting) {
+          ({ level, content } = waiting);
+          break;
+        }
+        throw new Error(`no seed from ${s - tries + 1} to ${s} gives ${slot.id} a level that passes the validator and ${freeform ? 'gets a winning run' : `the ${g.solverBot} bot`} at difficulty ${slot.difficulty}`);
+      }
       params = paramsAt(++s);
       level = named(g.levelGrammar.generate(params));
       content = arena ? (g.extraContent?.(params) ?? {}) : {};

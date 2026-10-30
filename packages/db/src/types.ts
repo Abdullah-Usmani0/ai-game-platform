@@ -1,6 +1,6 @@
 import type { AppealDecision, AppealInput, JamInput, JamSchedule, JamVote, ModelPolicy, PlayEvent, PlaySource, RatingTag, ReportInput, ReportKind, ReportResolution, ResolveInput, TestSubmission, TestVerdict, Trajectory } from '@gg/schemas';
 
-export type JobKind = 'create' | 'edit_parameter' | 'edit_style' | 'edit_behaviour' | 'edit_content' | 'edit_code' | 'remix' | 'republish';
+export type JobKind = 'create' | 'edit_parameter' | 'edit_style' | 'edit_behaviour' | 'edit_content' | 'edit_code' | 'remix' | 'republish' | 'verify_proof';
 export type JobStatus = 'queued' | 'running' | 'waiting_assets' | 'needs_human' | 'succeeded' | 'failed' | 'cancelled';
 export type JobEventType =
   | 'stage_started'
@@ -321,6 +321,26 @@ export interface JamVoteRow {
   updatedAt: string;
 }
 
+/**
+ * A winning run a player recorded on a level that waited for one (a LevelProof): it counts once a worker has replayed
+ * it on the version it was played on and seen it win, and then the version names the player's run as the level's proof.
+ */
+export interface LevelProofRow {
+  id: string;
+  gameId: string;
+  versionId: string;
+  level: string;
+  submittedBy: string;
+  proof: Record<string, unknown>;
+  status: 'pending' | 'accepted' | 'rejected';
+  /** Why a run did not count (it did not win on replay, another run proved the level first). */
+  reason: string | null;
+  /** The verify_proof job that replays it. */
+  jobId: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
 /** An entry once voting closed: raw means per criterion (null without votes), the score it ranks by, and its rank. */
 export interface JamResult {
   gameId: string;
@@ -418,6 +438,19 @@ export interface Store {
    * moderator unlisting of that head, a game neither suspended nor removed, and an owner with fewer than three strikes.
    */
   setListed(gameId: string, listed: boolean): Promise<GameRow>;
+  /**
+   * A player's winning run on a level of a version that waits for one: stored pending, with a verify_proof job (for the
+   * game's owner) that replays it. Null when the level does not wait (proven already, or no level of the version), a
+   * run of it is already waiting to be replayed, or the game is removed or suspended.
+   */
+  submitProof(input: { gameId: string; versionId: string; level: string; submittedBy: string; proof: Record<string, unknown> }): Promise<{ row: LevelProofRow; job: JobRow } | null>;
+  getProof(proofId: string): Promise<LevelProofRow | null>;
+  listProofs(versionId: string): Promise<LevelProofRow[]>;
+  /**
+   * The replay's verdict on a submitted run. Accepted: the version names it as the level's proof ({ by: 'human', ticks })
+   * and other runs waiting on the level are dropped. Rejected: kept with the reason.
+   */
+  resolveProof(proofId: string, verdict: { accepted: boolean; reason?: string }): Promise<LevelProofRow>;
   enqueueTest(input: { gameId: string; versionId: string; requestedBy: string; needed?: number; rewardCredits?: number }): Promise<TestQueueRow>;
   listTests(gameId: string): Promise<{ queue: TestQueueRow[]; assignments: TestAssignmentRow[] }>;
   /** The tester's open assignment, or a new one on the oldest open request that is not their own game. */

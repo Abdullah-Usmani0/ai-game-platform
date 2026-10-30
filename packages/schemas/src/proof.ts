@@ -30,3 +30,10 @@ export const LevelProof = z.object({
   script: z.array(ScriptSegment).max(50000),
 });
 export type LevelProof = z.infer<typeof LevelProof>;
+
+/** A player's winning run on a level its version waits for, as the play page sends it to be replayed on that version. */
+export const ProofSubmission = z.object({
+  versionId: z.string().min(1).max(64),
+  proof: LevelProof.extend({ by: z.literal('human') }),
+});
+export type ProofSubmission = z.infer<typeof ProofSubmission>;

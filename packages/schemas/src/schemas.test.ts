@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { AnyGddFrontmatter, parseAnyGdd, parseSystemsFile, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, EntityRoster, FreeformGddFrontmatter, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, Objectives, PLAYABLE_GENRES, SystemsFile, SystemsJson, toJsonSchema } from './index';
+import { AnyGddFrontmatter, parseAnyGdd, parseSystemsFile, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, EntityRoster, FreeformGddFrontmatter, GameToHost, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, Objectives, PLAYABLE_GENRES, ProofSubmission, SystemsFile, SystemsJson, toJsonSchema } from './index';
 
 describe('LevelJson', () => {
   const base = {
@@ -176,5 +176,14 @@ describe('freeform', () => {
     expect(LevelProof.safeParse({ ...proof, script: [{ from: 0, to: 10, input: { fly: true } }] }).success).toBe(false);
     expect(LevelProof.safeParse({ ...proof, script: [{ from: 10, to: 10, input: {} }] }).success).toBe(false);
     expect(LevelProof.safeParse({ ...proof, ticks: 0 }).success).toBe(false);
+  });
+
+  it("a player's winning run travels over the bridge, and the play page sends only a player's", () => {
+    const proof = { version: 1, level: 'l02', seed: 2, ticks: 300, by: 'human', script: [{ from: 0, to: 300, input: { right: true } }] };
+    expect(GameToHost.parse({ type: 'proof', proof })).toEqual({ type: 'proof', proof });
+    expect(GameToHost.safeParse({ type: 'proof', proof: { ...proof, ticks: 0 } }).success).toBe(false);
+    expect(ProofSubmission.parse({ versionId: 'v1', proof }).proof.level).toBe('l02');
+    expect(ProofSubmission.safeParse({ versionId: 'v1', proof: { ...proof, by: 'explorer' } }).success).toBe(false);
+    expect(ProofSubmission.safeParse({ versionId: '', proof }).success).toBe(false);
   });
 });

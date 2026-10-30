@@ -96,9 +96,18 @@ export function headPlaytestPassed(head: VersionRow | null): boolean {
   return evidence?.playtest?.passed !== false;
 }
 
-/** Feed rule: listed, playable, a published head that passed its playtest, and not broken. */
+/**
+ * The levels of a version that wait for a recorded winning run (its evidence names who proved each level, null for one
+ * nobody has yet). A version published before proofs were recorded names none: every one of them was proven to publish.
+ */
+export function waitingLevels(head: VersionRow | null): string[] {
+  const proofs = (head?.design as { evidence?: { proofs?: Record<string, unknown> } } | undefined)?.evidence?.proofs;
+  return proofs ? Object.entries(proofs).filter(([, p]) => p === null).map(([level]) => level) : [];
+}
+
+/** Feed rule: listed, playable, a published head that passed its playtest with every level proven, and not broken. */
 export function feedEligible(game: GameRow, head: VersionRow | null, stats: GameStats): boolean {
-  return game.visibility === 'listed' && (game.state === 'playable' || game.state === 'published') && headPlaytestPassed(head) && !stats.broken;
+  return game.visibility === 'listed' && (game.state === 'playable' || game.state === 'published') && headPlaytestPassed(head) && waitingLevels(head).length === 0 && !stats.broken;
 }
 
 /** Majority verdict of a closed test round; a tie counts as broken. */

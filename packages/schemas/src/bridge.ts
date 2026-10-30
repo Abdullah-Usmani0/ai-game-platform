@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LevelProof } from './proof';
 
 /** Host <-> game iframe protocol v1 over a MessageChannel. */
 export const BRIDGE_PROTOCOL = 1;
@@ -33,6 +34,8 @@ export const GameToHost = z.discriminatedUnion('type', [
   z.object({ type: z.literal('metrics'), fps: z.number(), frameMsP95: z.number(), heapMB: z.number() }),
   z.object({ type: z.literal('screenshot'), png: z.string() }),
   z.object({ type: z.literal('state'), state: StateSnapshot }),
+  /** A level a player won, as a recorded run from the level's start: the host keeps it when the level waits for one. */
+  z.object({ type: z.literal('proof'), proof: LevelProof }),
 ]);
 export type GameToHost = z.infer<typeof GameToHost>;
 

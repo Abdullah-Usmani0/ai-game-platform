@@ -256,12 +256,13 @@ export function compositionOf(gameDir: string): { roster: EntityRoster; content:
 /**
  * Proves every level of a freeform game against the game as it now is: a stored proof that still wins is kept, else
  * the base genre's solver plays it under the base names, else the explorer. Writes content/proofs/ (and removes the
- * proofs of levels the game no longer has). Fails on a level no one can win: the game cannot be listed with it.
+ * proofs of levels the game no longer has, and those that no longer win). A level no bot can win is left without one:
+ * the game is still published and played, and is listed once a player records a winning run of it.
  */
-export function reproveLevels(ctx: Pick<StageContext, 'gameDir'>, budget = 40_000): { ok: boolean; summary: string } {
+export function reproveLevels(ctx: Pick<StageContext, 'gameDir'>, budget = 40_000): { ok: boolean; summary: string; unproven: string[] } {
   const files = readGameFiles(ctx.gameDir);
   const sys = files.systems;
-  if (sys?.genre !== 'freeform') return { ok: true, summary: 'curated: the genre solver proves the levels' };
+  if (sys?.genre !== 'freeform') return { ok: true, summary: 'curated: the genre solver proves the levels', unproven: [] };
   const proofsDir = join(ctx.gameDir, 'content', 'proofs');
   const levels = readGameLevels(ctx.gameDir);
   const prune = () => {
@@ -269,21 +270,30 @@ export function reproveLevels(ctx: Pick<StageContext, 'gameDir'>, budget = 40_00
     if (existsSync(proofsDir)) for (const f of readdirSync(proofsDir)) if (!ids.has(f)) rmSync(join(proofsDir, f));
   };
   // A game with systems of its own records its runs with its own code: its prover runs in the game's test runner.
+  const waiting = (ids: string[]) => (ids.length ? `; waiting for a winning run: ${ids.join(', ')}` : '');
   if (hasBespokeSystems(ctx.gameDir)) {
     const r = spawnSync('pnpm', ['run', 'prove'], { cwd: ctx.gameDir, encoding: 'utf8', env: { ...process.env, CI: '1' }, maxBuffer: 16 * 1024 * 1024 });
     prune();
-    if (r.status === 0) return { ok: true, summary: `proved ${levels.length} level(s) with the game's own systems (pnpm prove)` };
-    return { ok: false, summary: `the game's prover found no winning run: ${`${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n').slice(-12).join(' / ')}` };
+    if (r.status !== 0) return { ok: false, summary: `the game's prover did not run: ${`${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n').slice(-12).join(' / ')}`, unproven: [] };
+    const unproven = levels.map((l) => l.level.id).filter((id) => !existsSync(join(proofsDir, `${id}.json`)));
+    return { ok: true, summary: `proved ${levels.length - unproven.length} level(s) with the game's own systems (pnpm prove)${waiting(unproven)}`, unproven };
   }
   const base = BASE_MANIFESTS[sys.composition.base];
   const inputs = { file: sys, roster: files.roster ?? IDENTITY_ROSTER, ...readGameInputs(ctx.gameDir), solver: base.bots[base.solverBot], budget };
   const done: string[] = [];
+  const unproven: string[] = [];
   for (const { level, index } of levels) {
     const r = proveLevel(level, index, inputs, files.proofs.find((p) => p.level === level.id));
-    if (!r.proof) return { ok: false, summary: `no winning run found for ${level.id}: ${r.tried.join('; ')}` };
-    writeJson(join(proofsDir, `${level.id}.json`), r.proof);
-    done.push(`${level.id} (${r.proof.by}, ${Math.round(r.proof.ticks / 60)} s)`);
+    const file = join(proofsDir, `${level.id}.json`);
+    if (r.proof) {
+      writeJson(file, r.proof);
+      done.push(`${level.id} (${r.proof.by}, ${Math.round(r.proof.ticks / 60)} s)`);
+    } else {
+      // A run that no longer wins is no evidence: the level waits for a new one.
+      rmSync(file, { force: true });
+      unproven.push(level.id);
+    }
   }
   prune();
-  return { ok: true, summary: `proved ${done.length} level(s): ${done.join(', ')}` };
+  return { ok: true, summary: `proved ${done.length} level(s): ${done.join(', ')}${waiting(unproven)}`, unproven };
 }

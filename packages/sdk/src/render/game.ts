@@ -1,5 +1,5 @@
 import type { LevelJson } from '@gg/schemas';
-import { DEFAULT_SEED, type SimOptions } from '../sim/sim.js';
+import { DEFAULT_SEED, winningRun, type SimOptions } from '../sim/sim.js';
 import { BridgeGuest } from './bridge-guest.js';
 import { GameController, type GameBuild } from './controller.js';
 import type { RunMode } from './driver.js';
@@ -95,6 +95,9 @@ export async function createGame(opts: GameOptions): Promise<GameHandle> {
       if (['death', 'level_complete', 'pickup', 'checkpoint'].includes(ev.name)) {
         bridge.send({ type: 'event', name: ev.name, payload: ev.payload, tick: ev.tick });
       }
+      // A level a player won is evidence it can be won: the run from the level's start goes to the host, which keeps it
+      // when the level waits for a winning run. Bots that drive the game (manual mode) record their own.
+      if (ev.name === 'level_complete' && controller.mode === 'realtime') bridge.send({ type: 'proof', proof: winningRun(controller.sim, ev.tick) });
     });
   let unsubForward = forward();
   controller.onLevelChange(() => {

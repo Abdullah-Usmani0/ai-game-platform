@@ -4,10 +4,11 @@
 // player's position samples and quit point and two players' deaths, in the API and over the level editor. Then moderation: three players'
 // reports suspend the game and a moderator's dismissals in the queue bring it back; a fan's remix is taken down for ip
 // and the fan gets a strike; the fan's counter-notice waits its 14 days, while a second fan's appeal of an abuse
-// removal is reinstated from the queue and the strike voided. Identities are the dev cookie ('moderator' is the file
-// store's moderator).
-import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+// removal is reinstated from the queue and the strike voided. Last, a level no bot could win: the game waits to be listed
+// until a player wins the level, the worker replays the run and the level is proven. Identities are the dev cookie
+// ('moderator' is the file store's moderator).
+import { spawn, spawnSync } from 'node:child_process';
+import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -291,6 +292,68 @@ try {
   // The dev file server serves public buckets only: checkpoints and quarantined bundles stay private.
   result.appeals.privateBucket = (await fetch(`${url}/b/checkpoints/takedowns/x/index.html`)).status;
 
+  // 8. A level no bot could win. A maker remixes the freeform game (a bot recorded a winning run of each of its levels);
+  //    the check takes one level's run away from the remix's version, as the levels stage ships a level no bot won. The
+  //    maker cannot list the game and the workspace says why. A player wins the level on the play page (with the run
+  //    the bot had recorded, driven through the game's test seam in real time); the game sends the run, the page posts
+  //    it, the worker replays it on the version and the level is proven: the maker lists the game and it reaches the feed.
+  const ffGame = (state.games ?? []).find((g) => g.genre === 'freeform' && g.ownerId === 'local-dev' && g.headVersionId);
+  if (!ffGame) throw new Error(`no freeform game in ${storeDir}; run pnpm demo first`);
+  const maker = `maker-${Date.now().toString(36)}`;
+  const ffRemix = (await api(`/api/games/${ffGame.id}/remix`, maker, {})).json;
+  const storeFile = resolve(storeDir, 'store.json');
+  const fresh = JSON.parse(readFileSync(storeFile, 'utf8'));
+  const ffHeadId = fresh.games.find((g) => g.id === ffRemix.gameId)?.headVersionId;
+  const ffHead = fresh.versions.find((v) => v.id === ffHeadId);
+  const recorded = Object.entries(ffHead?.design?.evidence?.proofs ?? {}).filter(([, p]) => p);
+  // The level with the shortest run: the player plays it in real time.
+  const [waitLevel] = recorded.sort(([, a], [, b]) => a.ticks - b.ticks)[0] ?? [];
+  result.proving = { recorded: recorded.length, level: waitLevel };
+  if (!waitLevel) throw new Error(`the freeform game's head names no recorded runs: ${JSON.stringify(ffHead?.design?.evidence ?? null).slice(0, 200)}`);
+  ffHead.design.evidence.proofs[waitLevel] = null;
+  writeFileSync(`${storeFile}.check`, JSON.stringify(fresh));
+  renameSync(`${storeFile}.check`, storeFile);
+  const blocked = await api(`/api/games/${ffRemix.gameId}/publish`, maker, { listed: true });
+  result.proving.blocked = { status: blocked.status, error: blocked.json.error };
+
+  const prover = await pageAs('player-b');
+  await prover.goto(`${url}/play/${ffRemix.gameId}`, { waitUntil: 'load', timeout: 30000 });
+  await prover.waitForSelector(`[data-testid="waiting-levels"][data-levels="${waitLevel}"]`, { timeout: 15000 });
+  await prover.waitForSelector('[data-testid="status"]:has-text("ready")', { timeout: 30000 });
+  const gameFrame = prover.frames().find((f) => /\/index\.html/.test(f.url()));
+  // The bundle still has the bot's run (the frame, sandboxed, cannot fetch it: the check hands it over).
+  const botRun = await (await fetch(new URL(`content/proofs/${waitLevel}.json`, gameFrame.url()))).json();
+  result.proving.played = await gameFrame.evaluate(
+    async ([id, run]) => {
+      window.__game.goto('play', { level: window.__game.levels().indexOf(id) });
+      await window.__game.runScript(run.script, run.ticks);
+      return { ticks: run.ticks, won: window.__game.events.count('level_complete') };
+    },
+    [waitLevel, botRun],
+  );
+  await prover.waitForSelector(`[data-testid="proof-sent"][data-levels="${waitLevel}"]`, { timeout: 15000 });
+  await prover.context().close();
+
+  const makerPage = await pageAs(maker);
+  await makerPage.goto(`${url}/games/${ffRemix.gameId}`, { waitUntil: 'load', timeout: 30000 });
+  await makerPage.waitForSelector(`[data-testid="proofs-waiting"][data-levels="${waitLevel}"]`, { timeout: 20000 });
+  await makerPage.waitForSelector(`[data-testid="proof-run"][data-level="${waitLevel}"]`, { timeout: 10000 });
+  result.proving.workspace = {
+    run: await makerPage.getAttribute(`[data-testid="proof-run"][data-level="${waitLevel}"]`, 'data-status'),
+    publishDisabled: await makerPage.isDisabled('[data-testid="publish"]'),
+    evidence: await makerPage.getAttribute(`[data-testid="level-proofs"] [data-level="${waitLevel}"]`, 'data-by'),
+  };
+  // The worker takes the replay first (it outranks the builds queued by other checks) and runs only it.
+  const workerDir = resolve(cwd, '../../workers/generator');
+  const replayed = spawnSync(process.execPath, ['--import', 'tsx', resolve(workerDir, 'src/cli.ts'), 'run', '--once'], { cwd: workerDir, env: { ...process.env, GG_STORE_DIR: storeDir, GG_WORK_ROOT: resolve(cwd, '../../.gg-work') }, encoding: 'utf8', timeout: 300000 });
+  result.proving.worker = replayed.status === 0 ? (/verify_proof/.test(replayed.stdout) ? 'verify_proof' : replayed.stdout.slice(-300)) : `exit ${replayed.status}: ${(replayed.stderr ?? '').slice(-300)}`;
+  await makerPage.waitForSelector(`[data-testid="level-proofs"] [data-level="${waitLevel}"][data-by="human"]`, { timeout: 20000 });
+  await makerPage.waitForSelector('[data-testid="proofs-waiting"]', { state: 'detached', timeout: 15000 });
+  await makerPage.click('[data-testid="publish"]');
+  await makerPage.waitForSelector('[data-testid="community"][data-listed="yes"]', { timeout: 15000 });
+  result.proving.inFeed = ((await api('/api/feed', 'player-d')).json.items ?? []).some((f) => f.id === ffRemix.gameId);
+  await makerPage.context().close();
+
   ok =
     result.strangerPublish === 403 &&
     result.workspace.stranger === 404 &&
@@ -353,6 +416,15 @@ try {
     result.appeals.reinstated === 'playable' &&
     result.appeals.strikesAfter === 0 &&
     result.appeals.privateBucket === 404 &&
+    result.proving.recorded >= 1 &&
+    result.proving.blocked.status === 409 &&
+    /has no recorded winning run yet/.test(result.proving.blocked.error ?? '') &&
+    result.proving.played.won === 1 &&
+    result.proving.workspace.run === 'pending' &&
+    result.proving.workspace.publishDisabled === true &&
+    result.proving.workspace.evidence === 'waiting' &&
+    result.proving.worker === 'verify_proof' &&
+    result.proving.inFeed === true &&
     errors.length === 0;
   console.log(JSON.stringify({ ok, ...result, errors }, null, 2));
 } catch (e) {

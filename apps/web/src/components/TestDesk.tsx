@@ -3,12 +3,15 @@
 import { useCallback, useRef, useState } from 'react';
 import type { RatingTag, TestVerdict } from '@gg/schemas';
 import { PlaySession, type PlaySessionHandle, type SessionStats } from '@/components/PlaySession';
+import { levelName, listOf } from '@/lib/text';
 
 interface Claim {
   assignment: { id: string; gameId: string; versionId: string; expiresAt: string };
   queue: { rewardCredits: number; needed: number };
   game: { id: string; title: string; genre: string } | null;
   bundleBase: string | null;
+  /** Levels no bot could finish: a tester's winning run proves them. */
+  waiting?: string[];
   credits: number;
 }
 
@@ -84,7 +87,12 @@ export function TestDesk() {
           <h2>
             Testing: {claim.game?.title ?? claim.assignment.gameId} <span className="muted">({claim.game?.genre}, {claim.queue.rewardCredits} credits)</span>
           </h2>
-          <PlaySession key={claim.assignment.id} gameId={claim.assignment.gameId} versionId={claim.assignment.versionId} bundleUrl={`${claim.bundleBase}/index.html`} source="test" levels={1} onStats={onStats} ref={session} />
+          {claim.waiting?.length ? (
+            <div className="callout" data-tone="info" data-testid="test-waiting" data-levels={claim.waiting.join(',')}>
+              No bot could finish {listOf(claim.waiting.map(levelName))}. Finish {claim.waiting.length === 1 ? 'it' : 'them'} to prove {claim.waiting.length === 1 ? 'it' : 'them'}: the game can only be listed once every level has a winning run.
+            </div>
+          ) : null}
+          <PlaySession key={claim.assignment.id} gameId={claim.assignment.gameId} versionId={claim.assignment.versionId} bundleUrl={`${claim.bundleBase}/index.html`} source="test" levels={1} waiting={claim.waiting} onStats={onStats} ref={session} />
           <div className="panel" data-testid="test-report">
             <h2>Report</h2>
             <p className="muted" data-testid="played">

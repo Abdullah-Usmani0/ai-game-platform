@@ -1,3 +1,4 @@
+import { waitingLevels } from '@gg/db';
 import { viewerId } from '@/lib/identity';
 import { getStore } from '@/lib/store';
 
@@ -32,6 +33,10 @@ export async function GET(
   const standingReport = standing ? await store.getReport(standing.reportId) : null;
   const appeal = standing ? (appeals.find((a) => a.takedownId === standing.id) ?? null) : null;
   const unlisted = (game.listing as { unlisted?: { versionId?: string; note?: string } }).unlisted;
+  // Levels of the head no bot could win wait for a player's winning run; the owner sees how the runs sent so far went.
+  const head = game.headVersionId ? await store.getVersion(game.headVersionId).catch(() => null) : null;
+  const waiting = waitingLevels(head);
+  const runs = isOwner && head && waiting.length ? await store.listProofs(head.id) : [];
   return Response.json({
     viewer: me,
     isOwner,
@@ -49,6 +54,7 @@ export async function GET(
       appeal: appeal ? { status: appeal.status, reinstateAfter: appeal.reinstateAfter, decisionNote: appeal.decisionNote } : null,
       unlistedFor: isOwner && unlisted?.versionId && unlisted.versionId === game.headVersionId ? (unlisted.note ?? '') : null,
     },
+    proofs: { waiting, runs: runs.map((r) => ({ level: r.level, status: r.status, reason: r.reason, createdAt: r.createdAt })) },
     tests: tests.queue.map((q) => ({
       ...q,
       submitted: tests.assignments.filter((a) => a.queueId === q.id && a.submittedAt).length,

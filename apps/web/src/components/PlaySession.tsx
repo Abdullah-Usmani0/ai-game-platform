@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { PLAY_EVENT_LIMITS, type GameToHost, type PlayEvent, type PlaySource, type RatingTag } from '@gg/schemas';
 import { PlayFrame } from '@/components/PlayFrame';
+import { levelName, listOf } from '@/lib/text';
 
 const TAGS: Array<{ tag: RatingTag; label: string; hint: string }> = [
   { tag: 'fun', label: 'Fun', hint: 'I would play more' },
@@ -26,9 +27,10 @@ export interface PlaySessionHandle {
  * Plays a version and records the session: seconds while the game is ready and the tab visible, levels completed and
  * player deaths from the bridge events, and the creator's heatmap events (where the player died, where they were every
  * few seconds, and where they left an unfinished game). The play is sent once: on pagehide (sendBeacon), on unmount, or
- * when the caller flushes it. One-tag rating below.
+ * when the caller flushes it. One-tag rating below. A level the version waits on a winning run for (`waiting`) that
+ * the player wins sends its run to be replayed: once it wins on replay, it proves the level.
  */
-export function PlaySession({ gameId, versionId, bundleUrl, source, levels, seed, rating, onStats, ref }: { gameId: string; versionId: string; bundleUrl: string; source: PlaySource; levels: number; seed?: number; rating?: boolean; onStats?: (s: SessionStats) => void; ref?: Ref<PlaySessionHandle> }) {
+export function PlaySession({ gameId, versionId, bundleUrl, source, levels, seed, rating, waiting, onStats, ref }: { gameId: string; versionId: string; bundleUrl: string; source: PlaySource; levels: number; seed?: number; rating?: boolean; waiting?: readonly string[]; onStats?: (s: SessionStats) => void; ref?: Ref<PlaySessionHandle> }) {
   const stats = useRef<SessionStats>({ activeS: 0, levelsCompleted: 0, deaths: 0 });
   const events = useRef<PlayEvent[]>([]);
   const counts = useRef({ sample: 0, death: 0 });
@@ -38,6 +40,8 @@ export function PlaySession({ gameId, versionId, bundleUrl, source, levels, seed
   const sent = useRef(false);
   const [tag, setTag] = useState<RatingTag | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The levels whose winning run this session sent to be replayed.
+  const [proving, setProving] = useState<string[]>([]);
   // The parent's stats callback changes every render; the session effect must not restart (its cleanup sends the play).
   const onStatsRef = useRef(onStats);
   useEffect(() => {
@@ -98,8 +102,24 @@ export function PlaySession({ gameId, versionId, bundleUrl, source, levels, seed
     };
   }, [report]);
 
+  // Levels whose run this session already sent (one is enough: the replay decides).
+  const proofsSent = useRef(new Set<string>());
+  const waitingRef = useRef(waiting);
+  useEffect(() => {
+    waitingRef.current = waiting;
+  }, [waiting]);
+
   const onMessage = useCallback((msg: GameToHost) => {
     const t = Math.round(stats.current.activeS * 10) / 10;
+    if (msg.type === 'proof') {
+      const level = msg.proof.level;
+      if (!waitingRef.current?.includes(level) || proofsSent.current.has(level)) return;
+      proofsSent.current.add(level);
+      void fetch(`/api/games/${gameId}/proofs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ versionId, proof: msg.proof }) })
+        .then((res) => (res.status === 202 ? setProving((l) => [...l, level]) : undefined))
+        .catch(() => {});
+      return;
+    }
     if (msg.type === 'ready') ready.current = true;
     else if (msg.type === 'state') {
       const p = msg.state.player as { x?: unknown; y?: unknown; alive?: unknown };
@@ -123,7 +143,7 @@ export function PlaySession({ gameId, versionId, bundleUrl, source, levels, seed
         events.current.push({ kind: 'death', level, x: Math.round(x), y: Math.round(y), t });
       }
     }
-  }, []);
+  }, [gameId, versionId]);
 
   async function rate(t: RatingTag) {
     setError(null);
@@ -135,6 +155,11 @@ export function PlaySession({ gameId, versionId, bundleUrl, source, levels, seed
   return (
     <div className="session">
       <PlayFrame bundleUrl={bundleUrl} mode="play" seed={seed} onMessage={onMessage} sampleStateMs={PLAY_EVENT_LIMITS.sampleEveryS * 1000} />
+      {proving.length ? (
+        <div className="callout" data-tone="ok" data-testid="proof-sent" data-levels={proving.join(',')}>
+          You finished {listOf(proving.map(levelName))}, which no bot could: your run is being replayed, and once it wins again it proves {proving.length === 1 ? 'the level' : 'them'} for everyone.
+        </div>
+      ) : null}
       {rating ? (
         <div className="panel rate" data-testid="rate">
           <h2>How was it?</h2>

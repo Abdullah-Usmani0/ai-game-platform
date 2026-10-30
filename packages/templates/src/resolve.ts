@@ -1,11 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EntityRoster, LevelJson, LevelProof, MechanicsFile, Objectives, parseAnyGdd, parseSystemsFile, SpriteSheet, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type EcaRule, type Mechanic, type SystemsFile } from '@gg/schemas';
-import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding } from '@gg/sdk';
+import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding, type SimOptions } from '@gg/sdk';
 import { artPalette, settingFor, type Setting } from '@gg/sdk/art';
 import { rolesPresent, simOptionsFor, type GenreManifest } from '@gg/template-core';
 import { checkFreeformObjectives, FREEFORM_CATALOG, freeformDesignManifest, freeformManifest, IDENTITY_ROSTER } from '@gg/template-freeform/node';
-import { checkComposition, checkSpriteSheet, checkSystems, err, mechanicMeta, parseFrontmatter, report, spriteCast, type CastMember, type Issue, type SystemsCatalog, type ValidationReport } from '@gg/validators';
+import { checkComposition, checkSpriteSheet, checkSystems, err, mechanicMeta, parseFrontmatter, report, spriteCast, warn, type CastMember, type Issue, type SystemsCatalog, type ValidationReport } from '@gg/validators';
 import { CATALOG, genre, GENRES } from './genres.js';
 
 /** What a game's design files say about it; a file that is missing or invalid is null (proofs: left out). */
@@ -105,9 +105,10 @@ export function hasBespokeSystems(gameDir: string): boolean {
 }
 
 /**
- * A freeform game's proofs against the game as it is now: every level has a recorded winning run, recorded at the seed
- * the level is played with, that still wins. Replayed here unless the game has bespoke systems (the game's own test
- * replays those, with its code). A curated game passes: its genre's solver bot proves its levels.
+ * A freeform game's proofs against the game as it is now: every recorded winning run was recorded at the seed the level
+ * is played with and still wins. Replayed here unless the game has bespoke systems (the game's own test replays those,
+ * with its code). A level with no run yet is a warning, not a failure: the game is published and played, and waits to be
+ * listed until a bot or a player records one. A curated game passes: its genre's solver bot proves its levels.
  */
 export function checkProofs(gameDir: string): ValidationReport {
   const files = readGameFiles(gameDir);
@@ -121,16 +122,33 @@ export function checkProofs(gameDir: string): ValidationReport {
   let proven = 0;
   for (const { level, seed } of readGameLevels(gameDir)) {
     const proof = files.proofs.find((p) => p.level === level.id);
-    if (!proof) issues.push(err('no_proof', `${level.id} has no recorded winning run (content/proofs/${level.id}.json)`, { path: level.id }));
+    if (!proof) issues.push(warn('no_proof', `${level.id} has no recorded winning run yet (content/proofs/${level.id}.json): the game cannot be listed until a bot or a player records one`, { path: level.id }));
     else if (proof.seed !== seed) issues.push(err('proof_seed', `${level.id}'s run was recorded at seed ${proof.seed}; the game plays it at ${seed}`, { path: level.id }));
     else if (!bespoke) {
-      const sim = createSim({ ...options, level, seed });
-      sim.run(proof.script, proof.ticks);
-      if (sim.world.flags.won) proven++;
+      if (runEnds({ ...options, level, seed }, proof).won) proven++;
       else issues.push(err('stale_proof', `${level.id}'s recorded run (${proof.by}) no longer wins: the game changed since it was proven`, { path: level.id }));
     }
   }
-  return report(issues, { proven, replayed: !bespoke });
+  return report(issues, { proven, unproven: issues.filter((i) => i.code === 'no_proof').length, replayed: !bespoke });
+}
+
+function runEnds(options: SimOptions, proof: LevelProof): { won: boolean; lost: boolean } {
+  const sim = createSim(options);
+  sim.run(proof.script, proof.ticks);
+  return { won: sim.world.flags.won, lost: sim.world.flags.gameOver || !sim.world.player.alive };
+}
+
+/**
+ * How one recorded run of a freeform game's level ends when it is replayed on the game as it is now, at the seed the
+ * level is played with: won, lost (the game over, or the player down), or neither. Null when the game has no such
+ * level, or has systems of its own (its own test replays its runs, with its code).
+ */
+export function replayRun(gameDir: string, proof: LevelProof): { won: boolean; lost: boolean } | null {
+  const files = readGameFiles(gameDir);
+  const slot = readGameLevels(gameDir).find((l) => l.level.id === proof.level);
+  if (files.systems?.genre !== 'freeform' || !slot || hasBespokeSystems(gameDir)) return null;
+  const options = simOptionsFor(manifestFor(files), files.systems, readGameInputs(gameDir));
+  return runEnds({ ...options, level: slot.level, seed: slot.seed }, proof);
 }
 
 /** The catalog a game's systems.json is checked against: its genre's, or for a freeform game every system's. */

@@ -1,5 +1,5 @@
-import type { LevelJson, LevelProof } from '@gg/schemas';
-import { createSim, type FeedbackBinding } from '@gg/sdk';
+import { LevelProof, type LevelJson } from '@gg/schemas';
+import { createSim, inputAtTick, winningRun, type FeedbackBinding } from '@gg/sdk';
 import { afkWins, feedbackCoverage, levelPlan, recordEvents, simOptionsFor } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import { EXAMPLES, HIVE, LANTERN, ROOFTOP } from './examples.js';
@@ -52,6 +52,25 @@ describe('proveLevel', () => {
     // A runner's own levels need it to jump.
     const { level, index, content: c } = levelsOf(ROOFTOP)[0]!;
     expect(idleWins(level, index, inputs(ROOFTOP, c), 1800)).toBe(false);
+  });
+
+  it("a player's run, as the game sends it on the win, replays to a win at the level's seed", () => {
+    // A goal level and an arena: a winning run found here, played the way the realtime driver steps the sim.
+    for (const ex of [LANTERN, HIVE]) {
+      const { level, index, content } = levelsOf(ex)[0]!;
+      const found = proveLevel(level, index, inputs(ex, content)).proof!;
+      const m = freeformManifest(ex.systems, ex.roster);
+      const sim = createSim({ ...simOptionsFor(m, ex.systems, { content }), level, seed: index + 1 });
+      let sent: LevelProof | null = null;
+      sim.events.on('level_complete', (ev) => {
+        sent ??= winningRun(sim, ev.tick);
+      });
+      for (let t = 0; t < found.ticks + 60 && !sent; t++) sim.step(inputAtTick(found.script, t));
+      expect(sent, ex.id).not.toBeNull();
+      expect(LevelProof.parse(sent), ex.id).toMatchObject({ version: 1, level: level.id, seed: index + 1, ticks: found.ticks, by: 'human' });
+      // What the verify job does with it: replayed on a fresh sim at its seed, it wins.
+      expect(proveLevel(level, index, inputs(ex, content), sent!).tried, ex.id).toEqual(['stored proof: wins']);
+    }
   });
 
   it('drops a stored proof that no longer wins and finds another', () => {

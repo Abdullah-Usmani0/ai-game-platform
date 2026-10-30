@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AppealForm } from '@/components/AppealForm';
+import { levelName, listOf } from '@/lib/text';
 
 interface CommunityView {
   isOwner: boolean;
@@ -11,7 +12,9 @@ interface CommunityView {
   stats: { players: number; qualifiedPlayers: number; completionRate: number; avgPlayMin: number; ratings: Record<string, number>; ratingCount: number; remixes: number; rankScore: number; broken: boolean };
   tests: Array<{ id: string; status: string; outcome: string | null; needed: number; submitted: number; rewardCredits: number; verdicts: Array<{ verdict: string; tag: string; note: string }> }>;
   moderation: { ownerStrikes: number | null; openReports: number | null; removedFor: string | null; unlistedFor: string | null; removedKind: string | null; appeal: { status: string; reinstateAfter: string; decisionNote: string } | null };
+  proofs: { waiting: string[]; runs: Array<{ level: string; status: string; reason: string | null; createdAt: string }> };
 }
+
 
 /** Listing, community stats and test rounds of a game, in the creator's workspace. */
 export function CommunityPanel({ gameId, hasHead }: { gameId: string; hasHead: boolean }) {
@@ -42,12 +45,15 @@ export function CommunityPanel({ gameId, hasHead }: { gameId: string; hasHead: b
   const listed = view.visibility === 'listed';
   const open = view.tests.find((t) => t.status === 'open');
   const last = [...view.tests].reverse().find((t) => t.status === 'closed');
+  const waiting = view.proofs.waiting;
+  // The latest run players sent for each waiting level: being replayed, or why it did not count.
+  const lastRun = new Map(view.proofs.runs.filter((r) => waiting.includes(r.level)).map((r) => [r.level, r]));
   return (
     <div className="panel" data-testid="community" data-listed={listed ? 'yes' : 'no'}>
       <h2>
         Community
-        <span className="pill dot" data-tone={listed ? 'ok' : 'neutral'}>
-          {listed ? 'In the feed' : 'Not listed'}
+        <span className="pill dot" data-tone={listed ? (waiting.length ? 'warn' : 'ok') : 'neutral'}>
+          {listed ? (waiting.length ? 'Out of the feed until proven' : 'In the feed') : 'Not listed'}
         </span>
         {s.broken ? (
           <span className="pill" data-tone="err">
@@ -109,6 +115,16 @@ export function CommunityPanel({ gameId, hasHead }: { gameId: string; hasHead: b
         <p className="muted small">{view.moderation.openReports} open report(s) await review.</p>
       ) : null}
       {view.isOwner && view.moderation.ownerStrikes ? <p className="err small">Your account has {view.moderation.ownerStrikes} active strike(s); three block listing.</p> : null}
+      {view.isOwner && waiting.length ? (
+        <div className="callout" data-tone="warn" data-testid="proofs-waiting" data-levels={waiting.join(',')}>
+          <strong>{listOf(waiting.map(levelName))}</strong> {waiting.length === 1 ? 'waits' : 'wait'} for a winning run: no bot could finish {waiting.length === 1 ? 'it' : 'them'}, so the game can be listed once a player does. Finish {waiting.length === 1 ? 'it' : 'them'} yourself on the play page or ask testers; every win on {waiting.length === 1 ? 'it' : 'them'} is replayed to check it.
+          {[...lastRun.values()].map((r) => (
+            <span key={r.level} className="small" style={{ display: 'block', marginTop: 6 }} data-testid="proof-run" data-level={r.level} data-status={r.status}>
+              {r.status === 'pending' ? `${levelName(r.level)}: a player's run is being replayed` : `${levelName(r.level)}: the last run did not count${r.reason ? ` (${r.reason})` : ''}`}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {open ? (
         <p className="small" data-testid="test-status">
           Testers: {open.submitted}/{open.needed} reports in (reward {open.rewardCredits} credits each)
@@ -120,7 +136,7 @@ export function CommunityPanel({ gameId, hasHead }: { gameId: string; hasHead: b
       ) : null}
       {view.isOwner ? (
         <div className="row">
-          <button className={listed ? undefined : 'btn-primary'} disabled={busy || !hasHead || view.state === 'removed' || view.state === 'suspended'} onClick={() => void post('publish', { listed: !listed })} data-testid="publish">
+          <button className={listed ? undefined : 'btn-primary'} disabled={busy || !hasHead || view.state === 'removed' || view.state === 'suspended' || (!listed && waiting.length > 0)} title={!listed && waiting.length ? `${listOf(waiting.map(levelName))} ${waiting.length === 1 ? 'has' : 'have'} no recorded winning run yet` : undefined} onClick={() => void post('publish', { listed: !listed })} data-testid="publish">
             {listed ? 'Unlist' : 'Publish to the feed'}
           </button>
           <button disabled={busy || !hasHead || Boolean(open) || view.state === 'removed' || view.state === 'suspended'} onClick={() => void post('tests', { needed: 3, rewardCredits: 5 })} data-testid="ask-testers">

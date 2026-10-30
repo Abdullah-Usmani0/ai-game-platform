@@ -146,7 +146,7 @@ void createGame({
 
 export const GAME_TEST = (genre: string) => `import { MechanicsFile } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
-import { conformance, levelTicksOf, runBot } from '@gg/template-core';
+import { conformance, levelTicksOf, runBot, type BotPolicy } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
 import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
@@ -157,8 +157,11 @@ const MECHANICS = MechanicsFile.parse(mechanicsJson).mechanics;
 
 describe('${genre} game', () => {
   it('every level is completable by the solver bot, at the seed the level is played with', () => {
+    const solver = BOTS[SOLVER_BOT]! as BotPolicy & { has?: (level: string) => boolean };
     for (const [i, level] of LEVELS.entries()) {
-      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), BOTS[SOLVER_BOT]!, levelTicksOf(SIM_OPTIONS));
+      // A freeform level with no recorded run yet waits for one (the game is not listed until then): nothing to replay.
+      if (solver.has && !solver.has(level.id)) continue;
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), solver, levelTicksOf(SIM_OPTIONS));
       expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
     }
   });
@@ -226,15 +229,15 @@ export const SOLVER_BOT = kit.solverBot;
 `;
 
 /**
- * A freeform game's prover (`pnpm prove`): a winning run for every level, recorded with the game's own code, its
- * bespoke systems included (the worker's prover in Node knows only the catalog's). The worker runs it when the game has
- * systems of its own; the game's test replays the runs.
+ * A freeform game's prover (`pnpm prove`): a winning run for every level a bot can win, recorded with the game's own
+ * code, its bespoke systems included (the worker's prover in Node knows only the catalog's). The worker runs it when the
+ * game has systems of its own; the game's test replays the runs; a level none wins waits for a player's.
  */
-export const FREEFORM_PROVE_TEST = `import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+export const FREEFORM_PROVE_TEST = `import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
 import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
@@ -242,18 +245,24 @@ import { BESPOKE } from '../../src/systems/index.js';
 const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("every level gets one, played with the game's own systems: the stored run while it wins, else the solver, else the explorer", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
+    const waiting: string[] = [];
     for (const [i, level] of LEVELS.entries()) {
       const file = \`\${proofs}\${level.id}.json\`;
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
       const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000 };
       const r = proveLevel(level, i, inputs, stored);
-      expect(r.proof, \`\${level.id}: \${r.tried.join('; ')}\`).not.toBeNull();
-      writeFileSync(file, JSON.stringify(r.proof) + '\\n');
+      // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
+      if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');
+      else {
+        rmSync(file, { force: true });
+        waiting.push(\`\${level.id} (\${r.tried.join('; ')})\`);
+      }
     }
+    if (waiting.length) console.warn(\`waiting for a winning run: \${waiting.join(', ')}\`);
   });
 });
 `;

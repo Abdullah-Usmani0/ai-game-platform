@@ -2,13 +2,14 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'n
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Store } from '@gg/db';
+import { FileStore, waitingLevels, type Store } from '@gg/db';
 import { registerProvider } from '@gg/llm';
 import { ARTIFACT_SCHEMAS, CreateRequest, CURATED_GENRES, Objectives, SpriteSheet, type BehaviourFsm, type LevelJson } from '@gg/schemas';
 import { BASE_MANIFESTS, EXAMPLES, freeformManifest, HEIST, LANTERN, type FreeformExample } from '@gg/template-freeform/node';
 import { checkGameSprites, checkProofs, readGameFiles, readGameLevels } from '@gg/templates/node';
 import { validateBehaviour } from '@gg/validators';
 import { afterAll, describe, expect, it } from 'vitest';
+import { checkpoint } from './checkpoint.js';
 import { FakeProvider } from './fake-provider.js';
 import { baseSystems, defaultObjectives, draftFreeformFrontmatter, exampleFor, guessBase } from './freeform.js';
 import { createPlan, editPlan } from './plan.js';
@@ -16,6 +17,7 @@ import { loadPresets } from './presets.js';
 import { verifyFreeformGdd, verifyFreeformSystems } from './runners/freeform-stages.js';
 import type { StageContext } from './runners/types.js';
 import { WorkerRunner } from './runners/worker.js';
+import { restorePlayerRuns, verifyProof } from './verify-proof.js';
 
 const harness = resolve(fileURLToPath(new URL('../../../harness', import.meta.url)));
 const dirs: string[] = [];
@@ -226,5 +228,58 @@ describe('a freeform game with systems of its own', () => {
     expect(readGameFiles(gameDir).proofs.map((p) => p.ticks)).not.toEqual(before);
     // The gate leaves the replay to the game's own test, which has its code.
     expect(checkProofs(gameDir).metrics).toMatchObject({ replayed: false });
+  }, 180_000);
+});
+
+describe("a level that waits for a player's winning run", () => {
+  it('is proven by a run that wins when replayed on its version; one that does not is turned down with the reason', async () => {
+    const gameDir = await build(LANTERN);
+    const won = readGameFiles(gameDir).proofs.find((p) => p.level === 'l02')!;
+    // As if no bot had won l02: the version ships without a run of it, and its evidence says it waits.
+    rmSync(join(gameDir, 'content', 'proofs', 'l02.json'));
+    const storeDir = mkdtempSync(join(tmpdir(), 'gg-verify-proof-store-'));
+    const workRoot = mkdtempSync(join(tmpdir(), 'gg-verify-proof-work-'));
+    dirs.push(storeDir, workRoot);
+    const store = new FileStore(storeDir);
+    const game = await store.createGame({ ownerId: 'maker', slug: 'moth', title: 'Moth', genre: 'freeform' });
+    const cp = await checkpoint(store, gameDir, game.id, 'j0', 'publish');
+    const version = await store.insertVersion({ gameId: game.id, kind: 'accepted', stage: 'publish', parentVersionId: null, jobId: null, sourcePath: cp.path, bundlePath: `bundles/g/${game.id}/v/1`, manifest: null, design: { evidence: { proofs: { l01: { by: 'explorer', ticks: 1 }, l02: null } } }, gateResults: {}, evidence: {}, engineVersion: null, contentHash: null, costUsd: 0, policyVersion: null });
+    await store.acceptVersion(version.id);
+    await expect(store.setListed(game.id, true)).rejects.toThrow('l02 has no recorded winning run yet');
+
+    const verify = async (proof: Record<string, unknown>) => {
+      const sent = (await store.submitProof({ gameId: game.id, versionId: version.id, level: 'l02', submittedBy: 'player-a', proof }))!;
+      // A second run of the level waits until the first is replayed.
+      expect(await store.submitProof({ gameId: game.id, versionId: version.id, level: 'l02', submittedBy: 'player-b', proof })).toBeNull();
+      const job = (await store.claimJob('w1'))!;
+      expect(job).toMatchObject({ id: sent.job.id, kind: 'verify_proof', userId: 'maker' });
+      expect(await verifyProof({ store, job, templateDir: harness, workRoot })).toBe('succeeded');
+      const row = (await store.getProof(sent.row.id))!;
+      // The owner's job panel shows the replay as a stage, with its verdict.
+      expect((await store.listEvents(job.id)).map((e) => `${e.stage}:${e.type}`)).toEqual(['verify:stage_started', ...(row.status === 'accepted' ? ['verify:gate_passed', 'verify:assistant_summary'] : ['verify:gate_failed']), 'verify:finished']);
+      return row;
+    };
+    // Gives up halfway: the lanterns are not home.
+    const half = Math.floor(won.ticks / 2);
+    const short = await verify({ ...won, by: 'human', ticks: half, script: won.script.filter((g) => g.from < half).map((g) => ({ ...g, to: Math.min(g.to, half) })) });
+    expect(short).toMatchObject({ status: 'rejected', reason: `l02 is not won when the run is replayed: after ${half} ticks the level is still being played` });
+    expect(waitingLevels(await store.getVersion(version.id))).toEqual(['l02']);
+    // Recorded at another seed: it would be a run of another level.
+    expect(await verify({ ...won, by: 'human', seed: 7 })).toMatchObject({ status: 'rejected', reason: 'the run was recorded at seed 7; the game plays l02 at 2' });
+
+    const accepted = await verify({ ...won, by: 'human' });
+    expect(accepted.status).toBe('accepted');
+    const head = (await store.getVersion(version.id))!;
+    expect(waitingLevels(head)).toEqual([]);
+    expect((head.design['evidence'] as { proofs: unknown }).proofs).toEqual({ l01: { by: 'explorer', ticks: 1 }, l02: { by: 'human', ticks: won.ticks } });
+    expect((await store.setListed(game.id, true)).visibility).toBe('listed');
+    // The level no longer waits: nothing more to replay.
+    expect(await store.submitProof({ gameId: game.id, versionId: version.id, level: 'l02', submittedBy: 'player-c', proof: { ...won, by: 'human' } })).toBeNull();
+
+    // An edit starts from the version's checkpoint, which has no run of l02: the player's comes along.
+    const editDir = mkdtempSync(join(tmpdir(), 'gg-verify-proof-edit-'));
+    dirs.push(editDir);
+    expect(await restorePlayerRuns(store, version.id, editDir)).toEqual(['l02']);
+    expect(JSON.parse(readFileSync(join(editDir, 'content', 'proofs', 'l02.json'), 'utf8'))).toEqual({ ...won, by: 'human' });
   }, 180_000);
 });

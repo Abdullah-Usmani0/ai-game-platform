@@ -86,6 +86,7 @@ beforeAll(async () => {
   await db.exec(migration('0007_training_pairs.sql'));
   await db.exec(migration('0008_jams.sql'));
   await db.exec(migration('0009_freeform.sql'));
+  await db.exec(migration('0010_level_proofs.sql'));
   for (const [i, id] of [OWNER, ...PLAYERS, ...TESTERS, MODERATOR, OWNER2, TESTER2].entries()) {
     await db.query('insert into auth.users (id) values ($1)', [id]);
     await db.query('insert into profiles (id, handle) values ($1, $2)', [id, `user_${i}`]);
@@ -584,3 +585,55 @@ describe('jams migration', () => {
   });
 });
 
+describe('level proofs (0010)', () => {
+  /** A game whose head's l01 an explorer proved and whose l02 waits for a winning run. */
+  async function waitingGame(slug: string): Promise<{ gameId: string; versionId: string }> {
+    const { gameId, versionId } = await makeGame(slug, { owner: OWNER2 });
+    await db.query(`update game_versions set design = jsonb_set(design, '{evidence,proofs}', '{"l01": {"by": "explorer", "ticks": 600}, "l02": null}') where id = $1`, [versionId]);
+    return { gameId, versionId };
+  }
+  const run = { version: 1, level: 'l02', seed: 2, ticks: 900, by: 'human', script: [{ from: 0, to: 900, input: { right: true } }] };
+
+  it('a head with a level waiting for a winning run is not listed, nor in the feed', async () => {
+    const { gameId, versionId } = await waitingGame('proofs-wait');
+    expect((await one<{ w: string[] }>('select waiting_levels(design) as w from game_versions where id = $1', [versionId])).w).toEqual(['l02']);
+    await asUser(OWNER2);
+    await expectError(db.query('select set_listed($1, $2, true)', [OWNER2, gameId]), /l02 has no recorded winning run yet: the game can be listed once a player finishes it/);
+    await asService();
+    // Listed before the rule (by hand here), it still stays out of the feed.
+    await db.query(`update games set visibility = 'listed', state = 'published' where id = $1`, [gameId]);
+    expect((await db.query<{ game_id: string }>('select game_id from feed(200)')).rows.map((r) => r.game_id)).not.toContain(gameId);
+    // A version that names no proofs (published before them) waits for none.
+    expect((await one<{ w: string[] }>(`select waiting_levels('{"evidence": {"playtest": {"passed": true}}}'::jsonb) as w`)).w).toEqual([]);
+  });
+
+  it("a player's run waits for its replay; accepted, it proves the level and the game can be listed", async () => {
+    const { gameId, versionId } = await waitingGame('proofs-human');
+    await asUser(TESTER2);
+    const p = await one<{ id: string; status: string; job_id: string }>('select * from submit_level_proof($1, $2, $3, $4::jsonb)', [TESTER2, versionId, 'l02', JSON.stringify(run)]);
+    expect(p.status).toBe('pending');
+    const job = await one<{ kind: string; user_id: string; input: { proofId: string } }>('select kind, user_id, input from generation_jobs where id = $1', [p.job_id]);
+    expect(job).toMatchObject({ kind: 'verify_proof', user_id: OWNER2, input: { proofId: p.id } });
+    // One run of a level waits at a time, and a proven level takes none.
+    expect((await one<{ id: string | null }>('select (submit_level_proof($1, $2, $3, $4::jsonb)).id', [TESTER2, versionId, 'l02', JSON.stringify(run)])).id).toBeNull();
+    expect((await one<{ id: string | null }>('select (submit_level_proof($1, $2, $3, $4::jsonb)).id', [TESTER2, versionId, 'l01', JSON.stringify({ ...run, level: 'l01' })])).id).toBeNull();
+    // Only the worker gives the verdict.
+    await asClient(TESTER2);
+    await expectError(db.query('select resolve_level_proof($1, true)', [p.id]), /permission denied/);
+    await asServer();
+    expect((await one<{ status: string }>('select * from resolve_level_proof($1, true)', [p.id])).status).toBe('accepted');
+    expect((await one<{ p: unknown }>(`select design #> '{evidence,proofs,l02}' as p from game_versions where id = $1`, [versionId])).p).toEqual({ by: 'human', ticks: 900 });
+    await asUser(OWNER2);
+    expect((await one<{ visibility: string }>('select * from set_listed($1, $2, true)', [OWNER2, gameId])).visibility).toBe('listed');
+    await asService();
+  });
+
+  it('a run that does not win on replay is kept with the reason, and the level still waits', async () => {
+    const { versionId } = await waitingGame('proofs-rejected');
+    await asUser(TESTER2);
+    const p = await one<{ id: string }>('select * from submit_level_proof($1, $2, $3, $4::jsonb)', [TESTER2, versionId, 'l02', JSON.stringify(run)]);
+    await asService();
+    expect(await one<{ status: string; reason: string }>('select status, reason from resolve_level_proof($1, false, $2)', [p.id, 'l02 is not won at tick 900'])).toEqual({ status: 'rejected', reason: 'l02 is not won at tick 900' });
+    expect((await one<{ w: string[] }>('select waiting_levels(design) as w from game_versions where id = $1', [versionId])).w).toEqual(['l02']);
+  });
+});

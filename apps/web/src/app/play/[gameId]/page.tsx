@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { waitingLevels } from '@gg/db';
 import { PLAY_SOURCES, type PlaySource } from '@gg/schemas';
 import { Icon } from '@/components/Icon';
 import { PlayFrame } from '@/components/PlayFrame';
@@ -8,6 +9,7 @@ import { RemixButton } from '@/components/RemixButton';
 import { controlsOf, gameGenreLabel, GENRE_BY_ID } from '@/lib/genres';
 import { viewerId } from '@/lib/identity';
 import { bundleBaseUrl, getStore } from '@/lib/store';
+import { levelName, listOf } from '@/lib/text';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +37,7 @@ export default async function PlayPage({ params, searchParams }: Props) {
   const source: PlaySource = (PLAY_SOURCES as readonly string[]).includes(srcRaw) ? (srcRaw as PlaySource) : 'direct';
   let title = safeId;
   let bundleUrl = `/bundles/${safeId}/index.html`;
-  let session: { versionId: string; number: number; levels: number } | null = null;
+  let session: { versionId: string; number: number; levels: number; waiting: string[] } | null = null;
   let ownControls: Array<[string, string]> | null = null;
   let design: unknown = null;
   const store = getStore();
@@ -52,7 +54,7 @@ export default async function PlayPage({ params, searchParams }: Props) {
       const levels = Number((head.design as { gdd?: { scope?: { levels?: number } } }).gdd?.scope?.levels ?? 1);
       ownControls = controlsOf(head.design);
       design = head.design;
-      session = { versionId: head.id, number: head.number, levels: Number.isFinite(levels) && levels > 0 ? levels : 1 };
+      session = { versionId: head.id, number: head.number, levels: Number.isFinite(levels) && levels > 0 ? levels : 1, waiting: waitingLevels(head) };
     }
   }
   const me = await viewerId();
@@ -88,7 +90,8 @@ export default async function PlayPage({ params, searchParams }: Props) {
             </div>
           ) : null}
           {session && game && mode === 'play' && !moderated ? (
-            <PlaySession gameId={game.id} versionId={session.versionId} bundleUrl={bundleUrl} source={source} levels={session.levels} seed={seed} rating />
+            // A run at a seed of the player's choosing is not one the game's levels are played at: it proves nothing.
+            <PlaySession gameId={game.id} versionId={session.versionId} bundleUrl={bundleUrl} source={source} levels={session.levels} seed={seed} rating waiting={seed === undefined ? session.waiting : undefined} />
           ) : (
             <PlayFrame bundleUrl={bundleUrl} mode={mode} seed={seed} />
           )}
@@ -140,6 +143,11 @@ export default async function PlayPage({ params, searchParams }: Props) {
               </div>
             ) : null}
           </div>
+          {session?.waiting.length && mode === 'play' && !moderated && seed === undefined ? (
+            <div className="callout" data-tone="info" data-testid="waiting-levels" data-levels={session.waiting.join(',')}>
+              Nobody has finished {listOf(session.waiting.map(levelName))} yet. Be the first: your winning run proves {session.waiting.length === 1 ? 'it' : 'them'} for everyone.
+            </div>
+          ) : null}
           {controls.length > 0 ? (
             <div className="panel">
               <h2>Controls</h2>

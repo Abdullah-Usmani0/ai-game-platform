@@ -15,13 +15,19 @@ import { inverse, retypeLevel } from './retype.js';
 /** The curated genres' check kits: a freeform game is checked by its base genre's, under the base names. */
 export const BASE_CHECKS = { platformer: platformerCheck, survivors: survivorsCheck, 'topdown-action': topdownActionCheck, metroidvania: metroidvaniaCheck, shmup: shmupCheck, puzzle: puzzleCheck, lifesim: lifesimCheck } as const;
 
-/** Replays each level's recorded winning run (its proof): the solver of a freeform game. Drives menus as recorded. */
-export function proofBot(proofs: readonly LevelProof[]): BotPolicy {
+/**
+ * Replays each level's recorded winning run (its proof): the solver of a freeform game. Drives menus as recorded. A
+ * level with no run yet waits for one (has() says which): there is nothing to replay on it.
+ */
+export function proofBot(proofs: readonly LevelProof[]): BotPolicy & { has(level: string): boolean } {
   const byLevel = new Map(proofs.map((p) => [p.level, p]));
-  return Object.assign((sim: Parameters<BotPolicy>[0], tick: number) => {
-    const p = byLevel.get(sim.world.levelId);
-    return p ? inputAtTick(p.script, tick) : emptyInput();
-  }, { menus: true });
+  return Object.assign(
+    (sim: Parameters<BotPolicy>[0], tick: number) => {
+      const p = byLevel.get(sim.world.levelId);
+      return p ? inputAtTick(p.script, tick) : emptyInput();
+    },
+    { menus: true, has: (level: string) => byLevel.has(level) },
+  );
 }
 
 /**

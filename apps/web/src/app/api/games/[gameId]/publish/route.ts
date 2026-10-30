@@ -3,7 +3,10 @@ import { getStore } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
-/** List the game in the feed (or unlist it). Owner only; listing needs a head whose playtest passed and no broken test verdict. */
+/**
+ * List the game in the feed (or unlist it). Owner only; listing needs a head whose playtest passed, a recorded winning
+ * run of every level, and no broken test verdict.
+ */
 export async function POST(req: Request, ctx: { params: Promise<{ gameId: string }> }): Promise<Response> {
   const { gameId } = await ctx.params;
   const store = getStore();

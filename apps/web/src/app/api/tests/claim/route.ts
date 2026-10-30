@@ -1,9 +1,10 @@
+import { waitingLevels } from '@gg/db';
 import { viewerId } from '@/lib/identity';
 import { bundleBaseUrl, getStore } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
 
-/** The viewer's open test, or a new one; 404 when nothing is waiting for testers. */
+/** The viewer's open test, or a new one; 404 when nothing is waiting for testers. `waiting`: levels no bot could win. */
 export async function POST(): Promise<Response> {
   const store = getStore();
   const me = await viewerId();
@@ -15,6 +16,7 @@ export async function POST(): Promise<Response> {
     queue: claim.queue,
     game: game ? { id: game.id, title: game.title, genre: game.genre } : null,
     bundleBase: bundleBaseUrl(version?.bundlePath ?? null),
+    waiting: waitingLevels(version),
     credits: await store.creditBalance(me),
   });
 }

@@ -29,7 +29,8 @@ A system is pure data in, pure data out, and says what it does before it does it
      contract leaves out, a win or game over it does not claim, state outside its state object, standing still
      winning, or a call slower than a millisecond fails, naming the system and what it did.
    - A freeform game also records its levels' winning runs with its own code: run `pnpm -C game prove` after any change
-     to how the game plays, or the test fails on runs that no longer win.
+     to how the game plays, or the test fails on runs that no longer win (a level no bot wins is left without a run
+     and waits for a player's, and the game is not listed until then).
 
 Forbidden (the linter blocks them): `phaser`, `window`, DOM, timers, `Math.random`, `Date`, `async`, classes, `this`, module-level `let`, and writes into module-level objects from a function (keep state in the system state object).
 Keep systems under 150 lines; split otherwise. If a mechanic needs a new entity type, add it in the GDD scope first and ask for an `entityDefs` entry via `design/deviations.md`.

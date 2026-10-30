@@ -27,20 +27,21 @@ export interface Proving {
   tried: string[];
 }
 
-/** A fresh sim of a level of the game, at the seed it is played with. */
-function gameSim(level: LevelJson, index: number, inputs: ProveInputs, game = compose(inputs.file, inputs.roster)): () => Sim {
+/** A fresh sim of a level of the game, at the seed it is played with, and the longest the level lasts. */
+function gameSim(level: LevelJson, index: number, inputs: ProveInputs, game = compose(inputs.file, inputs.roster)): { make: () => Sim; levelTicks: number } {
   const options = simOptionsFor(game.runtime, inputs.file, { behaviours: inputs.behaviours, rules: inputs.rules, content: inputs.content, feedback: inputs.feedback, bespoke: inputs.bespoke });
   const seed = levelSeed(DEFAULT_SEED, index);
-  return () => createSim({ ...options, level, seed });
+  return { make: () => createSim({ ...options, level, seed }), levelTicks: levelTicksOf(options) };
 }
 
 /**
- * Whether standing still wins a level, given as long as twice its winning run takes (ten seconds at least): a level
- * that plays itself asks nothing of the player (a runner's with nothing in the way, a survival nothing can reach). The
- * levels stage never ships one.
+ * Whether standing still wins a level, given as long as twice its winning run takes (ten seconds at least), or the whole
+ * level when it has no winning run yet: a level that plays itself asks nothing of the player (a runner's with nothing
+ * in the way, a survival nothing can reach). The levels stage never ships one.
  */
-export function idleWins(level: LevelJson, index: number, inputs: ProveInputs, winTicks: number): boolean {
-  return afkWins(gameSim(level, index, inputs), Math.max(600, winTicks * 2));
+export function idleWins(level: LevelJson, index: number, inputs: ProveInputs, winTicks?: number): boolean {
+  const g = gameSim(level, index, inputs);
+  return afkWins(g.make, winTicks === undefined ? g.levelTicks : Math.max(600, winTicks * 2));
 }
 
 /** The same game under the base genre's names: the roster's entities and tuning, each named as it ships. */
@@ -59,7 +60,7 @@ function underBaseNames(inputs: ProveInputs, game: Composed): { composed: Compos
 export function proveLevel(level: LevelJson, index: number, inputs: ProveInputs, stored?: LevelProof): Proving {
   const seed = levelSeed(DEFAULT_SEED, index);
   const game = compose(inputs.file, inputs.roster);
-  const fresh = gameSim(level, index, inputs, game);
+  const fresh = gameSim(level, index, inputs, game).make;
   const wins = (script: LevelProof['script'], ticks: number) => {
     const sim = fresh();
     sim.run(script, ticks);

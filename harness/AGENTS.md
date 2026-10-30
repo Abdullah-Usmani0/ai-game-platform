@@ -42,11 +42,13 @@ A game whose `gdd.md` and `systems.json` say `genre: freeform` builds on one cur
 `composition.base` in systems.json): its levels, level solver, feel and art come from the base, and its systems from
 every genre whose player moves the same way. Its entities are shipped ones under the game's own names
 (`content/entities.json`, an `EntityRoster`), and its win and lose rules are data for the `objectives` system
-(`content/objectives.json`). Every level ships with a recorded winning run (`content/proofs/<level>.json`, a
-`LevelProof`) at the seed the level is played with; the game's `proof` bot replays it, the `prove` check replays it in
-Node and smoke replays it in the browser. The worker records the runs (the base genre's solver under the base names,
-else the explorer) and records them again whenever a change can break one; a level nobody can win keeps the game
-unlisted. `pnpm catalog freeform <base>` lists the systems a freeform game on that base can use.
+(`content/objectives.json`). Each level has a recorded winning run (`content/proofs/<level>.json`, a `LevelProof`)
+at the seed the level is played with; the game's `proof` bot replays it, the `prove` check replays it in Node and smoke
+replays it in the browser. The worker records the runs (the base genre's solver under the base names, else the
+explorer) and records them again whenever a change can break one. A level no bot wins ships without a run (the `prove`
+check warns; a run on file that stops winning fails it): the game is published and played, privately and in the test
+queue, and is listed once a player wins the level and the worker, replaying that run on the version, sees it win.
+`pnpm catalog freeform <base>` lists the systems a freeform game on that base can use.
 
 ## Project map
 
