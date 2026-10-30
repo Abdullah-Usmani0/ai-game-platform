@@ -121,6 +121,33 @@ export function torchSpots(map: TerrainMap): Array<{ tx: number; ty: number }> {
   return spots;
 }
 
+/**
+ * The map a setting paints, with the ground under a level's fixtures (a café table, a serving counter: boxes in
+ * pixels). The solid tiles a fixture stands on only keep it from being walked through; a field or a dungeon would paint
+ * them as a pillar or a wall, so they are painted as the floor the fixture stands on. (A farm paints its scenery's
+ * tiles as grass already; a side view stands its fixtures on the ground.)
+ */
+export function groundUnder(map: TerrainMap, setting: Setting, fixtures: ReadonlyArray<{ x: number; y: number; w: number; h: number }>): TerrainMap {
+  if ((setting !== 'field' && setting !== 'dungeon') || fixtures.length === 0) return map;
+  const ts = map.tileSize;
+  const under = new Set<number>();
+  for (const f of fixtures) {
+    // The tiles the box covers the most of each way (a fixture stands squarely on its own).
+    for (let ty = Math.round(f.y / ts); ty < Math.round((f.y + f.h) / ts); ty++) {
+      for (let tx = Math.round(f.x / ts); tx < Math.round((f.x + f.w) / ts); tx++) if (tx >= 0 && ty >= 0 && tx < map.width && ty < map.height) under.add(ty * map.width + tx);
+    }
+  }
+  return {
+    width: map.width,
+    height: map.height,
+    tileSize: ts,
+    kindAt: (tx, ty) => {
+      const kind = map.kindAt(tx, ty);
+      return kind === 'solid' && tx >= 0 && tx < map.width && under.has(ty * map.width + tx) ? 'air' : kind;
+    },
+  };
+}
+
 export function prepareLevelArt(pal: ArtPalette, setting: Setting, map: TerrainMap, exitLocked: boolean): LevelArt {
   const ts = map.tileSize;
   const lights = setting === 'dungeon' ? torchSpots(map).map((s) => ({ x: s.tx * ts + ts / 2, y: (s.ty + 1) * ts, radius: Math.max(40, ts * 4.5) })) : [];

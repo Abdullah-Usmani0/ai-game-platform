@@ -96,6 +96,13 @@ describe('sprite lookup', () => {
     expect(spriteBases('drone')).not.toContain('plot');
     expect(spriteBases('plot')).toEqual(['plot']);
     expect(spriteBases('nothing')).toEqual([]);
+    // A station keeps the looks of its states: a table that waves for an order starts from a lamp that gutters, never
+    // from the farm's stall, which shows no order; a counter that shows a dish ready, from a barrel that drips.
+    expect(spriteBases('table')).toEqual(['table', 'lamp']);
+    expect(spriteBases('counter')).toEqual(['counter', 'barrel']);
+    expect(spriteBases('stall')).not.toContain('table');
+    expect(spriteBases('bin')).not.toContain('counter');
+    expect(spriteBases('parcel')).toEqual(expect.arrayContaining(['parcel', 'cup', 'can']));
   });
 
   it("names the player's sprite by setting, and what each ramp paints", () => {

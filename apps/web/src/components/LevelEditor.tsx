@@ -5,7 +5,7 @@ import type { Heatmap, HeatCell } from '@gg/db';
 import { EntityRoster, SpriteSheet, type BehaviourFsm, type LevelJson, type SystemsFile, type TileKind } from '@gg/schemas';
 import { DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import type { GenreCheck, LevelCheck } from '@gg/template-core';
-import { FLAG, PixelCanvas, RECIPES, artPalette, compileSheet, paintFrames, paintRegion, playerRecipe, prepareLevelArt, settingFor, spriteFor, type Anchor, type ArtPalette, type OutlineMode, type PaletteRoles, type Recipe, type Setting } from '@gg/sdk/art';
+import { FLAG, PixelCanvas, RECIPES, artPalette, compileSheet, groundUnder, paintFrames, paintRegion, playerRecipe, prepareLevelArt, settingFor, spriteFor, type Anchor, type ArtPalette, type OutlineMode, type PaletteRoles, type Recipe, type Setting } from '@gg/sdk/art';
 
 /** content/index.json of a published bundle (written by the publisher). */
 interface ContentIndex {
@@ -295,6 +295,7 @@ export function LevelEditor({
   // moment behind while tiles are being drawn; tiles changed since the last paint show flat until it catches up.
   const [art, setArt] = useState<LevelArt | null>(null);
   const movementMode = kit?.runtime.movementMode;
+  const entityDefs = kit?.runtime.entityDefs;
   useEffect(() => {
     if (!draft || !look) {
       setArt(null);
@@ -305,15 +306,22 @@ export function LevelEditor({
         const pal = artPalette(look.palette, look.outline ?? 'dark');
         const setting = settingFor(artGenre, movementMode);
         const map = { width: draft.width, height: draft.height, tileSize: draft.tileSize, kindAt: (x: number, y: number) => kindAt(draft, x, y) ?? 'air' };
+        // A fixture (a café table) stands on solid tiles of its own: the game paints the ground under it, not a wall.
+        const ts = draft.tileSize;
+        const defs = new Map((entityDefs ?? []).map((d) => [d.type, d] as const));
+        const fixtures = draft.entities.flatMap((e) => {
+          const d = defs.get(e.type);
+          return d && spriteFor(e.type, { drawAs: d.drawAs })?.recipe.fixture ? [{ x: e.x * ts, y: (e.y + 1) * ts - d.h, w: d.w, h: d.h }] : [];
+        });
         const pc = new PixelCanvas(draft.width * draft.tileSize, draft.height * draft.tileSize);
-        paintRegion(prepareLevelArt(pal, setting, map, false), pc, 0, 0);
+        paintRegion(prepareLevelArt(pal, setting, groundUnder(map, setting, fixtures), false), pc, 0, 0);
         setArt({ level: draft, pal, setting, image: canvasOf(pc) });
       } catch {
         setArt(null);
       }
     }, 90);
     return () => window.clearTimeout(timer);
-  }, [draft, look, artGenre, movementMode]);
+  }, [draft, look, artGenre, movementMode, entityDefs]);
   // First frame of each entity type's sprite (and the player's, and the side-view goal flag), in the game's palette.
   const sprites = useMemo(() => {
     const map = new Map<string, { image: HTMLCanvasElement; anchor: Anchor }>();

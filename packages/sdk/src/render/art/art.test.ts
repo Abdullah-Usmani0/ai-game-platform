@@ -10,6 +10,7 @@ import {
   depthField,
   fitRow,
   frameSize,
+  groundUnder,
   luminance,
   measure,
   paintFrames,
@@ -24,6 +25,7 @@ import {
   type ArtPalette,
   type PaletteRoles,
   type TerrainMap,
+  SFX_PRESETS,
 } from './index.js';
 
 /** The six samples' palettes, a light one and a near-monochrome one. */
@@ -159,6 +161,20 @@ const lum = (pc: PixelCanvas, x: number, y: number) => luminance(pc.get(x, y));
 
 describe('terrain', () => {
   const pal: ArtPalette = artPalette(PALETTES['platformer']!);
+
+  it('paints a fixture\'s own solid tiles as the ground it stands on, in a field or a dungeon only', () => {
+    const room = tilemap(['........', '.##..##.', '.##.....', '........']);
+    // A café table, two tiles each way, standing on the left block; the right block is a pillar.
+    const table = { x: 8, y: 8, w: 16, h: 16 };
+    for (const setting of ['field', 'dungeon'] as const) {
+      const map = groundUnder(room, setting, [table]);
+      expect([map.kindAt(1, 1), map.kindAt(2, 1), map.kindAt(1, 2), map.kindAt(2, 2)], setting).toEqual(['air', 'air', 'air', 'air']);
+      expect([map.kindAt(5, 1), map.kindAt(6, 1), map.kindAt(0, 0)], setting).toEqual(['solid', 'solid', 'air']);
+    }
+    // A farm paints its scenery's tiles as grass already; a side view stands its fixtures on the ground.
+    for (const setting of ['farm', 'side', 'space'] as const) expect(groundUnder(room, setting, [table]).kindAt(1, 1), setting).toBe('solid');
+    expect(groundUnder(room, 'field', []).kindAt(1, 1)).toBe('solid');
+  });
   const side = tilemap(['........', '........', '..####..', '..####..', '########', '########']);
 
   it('depth is zero in the air and grows one pixel per pixel straight down into rock', () => {
@@ -243,5 +259,11 @@ describe('sound', () => {
     expect(sfxFor('custom:door_open', {}, isPlayer)).toBe('door');
     expect(sfxFor('jump', {}, isPlayer)).toBe('jump');
     expect(sfxFor('custom:unknown', {}, isPlayer)).toBeNull();
+  });
+
+  it("gives the courier's job its own sounds: a bell as an order comes in, a lift, a clink as it is served", () => {
+    const heard = Object.fromEntries(['custom:order', 'custom:lift', 'custom:deliver', 'custom:order_hurry', 'custom:order_filled', 'custom:order_missed', 'custom:drop', 'custom:no_order', 'custom:not_ready'].map((e) => [e, sfxFor(e, {}, isPlayer)]));
+    expect(heard).toMatchObject({ 'custom:order': 'bell', 'custom:lift': 'lift', 'custom:deliver': 'serve', 'custom:order_hurry': 'tick', 'custom:order_filled': 'coins', 'custom:order_missed': 'sigh' });
+    for (const [e, name] of Object.entries(heard)) expect(name && SFX_PRESETS[name], e).toBeTruthy();
   });
 });

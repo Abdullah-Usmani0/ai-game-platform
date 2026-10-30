@@ -9,7 +9,7 @@ import { PixelCanvas, hash2 } from './art/pixels.js';
 import { FLAG, PARTICLES, TORCH, paintClouds, paintGlow, paintNebula, paintParticle, paintPlanet, paintRidge, paintScanlines, paintShadow, paintSky, paintSkyOrb, paintStars, paintVignette, paintVoid } from './art/scenery.js';
 import { compileSheet, playerRecipe, spriteFor } from './art/designs.js';
 import { RECIPES, cropRecipe, cropTune, frameSize, legendFor, paintFrames, type Anchor, type Recipe } from './art/sprites.js';
-import { paintRegion, prepareLevelArt, settingFor, torchSpots, type Setting } from './art/terrain.js';
+import { groundUnder, paintRegion, prepareLevelArt, settingFor, torchSpots, type Setting } from './art/terrain.js';
 import { toCanvas } from './canvas.js';
 import type { GameController } from './controller.js';
 import { Sfx } from './sfx.js';
@@ -40,6 +40,20 @@ const BANNER_TICKS = 110;
 const HEAVY_SOURCES = new Set(['custom:finisher', 'custom:slam', 'custom:enrage']);
 /** Height of the boss health band at the bottom of the screen. */
 const BOSS_H = 18;
+/**
+ * The carry block's marks on the world (template-core's systems/carry.ts and orders.ts): what the player holds, and on
+ * a dropoff the ticks its order has left, how many it was given and what it asks for.
+ */
+const CARRYING = 'carrying';
+const ORDER_LEFT = 'orderLeft';
+const ORDER_MAX = 'orderMax';
+const ORDER_TYPE = 'orderType';
+/** An order bubble's ring is baked in this many steps, from empty to full. */
+const RING_STEPS = 16;
+/** In the last two seconds of an order its bubble flickers. */
+const ORDER_FLICKER_TICKS = 120;
+/** How far over its dropoff an order bubble floats (its middle, above the dropoff's top). */
+const BUBBLE_RISE = 11;
 
 interface Sheet {
   key: string;
@@ -52,6 +66,10 @@ interface Sheet {
   floor: boolean;
   /** Casts no shadow (a door in a wall, a house front). */
   noShadow: boolean;
+  /** Stands on solid tiles of its own (a café table): the ground is painted under it. */
+  fixture: boolean;
+  /** The first painted row of each frame: where the top of the body is as it bobs (what is held over a head rides it). */
+  tops: Map<string, number>;
 }
 
 interface Shown {
@@ -122,6 +140,13 @@ export class MainScene extends Phaser.Scene {
   private sleepImg!: Phaser.GameObjects.Image;
   private sleepFrom = -1;
   private cursorImg!: Phaser.GameObjects.Image;
+  /** What the player holds, over its head (a courier's load), and the tick it was lifted: it lands with a squash. */
+  private heldImg!: Phaser.GameObjects.Image;
+  private liftedTick = -100;
+  /** Corner ticks round what the carry key would act on. */
+  private reachImgs: Phaser.GameObjects.Image[] = [];
+  /** A bubble over each dropoff that asks for an order, by dropoff; a pointer at the screen's edge while it is off it. */
+  private bubbles = new Map<number, { back: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Image; icon: Phaser.GameObjects.Image; pointer: Phaser.GameObjects.Image }>();
   private bannerImg: Phaser.GameObjects.Image | null = null;
   private followTarget = { x: 0, y: 0 };
   private unsubs: Array<() => void> = [];
@@ -191,6 +216,8 @@ export class MainScene extends Phaser.Scene {
     this.dayImg = this.add.image(0, 0, 'gg-px').setOrigin(0).setScrollFactor(0).setDisplaySize(w, h).setBlendMode(Phaser.BlendModes.MULTIPLY).setDepth(9_000).setVisible(false);
     this.sleepImg = this.add.image(0, 0, 'gg-px').setOrigin(0).setScrollFactor(0).setDisplaySize(w, h).setTint(toInt(mix(this.pal.ink, this.pal.garment[0], 0.3))).setDepth(11_500).setAlpha(0);
     this.cursorImg = this.add.image(0, 0, 'gg-cursor').setVisible(false);
+    this.heldImg = this.add.image(0, 0, 'gg-px').setOrigin(0.5, 1).setVisible(false);
+    this.reachImgs = [0, 1, 2, 3].map((i) => this.add.image(0, 0, 'gg-tick').setFlipX(i % 2 === 1).setFlipY(i >= 2).setVisible(false));
     this.unsubs.push(this.controller.onLevelChange(() => this.bindLevel()));
     this.unsubs.push(this.controller.onSceneChange(() => (this.overlaySig = '')));
     this.bindLevel();
@@ -235,12 +262,25 @@ export class MainScene extends Phaser.Scene {
     const key = `gg-sheet-${name}`;
     const tex = this.addCanvasTexture(key, pc);
     const anims = new Map<string, string[]>();
+    const tops = new Map<string, number>();
     frames.forEach((f, i) => {
       const frame = `${f.anim}:${f.frame}`;
       tex?.add(frame, 0, i * w, 0, w, h);
       anims.set(f.anim, [...(anims.get(f.anim) ?? []), frame]);
+      tops.set(frame, firstPaintedRow(f.pc));
     });
-    const sheet: Sheet = { key, w, h, anchor: recipe.anchor, anims, directional: anims.has('down-idle'), floor: recipe.floor === true, noShadow: recipe.noShadow === true || recipe.floor === true };
+    const sheet: Sheet = {
+      key,
+      w,
+      h,
+      anchor: recipe.anchor,
+      anims,
+      directional: anims.has('down-idle'),
+      floor: recipe.floor === true,
+      noShadow: recipe.noShadow === true || recipe.floor === true,
+      fixture: recipe.fixture === true,
+      tops,
+    };
     this.sheets.set(name, sheet);
     return sheet;
   }
@@ -342,6 +382,46 @@ export class MainScene extends Phaser.Scene {
       }
     }
     this.addCanvasTexture('gg-cursor', cur);
+    // The reach target's corner tick (top left; flipped for the other corners).
+    const tick = new PixelCanvas(3, 3);
+    for (const [x, y] of [[0, 0], [1, 0], [2, 0], [0, 1], [0, 2]] as const) tick.set(x, y, [255, 255, 255]);
+    this.addCanvasTexture('gg-tick', tick);
+    // An order bubble: a dark disc in an ink rim, with a notch under it pointing down at its dropoff.
+    const bubble = new PixelCanvas(19, 21);
+    const bubbleFill = mix(this.pal.ink, this.pal.ui[1], 0.22);
+    for (let y = 0; y < 19; y++) {
+      for (let x = 0; x < 19; x++) {
+        const r = Math.hypot(x - 9, y - 9);
+        if (r <= 8.6) bubble.set(x, y, bubbleFill);
+        else if (r <= 9.6) bubble.set(x, y, this.pal.ink);
+      }
+    }
+    for (const [y, half] of [
+      [18, 2],
+      [19, 1],
+      [20, 0],
+    ] as const) {
+      for (let dx = -half; dx <= half; dx++) bubble.set(9 + dx, y, Math.abs(dx) === half ? this.pal.ink : bubbleFill);
+    }
+    this.addCanvasTexture('gg-bubble', bubble);
+    // The ring of time left, in steps: lit clockwise from the top for the time left, faintly dotted for the time gone.
+    for (let k = 0; k <= RING_STEPS; k++) {
+      const ring = new PixelCanvas(19, 19);
+      for (let y = 0; y < 19; y++) {
+        for (let x = 0; x < 19; x++) {
+          const r = Math.hypot(x - 9, y - 9);
+          if (r < 6.4 || r > 8.4) continue;
+          const turn = (Math.atan2(x - 9, 9 - y) / (Math.PI * 2) + 1) % 1;
+          if (turn < k / RING_STEPS) ring.set(x, y, [255, 255, 255]);
+          else if ((x + y) % 2 === 0) ring.set(x, y, [255, 255, 255], 70);
+        }
+      }
+      this.addCanvasTexture(`gg-ring-${k}`, ring);
+    }
+    // A pointer toward an order off the screen (pointing right; turned toward it), in an ink rim.
+    const pointer = new PixelCanvas(8, 9);
+    pointer.stamp(['kk......', 'kwkk....', 'kwwwkk..', 'kwwwwwkk', 'kwwwwwwk', 'kwwwwwkk', 'kwwwkk..', 'kwkk....', 'kk......'], { k: this.pal.ink, w: [255, 255, 255] }, 0, 0);
+    this.addCanvasTexture('gg-pointer', pointer);
     const legend = legendFor(this.pal);
     for (const [key, tpl] of Object.entries(HUD_ICONS)) {
       const pc = new PixelCanvas(tpl[0]!.length + 2, tpl.length + 2);
@@ -394,6 +474,9 @@ export class MainScene extends Phaser.Scene {
     this.particles = [];
     for (const t of this.telegraphs) t.img.destroy();
     this.telegraphs = [];
+    for (const b of this.bubbles.values()) for (const img of [b.back, b.ring, b.icon, b.pointer]) img.destroy();
+    this.bubbles.clear();
+    this.liftedTick = -100;
     this.bossTrail = { id: -1, hp: 0, seen: 0, hold: 0 };
     this.bossSig = '';
     this.bannerImg?.destroy();
@@ -498,7 +581,7 @@ export class MainScene extends Phaser.Scene {
     const map = this.controller.sim.map;
     const ts = map.tileSize;
     const exitLocked = this.exitLocked();
-    const art = prepareLevelArt(this.pal, this.setting, map, exitLocked);
+    const art = prepareLevelArt(this.pal, this.setting, groundUnder(map, this.setting, this.fixtureBoxes()), exitLocked);
     if (this.setting !== 'space') {
       for (let cy = 0; cy < map.height; cy += CHUNK_TILES) {
         for (let cx = 0; cx < map.width; cx += CHUNK_TILES) {
@@ -513,6 +596,11 @@ export class MainScene extends Phaser.Scene {
     }
     this.drawnVersion = map.version;
     this.drawnExitLocked = exitLocked;
+  }
+
+  /** Where the level's fixtures stand (a café table, a serving counter): the ground is painted under them. */
+  private fixtureBoxes(): Entity[] {
+    return this.controller.sim.world.entities.filter((e) => e.alive && !e.isPlayer && this.sheetFor(e).fixture);
   }
 
   private exitLocked(): boolean {
@@ -647,7 +735,9 @@ export class MainScene extends Phaser.Scene {
       const anim = this.animFor(e, s, tick);
       const frames = s.sheet.anims.get(anim) ?? [...s.sheet.anims.values()][0]!;
       const fps = e.pickup || e.isProjectile ? this.fps.effects : this.fps.character;
-      s.img.setFrame(frames[Math.floor((tick * fps) / 60) % frames.length]!);
+      // Fixtures keep their own time, so a room of tables does not blink as one.
+      const phase = s.sheet.fixture ? e.id * 5 : 0;
+      s.img.setFrame(frames[(Math.floor((tick * fps) / 60) + phase) % frames.length]!);
       const cx = e.x + e.w / 2;
       const cy = e.y + e.h / 2;
       const feet = e.y + e.h;
@@ -926,7 +1016,9 @@ export class MainScene extends Phaser.Scene {
       }
       case 'custom:no_seeds':
       case 'custom:too_tired':
-      case 'custom:bin_empty': {
+      case 'custom:bin_empty':
+      case 'custom:no_order':
+      case 'custom:not_ready': {
         const at = this.where(payload);
         this.burst('dot', at.x, at.y - 2, [this.pal.ui[2], this.pal.terrain[3]], 3, { speed: 0.4, angle: -Math.PI / 2, spread: 1.4, life: 12 });
         break;
@@ -934,6 +1026,17 @@ export class MainScene extends Phaser.Scene {
       case 'custom:sleep':
         if (this.controller.mode === 'realtime') this.sleepFrom = performance.now();
         break;
+      // The courier's load lands on the head with a squash; what a filled order paid floats up from its bubble.
+      case 'custom:lift':
+        this.liftedTick = sim.tick;
+        break;
+      case 'custom:order_filled': {
+        const dropoff = sim.world.entities.find((e) => e.id === payload['entity']);
+        const at = dropoff ? this.bubbleAt(dropoff) : this.where(payload);
+        const img = this.take(this.textTexture(`+${Number(payload['points'] ?? 10)}`, this.pal.accent[4])).setDepth(5_100);
+        this.particles.push({ img, x: at.x, y: at.y - 3, vx: 0, vy: -0.5, ay: 0.008, life: 46, max: 46, fade: true, at: sim.tick });
+        break;
+      }
       // Menus are UI: they always sound, whatever the feedback table says.
       case 'menu_open':
         this.sfx.play('menu_open');
@@ -963,6 +1066,27 @@ export class MainScene extends Phaser.Scene {
       case 'dash':
         this.burst('spark', at.x, at.y, [this.pal.garment[4], this.pal.white], 6, { speed: 1.1, life: 12, add: true });
         break;
+      // The courier's job: a puff as a load comes up, a sparkle where it is handed over, and over a dropoff's bubble a
+      // ring as an order opens, a burst of stars as it is filled and a grey puff as the customer gives up.
+      case 'custom:lift':
+        this.burst('dot', at.x, at.y - 2, [this.pal.white, this.pal.terrain[3]], 4, { speed: 0.6, angle: -Math.PI / 2, spread: 2, life: 12 });
+        break;
+      case 'custom:deliver':
+        this.burst('star', at.x, at.y - 4, [this.pal.accent[4], this.pal.white], 5, { speed: 1, angle: -Math.PI / 2, spread: 2.2, life: 18, add: true });
+        break;
+      case 'custom:order':
+      case 'custom:order_filled':
+      case 'custom:order_missed': {
+        const id = this.lastEvent.get(source)?.['entity'];
+        const dropoff = this.controller.sim.world.entities.find((e) => e.id === id);
+        const over = dropoff ? this.bubbleAt(dropoff) : at;
+        if (source === 'custom:order') this.burst('ring', over.x, over.y, [this.pal.white], 1, { speed: 0, life: 10, add: true });
+        else if (source === 'custom:order_filled') {
+          this.burst('star', over.x, over.y, [this.pal.accent[4], this.pal.white, this.pal.accent[3]], 9, { speed: 1.4, life: 20, add: true });
+          this.burst('ring', over.x, over.y, [this.pal.accent[4]], 1, { speed: 0, life: 12, add: true });
+        } else this.burst('dot', over.x, over.y, [this.pal.ui[2], this.pal.terrain[2], this.pal.terrain[3]], 10, { speed: 0.7, spread: Math.PI * 2, ay: -0.01, life: 22 });
+        break;
+      }
       default:
         this.burst('spark', at.x, at.y, [this.pal.white, this.pal.accent[3]], 6, { speed: 1.2, life: 14, add: true });
         break;
@@ -1048,6 +1172,135 @@ export class MainScene extends Phaser.Scene {
         .setAlpha(0.5 + 0.25 * Math.sin(this.animTick / 9))
         .setVisible(true);
     } else this.cursorImg.setVisible(false);
+  }
+
+  // ---------------------------------------------------------------- the courier's job
+
+  /** The sheet an entity type draws with when none of it need be in the world (what the player holds, what an order asks for). */
+  private typeSheet(type: string): Sheet | null {
+    const name = spriteFor(type, { drawAs: this.drawAs.get(type), designs: this.designs })?.name;
+    return (name && this.sheets.get(name)) || null;
+  }
+
+  /** Where an order's bubble floats: over its dropoff's middle, above its top. */
+  private bubbleAt(e: Entity): { x: number; y: number } {
+    return { x: Math.round(e.x + e.w / 2), y: Math.round(e.y - BUBBLE_RISE) };
+  }
+
+  /** A line of world text (what an order paid) as a texture, kept by its text and colour. */
+  private textTexture(text: string, color: RGB): string {
+    const key = `gg-txt-${text}-${color.join(',')}`;
+    if (!this.textures.exists(key)) this.addCanvasTexture(key, this.text(text, color));
+    return key;
+  }
+
+  /**
+   * The courier's job, drawn. What the player holds rides over its head, bobbing as the body does and landing with a
+   * squash. Corner ticks mark what the carry key would act on. Over each dropoff that asks, a bubble shows what it
+   * asks for inside a ring of the time left, which drains from the accent to the danger colour and flickers in its last
+   * two seconds; an order off the screen shows as a pointer at the screen's edge instead.
+   */
+  private stepCourier(tick: number): void {
+    const sim = this.controller.sim;
+    const w = sim.world;
+    if (this.controller.scene !== 'play' || w.menu || w.flags.gameOver || w.flags.won) {
+      this.heldImg.setVisible(false);
+      for (const img of this.reachImgs) img.setVisible(false);
+      for (const b of this.bubbles.values()) for (const img of [b.back, b.ring, b.icon, b.pointer]) img.setVisible(false);
+      return;
+    }
+    const p = w.player;
+    const ps = this.shown.get(p.id);
+    const held = p.props[CARRYING];
+    const heldSheet = p.alive && ps && typeof held === 'string' ? this.typeSheet(held) : null;
+    if (heldSheet && ps) {
+      const frames = heldSheet.anims.values().next().value!;
+      // The top of the body in the frame it shows (a step sits a pixel lower), and a pixel into it, as if held there.
+      const imgTop = ps.img.y - ps.sheet.h * ps.img.scaleY * ps.img.originY;
+      const top = imgTop + (ps.sheet.tops.get(ps.img.frame.name) ?? 0) * ps.img.scaleY + 1;
+      const t = tick - this.liftedTick;
+      const squash = t >= 0 && t < 10 ? 1 - t / 10 : 0;
+      this.heldImg
+        .setTexture(heldSheet.key, frames[Math.floor((tick * this.fps.effects) / 60) % frames.length])
+        .setPosition(Math.round(ps.img.x), Math.round(top))
+        .setScale(1 + 0.4 * squash, 1 - 0.3 * squash)
+        .setFlipX(this.setting === 'side' && p.facing < 0)
+        .setDepth(ps.img.depth + 0.5)
+        .setVisible(true);
+    } else this.heldImg.setVisible(false);
+    // What the key would act on: four corner ticks round it, breathing a pixel in and out.
+    const target = p.alive ? w.entities.find((e) => e.alive && !e.isPlayer && e.flags['reach']) : undefined;
+    const breath = Math.floor(this.animTick / 16) % 2;
+    this.reachImgs.forEach((img, i) => {
+      if (!target) {
+        img.setVisible(false);
+        return;
+      }
+      const right = i % 2 === 1;
+      const bottom = i >= 2;
+      const x = right ? target.x + target.w - 1 + breath : target.x - 2 - breath;
+      const y = bottom ? target.y + target.h - 1 + breath : target.y - 2 - breath;
+      img.setOrigin(0).setPosition(Math.round(x), Math.round(y)).setTint(toInt(this.pal.white)).setAlpha(0.6 + 0.3 * Math.sin(this.animTick / 7)).setDepth(5_000).setVisible(true);
+    });
+    // The orders: a bubble over each dropoff that asks, or a pointer to it from the screen's edge.
+    const cam = this.cameras.main;
+    const view = cam.worldView;
+    const { w: sw, h: sh } = this.style.canvas;
+    const asking = new Set<number>();
+    for (const e of w.entities) {
+      const left = Number(e.props[ORDER_LEFT] ?? 0);
+      if (!e.alive || !(left > 0)) continue;
+      asking.add(e.id);
+      let b = this.bubbles.get(e.id);
+      if (!b) {
+        b = {
+          back: this.add.image(0, 0, 'gg-bubble').setOrigin(9.5 / 19, 9.5 / 21),
+          ring: this.add.image(0, 0, `gg-ring-${RING_STEPS}`),
+          icon: this.add.image(0, 0, 'gg-px'),
+          pointer: this.add.image(0, 0, 'gg-pointer').setScrollFactor(0),
+        };
+        this.bubbles.set(e.id, b);
+      }
+      const max = Math.max(1, Number(e.props[ORDER_MAX] ?? left));
+      const frac = Math.max(0, Math.min(1, left / max));
+      const color = toInt(mix(this.pal.accent[3], this.pal.danger[3], 1 - frac));
+      const alpha = left <= ORDER_FLICKER_TICKS && Math.floor(tick / 4) % 2 === 0 ? 0.45 : 1;
+      const at = this.bubbleAt(e);
+      const onScreen = at.x >= view.x + 6 && at.x <= view.right - 6 && at.y >= view.y + HUD_H + 6 && at.y <= view.bottom - 6;
+      // It pops open as the order comes in: its age is the sim's (a frame captured at a tick shows what play shows).
+      const age = max - left;
+      const pop = age < 9 ? Math.max(0.2, easeOutBack(age / 9)) : 1;
+      const type = e.props[ORDER_TYPE];
+      const asked = typeof type === 'string' ? this.typeSheet(type) : null;
+      b.back.setPosition(at.x, at.y).setScale(pop).setDepth(5_000).setVisible(onScreen);
+      b.ring
+        .setTexture(`gg-ring-${Math.max(1, Math.ceil(frac * RING_STEPS))}`)
+        .setTint(color)
+        .setAlpha(alpha)
+        .setPosition(at.x, at.y)
+        .setScale(pop)
+        .setDepth(5_001)
+        .setVisible(onScreen);
+      if (asked) b.icon.setTexture(asked.key, asked.anims.values().next().value![0]).setPosition(at.x, at.y).setScale(pop).setDepth(5_002).setVisible(onScreen);
+      else b.icon.setVisible(false);
+      if (onScreen) {
+        b.pointer.setVisible(false);
+        continue;
+      }
+      // From the middle of the play area (under the HUD) toward the dropoff, stopped at the screen's edge, in eight turns.
+      const ox = sw / 2;
+      const oy = HUD_H + (sh - HUD_H) / 2;
+      const dx = (at.x - view.x) * cam.zoom - ox;
+      const dy = (at.y - view.y) * cam.zoom - oy;
+      const k = Math.min((sw / 2 - 7) / Math.max(1e-6, Math.abs(dx)), ((sh - HUD_H) / 2 - 7) / Math.max(1e-6, Math.abs(dy)));
+      const turn = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
+      b.pointer.setPosition(Math.round(ox + dx * k), Math.round(oy + dy * k)).setRotation(turn).setTint(color).setAlpha(alpha).setDepth(9_800).setVisible(true);
+    }
+    for (const [id, b] of this.bubbles) {
+      if (asking.has(id)) continue;
+      for (const img of [b.back, b.ring, b.icon, b.pointer]) img.destroy();
+      this.bubbles.delete(id);
+    }
   }
 
   /** Telegraphs grow brighter as the attack nears and go when the attacker stops winding up. */
@@ -1292,6 +1545,7 @@ export class MainScene extends Phaser.Scene {
     if (sim.map.version !== this.drawnVersion || (this.setting === 'dungeon' && this.exitLocked() !== this.drawnExitLocked)) this.buildTiles();
     this.aimCamera(sim.world.player);
     this.syncEntities();
+    this.stepCourier(tick);
     this.stepParticles(tick);
     this.animTick = this.controller.mode === 'realtime' ? this.animTick + delta / (1000 / 60) : tick;
     const cam = this.cameras.main;
@@ -1349,6 +1603,7 @@ const HUD_ICONS: Record<string, readonly string[]> = {
   sun: ['b.b.b', '.bBb.', 'bBBBb', '.bBb.', 'b.b.b'],
   seed: ['.y.Y.', '.yVy.', '..V..', '.qrq.', 'qqqqq'],
   moon: ['..bB.', '.bB..', '.bB..', '.bB..', '..bB.'],
+  check: ['....V', '...VY', 'V.VY.', 'YVY..', '.Y...'],
 };
 const HUD_KEY_ICONS: Record<string, string> = {
   coins: 'coin',
@@ -1375,6 +1630,7 @@ const HUD_KEY_ICONS: Record<string, string> = {
   quota: 'target',
   energy: 'bolt',
   seeds: 'seed',
+  delivered: 'check',
 };
 
 export function createPhaserGame(controller: GameController, style: ViewStyle, parent: HTMLElement | string | undefined, onCreated: () => void): { game: Phaser.Game; scene: MainScene } {
@@ -1392,6 +1648,19 @@ export function createPhaserGame(controller: GameController, style: ViewStyle, p
     scene: [scene],
   };
   return { game: new Phaser.Game(config), scene };
+}
+
+/** The first row of a canvas with anything painted on it (its height when it is empty). */
+function firstPaintedRow(pc: PixelCanvas): number {
+  for (let y = 0; y < pc.h; y++) for (let x = 0; x < pc.w; x++) if (pc.alpha(x, y) > 0) return y;
+  return pc.h;
+}
+
+/** Overshoots a little and settles: a bubble popping open (t from 0 to 1). */
+function easeOutBack(t: number): number {
+  const c = 1.70158;
+  const u = t - 1;
+  return 1 + (c + 1) * u * u * u + c * u * u;
 }
 
 /**

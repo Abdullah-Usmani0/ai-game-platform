@@ -120,15 +120,18 @@ export function buildOf(r: Recipe): string {
   return `${w - 2}x${h - 2} ${r.anchor}${Object.keys(r.anims).some((a) => a.startsWith('down-')) ? ' four-way' : ''}`;
 }
 
+/** Animations that show what a thing is doing in its game (a source's next item made, a dropoff asking for one). */
+const STATE_ANIMS = ['ready', 'wants'] as const;
+
 /**
  * The shipped sprites a design may start from when its type draws with `recipe`, that one first: those of the same
  * build, so it fits the body, and of the same kind (a crop grows through stages rather than walking, a floor tile lies
- * under everything).
+ * under everything, a station shows its states: a table that asks for an order starts from one that waves).
  */
 export function spriteBases(recipe: string): string[] {
   const own = RECIPES[recipe];
   if (!own) return [];
-  const kind = (name: string, r: Recipe) => `${buildOf(r)}|${r.floor === true}|${name.startsWith('crop-')}`;
+  const kind = (name: string, r: Recipe) => `${buildOf(r)}|${r.floor === true}|${name.startsWith('crop-')}|${STATE_ANIMS.filter((a) => r.anims[a]).join(',')}`;
   const mine = kind(recipe, own);
   return [recipe, ...Object.keys(RECIPES).filter((n) => n !== recipe && kind(n, RECIPES[n]!) === mine)];
 }

@@ -84,6 +84,22 @@ export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
   dusk: arp([440, 392], 0.2, 0.4, 0.05, 'triangle'),
   sigh: [{ wave: 'triangle', from: 330, to: 180, dur: 0.35, vol: 0.08 }],
   wilt: arp([392, 349, 330, 262], 0.18, 0.3, 0.08, 'triangle'),
+  // The courier's job: a counter bell as an order comes in, a load swung up, a clink and a lift as it is handed over,
+  // and a clock's tick-tock as an order's last seconds run.
+  bell: [
+    { wave: 'sine', from: 1568, to: 1568, dur: 0.5, vol: 0.09 },
+    { wave: 'sine', from: 3951, to: 3951, dur: 0.22, vol: 0.025 },
+    { wave: 'triangle', from: 784, to: 784, dur: 0.3, vol: 0.03 },
+  ],
+  lift: [
+    { wave: 'triangle', from: 300, to: 620, dur: 0.08, vol: 0.1 },
+    { wave: 'noise', from: 2600, to: 1200, dur: 0.05, vol: 0.035 },
+  ],
+  serve: [{ wave: 'triangle', from: 2093, to: 2093, dur: 0.045, vol: 0.06 }, ...arp([784, 1047, 1319], 0.05, 0.1, 0.07, 'triangle').map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.04 }))],
+  tick: [
+    { wave: 'square', from: 1760, to: 1760, dur: 0.02, vol: 0.05 },
+    { wave: 'square', from: 1320, to: 1320, dur: 0.02, vol: 0.04, delay: 0.14 },
+  ],
 };
 
 /** What each gameplay event sounds like (the feedback table decides whether it sounds at all). */
@@ -131,15 +147,15 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
     case 'custom:season_over':
       return 'wilt';
     case 'custom:lift':
-      return 'pickup';
+      return 'lift';
     case 'custom:deliver':
-      return 'coins';
+      return 'serve';
     case 'custom:drop':
       return 'thunk';
     case 'custom:order':
-      return 'menu_open';
+      return 'bell';
     case 'custom:order_hurry':
-      return 'sow';
+      return 'tick';
     case 'custom:order_filled':
       return 'coins';
     case 'custom:order_missed':

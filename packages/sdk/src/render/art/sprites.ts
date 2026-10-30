@@ -26,6 +26,11 @@ export interface Recipe {
   floor?: boolean;
   /** Casts no shadow (a door in a wall, a house front). */
   noShadow?: boolean;
+  /**
+   * A fixture the level stands on solid tiles of its own (a café table, a serving counter), so nothing walks through
+   * it: the ground is painted under it, not the wall those tiles would be.
+   */
+  fixture?: boolean;
 }
 
 export function legendFor(pal: ArtPalette, tune?: Partial<Record<string, RGB | null>>): Legend {
@@ -486,6 +491,90 @@ const TREE: Recipe = { anchor: 'feet', anims: { idle: [treeFrame(0), treeFrame(0
 /** A bush (8 x 8) with a few berries. */
 const BUSH: Recipe = { anchor: 'feet', anims: { idle: [['..yYYy..', '.yVVYVy.', 'yVVVVVVy', 'VVnVVVnV', 'vVVVVNVv', '.vVVVVv.', '..oooo..', W8]] } };
 
+// ---------------------------------------------------------------- the courier's job (carry and deliver)
+
+/** A parcel (7 x 7): brown paper tied with a ribbon, its top in the light. */
+const PARCEL: Recipe = { anchor: 'center', anims: { idle: [['rRRbRRr', 'RRRbRRR', 'qqqbqqq', 'QQQbQQQ', 'bbbBbbb', 'QQQbQQQ', 'qqqbqqq']] } };
+
+/** A cup of tea on its saucer (7 x 7), steam curling off it. */
+const CUP_BASE: Template = ['.I..I..', '..I..I.', 'wwwwww.', 'IqqqqIi', 'IAAAAIi', '.IIII..', 'iiiiiii'];
+const CUP: Recipe = { anchor: 'center', anims: { idle: [CUP_BASE, withRows(CUP_BASE, { 0: '..I..I.', 1: '.I..I..' })] } };
+
+/** An oil can (7 x 7): a can in the secondary hue under an iron cap, with a long spout. */
+const CAN: Recipe = { anchor: 'center', anims: { idle: [['.....UU', '....UU.', '.TTTU..', 'MNNNNM.', 'MNNNNM.', 'MMMMMM.', 'mmmmmm.']] } };
+
+/** A serving counter (8 x 8) with a bell on it; a covered dish waits there when the next is ready, its dome glinting. */
+const COUNTER_IDLE: Template = ['........', '........', '.....Uk.', 'RRRRRRRR', 'rrrrrrrr', 'qQQQQQQq', 'qQqQQqQq', 'pppppppp'];
+const COUNTER_READY: Template = withRows(COUNTER_IDLE, { 0: '..w.....', 1: '.wwww...', 2: 'iIIIIiUk' });
+const COUNTER: Recipe = { anchor: 'feet', fixture: true, anims: { idle: [COUNTER_IDLE], ready: [withRows(COUNTER_READY, { 1: '.wiww...' }), withRows(COUNTER_READY, { 1: '.wwiw...' })] } };
+
+/** A barrel (8 x 8) in two iron hoops; amber shows at its bung and drips from its tap when the next can is drawn. */
+const BARREL_IDLE: Template = ['.pqqqqp.', 'pQRRRRQp', 'qrQQQQrq', 'tTTTTTTt', 'qQrQkkQq', 'qQrQQrQq', 'tTTTTTTt', '.pqqqqp.'];
+const BARREL_READY: Template = withRows(BARREL_IDLE, { 1: 'pQRBbRQp', 5: 'qQrQBrQq' });
+const BARREL: Recipe = { anchor: 'feet', fixture: true, anims: { idle: [BARREL_IDLE], ready: [BARREL_READY, withRows(BARREL_READY, { 1: 'pQRbBRQp', 5: 'qQrQbrQq', 6: 'tTTTBTTt' })] } };
+
+/**
+ * A café table (16 x 16): a customer behind a wooden table with a flower and a teacup, blinking now and then; they
+ * wave and call when they want serving.
+ */
+const TABLE_BASE: Template = [
+  '................',
+  '......pqqp......',
+  '.....pqQQqp.....',
+  '.....q5555q.....',
+  '.....5k55k5.....',
+  '..b..455554.....',
+  '.bBb.qmMMmq.....',
+  '..V.qmMMMMmq....',
+  '.iIi5mMMMMm5....',
+  'RRRRRRRRRRRRRRRR',
+  'rrrrrrrrrrIwwIrr',
+  'QQQQQQQQQQQiiQQQ',
+  'qqqqqqqqqqqqqqqq',
+  '.p............p.',
+  '.p............p.',
+  '.O............O.',
+];
+const TABLE_BLINK = withRows(TABLE_BASE, { 4: '.....545545.....' });
+const TABLE_CALLING = withRows(TABLE_BASE, { 2: '.....pqQQqpm....', 3: '.....q5555qm....', 4: '.....5k55k5m....', 5: '..b..45kk54m....' });
+const TABLE: Recipe = {
+  anchor: 'feet',
+  fixture: true,
+  anims: {
+    idle: [...Array.from({ length: 11 }, () => TABLE_BASE), TABLE_BLINK],
+    wants: [withRows(TABLE_CALLING, { 0: '...........5....', 1: '......pqqp.5....' }), withRows(TABLE_CALLING, { 0: '............5...', 1: '......pqqp..5...' })],
+  },
+};
+
+/** A lamp (16 x 16): a lantern on an iron post, its glass lit; it gutters and goes dark when it wants oil. */
+const LAMP_BASE: Template = [
+  '.......kk.......',
+  '......kTTk......',
+  '.....TUUUUT.....',
+  '....TUUUUUUT....',
+  '....kwwwwwwk....',
+  '....kwwBBwwk....',
+  '....kwBbbBwk....',
+  '....kwbAAbwk....',
+  '....TTTTTTTT....',
+  '.....tTTTTt.....',
+  '.......Tt.......',
+  '.......Tt.......',
+  '.......Tt.......',
+  '.......Tt.......',
+  '......tTTt......',
+  '....tttttttt....',
+];
+const LAMP_GUTTER = withRows(LAMP_BASE, { 4: '....kssssssk....', 5: '....kssssssk....', 6: '....ksssbssk....', 7: '....kssAassk....' });
+const LAMP: Recipe = {
+  anchor: 'feet',
+  fixture: true,
+  anims: {
+    idle: [LAMP_BASE, LAMP_BASE, withRows(LAMP_BASE, { 5: '....kwBwwBwk....', 6: '....kwbBBbwk....' })],
+    wants: [LAMP_GUTTER, LAMP_GUTTER, withRows(LAMP_GUTTER, { 6: '....kssssssk....', 7: '....ksssAssk....' })],
+  },
+};
+
 export const RECIPES: Record<string, Recipe> = {
   'hero-side': SIDE_HERO,
   'hero-topdown': TOPDOWN_HERO,
@@ -523,6 +612,13 @@ export const RECIPES: Record<string, Recipe> = {
   house: HOUSE,
   tree: TREE,
   bush: BUSH,
+  parcel: PARCEL,
+  cup: CUP,
+  can: CAN,
+  counter: COUNTER,
+  barrel: BARREL,
+  table: TABLE,
+  lamp: LAMP,
   ...Object.fromEntries(CROP_SHAPE_NAMES.map((shape) => [`crop-${shape}`, cropRecipe(shape)])),
 };
 
@@ -562,6 +658,10 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   bush: 'bush',
   // A crop draws by its shape and colour (cropRecipe); this is its look before it knows them.
   crop: 'crop-root',
+  // The carry block's own: what is carried, where it is made, where it goes (designs restyle them: a cup, a lamp).
+  cargo: 'parcel',
+  source: 'counter',
+  dropoff: 'table',
 };
 
 /** The recipe an entity type draws with: its own, or that of the shipped type it is drawn as (a renamed type). */
