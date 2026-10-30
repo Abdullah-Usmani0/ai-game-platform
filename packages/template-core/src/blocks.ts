@@ -3,6 +3,7 @@ import { checkStations, dressStations, type StationsCtx } from './level/stations
 import type { BlockLevelCtx, BlockModule } from './manifest.js';
 import { carry, meta as carryMeta } from './systems/carry.js';
 import { orders, meta as ordersMeta } from './systems/orders.js';
+import { vehicle, meta as vehicleMeta } from './systems/vehicle.js';
 
 /** The courier's stations as a game names and sizes them, with as many dropoffs as it asks for. */
 function stationsCtx(ctx: BlockLevelCtx): StationsCtx {
@@ -60,4 +61,14 @@ export const ordersBlock: BlockModule = {
     // The heart it costs shakes the screen as any blow does; the walkout itself puffs and sighs.
     { event: 'custom:order_missed', channels: ['particle', 'sfx'] },
   ],
+};
+
+/**
+ * A vehicle, as a block: the movement a game drives instead of walking, and the feedback a hard hit on a wall needs
+ * (a boost is the dash every game already answers).
+ */
+export const vehicleBlock: BlockModule = {
+  meta: vehicleMeta,
+  create: () => vehicle,
+  feedbackExtras: [{ event: 'custom:bump', channels: ['shake', 'sfx'] }],
 };

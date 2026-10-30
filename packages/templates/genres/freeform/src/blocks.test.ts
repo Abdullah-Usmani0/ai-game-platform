@@ -1,10 +1,12 @@
 import type { EntityRoster, FreeformSystemsJson, LevelJson, Objectives } from '@gg/schemas';
+import { rolesPresent } from '@gg/template-core';
+import { checkComposition } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
 import { blockBots, blockTypes } from './blocks.js';
 import { compose } from './compose.js';
 import { freeformManifest } from './node.js';
 import { idleWins, proveLevel } from './prove.js';
-import { ARCHETYPES, paramArchetype } from './registry.js';
+import { ARCHETYPES, paramArchetype, usableSystems } from './registry.js';
 import { compileRoster } from './roster.js';
 
 const deliveries = (n: number, lives?: number): Objectives => ({ version: 1, win: { mode: 'all', clauses: [{ kind: 'hud_at_least', key: 'delivered', value: n }] }, lose: lives === undefined ? [] : [{ kind: 'lives', count: lives }] });
@@ -67,6 +69,38 @@ describe('blocks bring their own entities', () => {
   it("the game binds the block's own events' feedback", () => {
     const events = compose(TEA, TEA_ROSTER).runtime.feedbackExtras?.map((x) => x.event);
     expect(events).toEqual(expect.arrayContaining(['custom:lift', 'custom:deliver', 'custom:drop', 'custom:no_order', 'custom:not_ready']));
+  });
+});
+
+describe('a vehicle', () => {
+  const at = (systems: FreeformSystemsJson['systems']): FreeformSystemsJson => ({ version: 1, genre: 'freeform', composition: { base: 'survivors' }, feelPreset: 'arena-melee', systems });
+  const codes = (file: FreeformSystemsJson, roster?: EntityRoster) => {
+    const { runtime, issues } = compose(file, roster);
+    expect(issues).toEqual([]);
+    const content = ['waves', 'objectives'];
+    return checkComposition(Object.values(runtime.systems).map((m) => m.meta), { roles: rolesPresent(runtime), content, params: Object.fromEntries(file.systems.map((x) => [x.id, x.params])) }).issues.map((i) => i.code);
+  };
+
+  it('is driven instead of walking, on a base whose player moves top-down', () => {
+    expect(usableSystems('survivors')).toContain('movement-vehicle');
+    expect(usableSystems('topdown-action')).toContain('movement-vehicle');
+    expect(usableSystems('platformer')).not.toContain('movement-vehicle');
+    const bike: FreeformSystemsJson['systems'] = [{ id: 'movement-vehicle', params: { kind: 'bike' } }, { id: 'objectives', params: {} }];
+    expect(codes(at(bike))).toEqual([]);
+    expect(codes(at([{ id: 'movement-topdown', params: {} }, ...bike]))).toContain('two_movements');
+  });
+
+  it('a bike courier composes: the arrows steer, the carry key and the boost stay their own', () => {
+    const courier = at([
+      { id: 'movement-vehicle', params: { kind: 'bike', boost: true } },
+      { id: 'carry', params: { dropoffs: 4 } },
+      { id: 'orders', params: {} },
+      { id: 'objectives', params: {} },
+    ]);
+    expect(codes(courier, TEA_ROSTER)).toEqual([]);
+    // The vehicle leaves action and jump free: the carry key may be either.
+    expect(codes({ ...courier, systems: courier.systems.map((x) => (x.id === 'carry' ? { ...x, params: { ...x.params, key: 'jump' } } : x)) }, TEA_ROSTER)).toEqual([]);
+    expect(compose(courier, TEA_ROSTER).runtime.feedbackExtras?.map((x) => x.event)).toEqual(expect.arrayContaining(['custom:bump', 'custom:deliver']));
   });
 });
 

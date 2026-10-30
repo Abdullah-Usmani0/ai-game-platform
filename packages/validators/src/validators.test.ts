@@ -298,6 +298,13 @@ describe('controlsLegend', () => {
     expect(controlsLegend([{ meta: { controls: { left: 'run', right: 'run', jump: 'jump' }, params: {} } }])[0]).toEqual(['← → / A D', 'run']);
   });
 
+  it('names direction keys that do different things apart: a vehicle steers with left and right, drives with up and down', () => {
+    const drive = { controls: { left: 'steer', right: 'steer', up: 'throttle', down: 'brake' }, params: {} };
+    expect(controlsLegend([{ meta: drive }])).toEqual([['← → / A D', 'steer'], ['↑ / W', 'throttle'], ['↓ / S', 'brake'], ['Esc / P', 'pause']]);
+    const climb = { controls: { left: 'run', right: 'run', down: 'carry' }, params: {} };
+    expect(controlsLegend([{ meta: climb }]).slice(0, 2)).toEqual([['← → / A D', 'run'], ['↓ / S', 'carry']]);
+  });
+
   it('leaves out a key the game switches off, and takes in its own systems\' keys', () => {
     expect(controlsLegend([{ meta: move, params: { dash: false } }, { meta: farm }]).map(([k]) => k)).not.toContain('X / Shift');
     const lantern = { controls: { action: 'light the lantern' }, params: {} };

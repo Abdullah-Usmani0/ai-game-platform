@@ -4,6 +4,7 @@ export * from './hash.js';
 export * from './input.js';
 export * from './tilemap.js';
 export * from './physics.js';
+export * from './trig.js';
 export * from './feel.js';
 export * from './world.js';
 export * from './system.js';

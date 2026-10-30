@@ -222,11 +222,20 @@ export function controlsInUse(meta: Pick<CatalogSystem, 'controls' | 'controlGat
   return out;
 }
 
+/** Direction keys as the play page names them: all four as the arrows and WASD, fewer each by arrow and letter. */
+function directionKeys(keys: readonly string[]): string {
+  if (keys.length === 4) return 'Arrows / WASD';
+  const arrow: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓' };
+  const letter: Record<string, string> = { left: 'A', right: 'D', up: 'W', down: 'S' };
+  return `${keys.map((k) => arrow[k]).join(' ')} / ${keys.map((k) => letter[k]).join(' ')}`;
+}
+
 /**
  * The keys a game uses and what each does in it, from its systems' declared controls (catalog systems with the values
  * the game gives their parameters, its own systems' contracts): the movement keys first (arrows and WASD, or left and
- * right only), then jump, dash and action, then pause. A key a parameter switches off is left out, and so is a key a
- * system takes over (a runner's left and right).
+ * right only; keys that do different things apart, as a vehicle steers with left and right and drives with up and
+ * down), then jump, dash and action, then pause. A key a parameter switches off is left out, and so is a key a system
+ * takes over (a runner's left and right).
  */
 export function controlsLegend(systems: ReadonlyArray<{ meta: Pick<CatalogSystem, 'controls' | 'controlGates' | 'params' | 'takesOver'> | undefined; params?: Readonly<Record<string, unknown>> }>): Array<[keys: string, action: string]> {
   const taken = new Set<string>(systems.flatMap(({ meta }) => meta?.takesOver ?? []));
@@ -241,8 +250,12 @@ export function controlsLegend(systems: ReadonlyArray<{ meta: Pick<CatalogSystem
     }
   }
   const out: Array<[string, string]> = [];
-  const dirs = ['left', 'right', 'up', 'down'].filter((k) => uses.has(k));
-  if (dirs.length > 0) out.push([dirs.includes('up') || dirs.includes('down') ? 'Arrows / WASD' : '← → / A D', [...new Set(dirs.flatMap((k) => uses.get(k)!))].join(', ')]);
+  const groups = new Map<string, string[]>();
+  for (const k of ['left', 'right', 'up', 'down'].filter((d) => uses.has(d))) {
+    const what = uses.get(k)!.join(', ');
+    groups.set(what, [...(groups.get(what) ?? []), k]);
+  }
+  for (const [what, keys] of groups) out.push([directionKeys(keys), what]);
   for (const k of ['jump', 'dash', 'action'] as const) if (uses.has(k)) out.push([KEY_NAMES[k], uses.get(k)!.join(', ')]);
   out.push([KEY_NAMES.pause, 'pause']);
   return out;

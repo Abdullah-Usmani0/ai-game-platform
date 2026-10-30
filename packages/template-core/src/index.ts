@@ -11,7 +11,8 @@ export { carry, meta as carryMeta, boxGap, carryTarget, carryTypes, deliveriesWa
 export { orders, meta as ordersMeta, orderTiming, HURRY_TICKS, ORDER_MAX, ORDER_TYPE, REST_UNTIL } from './systems/orders.js';
 export { courier } from './courier.js';
 export { goalSpot, goToward, type Spot } from './navigate.js';
-export { carryBlock, ordersBlock } from './blocks.js';
+export { carryBlock, ordersBlock, vehicleBlock } from './blocks.js';
+export { vehicle, meta as vehicleMeta, vehicleKind, HANDLING, HEADING, VEHICLE_KINDS, type Handling, type VehicleKind } from './systems/vehicle.js';
 export { checkStations, dressStations, SERVICE_WINDOW, SIDE_REACH, type StationsCtx } from './level/stations.js';
 export { suggestHints } from './level/hints.js';
 export { validateArena, validateWaves } from './level/arena.js';
