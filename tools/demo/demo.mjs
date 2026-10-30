@@ -51,9 +51,29 @@ const game = store2.games.find((g) => g.id === gameId);
 const head = store2.versions.find((v) => v.id === game?.headVersionId);
 const createStages = store2.trajectories.filter((t) => t.jobId === createJobId).map((t) => `${t.stage}:${t.passed ? 'pass' : 'fail'}@${t.attempt}`);
 
+const bucketPath = (p) => join(storeDir, 'buckets', p.slice(0, p.indexOf('/')), p.slice(p.indexOf('/') + 1));
+
+// "Anything else": a freeform idea through its own plan (its cast named after its systems, drawn from the idea, every
+// level proven by a recorded run), published with the keys its systems use.
+const ffCreate = spawnSync(process.execPath, ['--import', 'tsx', worker, 'create', '--prompt', 'A moth carrying lanterns home through a night forest: collect them on the way, and mind the frogs.', '--genre', 'freeform', '--tier', 'small', '--seed', '1', '--dry-run'], { cwd: join(root, 'workers', 'generator'), env, encoding: 'utf8' });
+const { gameId: ffGameId, jobId: ffJobId } = JSON.parse(ffCreate.stdout.trim().split('\n').pop());
+const ffRun = spawnSync(process.execPath, ['--import', 'tsx', worker, 'run', '--once'], { cwd: join(root, 'workers', 'generator'), env, stdio: 'inherit' });
+const storeFf = JSON.parse(readFileSync(join(storeDir, 'store.json'), 'utf8'));
+const ffGame = storeFf.games.find((g) => g.id === ffGameId);
+const ffHead = storeFf.versions.find((v) => v.id === ffGame?.headVersionId);
+const freeform = {
+  gameId: ffGameId,
+  runStatus: ffRun.status,
+  jobStatus: storeFf.jobs.find((j) => j.id === ffJobId)?.status,
+  state: ffGame?.state,
+  stages: storeFf.trajectories.filter((t) => t.jobId === ffJobId).map((t) => `${t.stage}:${t.passed ? 'pass' : 'fail'}@${t.attempt}`),
+  base: ffHead?.design?.gdd?.base ?? null,
+  controls: ffHead?.design?.controls ?? null,
+  sprites: ffHead?.bundlePath && existsSync(join(bucketPath(ffHead.bundlePath), 'content', 'sprites.json')) ? JSON.parse(readFileSync(join(bucketPath(ffHead.bundlePath), 'content', 'sprites.json'), 'utf8')).sprites.length : 0,
+};
+
 // The level editor path: an authored level (a coin on the spawn tile) runs apply-content -> playtest -> budget ->
 // publish. The validator and the solver bot accept or reject it; no model is called.
-const bucketPath = (p) => join(storeDir, 'buckets', p.slice(0, p.indexOf('/')), p.slice(p.indexOf('/') + 1));
 let edit = null;
 if (head?.bundlePath && existsSync(join(bucketPath(head.bundlePath), 'content', 'index.json'))) {
   const index = JSON.parse(readFileSync(join(bucketPath(head.bundlePath), 'content', 'index.json'), 'utf8'));
@@ -93,6 +113,7 @@ console.log(JSON.stringify({
   screenshot: join(sample, 'reports', `smoke-seed${playtest.seeds[0]}-tick${playtest.bots[0]?.ticks}.png`),
   create: { gameId, slug: game?.slug, state: game?.state, jobStatus: createJob?.status, stages: createStages, bundlePath: head?.bundlePath, evidence: head?.design?.evidence ? { gates: head.design.evidence.gates.map((g) => `${g.stage}:${g.passed ? 'pass' : 'fail'}`), playtest: head.design.evidence.playtest, thumbnail: head.design.evidence.thumbnail } : null },
   edit,
+  freeform,
 }, null, 2));
-const ok = gate.status === 0 && run.status === 0 && job?.status === 'succeeded' && version?.isHead === true && createRun.status === 0 && createJob?.status === 'succeeded' && game?.state === 'playable' && Boolean(head?.bundlePath) && edit?.kind === 'edit_content' && edit.status === 'succeeded' && edit.newHead && edit.coinOnSpawn;
+const ok = gate.status === 0 && run.status === 0 && job?.status === 'succeeded' && version?.isHead === true && createRun.status === 0 && createJob?.status === 'succeeded' && game?.state === 'playable' && Boolean(head?.bundlePath) && edit?.kind === 'edit_content' && edit.status === 'succeeded' && edit.newHead && edit.coinOnSpawn && freeform.runStatus === 0 && freeform.jobStatus === 'succeeded' && freeform.state === 'playable' && freeform.base === 'platformer' && Array.isArray(freeform.controls) && freeform.controls.length > 1 && freeform.sprites > 0;
 process.exit(ok ? 0 : 1);

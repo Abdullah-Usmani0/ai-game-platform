@@ -5,7 +5,7 @@ import { PlayFrame } from '@/components/PlayFrame';
 import { PlaySession } from '@/components/PlaySession';
 import { ReportButton } from '@/components/ReportButton';
 import { RemixButton } from '@/components/RemixButton';
-import { GENRE_BY_ID, genreLabel } from '@/lib/genres';
+import { controlsOf, gameGenreLabel, GENRE_BY_ID } from '@/lib/genres';
 import { viewerId } from '@/lib/identity';
 import { bundleBaseUrl, getStore } from '@/lib/store';
 
@@ -36,6 +36,8 @@ export default async function PlayPage({ params, searchParams }: Props) {
   let title = safeId;
   let bundleUrl = `/bundles/${safeId}/index.html`;
   let session: { versionId: string; number: number; levels: number } | null = null;
+  let ownControls: Array<[string, string]> | null = null;
+  let design: unknown = null;
   const store = getStore();
   const game = await store.getGame(safeId).catch(() => null);
   const asked = typeof q['version'] === 'string' ? q['version'] : null;
@@ -48,6 +50,8 @@ export default async function PlayPage({ params, searchParams }: Props) {
       bundleUrl = `${base}/index.html`;
       title = game.title;
       const levels = Number((head.design as { gdd?: { scope?: { levels?: number } } }).gdd?.scope?.levels ?? 1);
+      ownControls = controlsOf(head.design);
+      design = head.design;
       session = { versionId: head.id, number: head.number, levels: Number.isFinite(levels) && levels > 0 ? levels : 1 };
     }
   }
@@ -69,6 +73,8 @@ export default async function PlayPage({ params, searchParams }: Props) {
     );
   }
   const info = game ? GENRE_BY_ID[game.genre] : undefined;
+  // A curated genre's own words for its keys; a freeform game's from the systems it is made of (its version says which).
+  const controls = info?.controls.length ? info.controls : (ownControls ?? []);
   const stats = game ? await store.gameStats(game.id).catch(() => null) : null;
   const originVersion = game?.originVersionId ? await store.getVersion(game.originVersionId).catch(() => null) : null;
   const origin = originVersion ? await store.getGame(originVersion.gameId).catch(() => null) : null;
@@ -91,7 +97,7 @@ export default async function PlayPage({ params, searchParams }: Props) {
           <div className="panel stack">
             <div className="stack-sm">
               <div className="cluster">
-                <span className="pill">{game ? genreLabel(game.genre) : 'Sample'}</span>
+                <span className="pill">{game ? gameGenreLabel(game.genre, design) : 'Sample'}</span>
                 {session ? <span className="pill">Version {session.number}</span> : null}
               </div>
               <h1>{title}</h1>
@@ -134,11 +140,11 @@ export default async function PlayPage({ params, searchParams }: Props) {
               </div>
             ) : null}
           </div>
-          {info ? (
+          {controls.length > 0 ? (
             <div className="panel">
               <h2>Controls</h2>
-              <div className="controls-hint">
-                {info.controls.map(([keys, action]) => (
+              <div className="controls-hint" data-testid="controls">
+                {controls.map(([keys, action]) => (
                   <span key={keys} style={{ display: 'contents' }}>
                     <kbd>{keys}</kbd>
                     <span>{action}</span>

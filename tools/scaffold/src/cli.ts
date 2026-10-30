@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import type { StyleCard, SystemsJson } from '@gg/schemas';
-import { DEFAULT_STYLE, defaultSystems, readJson, scaffold } from './scaffold.js';
+import { EXAMPLES } from '@gg/template-freeform';
+import { DEFAULT_STYLE, defaultSystems, readJson, scaffold, scaffoldExample } from './scaffold.js';
 
 const { values } = parseArgs({
   options: {
@@ -15,8 +16,20 @@ const { values } = parseArgs({
     levels: { type: 'string' },
     seed: { type: 'string', default: '1' },
     'no-link': { type: 'boolean', default: false },
+    example: { type: 'string' },
   },
 });
+// One of the freeform example games, as the worker builds it (a showcase: `--example lantern --out <dir>`).
+if (values.example) {
+  const ex = EXAMPLES.find((e) => e.id === values.example);
+  if (!ex || !values.out) {
+    console.error(`usage: gg-scaffold --example <${EXAMPLES.map((e) => e.id).join('|')}> --out <dir> [--style style.json] [--seed N] [--no-link]`);
+    process.exit(2);
+  }
+  const result = scaffoldExample(ex, values.out, { seed: Number(values.seed), style: values.style ? readJson<StyleCard>(values.style) : DEFAULT_STYLE, linkNodeModules: !values['no-link'] });
+  console.log(JSON.stringify({ outDir: result.outDir, files: result.files.length, levels: result.levels }));
+  process.exit(0);
+}
 if (!values.genre || !values.out || !values.gdd) {
   console.error('usage: gg-scaffold --genre <platformer|survivors> --out <dir> --gdd <gdd.md> [--systems systems.json] [--style style.json] [--game-id id] [--title T] [--levels N] [--seed N] [--no-link]');
   process.exit(2);

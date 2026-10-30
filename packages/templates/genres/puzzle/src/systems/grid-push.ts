@@ -265,6 +265,7 @@ export const meta = {
   emits: ['move', 'push', 'undo', 'level_complete', 'custom:bump'],
   feedbackFor: ['move', 'push', 'undo', 'level_complete'],
   controls: { left: 'step', right: 'step', up: 'step', down: 'step', action: 'undo', dash: 'restart' },
+  controlGates: { action: 'allowUndo' },
   provides: { movement: 'grid', win: 'place_crates' },
   requires: { roles: ['crate', 'target'] },
 } as const;

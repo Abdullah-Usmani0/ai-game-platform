@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { Objectives, parseAnyGdd, type EntityRoster, type LevelJson, type LevelProof, type StyleCard, type SystemsFile, type SystemsJson } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
 import { type GenreManifest, type LevelGenParams, levelPlan, levelTicksOf, rolesPresent, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
-import { BASE_MANIFESTS, checkFreeformObjectives, freeformManifest, IDENTITY_ROSTER, proveLevel } from '@gg/template-freeform/node';
+import { BASE_MANIFESTS, checkFreeformObjectives, freeformManifest, IDENTITY_ROSTER, proveLevel, type FreeformExample } from '@gg/template-freeform/node';
 import { catalogFor, genre as genreOf } from '@gg/templates/node';
 import { checkComposition, checkSystems, parseFrontmatter, type Issue } from '@gg/validators';
 import * as F from './files.js';
@@ -220,3 +220,25 @@ export function readJson<T>(path: string): T {
   if (!existsSync(path)) throw new Error(`missing ${path}`);
   return JSON.parse(readFileSync(path, 'utf8')) as T;
 }
+
+/**
+ * One of the hand-made freeform example games scaffolded as the worker builds it: its GDD, systems, roster, rules and
+ * the content its idea decides (its crops, its cast's look), its levels proven. A showcase, and the pins' input.
+ */
+export function scaffoldExample(ex: FreeformExample, outDir: string, opts: { seed?: number; style?: StyleCard; linkNodeModules?: boolean } = {}): ScaffoldResult {
+  const body = '## Concept\nx\n\n## Pillars\nx\n\n## Core loop\nx\n\n## Progression\nx\n\n## Scope\nx\n\n## Feedback\nx\n';
+  return scaffold({
+    outDir,
+    genre: 'freeform',
+    gameId: `pin-${ex.id}`,
+    title: ex.gdd.title,
+    systems: ex.systems,
+    roster: ex.roster,
+    content: { ...(ex.objectives ? { objectives: ex.objectives } : {}), ...ex.content },
+    style: opts.style ?? DEFAULT_STYLE,
+    gddMarkdown: `---\n${JSON.stringify(ex.gdd)}\n---\n${body}`,
+    seed: opts.seed ?? 5,
+    linkNodeModules: opts.linkNodeModules ?? true,
+  });
+}
+

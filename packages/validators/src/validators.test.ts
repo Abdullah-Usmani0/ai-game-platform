@@ -6,7 +6,7 @@ import { checkGdd } from './gdd.js';
 import { juiceLint, juiceLintRuns, silentSfx } from './juice.js';
 import { jumpEnvelope } from './jump-envelope.js';
 import { validateLevel, validateRamp } from './level.js';
-import { checkSystems, impact, type SystemsCatalog } from './systems.js';
+import { checkSystems, controlsLegend, impact, type SystemsCatalog } from './systems.js';
 
 function level(rows: string[], extra: Partial<LevelJson> = {}): LevelJson {
   return {
@@ -265,3 +265,27 @@ describe('jump envelope options', () => {
     expect(both.maxDx.get(0)!).toBeGreaterThan(dash.maxDx.get(0)!);
   });
 });
+
+describe('controlsLegend', () => {
+  const move = { controls: { left: 'move', right: 'move', up: 'move', down: 'move', dash: 'dash' }, controlGates: { dash: 'dash' }, params: { dash: { type: 'boolean' as const, default: true, affects: 'levels' as const } } };
+  const farm = { controls: { left: 'face', right: 'face', up: 'face', down: 'face', action: 'work', jump: 'choose seed' }, params: {} };
+
+  it("lists the movement keys with every use, then jump, dash and action, then pause", () => {
+    expect(controlsLegend([{ meta: move }, { meta: farm }])).toEqual([
+      ['Arrows / WASD', 'move, face'],
+      ['Z / Space', 'choose seed'],
+      ['X / Shift', 'dash'],
+      ['E / Enter', 'work'],
+      ['Esc / P', 'pause'],
+    ]);
+    expect(controlsLegend([{ meta: { controls: { left: 'run', right: 'run', jump: 'jump' }, params: {} } }])[0]).toEqual(['← → / A D', 'run']);
+  });
+
+  it('leaves out a key the game switches off, and takes in its own systems\' keys', () => {
+    expect(controlsLegend([{ meta: move, params: { dash: false } }, { meta: farm }]).map(([k]) => k)).not.toContain('X / Shift');
+    const lantern = { controls: { action: 'light the lantern' }, params: {} };
+    expect(controlsLegend([{ meta: move }, { meta: lantern }])).toContainEqual(['E / Enter', 'light the lantern']);
+    expect(controlsLegend([])).toEqual([['Esc / P', 'pause']]);
+  });
+});
+

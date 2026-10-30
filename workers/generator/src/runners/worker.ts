@@ -8,9 +8,9 @@ import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from '@gg/scaffold';
 import { checkLevel, levelPlan, levelTicksOf, plannedLevelCount, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
 import { BASE_MANIFESTS, IDENTITY_ROSTER, proveLevel } from '@gg/template-freeform/node';
-import { CATALOG, catalogFor, genre as genreOf, readGameInputs, resolveGame } from '@gg/templates/node';
+import { CATALOG, catalogFor, genre as genreOf, readGameInputs, readMechanics, resolveGame } from '@gg/templates/node';
 import { sfxPresetFor } from '@gg/sdk/art';
-import { checkGdd, checkSystems, impact, silentSfx, validateBehaviour, type ValidationReport } from '@gg/validators';
+import { checkGdd, checkSystems, controlsLegend, impact, mechanicMeta, silentSfx, validateBehaviour, type ValidationReport } from '@gg/validators';
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
 import { designContentOf, writeDesignContent } from './design-content.js';
 import { composition, compositionOf, freeformFrontmatter, freeformSystems, reproveLevels } from './freeform-stages.js';
@@ -552,6 +552,9 @@ const publish: StageFn = async (ctx) => {
     const fallback = catalogFor(sys)[spec.systemId]?.params[spec.param]?.default;
     return { ...spec, value: typeof current === 'number' ? current : typeof fallback === 'number' ? fallback : spec.min };
   });
+  // The keys the game uses, from its systems (with the values it gives them) and its own systems' contracts.
+  const catalog = catalogFor(sys);
+  const controls = controlsLegend([...sys.systems.map((s) => ({ meta: catalog[s.id], params: s.params })), ...readMechanics(ctx.gameDir, []).map((m) => ({ meta: mechanicMeta(m) }))]);
   const files = walk(bundleDir);
   let bytes = 0;
   for (const rel of files) {
@@ -563,7 +566,7 @@ const publish: StageFn = async (ctx) => {
   return ok(`published ${files.length} files (${Math.round(bytes / 1024)} KB) to ${bundlePath}`, {
     durationMs: Date.now() - t0,
     artifactPath: bundleDir,
-    version: { bundlePath, manifest: manifest as unknown as Record<string, unknown>, design: { gdd: gddInfo.fm, systems: sys, style, evidence, panels }, contentHash },
+    version: { bundlePath, manifest: manifest as unknown as Record<string, unknown>, design: { gdd: gddInfo.fm, systems: sys, style, evidence, panels, controls }, contentHash },
   });
 };
 

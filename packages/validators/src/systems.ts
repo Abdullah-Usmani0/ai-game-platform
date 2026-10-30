@@ -81,6 +81,8 @@ export interface CatalogSystem {
    * that explore leave alone the keys marked 'undo' or 'restart' (a save point does that job better).
    */
   controls?: Partial<Record<'left' | 'right' | 'up' | 'down' | 'jump' | 'dash' | 'action' | 'pause', string>>;
+  /** The boolean parameter a key needs on: a game that switches it off does not use the key (movement-topdown's dash). */
+  controlGates?: Partial<Record<'left' | 'right' | 'up' | 'down' | 'jump' | 'dash' | 'action' | 'pause', string>>;
   /** What the system owns in a game (movement, the win, the death rule, combat, spawns); checked against its runs. */
   provides?: SystemProvides;
   /** What it needs from the rest of the game. */
@@ -171,3 +173,31 @@ export function impact(before: Pick<SystemsJson, 'feelPreset' | 'systems'>, afte
   }
   return { levels, assets, code, changed };
 }
+
+/** Where each input sits on the keyboard (the SDK's bindings), as the play page names it. */
+const KEY_NAMES = { jump: 'Z / Space', dash: 'X / Shift', action: 'E / Enter', pause: 'Esc / P' } as const;
+
+/**
+ * The keys a game uses and what each does in it, from its systems' declared controls (catalog systems with the values
+ * the game gives their parameters, its own systems' contracts): the movement keys first (arrows and WASD, or left and
+ * right only), then jump, dash and action, then pause. A key a parameter switches off is left out.
+ */
+export function controlsLegend(systems: ReadonlyArray<{ meta: Pick<CatalogSystem, 'controls' | 'controlGates' | 'params'> | undefined; params?: Readonly<Record<string, unknown>> }>): Array<[keys: string, action: string]> {
+  const uses = new Map<string, string[]>();
+  for (const { meta, params } of systems) {
+    for (const [key, what] of Object.entries(meta?.controls ?? {})) {
+      const gate = meta?.controlGates?.[key as keyof NonNullable<CatalogSystem['controlGates']>];
+      if (!what || (gate && (params?.[gate] ?? meta?.params[gate]?.default) === false)) continue;
+      const list = uses.get(key) ?? [];
+      if (!list.includes(what)) list.push(what);
+      uses.set(key, list);
+    }
+  }
+  const out: Array<[string, string]> = [];
+  const dirs = ['left', 'right', 'up', 'down'].filter((k) => uses.has(k));
+  if (dirs.length > 0) out.push([dirs.includes('up') || dirs.includes('down') ? 'Arrows / WASD' : '← → / A D', [...new Set(dirs.flatMap((k) => uses.get(k)!))].join(', ')]);
+  for (const k of ['jump', 'dash', 'action'] as const) if (uses.has(k)) out.push([KEY_NAMES[k], uses.get(k)!.join(', ')]);
+  out.push([KEY_NAMES.pause, 'pause']);
+  return out;
+}
+

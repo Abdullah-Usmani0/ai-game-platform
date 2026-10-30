@@ -11,7 +11,7 @@ import { ParamPanel, type PanelItem } from '@/components/ParamPanel';
 import { PlayFrame } from '@/components/PlayFrame';
 import { RemixButton } from '@/components/RemixButton';
 import { StyleEditor, type StyleLike } from '@/components/StyleEditor';
-import { genreLabel } from '@/lib/genres';
+import { gameGenreLabel } from '@/lib/genres';
 import { cap } from '@/lib/text';
 
 interface GameInfo {
@@ -42,7 +42,9 @@ interface GameView {
 }
 
 const CREATE_STAGES = ['gdd', 'systems', 'sprites', 'scaffold', 'behaviour', 'implement', 'levels', 'integrate', 'playtest', 'juice', 'review', 'budget', 'publish'];
-const STAGE_LABELS: Record<string, string> = { gdd: 'Design', systems: 'Systems', sprites: 'Sprites', scaffold: 'Scaffold', behaviour: 'Behaviour', implement: 'Code', levels: 'Levels', integrate: 'Integrate', playtest: 'Playtest', juice: 'Juice', review: 'Review', budget: 'Budget', publish: 'Publish' };
+/** A freeform game names its cast after its systems and records its winning runs again after its code changes. */
+const FREEFORM_STAGES = CREATE_STAGES.flatMap((s) => (s === 'systems' ? [s, 'composition'] : s === 'implement' ? [s, 'prove'] : [s]));
+const STAGE_LABELS: Record<string, string> = { gdd: 'Design', systems: 'Systems', composition: 'Cast', prove: 'Proofs', sprites: 'Sprites', scaffold: 'Scaffold', behaviour: 'Behaviour', implement: 'Code', levels: 'Levels', integrate: 'Integrate', playtest: 'Playtest', juice: 'Juice', review: 'Review', budget: 'Budget', publish: 'Publish' };
 const JOB_TONE: Record<string, string> = { queued: 'info', running: 'brand', succeeded: 'ok', failed: 'err', needs_human: 'warn', cancelled: 'neutral' };
 const JOB_TITLE: Record<string, string> = { create: 'Building the game', edit: 'Applying an edit', edit_content: 'Applying a level edit' };
 const EDIT_EXAMPLES = ['make the walker chase more aggressively', 'make jumps a little floatier', 'a warmer, sunset palette', 'add a third level that is harder'];
@@ -50,8 +52,9 @@ const EDIT_EXAMPLES = ['make the walker chase more aggressively', 'make jumps a 
 type StageState = 'pending' | 'running' | 'passed' | 'failed' | 'retry';
 type Tab = 'overview' | 'tune' | 'style' | 'levels' | 'code' | 'history';
 
-function stageStates(view: JobView | null): Array<{ stage: string; state: StageState; attempts: number; detail: string }> {
-  if (!view) return CREATE_STAGES.map((stage) => ({ stage, state: 'pending', attempts: 0, detail: '' }));
+function stageStates(view: JobView | null, genre: string): Array<{ stage: string; state: StageState; attempts: number; detail: string }> {
+  const plan = genre === 'freeform' ? FREEFORM_STAGES : CREATE_STAGES;
+  if (!view) return plan.map((stage) => ({ stage, state: 'pending', attempts: 0, detail: '' }));
   const order: string[] = [];
   const info = new Map<string, { state: StageState; attempts: number; detail: string }>();
   for (const e of view.events) {
@@ -71,7 +74,7 @@ function stageStates(view: JobView | null): Array<{ stage: string; state: StageS
     } else if (e.type === 'retry') s.state = 'retry';
     else if (e.type === 'assistant_summary' && typeof e.payload['summary'] === 'string' && s.state !== 'failed') s.detail = e.payload['summary'] as string;
   }
-  const stages = view.job.kind === 'create' ? CREATE_STAGES : order;
+  const stages = view.job.kind === 'create' ? [...plan] : order;
   for (const st of order) if (!stages.includes(st)) stages.push(st);
   return stages.map((stage) => ({ stage, ...(info.get(stage) ?? { state: 'pending' as StageState, attempts: 0, detail: '' }) }));
 }
@@ -141,7 +144,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
   }
   const sendEdit = () => submitEdit(message);
 
-  const stages = stageStates(jobView);
+  const stages = stageStates(jobView, game.genre);
   const status = jobView?.job.status ?? (jobId ? 'loading' : 'idle');
   const active = status === 'queued' || status === 'running';
   const locked = sending || active || !game.headVersionId;
@@ -169,7 +172,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
       <header className="ws-head">
         <div>
           <div className="cluster" style={{ marginBottom: 8 }}>
-            <span className="pill">{genreLabel(game.genre)}</span>
+            <span className="pill" data-testid="genre-pill">{gameGenreLabel(game.genre, gameView?.head?.design)}</span>
             <span className="pill" data-tone={game.state === 'removed' || game.state === 'suspended' ? 'err' : game.headVersionId ? 'ok' : 'neutral'}>
               {game.headVersionId ? cap(game.state) : 'No version yet'}
             </span>
@@ -261,7 +264,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
             {jobView || jobId ? (
               <ol className="stages">
                 {stages.map((s) => (
-                  <li key={s.stage} data-state={s.state}>
+                  <li key={s.stage} data-state={s.state} data-stage={s.stage}>
                     <span className="dot" />
                     <span className="name">{STAGE_LABELS[s.stage] ?? s.stage}</span>
                     {s.attempts > 1 ? <span className="attempts">attempt {s.attempts}</span> : <span />}

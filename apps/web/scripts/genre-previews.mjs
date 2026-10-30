@@ -1,7 +1,10 @@
 // Regenerates public/genres/<genre>.png: one frame of each built sample game at its own resolution, for the create
-// page's genre cards and the front page. Build the samples first (`pnpm build`).
+// page's genre cards and the front page, and freeform.png from the lantern moth, a freeform example game the scaffold
+// builds as the worker would. Build the samples first (`pnpm build`).
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../..', import.meta.url));
@@ -16,4 +19,18 @@ for (const [genre, tick] of Object.entries(FRAMES)) {
   const r = spawnSync('node', args, { cwd: `${root}/packages/bots`, stdio: 'inherit' });
   if (r.status !== 0) failed++;
 }
+// "Anything else": the lantern moth's first level by its recorded winning run, lanterns lit, past the level banner.
+const game = mkdtempSync(join(tmpdir(), 'gg-preview-freeform-'));
+const steps = [
+  ['node', ['--import', 'tsx', 'src/cli.ts', '--example', 'lantern', '--out', game, '--seed', '1'], `${root}/tools/scaffold`],
+  ['pnpm', ['run', 'build'], game],
+  ['node', ['--import', 'tsx', 'src/cli.ts', 'still', `${game}/dist`, '--seed', '1', '--tick', '150', '--out', `${root}/apps/web/public/genres/freeform.png`, '--script', `${game}/content/proofs/l01.json`], `${root}/packages/bots`],
+];
+for (const [cmd, args, cwd] of steps) {
+  if (spawnSync(cmd, args, { cwd, stdio: 'inherit' }).status !== 0) {
+    failed++;
+    break;
+  }
+}
+rmSync(game, { recursive: true, force: true });
 process.exit(failed ? 1 : 0);

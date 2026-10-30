@@ -100,15 +100,32 @@ try {
     const level = src.files?.find((f) => f.path.startsWith('content/levels/') && f.status === 'changed');
     result.code.edit = { previous: src.previous?.number ?? null, level: level?.path ?? null, added: level?.diff?.filter((d) => d.op === '+').length ?? 0, unchanged: src.files?.filter((f) => f.status === 'same').length ?? 0 };
   }
+  // 2d. The demo's freeform game: its play page names the genre it builds on and lists the keys its own systems use.
+  const ffGame = (state.games ?? []).find((g) => g.genre === 'freeform' && g.headVersionId && g.state !== 'removed' && g.state !== 'suspended');
+  if (ffGame) {
+    await page.goto(`${url}/play/${ffGame.id}?mode=preview`, { waitUntil: 'load', timeout: 30000 });
+    await page.waitForSelector('[data-testid="controls"]', { timeout: 20000 });
+    result.freeformPlay = { pill: (await page.textContent('.play-info .pill'))?.trim(), keys: await page.$$eval('[data-testid="controls"] kbd', (els) => els.map((e) => e.textContent)) };
+  }
   // 3. The new game's workspace shows the queued job.
   await page.goto(`${url}/games/${createdJson.gameId}?job=${createdJson.jobId}`, { waitUntil: 'load', timeout: 30000 });
   await page.waitForSelector('[data-testid="no-preview"]', { timeout: 10000 });
   await page.waitForSelector('[data-testid="job-status"]:has-text("queued")', { timeout: 10000 });
+  // 3b. "Anything else": a freeform idea through the API; its workspace lists the freeform plan (the cast named after
+  // the systems, the winning runs recorded again after the code).
+  const ff = await fetch(`${url}/api/games`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: 'A moth carrying lanterns home through a night forest: collect them on the way, and mind the frogs.', genre: 'freeform', scopeTier: 'small', dryRun: true }) });
+  const ffJson = await ff.json();
+  await page.goto(`${url}/games/${ffJson.gameId}?job=${ffJson.jobId}`, { waitUntil: 'load', timeout: 30000 });
+  await page.waitForSelector('[data-testid="job-status"]:has-text("queued")', { timeout: 10000 });
+  result.freeform = { status: ff.status, pill: await page.textContent('[data-testid="genre-pill"]'), stages: await page.$$eval('ol.stages li', (els) => els.map((e) => e.getAttribute('data-stage'))) };
   // 4. Training consent on the create page: on by default; unchecking opts the player out (the API reports it, and the
   // store deletes their recorded pairs), checking it again opts back in.
   await fetch(`${url}/api/me/training`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ optOut: false }) });
   await page.goto(`${url}/create`, { waitUntil: 'load', timeout: 30000 });
   await page.waitForSelector('[data-testid="training-consent"][data-opt-out="false"]', { timeout: 10000 });
+  // The "Anything else" card offers freeform ideas to start from.
+  await page.click('[data-genre="freeform"]');
+  result.freeformCard = await page.$$eval('.suggestion', (els) => els.map((e) => e.getAttribute('title') ?? '').filter((t) => /lanterns home/.test(t)).length);
   await page.click('[data-testid="training-consent-box"]');
   await page.waitForSelector('[data-testid="training-consent"][data-opt-out="true"]', { timeout: 10000 });
   const optedOut = (await (await fetch(`${url}/api/me`)).json()).trainingOptOut;
@@ -117,7 +134,9 @@ try {
   result.training = { optedOut, optedBackIn: (await (await fetch(`${url}/api/me`)).json()).trainingOptOut === false };
   const wantPanels = process.env.GG_EXPECT_PANELS === '1';
   const editorOk = !wantPanels || (result.editor && result.editorCheck === 'yes' && result.editorJob?.kind === 'edit_content' && result.editorJob?.status === 'queued' && result.editorJob?.levels?.length === 1);
-  ok = created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor)) && editorOk && result.remix.status === 201 && result.remix.playable === 'playable' && result.remix.headShared && result.training.optedOut === true && result.training.optedBackIn && result.code.game && result.code.lines > 5 && result.code.leaks.length === 0 && result.code.asked === 'In src/game.ts: ' && Boolean(result.code.edit && result.code.edit.previous !== null && result.code.edit.level !== null && result.code.edit.added > 0 && result.code.edit.unchanged > 0);
+  const ffStages = result.freeform?.stages ?? [];
+  const freeformOk = result.freeformPlay?.pill === 'Freeform · Precision platformer' && result.freeformPlay.keys.includes('Z / Space') && result.freeform?.status === 201 && result.freeform.pill === 'Freeform' && ffStages.slice(0, 5).join(',') === 'gdd,systems,composition,sprites,scaffold' && ffStages[ffStages.indexOf('implement') + 1] === 'prove' && result.freeformCard === 1;
+  ok = freeformOk && created.status === 201 && result.jobStatus === 'queued' && result.tick > 30 && errors.length === 0 && (!wantPanels || (result.panels && result.styleEditor)) && editorOk && result.remix.status === 201 && result.remix.playable === 'playable' && result.remix.headShared && result.training.optedOut === true && result.training.optedBackIn && result.code.game && result.code.lines > 5 && result.code.leaks.length === 0 && result.code.asked === 'In src/game.ts: ' && Boolean(result.code.edit && result.code.edit.previous !== null && result.code.edit.level !== null && result.code.edit.added > 0 && result.code.edit.unchanged > 0);
   console.log(JSON.stringify({ ok, ...result, errors }, null, 2));
 } catch (e) {
   console.error('check-create failed:', e.message, JSON.stringify(result));
