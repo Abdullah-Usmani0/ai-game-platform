@@ -5,8 +5,8 @@ import { draftFrontmatter } from './gdd-draft.js';
 
 /** Words that point at a base genre: what its levels and verbs are made of. */
 const BASE_WORDS: Record<CuratedGenre, RegExp> = {
-  platformer: /\b(jump\w*|leap\w*|platform\w*|ledge\w*|side-?scroll\w*|climb\w*|runners?|rooftops?|forest|lanterns?|moth)\b/g,
-  survivors: /\b(surviv\w*|swarm\w*|hordes?|waves?|hold(ing)? out|until dawn|arena|hive|bees?)\b/g,
+  platformer: /\b(jump\w*|leap\w*|platform\w*|ledge\w*|side-?scroll\w*|climb\w*|runners?|rooftops?|forest|lanterns?|moth|lighthouses?|cellars?|stairs?|cliffs?)\b/g,
+  survivors: /\b(surviv\w*|swarm\w*|hordes?|waves?|hold(ing)? out|until dawn|arena|hive|bees?|caf[eé]s?|tea-?(room|shop|house)s?|orders?|tables?|customers?|waiters?)\b/g,
   'topdown-action': /\b(rooms?|dungeon\w*|vaults?|swords?|blades?|clear\w*|top-?down|guards?|burglar|heist)\b/g,
   metroidvania: /\b(explor\w*|abilit\w*|keys?|doors?|unlock\w*|backtrack\w*|caves?|relics?)\b/g,
   shmup: /\b(ships?|space\w*|shoot\w*|bullets?|lasers?|pilots?|starfighter\w*)\b/g,

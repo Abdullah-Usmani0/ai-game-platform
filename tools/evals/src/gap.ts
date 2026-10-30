@@ -12,7 +12,8 @@ import { catalogFor } from '@gg/templates/node';
  * Every mechanic an idea can need and what covers it: catalog systems by id, or an engine feature ('@fsm': enemy
  * behaviour as data, which bosses, chasers, telegraphs and enemy shots are made of). An empty list is a gap. A runner
  * ('auto-run') runs on its own in a side view; a view that scrolls on while the player steers ('auto-scroll': a
- * side-scrolling shooter, a ski run) is another mechanic.
+ * side-scrolling shooter, a ski run) is another mechanic. Carrying things from where they are made to where they go is
+ * 'carry-deliver'; places that ask for them in turn, against the clock, are 'timed-orders'.
  */
 export const MECHANICS: Readonly<Record<string, readonly string[]>> = {
   'move-side': ['movement-platformer', 'movement-metroidvania'],
@@ -72,8 +73,8 @@ export const MECHANICS: Readonly<Record<string, readonly string[]>> = {
   follower: [],
   herd: [],
   'pet-care': [],
-  'carry-deliver': [],
-  'timed-orders': [],
+  'carry-deliver': ['carry'],
+  'timed-orders': ['orders'],
   rhythm: [],
   cards: [],
   'turn-based': [],

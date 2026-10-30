@@ -19,3 +19,8 @@ For a freeform game, pass `freeform` as the genre: its levels come from its base
 entity names. Its solver is the recorded winning run of each level (`game/content/proofs/<id>.json`): after you change a
 level, its old run no longer proves it, and the worker records a new one (the `prove` check fails while a run that stops
 winning is on file). A level no bot wins waits for a player's winning run, and the game is not listed until then.
+A game with `carry` has its stations placed on every level as it is generated (a source and its dropoffs): top-down
+they stand on solid tiles of their own, on open floor away from the spawn and the goal, all within a screen of the spawn,
+with no one-tile squeezes between them; side view they stand on the main path, the source near the start and the dropoffs
+further on, each pair reachable both ways. Moving one is a level edit like any other: the validator says which rule it
+breaks (`station_unreachable`, `station_one_way`, `station_blocks`...), and its courier re-records the winning run.

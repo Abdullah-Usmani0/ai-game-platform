@@ -338,7 +338,7 @@
     {
       "id": "f11",
       "genre": "freeform",
-      "tier": "F3",
+      "tier": "F1",
       "scopeTier": "small",
       "prompt": "A cosy tea-shop rush: hurry each order to its table before the customer leaves, and step around the spilled puddles."
     },
@@ -369,6 +369,13 @@
       "tier": "F1",
       "scopeTier": "small",
       "prompt": "A twin-stick garden defence: a gnome holding out against waves of slugs and beetles, a water pistol that squirts the nearest pest, until sundown."
+    },
+    {
+      "id": "f16",
+      "genre": "freeform",
+      "tier": "F1",
+      "scopeTier": "small",
+      "prompt": "A lighthouse keeper through a stormy night: carry oil up from the cellar to keep the lamp burning, leaping the gaps in the cliff path."
     }
   ]
 }

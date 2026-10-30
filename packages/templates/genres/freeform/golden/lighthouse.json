@@ -1,0 +1,73 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-platformer",
+      "hazards",
+      "combat-stomp",
+      "pickups",
+      "carry",
+      "orders",
+      "objectives"
+    ],
+    "entityDefs": "7a0f033041b6e486",
+    "types": [
+      "crab<walker",
+      "gull<hopper",
+      "urchin<turret",
+      "spine<bolt",
+      "shell<coin",
+      "oil<cargo",
+      "lamp<dropoff",
+      "cellar<source"
+    ],
+    "behaviours": "84f61b1f20108872",
+    "vocab": "6a8571b793646307",
+    "composedParams": {
+      "carry": {
+        "cargoType": "oil",
+        "sourceType": "cellar",
+        "dropoffType": "lamp"
+      },
+      "hazards": {
+        "respawn": false
+      }
+    },
+    "feedbackExtras": [
+      "custom:lift",
+      "custom:deliver",
+      "custom:drop",
+      "custom:no_order",
+      "custom:not_ready",
+      "custom:order",
+      "custom:order_hurry",
+      "custom:order_filled",
+      "custom:order_missed"
+    ],
+    "player": {
+      "w": 8,
+      "h": 11,
+      "hp": 3
+    }
+  },
+  "l01": {
+    "level": "78eb8056dd955f00",
+    "content": "d3dd34aa9e6c4e1b",
+    "by": "bot",
+    "ticks": 4500,
+    "script": "9bc16cb087893f4b"
+  },
+  "l02": {
+    "level": "c5131ef90abcbbcc",
+    "content": "d3dd34aa9e6c4e1b",
+    "by": "bot",
+    "ticks": 4500,
+    "script": "9443a669a4386ca0"
+  },
+  "l03": {
+    "level": "2bed25e409e44539",
+    "content": "d3dd34aa9e6c4e1b",
+    "by": "bot",
+    "ticks": 4500,
+    "script": "2a67d1527970f5a0"
+  }
+}

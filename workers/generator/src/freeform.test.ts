@@ -33,6 +33,13 @@ describe('freeform ideas', () => {
     }
     expect(guessBase('Something nobody has a word for yet.')).toBe('topdown-action');
     expect(exampleFor('shmup', 'A starfighter pilot shooting lasers.')).toBeNull();
+    // A rush of orders reads as an arena to keep up in, even a cosy one (a farm word); a lighthouse's cellar, a cliff path.
+    const rush = 'A cosy tea-shop rush: hurry each order to its table before the customer leaves, and step around the spilled puddles.';
+    expect(guessBase(rush)).toBe('survivors');
+    expect(exampleFor('survivors', rush)?.id).toBe('tearoom');
+    const night = 'A lighthouse keeper through a stormy night: carry oil up from the cellar to keep the lamp burning, leaping the gaps in the cliff path.';
+    expect(guessBase(night)).toBe('platformer');
+    expect(exampleFor('platformer', night)?.id).toBe('lighthouse');
   });
 
   it('the drafts on every base, in every tier, pass the checks a model answer must pass', () => {

@@ -91,6 +91,8 @@ export const GENRES: GenreInfo[] = [
       'A fox courier running across the city rooftops at dusk without ever stopping: leap the gaps, bounce on the rats and grab the letters on the way.',
       'A garden gnome guarding the vegetable patch from waves of slugs and beetles, a water pistol squirting the nearest pest, until sundown.',
       "A moth keeping a moon garden: sow glowcaps in the moonbeds, leave the harvest in the offering chest, buy spores at the beetle's stall.",
+      'A cat waiter in a garden tea house at the afternoon rush: carry the tea from the kitchen to each table before the customer gives up and leaves.',
+      'A lighthouse keeper on a stormy night: carry oil up from the cellar to keep the lamp lit, leaping the gaps in the cliff path and the crabs on it.',
     ],
   },
 ];

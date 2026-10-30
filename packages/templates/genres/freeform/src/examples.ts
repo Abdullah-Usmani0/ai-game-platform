@@ -499,4 +499,146 @@ export const GNOME: FreeformExample = {
   },
 };
 
-export const EXAMPLES: readonly FreeformExample[] = [HIVE, HEIST, LANTERN, MOON, ROOFTOP, GNOME];
+/** A tea room on the survivors' arena: a cat waiter carrying tea from the kitchen to tables that order in turn. */
+export const TEAROOM: FreeformExample = {
+  id: 'tearoom',
+  prompt: 'A cat waiter in a garden tea house at the afternoon rush: carry the tea from the kitchen to each table before the customer gives up and leaves.',
+  gdd: {
+    title: 'Tea Room Rush',
+    genre: 'freeform',
+    base: 'survivors',
+    scopeTier: 'small',
+    pillars: ['every table is waiting on you', 'the next order is already ringing', 'three walkouts and the afternoon is lost'],
+    scope: { levels: 1, enemies: 0, items: 1, bosses: 0 },
+    targets: { sessionMin: 5, levelTimeS: 60, deathsPerLevel: 1 },
+    verbs: ['move', 'carry', 'serve'],
+    feedbackEvents: [
+      { event: 'hit', channels: ['shake', 'flash', 'sfx'] },
+      { event: 'death', channels: ['shake', 'sfx'] },
+      { event: 'level_complete', channels: ['sfx', 'particle'] },
+    ],
+  },
+  systems: {
+    version: 1,
+    genre: 'freeform',
+    composition: { base: 'survivors' },
+    feelPreset: 'arena-melee',
+    systems: [
+      { id: 'movement-topdown', params: {} },
+      { id: 'carry', params: { dropoffs: 4 } },
+      { id: 'orders', params: { everyS: 5, patienceS: 14, maxOpen: 3 } },
+      { id: 'objectives', params: {} },
+    ],
+  },
+  roster: {
+    version: 1,
+    designNotes: 'The cargo is a cup of tea, the source is the kitchen counter, the dropoffs are the garden tables.',
+    player: { hp: 3 },
+    types: [
+      { type: 'tea', archetype: 'carry:cargo', hp: 1 },
+      { type: 'table', archetype: 'carry:dropoff', hp: 1 },
+      { type: 'kitchen', archetype: 'carry:source', hp: 1 },
+    ],
+  },
+  // Twelve served before three customers walk out; each walkout costs one of the cat's three hearts.
+  objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'hud_at_least', key: 'delivered', value: 12 }] }, lose: [{ kind: 'lives', count: 1 }] },
+  content: {
+    // A grey tabby with its ears up in a navy waistcoat over a white shirt, its face the palette's own (a face of its
+    // own shades its boots red-orange, the base's chasers' colour in the darker palettes); tea in a rose-banded cup;
+    // tables and the kitchen counter in warm wood whatever the palette, the customers in blue.
+    sprites: {
+      version: 1,
+      sprites: [
+        {
+          type: '@player',
+          base: 'hero-topdown',
+          recolor: { accent: '#9aa0ab', garment: '#2c3a5e' },
+          overlays: [
+            { anims: ['down-idle', 'down-run', 'down-attack', 'down-hurt', 'up-idle', 'up-run', 'up-attack', 'up-hurt'], x: 1, y: 0, rows: ['aa__bb'] },
+            { anims: ['side-idle', 'side-run', 'side-attack', 'side-hurt'], x: 2, y: 0, rows: ['a_Ab'] },
+            { anims: ['down-idle', 'down-run', 'down-attack', 'down-hurt'], x: 3, y: 5, rows: ['ww'] },
+          ],
+        },
+        { type: 'tea', base: 'cup', recolor: { accent: '#c8577a' } },
+        { type: 'table', base: 'table', recolor: { wood: '#a0683a', secondary: '#5f86c9' } },
+        { type: 'kitchen', base: 'counter', recolor: { wood: '#a0683a' } },
+      ],
+    },
+  },
+};
+
+/** A lighthouse keeper's cliff path on the platformer: oil from the cellar to the lamp, every time it asks, all night. */
+export const LIGHTHOUSE: FreeformExample = {
+  id: 'lighthouse',
+  prompt: 'A lighthouse keeper on a stormy night: carry oil up from the cellar to keep the lamp lit, leaping the gaps in the cliff path and the crabs on it.',
+  gdd: {
+    title: 'Keeper of the Lamp',
+    genre: 'freeform',
+    base: 'platformer',
+    scopeTier: 'small',
+    pillars: ['the lamp must not go out', 'the cliff path bites back', 'every can counts'],
+    scope: { levels: 3, enemies: 2, items: 1, bosses: 0 },
+    targets: { sessionMin: 5, levelTimeS: 75, deathsPerLevel: 2 },
+    verbs: ['jump', 'stomp', 'carry'],
+    feedbackEvents: [
+      { event: 'jump', channels: ['sfx'] },
+      { event: 'land', channels: ['sfx'] },
+      { event: 'hit', channels: ['shake', 'flash', 'sfx'] },
+      { event: 'death', channels: ['flash', 'sfx'] },
+      { event: 'pickup', channels: ['sfx', 'particle'] },
+      { event: 'level_complete', channels: ['sfx', 'particle'] },
+    ],
+  },
+  systems: {
+    version: 1,
+    genre: 'freeform',
+    composition: { base: 'platformer' },
+    feelPreset: 'celeste-class',
+    systems: [
+      { id: 'movement-platformer', params: {} },
+      { id: 'hazards', params: {} },
+      { id: 'combat-stomp', params: {} },
+      { id: 'pickups', params: {} },
+      { id: 'carry', params: { dropoffs: 1 } },
+      { id: 'orders', params: { patienceS: 20, everyS: 10, maxOpen: 1, missDamage: 3 } },
+      { id: 'objectives', params: {} },
+    ],
+  },
+  roster: {
+    version: 1,
+    designNotes: 'Oil in a can from the cellar barrel to the lamp; walkers are crabs, hoppers are gulls, turrets are sea urchins spitting spines, coins are shells.',
+    player: { hp: 3 },
+    types: [
+      { type: 'oil', archetype: 'carry:cargo', hp: 1 },
+      { type: 'lamp', archetype: 'carry:dropoff', hp: 1 },
+      { type: 'cellar', archetype: 'carry:source', hp: 1 },
+      { type: 'crab', archetype: 'platformer:walker', hp: 1 },
+      { type: 'gull', archetype: 'platformer:hopper', hp: 1 },
+      { type: 'urchin', archetype: 'platformer:turret', hp: 1 },
+      { type: 'spine', archetype: 'platformer:bolt', hp: 1 },
+      { type: 'shell', archetype: 'platformer:coin', hp: 1 },
+    ],
+  },
+  // The night is 75 s on three lives; a lamp left to go out costs a whole life (three hearts), so standing still loses
+  // the third life near 68 s.
+  objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'survive', seconds: 75 }] }, lose: [{ kind: 'lives', count: 3 }] },
+  content: {
+    // The keeper in yellow oilskins; a red oil can; a red-orange crab, a slate-grey gull (a white one would wear the
+    // oilskins' highlights in the paler palettes), a violet urchin and its spines, and pink shells.
+    sprites: {
+      version: 1,
+      sprites: [
+        { type: '@player', base: 'hero-side', recolor: { accent: '#e7b52c', garment: '#e7b52c' } },
+        { type: 'oil', base: 'can', recolor: { secondary: '#c4473a' } },
+        { type: 'lamp', base: 'lamp' },
+        { type: 'cellar', base: 'barrel' },
+        { type: 'crab', base: 'walker', recolor: { danger: '#d9583b' } },
+        { type: 'gull', base: 'hopper', recolor: { secondary: '#8c99a6' } },
+        { type: 'urchin', base: 'turret', recolor: { danger: '#7a4fb5' } },
+        { type: 'shell', base: 'coin', recolor: { accent: '#f2a7b8' } },
+      ],
+    },
+  },
+};
+
+export const EXAMPLES: readonly FreeformExample[] = [HIVE, HEIST, LANTERN, MOON, ROOFTOP, GNOME, TEAROOM, LIGHTHOUSE];

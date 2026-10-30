@@ -9872,6 +9872,1103 @@ export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
 }
 `;
 
+exports[`scaffold output is pinned for the freeform examples > lighthouse files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/behaviour/hopper.fsm.json": "{
+  "version": 1,
+  "id": "hopper",
+  "designNotes": "Waits, then hops toward the player in short bursts.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "hop",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 700
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "hop": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 60
+        },
+        {
+          "kind": "jump",
+          "vy": -120
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "wait",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 300
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/turret.fsm.json": "{
+  "version": 1,
+  "id": "turret",
+  "designNotes": "Stationary; fires a bolt at the player every second while they are in range.",
+  "initial": "idle",
+  "states": {
+    "idle": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "fire",
+          "when": {
+            "kind": "player_within",
+            "px": 96
+          }
+        }
+      ]
+    },
+    "fire": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "shoot",
+          "projectile": "spine",
+          "speed": 90,
+          "cooldownMs": 1000
+        }
+      ],
+      "transitions": [
+        {
+          "to": "idle",
+          "when": {
+            "kind": "player_beyond",
+            "px": 128
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/walker.fsm.json": "{
+  "version": 1,
+  "id": "walker",
+  "designNotes": "Patrols its ledge; chases when the player comes close; gives up when the player gets away.",
+  "initial": "patrol",
+  "states": {
+    "patrol": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "walk"
+        }
+      ],
+      "update": [
+        {
+          "kind": "patrol",
+          "speed": 25
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "player_within",
+            "px": 48
+          }
+        }
+      ]
+    },
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 45
+        }
+      ],
+      "transitions": [
+        {
+          "to": "patrol",
+          "when": {
+            "kind": "player_beyond",
+            "px": 96
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/entities.json": "{
+  "version": 1,
+  "designNotes": "Oil in a can from the cellar barrel to the lamp; walkers are crabs, hoppers are gulls, turrets are sea urchins spitting spines, coins are shells.",
+  "player": {
+    "hp": 3
+  },
+  "types": [
+    {
+      "type": "oil",
+      "archetype": "carry:cargo",
+      "hp": 1
+    },
+    {
+      "type": "lamp",
+      "archetype": "carry:dropoff",
+      "hp": 1
+    },
+    {
+      "type": "cellar",
+      "archetype": "carry:source",
+      "hp": 1
+    },
+    {
+      "type": "crab",
+      "archetype": "platformer:walker",
+      "hp": 1
+    },
+    {
+      "type": "gull",
+      "archetype": "platformer:hopper",
+      "hp": 1
+    },
+    {
+      "type": "urchin",
+      "archetype": "platformer:turret",
+      "hp": 1
+    },
+    {
+      "type": "spine",
+      "archetype": "platformer:bolt",
+      "hp": 1
+    },
+    {
+      "type": "shell",
+      "archetype": "platformer:coin",
+      "hp": 1
+    }
+  ]
+}
+",
+  "content/levels/L01-l01.json": "{
+  "version": 1,
+  "id": "l01",
+  "name": "Level 1",
+  "tileSize": 8,
+  "width": 55,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".......................................................",
+    ".............................-----..-------............",
+    ".......................................................",
+    "..S...................####...........................G.",
+    "#######################################################",
+    "#######################################################",
+    "#######################################################"
+  ],
+  "entities": [
+    {
+      "type": "shell",
+      "x": 6,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "crab",
+      "x": 12,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "crab",
+      "x": 18,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 24,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 30,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 32,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 37,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 39,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 41,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "cellar",
+      "x": 4,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "lamp",
+      "x": 44,
+      "y": 19,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 2,
+    "y": 19
+  },
+  "goal": {
+    "x": 53,
+    "y": 19
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.15
+  }
+}
+",
+  "content/levels/L02-l02.json": "{
+  "version": 1,
+  "id": "l02",
+  "name": "Level 2",
+  "tileSize": 8,
+  "width": 65,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    ".................................................................",
+    "..........-------.......------...................................",
+    "...................#.............................................",
+    "..S................#..................####.....................G.",
+    "################################..#################..############",
+    "################################..#################..############",
+    "################################^^#################^^############"
+  ],
+  "entities": [
+    {
+      "type": "shell",
+      "x": 6,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 11,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 13,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 15,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 25,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 27,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 40,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "crab",
+      "x": 47,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "cellar",
+      "x": 5,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "lamp",
+      "x": 45,
+      "y": 19,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 2,
+    "y": 19
+  },
+  "goal": {
+    "x": 63,
+    "y": 19
+  },
+  "ramp": {
+    "segment": 1,
+    "difficulty": 0.35
+  }
+}
+",
+  "content/levels/L03-l03.json": "{
+  "version": 1,
+  "id": "l03",
+  "name": "Level 3",
+  "tileSize": 8,
+  "width": 74,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    "..........................................................................",
+    ".........................------..............................-----........",
+    ".................................#....#...........#.......................",
+    "..S.............######...........#....#...........#.....................G.",
+    "###########################################...#########..#################",
+    "###########################################...#########..#################",
+    "###########################################^^^#########^^#################"
+  ],
+  "entities": [
+    {
+      "type": "shell",
+      "x": 6,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "crab",
+      "x": 12,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 19,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 26,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 28,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 62,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "shell",
+      "x": 64,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "cellar",
+      "x": 10,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "lamp",
+      "x": 48,
+      "y": 19,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 2,
+    "y": 19
+  },
+  "goal": {
+    "x": 72,
+    "y": 19
+  },
+  "ramp": {
+    "segment": 2,
+    "difficulty": 0.55
+  }
+}
+",
+  "content/objectives.json": "{
+  "version": 1,
+  "win": {
+    "mode": "all",
+    "clauses": [
+      {
+        "kind": "survive",
+        "seconds": 75
+      }
+    ]
+  },
+  "lose": [
+    {
+      "kind": "lives",
+      "count": 3
+    }
+  ]
+}
+",
+  "content/proofs/l01.json": "{"version":1,"level":"l01","seed":1,"ticks":4500,"by":"bot","script":[{"from":0,"to":4,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4,"to":5,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":5,"to":45,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":45,"to":57,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":57,"to":80,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":80,"to":92,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":92,"to":117,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":117,"to":129,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":129,"to":158,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":158,"to":170,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":170,"to":203,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":203,"to":215,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":215,"to":217,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":217,"to":220,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":220,"to":230,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":230,"to":238,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":238,"to":239,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":239,"to":341,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":341,"to":361,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":361,"to":374,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":374,"to":386,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":386,"to":424,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":424,"to":436,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":436,"to":454,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":454,"to":455,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":455,"to":458,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":458,"to":470,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":470,"to":548,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":548,"to":568,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":568,"to":581,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":581,"to":593,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":593,"to":615,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":615,"to":627,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":627,"to":661,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":661,"to":673,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":673,"to":674,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":674,"to":678,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":678,"to":687,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":687,"to":728,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":728,"to":729,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":729,"to":830,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":830,"to":850,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":850,"to":863,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":863,"to":875,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":875,"to":912,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":912,"to":924,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":924,"to":943,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":943,"to":944,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":944,"to":946,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":946,"to":958,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":958,"to":1037,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1037,"to":1057,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1057,"to":1070,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1070,"to":1082,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1082,"to":1104,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1104,"to":1116,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1116,"to":1150,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1150,"to":1162,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1162,"to":1163,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1163,"to":1167,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1167,"to":1176,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1176,"to":1290,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1290,"to":1291,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1291,"to":1392,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1392,"to":1412,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1412,"to":1425,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1425,"to":1437,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1437,"to":1504,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1504,"to":1506,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1506,"to":1507,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":1507,"to":1516,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1516,"to":1612,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1612,"to":1632,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1632,"to":1645,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1645,"to":1657,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1657,"to":1679,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1679,"to":1691,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1691,"to":1725,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1725,"to":1737,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1737,"to":1738,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1738,"to":1742,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1742,"to":1751,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1751,"to":2002,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2002,"to":2003,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2003,"to":2104,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2104,"to":2124,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2124,"to":2137,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2137,"to":2149,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2149,"to":2212,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2212,"to":2217,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2217,"to":2218,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":2218,"to":2224,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2224,"to":2243,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2243,"to":2244,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2244,"to":2320,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2320,"to":2340,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2340,"to":2353,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2353,"to":2365,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2365,"to":2387,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2387,"to":2399,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2399,"to":2433,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2433,"to":2445,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2445,"to":2446,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2446,"to":2450,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2450,"to":2459,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2459,"to":2791,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2791,"to":2792,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2792,"to":2893,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2893,"to":2913,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2913,"to":2926,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2926,"to":2938,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2938,"to":2983,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2983,"to":2995,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2995,"to":3012,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3012,"to":3013,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3013,"to":3017,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3017,"to":3029,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3029,"to":3113,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3113,"to":3133,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3133,"to":3146,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3146,"to":3158,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3158,"to":3180,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3180,"to":3192,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3192,"to":3226,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3226,"to":3238,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3238,"to":3239,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3239,"to":3243,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3243,"to":3252,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3252,"to":3630,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3630,"to":3631,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3631,"to":3732,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3732,"to":3752,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3752,"to":3765,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3765,"to":3777,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3777,"to":3811,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3811,"to":3823,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3823,"to":3845,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3845,"to":3846,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3846,"to":3858,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3858,"to":3938,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3938,"to":3958,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3958,"to":3971,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3971,"to":3983,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3983,"to":4005,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4005,"to":4017,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4017,"to":4051,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4051,"to":4063,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4063,"to":4064,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4064,"to":4068,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4068,"to":4077,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4077,"to":4201,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4201,"to":4202,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":4202,"to":4303,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4303,"to":4323,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4323,"to":4336,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4336,"to":4348,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4348,"to":4418,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4418,"to":4419,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":4419,"to":4500,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}}]}
+",
+  "content/proofs/l02.json": "{"version":1,"level":"l02","seed":2,"ticks":4500,"by":"bot","script":[{"from":0,"to":10,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":10,"to":11,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":11,"to":88,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":88,"to":108,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":108,"to":168,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":168,"to":180,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":180,"to":202,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":202,"to":222,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":222,"to":235,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":235,"to":247,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":247,"to":253,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":253,"to":256,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":256,"to":264,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":264,"to":265,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":265,"to":286,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":286,"to":306,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":306,"to":319,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":319,"to":331,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":331,"to":410,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":410,"to":430,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":430,"to":495,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":495,"to":496,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":496,"to":567,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":567,"to":587,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":587,"to":647,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":647,"to":659,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":659,"to":681,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":681,"to":701,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":701,"to":714,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":714,"to":726,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":726,"to":732,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":732,"to":735,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":735,"to":743,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":743,"to":744,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":744,"to":765,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":765,"to":785,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":785,"to":798,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":798,"to":810,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":810,"to":889,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":889,"to":909,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":909,"to":974,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":974,"to":975,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":975,"to":1046,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1046,"to":1066,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1066,"to":1126,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1126,"to":1138,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1138,"to":1160,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1160,"to":1180,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1180,"to":1193,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1193,"to":1205,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1205,"to":1211,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1211,"to":1214,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1214,"to":1224,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1224,"to":1237,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1237,"to":1238,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1238,"to":1259,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1259,"to":1279,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1279,"to":1292,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1292,"to":1304,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1304,"to":1383,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1383,"to":1403,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1403,"to":1468,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1468,"to":1469,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1469,"to":1540,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1540,"to":1560,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1560,"to":1620,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1620,"to":1632,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1632,"to":1654,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1654,"to":1674,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1674,"to":1687,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1687,"to":1699,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1699,"to":1705,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1705,"to":1708,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1708,"to":1718,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1718,"to":1948,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1948,"to":1949,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1949,"to":1970,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1970,"to":1990,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1990,"to":2003,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2003,"to":2015,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2015,"to":2094,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2094,"to":2114,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2114,"to":2179,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2179,"to":2180,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2180,"to":2251,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2251,"to":2271,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2271,"to":2331,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2331,"to":2343,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2343,"to":2365,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2365,"to":2385,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2385,"to":2398,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2398,"to":2410,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2410,"to":2416,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2416,"to":2419,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2419,"to":2429,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2429,"to":2533,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2533,"to":2534,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2534,"to":2555,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2555,"to":2575,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2575,"to":2588,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2588,"to":2600,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2600,"to":2679,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2679,"to":2699,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2699,"to":2764,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2764,"to":2765,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2765,"to":2836,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2836,"to":2856,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2856,"to":2916,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2916,"to":2928,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2928,"to":2950,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2950,"to":2970,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2970,"to":2983,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2983,"to":2995,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2995,"to":3001,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3001,"to":3004,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3004,"to":3014,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3014,"to":3164,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3164,"to":3165,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3165,"to":3186,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3186,"to":3206,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3206,"to":3219,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3219,"to":3231,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3231,"to":3310,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3310,"to":3330,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3330,"to":3395,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3395,"to":3396,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3396,"to":3467,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3467,"to":3487,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3487,"to":3547,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3547,"to":3559,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3559,"to":3581,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3581,"to":3601,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3601,"to":3614,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3614,"to":3626,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3626,"to":3632,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3632,"to":3635,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3635,"to":3645,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3645,"to":3958,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3958,"to":3959,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3959,"to":3980,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3980,"to":4000,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4000,"to":4013,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4013,"to":4025,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4025,"to":4104,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4104,"to":4124,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4124,"to":4189,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4189,"to":4190,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":4190,"to":4261,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4261,"to":4281,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4281,"to":4341,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4341,"to":4353,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4353,"to":4375,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4375,"to":4395,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4395,"to":4408,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4408,"to":4420,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4420,"to":4426,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4426,"to":4429,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4429,"to":4439,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4439,"to":4500,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}}]}
+",
+  "content/proofs/l03.json": "{"version":1,"level":"l03","seed":3,"ticks":4500,"by":"bot","script":[{"from":0,"to":36,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":36,"to":37,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":37,"to":45,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":45,"to":57,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":57,"to":98,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":98,"to":110,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":110,"to":144,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":144,"to":156,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":156,"to":187,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":187,"to":207,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":207,"to":224,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":224,"to":236,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":236,"to":250,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":250,"to":251,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":251,"to":266,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":266,"to":278,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":278,"to":304,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":304,"to":324,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":324,"to":344,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":344,"to":364,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":364,"to":422,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":422,"to":442,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":442,"to":459,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":459,"to":471,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":471,"to":491,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":491,"to":492,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":492,"to":530,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":530,"to":550,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":550,"to":567,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":567,"to":579,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":579,"to":613,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":613,"to":625,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":625,"to":656,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":656,"to":676,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":676,"to":693,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":693,"to":705,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":705,"to":719,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":719,"to":720,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":720,"to":735,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":735,"to":747,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":747,"to":773,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":773,"to":793,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":793,"to":813,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":813,"to":833,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":833,"to":891,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":891,"to":911,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":911,"to":928,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":928,"to":940,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":940,"to":960,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":960,"to":961,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":961,"to":999,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":999,"to":1019,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1019,"to":1036,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1036,"to":1048,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1048,"to":1082,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1082,"to":1094,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1094,"to":1125,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1125,"to":1145,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1145,"to":1162,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1162,"to":1174,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1174,"to":1188,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1188,"to":1189,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1189,"to":1204,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1204,"to":1216,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1216,"to":1242,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1242,"to":1262,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1262,"to":1282,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1282,"to":1302,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1302,"to":1360,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1360,"to":1380,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1380,"to":1397,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1397,"to":1409,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1409,"to":1429,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1429,"to":1430,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1430,"to":1468,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1468,"to":1488,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1488,"to":1505,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1505,"to":1517,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1517,"to":1551,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1551,"to":1563,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1563,"to":1594,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1594,"to":1614,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1614,"to":1631,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1631,"to":1643,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1643,"to":1657,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1657,"to":1658,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1658,"to":1673,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1673,"to":1685,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1685,"to":1711,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1711,"to":1731,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1731,"to":1751,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1751,"to":1771,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1771,"to":1829,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1829,"to":1849,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1849,"to":1866,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1866,"to":1878,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1878,"to":1898,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1898,"to":1899,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1899,"to":1903,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1903,"to":1906,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1906,"to":1907,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":1907,"to":1915,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1915,"to":1937,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1937,"to":1957,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1957,"to":1974,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1974,"to":1986,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1986,"to":2020,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2020,"to":2032,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2032,"to":2063,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2063,"to":2083,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2083,"to":2100,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2100,"to":2112,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2112,"to":2134,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2134,"to":2344,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2344,"to":2345,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2345,"to":2358,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2358,"to":2370,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2370,"to":2396,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2396,"to":2416,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2416,"to":2436,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2436,"to":2456,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2456,"to":2514,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2514,"to":2534,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2534,"to":2551,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2551,"to":2563,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2563,"to":2583,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2583,"to":2584,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2584,"to":2588,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2588,"to":2600,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2600,"to":2622,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2622,"to":2642,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2642,"to":2659,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2659,"to":2671,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2671,"to":2705,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2705,"to":2717,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2717,"to":2748,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2748,"to":2768,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2768,"to":2785,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2785,"to":2797,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2797,"to":2819,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2819,"to":2907,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2907,"to":2908,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2908,"to":2921,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2921,"to":2933,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2933,"to":2959,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2959,"to":2979,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":2979,"to":2999,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2999,"to":3019,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3019,"to":3077,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3077,"to":3097,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3097,"to":3114,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3114,"to":3126,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3126,"to":3146,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3146,"to":3147,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3147,"to":3189,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3189,"to":3209,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3209,"to":3226,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3226,"to":3238,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3238,"to":3272,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3272,"to":3284,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3284,"to":3315,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3315,"to":3335,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3335,"to":3352,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3352,"to":3364,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3364,"to":3386,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3386,"to":3517,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3517,"to":3518,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3518,"to":3531,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3531,"to":3543,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3543,"to":3569,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3569,"to":3589,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3589,"to":3609,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3609,"to":3629,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3629,"to":3687,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3687,"to":3707,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3707,"to":3724,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3724,"to":3736,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3736,"to":3756,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3756,"to":3757,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3757,"to":3795,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3795,"to":3815,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3815,"to":3832,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3832,"to":3844,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3844,"to":3878,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3878,"to":3890,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3890,"to":3921,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3921,"to":3941,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3941,"to":3958,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3958,"to":3970,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":3970,"to":3992,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3992,"to":4191,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4191,"to":4192,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":4192,"to":4205,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4205,"to":4217,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4217,"to":4243,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4243,"to":4263,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4263,"to":4283,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4283,"to":4303,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4303,"to":4361,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4361,"to":4381,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4381,"to":4398,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4398,"to":4410,"input":{"left":true,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4410,"to":4430,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4430,"to":4431,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":4431,"to":4469,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":4469,"to":4489,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":4489,"to":4500,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}}]}
+",
+  "content/sprites.json": "{
+  "version": 1,
+  "sprites": [
+    {
+      "type": "@player",
+      "base": "hero-side",
+      "recolor": {
+        "accent": "#e7b52c",
+        "garment": "#e7b52c"
+      }
+    },
+    {
+      "type": "oil",
+      "base": "can",
+      "recolor": {
+        "secondary": "#c4473a"
+      }
+    },
+    {
+      "type": "lamp",
+      "base": "lamp"
+    },
+    {
+      "type": "cellar",
+      "base": "barrel"
+    },
+    {
+      "type": "crab",
+      "base": "walker",
+      "recolor": {
+        "danger": "#d9583b"
+      }
+    },
+    {
+      "type": "gull",
+      "base": "hopper",
+      "recolor": {
+        "secondary": "#8c99a6"
+      }
+    },
+    {
+      "type": "urchin",
+      "base": "turret",
+      "recolor": {
+        "danger": "#7a4fb5"
+      }
+    },
+    {
+      "type": "shell",
+      "base": "coin",
+      "recolor": {
+        "accent": "#f2a7b8"
+      }
+    }
+  ]
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "jump",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "land",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "hit",
+    "channels": [
+      "shake",
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "death",
+    "channels": [
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "pickup",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "custom:lift",
+    "channels": [
+      "particle",
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:deliver",
+    "channels": [
+      "particle",
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:drop",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:no_order",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:not_ready",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:order",
+    "channels": [
+      "particle",
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:order_hurry",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:order_filled",
+    "channels": [
+      "particle",
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:order_missed",
+    "channels": [
+      "particle",
+      "sfx"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"Keeper of the Lamp","genre":"freeform","base":"platformer","scopeTier":"small","pillars":["the lamp must not go out","the cliff path bites back","every can counts"],"scope":{"levels":3,"enemies":2,"items":1,"bosses":0},"targets":{"sessionMin":5,"levelTimeS":75,"deathsPerLevel":2},"verbs":["jump","stomp","carry"],"feedbackEvents":[{"event":"jump","channels":["sfx"]},{"event":"land","channels":["sfx"]},{"event":"hit","channels":["shake","flash","sfx"]},{"event":"death","channels":["flash","sfx"]},{"event":"pickup","channels":["sfx","particle"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+x
+
+## Pillars
+x
+
+## Core loop
+x
+
+## Progression
+x
+
+## Scope
+x
+
+## Feedback
+x
+",
+  "design/mechanics.json": "{ "version": 1, "mechanics": [] }
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "freeform",
+  "composition": {
+    "base": "platformer"
+  },
+  "feelPreset": "celeste-class",
+  "systems": [
+    {
+      "id": "movement-platformer",
+      "params": {}
+    },
+    {
+      "id": "hazards",
+      "params": {}
+    },
+    {
+      "id": "combat-stomp",
+      "params": {}
+    },
+    {
+      "id": "pickups",
+      "params": {}
+    },
+    {
+      "id": "carry",
+      "params": {
+        "dropoffs": 1
+      }
+    },
+    {
+      "id": "orders",
+      "params": {
+        "patienceS": 20,
+        "everyS": 10,
+        "maxOpen": 1,
+        "missDamage": 3
+      }
+    },
+    {
+      "id": "objectives",
+      "params": {}
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Keeper of the Lamp</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-lighthouse",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs",
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
+import type { FeedbackBinding, SimOptions } from '@gg/sdk';
+import { simOptionsFor } from '@gg/template-core';
+import { compose } from '@gg/template-freeform';
+import rosterJson from '../content/entities.json';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+/** A freeform game on platformer: its systems from any genre's catalog, its roster's entities, composed at load. */
+export const SYSTEMS = systemsJson as unknown as FreeformSystemsJson;
+export const ROSTER = rosterJson as unknown as EntityRoster;
+const runtime = compose(SYSTEMS, ROSTER).runtime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob(['../content/*.json', '!../content/entities.json'], { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** The selected systems (in systems.json order), then bespoke systems, then the feedback binder; the roster's entities. */
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = simOptionsFor(runtime, SYSTEMS, { behaviours: sorted(behaviourFiles), rules: sorted(ruleFiles), content: CONTENT, feedback: FEEDBACK, bespoke: BESPOKE });
+export const BEHAVIOURS: BehaviourFsm[] = SIM_OPTIONS.behaviours ?? [];
+export const RULES: EcaRule[] = SIM_OPTIONS.rules ?? [];
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-lighthouse', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'platformer',
+    title: 'Keeper of the Lamp',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', list it here, and write its contract in design/mechanics.json: the game's
+ * test holds the code to it. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import type { EntityRoster, FreeformSystemsJson, LevelProof } from '@gg/schemas';
+import { freeformCheck } from '@gg/template-freeform/check';
+import rosterJson from '../../content/entities.json';
+import systemsJson from '../../design/systems.json';
+
+const proofFiles = import.meta.glob('../../content/proofs/*.json', { eager: true, import: 'default' }) as Record<string, LevelProof>;
+const kit = freeformCheck(systemsJson as unknown as FreeformSystemsJson, rosterJson as unknown as EntityRoster, Object.values(proofFiles));
+/** The proof bot replays each level's recorded winning run; chaos presses keys at random. */
+export const BOTS = kit.bots;
+export const SOLVER_BOT = kit.solverBot;
+",
+  "tests/unit/game.test.ts": "import { MechanicsFile } from '@gg/schemas';
+import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
+import { conformance, levelTicksOf, runBot, type BotPolicy } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+const MECHANICS = MechanicsFile.parse(mechanicsJson).mechanics;
+
+describe('freeform game', () => {
+  it('every level is completable by the solver bot, at the seed the level is played with', () => {
+    const solver = BOTS[SOLVER_BOT]! as BotPolicy & { has?: (level: string) => boolean };
+    for (const [i, level] of LEVELS.entries()) {
+      // A freeform level with no recorded run yet waits for one (the game is not listed until then): nothing to replay.
+      if (solver.has && !solver.has(level.id)) continue;
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), solver, levelTicksOf(SIM_OPTIONS));
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+  // The game's own systems (src/systems) do what their contracts (design/mechanics.json) say, and keep the game sound.
+  it.runIf(BESPOKE.length > 0 || MECHANICS.length > 0)('its own systems keep to their contracts', () => {
+    const levels = LEVELS.map((level, i) => ({ level, seed: levelSeed(DEFAULT_SEED, i) }));
+    const bots = { [SOLVER_BOT]: BOTS[SOLVER_BOT]!, chaos: BOTS['chaos']! };
+    const r = conformance({ options: SIM_OPTIONS, levels, contracts: MECHANICS, bespoke: BESPOKE.map((s) => s.id), bots, ticks: levelTicksOf(SIM_OPTIONS) });
+    expect(r.issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+});
+",
+  "tests/unit/prove.test.ts": "import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { LevelProof, MechanicsFile } from '@gg/schemas';
+import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
+import { describe, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
+import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
+
+const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
+
+describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer", () => {
+    const base = BASE_MANIFESTS[SYSTEMS.composition.base];
+    const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
+    mkdirSync(proofs, { recursive: true });
+    const waiting: string[] = [];
+    for (const [i, level] of LEVELS.entries()) {
+      const file = \`\${proofs}\${level.id}.json\`;
+      const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000 };
+      const r = proveLevel(level, i, inputs, stored);
+      // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
+      if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');
+      else {
+        rmSync(file, { force: true });
+        waiting.push(\`\${level.id} (\${r.tried.join('; ')})\`);
+      }
+    }
+    if (waiting.length) console.warn(\`waiting for a winning run: \${waiting.join(', ')}\`);
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;
+
 exports[`scaffold output is pinned for the freeform examples > moon files are unchanged 1`] = `
 {
   "assets/manifest.json": "{ "version": 1, "assets": [] }
@@ -12160,6 +13257,801 @@ void createGame({
     animationFps: style.animationFps,
     genre: 'platformer',
     title: 'Rooftop Courier',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', list it here, and write its contract in design/mechanics.json: the game's
+ * test holds the code to it. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import type { EntityRoster, FreeformSystemsJson, LevelProof } from '@gg/schemas';
+import { freeformCheck } from '@gg/template-freeform/check';
+import rosterJson from '../../content/entities.json';
+import systemsJson from '../../design/systems.json';
+
+const proofFiles = import.meta.glob('../../content/proofs/*.json', { eager: true, import: 'default' }) as Record<string, LevelProof>;
+const kit = freeformCheck(systemsJson as unknown as FreeformSystemsJson, rosterJson as unknown as EntityRoster, Object.values(proofFiles));
+/** The proof bot replays each level's recorded winning run; chaos presses keys at random. */
+export const BOTS = kit.bots;
+export const SOLVER_BOT = kit.solverBot;
+",
+  "tests/unit/game.test.ts": "import { MechanicsFile } from '@gg/schemas';
+import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
+import { conformance, levelTicksOf, runBot, type BotPolicy } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+const MECHANICS = MechanicsFile.parse(mechanicsJson).mechanics;
+
+describe('freeform game', () => {
+  it('every level is completable by the solver bot, at the seed the level is played with', () => {
+    const solver = BOTS[SOLVER_BOT]! as BotPolicy & { has?: (level: string) => boolean };
+    for (const [i, level] of LEVELS.entries()) {
+      // A freeform level with no recorded run yet waits for one (the game is not listed until then): nothing to replay.
+      if (solver.has && !solver.has(level.id)) continue;
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), solver, levelTicksOf(SIM_OPTIONS));
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+  // The game's own systems (src/systems) do what their contracts (design/mechanics.json) say, and keep the game sound.
+  it.runIf(BESPOKE.length > 0 || MECHANICS.length > 0)('its own systems keep to their contracts', () => {
+    const levels = LEVELS.map((level, i) => ({ level, seed: levelSeed(DEFAULT_SEED, i) }));
+    const bots = { [SOLVER_BOT]: BOTS[SOLVER_BOT]!, chaos: BOTS['chaos']! };
+    const r = conformance({ options: SIM_OPTIONS, levels, contracts: MECHANICS, bespoke: BESPOKE.map((s) => s.id), bots, ticks: levelTicksOf(SIM_OPTIONS) });
+    expect(r.issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+});
+",
+  "tests/unit/prove.test.ts": "import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { LevelProof, MechanicsFile } from '@gg/schemas';
+import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
+import { describe, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
+import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
+
+const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
+
+describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer", () => {
+    const base = BASE_MANIFESTS[SYSTEMS.composition.base];
+    const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
+    mkdirSync(proofs, { recursive: true });
+    const waiting: string[] = [];
+    for (const [i, level] of LEVELS.entries()) {
+      const file = \`\${proofs}\${level.id}.json\`;
+      const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000 };
+      const r = proveLevel(level, i, inputs, stored);
+      // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
+      if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');
+      else {
+        rmSync(file, { force: true });
+        waiting.push(\`\${level.id} (\${r.tried.join('; ')})\`);
+      }
+    }
+    if (waiting.length) console.warn(\`waiting for a winning run: \${waiting.join(', ')}\`);
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;
+
+exports[`scaffold output is pinned for the freeform examples > tearoom files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/behaviour/chaser.fsm.json": "{
+  "version": 1,
+  "id": "chaser",
+  "designNotes": "Runs straight at the player; staggers briefly when hit.",
+  "initial": "chase",
+  "states": {
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 38
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "stagger": {
+      "onEnter": [
+        {
+          "kind": "move_away_from_player",
+          "speed": 60
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 200
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/entities.json": "{
+  "version": 1,
+  "designNotes": "The cargo is a cup of tea, the source is the kitchen counter, the dropoffs are the garden tables.",
+  "player": {
+    "hp": 3
+  },
+  "types": [
+    {
+      "type": "tea",
+      "archetype": "carry:cargo",
+      "hp": 1
+    },
+    {
+      "type": "table",
+      "archetype": "carry:dropoff",
+      "hp": 1
+    },
+    {
+      "type": "kitchen",
+      "archetype": "carry:source",
+      "hp": 1
+    }
+  ]
+}
+",
+  "content/levels/L01-arena.json": "{
+  "version": 1,
+  "id": "arena",
+  "name": "Arena",
+  "tileSize": 8,
+  "width": 56,
+  "height": 34,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "S": "spawn",
+    "G": "goal"
+  },
+  "rows": [
+    "########################################################",
+    "#......................................................#",
+    "#......................................................#",
+    "#....................##................................#",
+    "#....................##................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................##..............#",
+    "#.................##................##.##..............#",
+    "#.................##................##.................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#...........................SG.........................#",
+    "#......................................................#",
+    "#..........................#...........................#",
+    "#......................................................#",
+    "#.................##.................##..##............#",
+    "#.................##.................##..##............#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#............................................##........#",
+    "#............................................##........#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "########################################################"
+  ],
+  "entities": [
+    {
+      "type": "kitchen",
+      "x": 27,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "table",
+      "x": 18,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "table",
+      "x": 36,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "table",
+      "x": 37,
+      "y": 22,
+      "props": {}
+    },
+    {
+      "type": "table",
+      "x": 18,
+      "y": 22,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 28,
+    "y": 17
+  },
+  "goal": {
+    "x": 29,
+    "y": 17
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.25
+  }
+}
+",
+  "content/objectives.json": "{
+  "version": 1,
+  "win": {
+    "mode": "all",
+    "clauses": [
+      {
+        "kind": "hud_at_least",
+        "key": "delivered",
+        "value": 12
+      }
+    ]
+  },
+  "lose": [
+    {
+      "kind": "lives",
+      "count": 1
+    }
+  ]
+}
+",
+  "content/proofs/arena.json": "{"version":1,"level":"arena","seed":1,"ticks":3722,"by":"bot","script":[{"from":0,"to":3,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3,"to":4,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":4,"to":5,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":5,"to":6,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":6,"to":7,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":7,"to":8,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":8,"to":9,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":9,"to":10,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":10,"to":11,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":11,"to":12,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":12,"to":15,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":15,"to":34,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":34,"to":35,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":35,"to":36,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":36,"to":44,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":44,"to":121,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":121,"to":122,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":122,"to":145,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":145,"to":146,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":146,"to":147,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":147,"to":148,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":148,"to":149,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":149,"to":164,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":164,"to":165,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":165,"to":167,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":167,"to":168,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":168,"to":170,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":170,"to":171,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":171,"to":172,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":172,"to":173,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":173,"to":174,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":174,"to":175,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":175,"to":176,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":176,"to":178,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":178,"to":179,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":179,"to":181,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":181,"to":182,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":182,"to":190,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":190,"to":191,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":191,"to":192,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":192,"to":193,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":193,"to":194,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":194,"to":195,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":195,"to":218,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":218,"to":221,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":221,"to":222,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":222,"to":223,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":223,"to":224,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":224,"to":225,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":225,"to":226,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":226,"to":232,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":232,"to":414,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":414,"to":415,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":415,"to":453,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":453,"to":454,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":454,"to":455,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":455,"to":461,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":461,"to":462,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":462,"to":464,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":464,"to":465,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":465,"to":466,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":466,"to":467,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":467,"to":468,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":468,"to":469,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":469,"to":470,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":470,"to":479,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":479,"to":480,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":480,"to":491,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":491,"to":492,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":492,"to":493,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":493,"to":494,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":494,"to":495,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":495,"to":496,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":496,"to":510,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":510,"to":511,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":511,"to":513,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":513,"to":514,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":514,"to":516,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":516,"to":517,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":517,"to":518,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":518,"to":519,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":519,"to":520,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":520,"to":521,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":521,"to":522,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":522,"to":524,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":524,"to":525,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":525,"to":530,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":530,"to":531,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":531,"to":536,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":536,"to":537,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":537,"to":538,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":538,"to":539,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":539,"to":540,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":540,"to":541,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":541,"to":563,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":563,"to":564,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":564,"to":565,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":565,"to":568,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":568,"to":569,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":569,"to":570,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":570,"to":571,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":571,"to":572,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":572,"to":573,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":573,"to":574,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":574,"to":575,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":575,"to":577,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":577,"to":578,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":578,"to":685,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":685,"to":687,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":687,"to":691,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":691,"to":695,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":695,"to":699,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":699,"to":703,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":703,"to":707,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":707,"to":711,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":711,"to":715,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":715,"to":716,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":716,"to":717,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":717,"to":718,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":718,"to":719,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":719,"to":720,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":720,"to":721,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":721,"to":722,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":722,"to":725,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":725,"to":731,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":731,"to":732,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":732,"to":733,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":733,"to":736,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":736,"to":737,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":737,"to":738,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":738,"to":739,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":739,"to":740,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":740,"to":741,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":741,"to":743,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":743,"to":744,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":744,"to":755,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":755,"to":756,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":756,"to":757,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":757,"to":758,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":758,"to":759,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":759,"to":760,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":760,"to":777,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":777,"to":778,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":778,"to":780,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":780,"to":781,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":781,"to":783,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":783,"to":784,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":784,"to":785,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":785,"to":786,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":786,"to":787,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":787,"to":788,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":788,"to":789,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":789,"to":791,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":791,"to":792,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":792,"to":793,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":793,"to":794,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":794,"to":1029,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1029,"to":1030,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1030,"to":1031,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1031,"to":1057,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1057,"to":1058,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1058,"to":1086,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1086,"to":1087,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1087,"to":1088,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1088,"to":1410,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1410,"to":1411,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1411,"to":1436,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1436,"to":1437,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1437,"to":1438,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1438,"to":1439,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1439,"to":1440,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1440,"to":1441,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1441,"to":1442,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1442,"to":1443,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1443,"to":1444,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1444,"to":1445,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1445,"to":1446,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1446,"to":1447,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1447,"to":1448,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1448,"to":1449,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1449,"to":1450,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1450,"to":1453,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1453,"to":1486,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1486,"to":1487,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1487,"to":1520,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1520,"to":1521,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1521,"to":1523,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1523,"to":1524,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1524,"to":1526,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1526,"to":1527,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1527,"to":1528,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1528,"to":1529,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1529,"to":1530,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1530,"to":1531,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1531,"to":1532,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1532,"to":1533,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1533,"to":1534,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1534,"to":1535,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1535,"to":1536,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1536,"to":1565,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1565,"to":1815,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1815,"to":1840,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1840,"to":1841,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1841,"to":1843,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1843,"to":1844,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1844,"to":1845,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1845,"to":1846,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1846,"to":1847,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1847,"to":1848,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1848,"to":1853,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1853,"to":1854,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1854,"to":1878,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1878,"to":1879,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1879,"to":1880,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1880,"to":1881,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1881,"to":1882,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1882,"to":1883,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1883,"to":1900,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1900,"to":1901,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1901,"to":1903,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1903,"to":1904,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1904,"to":1906,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1906,"to":1907,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1907,"to":1908,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1908,"to":1909,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1909,"to":1910,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1910,"to":1911,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1911,"to":1912,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1912,"to":1914,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1914,"to":1915,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1915,"to":1916,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1916,"to":1917,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1917,"to":2090,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2090,"to":2091,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2091,"to":2117,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2117,"to":2122,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2122,"to":2123,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2123,"to":2124,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2124,"to":2127,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2127,"to":2165,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2165,"to":2166,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2166,"to":2204,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2204,"to":2205,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2205,"to":2206,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2206,"to":2207,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2207,"to":2243,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2243,"to":2401,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2401,"to":2427,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2427,"to":2428,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2428,"to":2430,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2430,"to":2446,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2446,"to":2449,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2449,"to":2450,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2450,"to":2451,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2451,"to":2452,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2452,"to":2454,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2454,"to":2455,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2455,"to":2468,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2468,"to":2469,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2469,"to":2483,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2483,"to":2484,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2484,"to":2485,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2485,"to":2486,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2486,"to":2487,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2487,"to":2488,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2488,"to":2498,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2498,"to":2499,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2499,"to":2500,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2500,"to":2503,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2503,"to":2504,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2504,"to":2505,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2505,"to":2506,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2506,"to":2507,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2507,"to":2508,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2508,"to":2510,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2510,"to":2511,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2511,"to":2521,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2521,"to":2522,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2522,"to":2523,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2523,"to":2524,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2524,"to":2525,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2525,"to":2526,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2526,"to":2527,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2527,"to":2544,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2544,"to":2547,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2547,"to":2548,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2548,"to":2549,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2549,"to":2550,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2550,"to":2551,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2551,"to":2552,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2552,"to":2557,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2557,"to":2759,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2759,"to":2760,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2760,"to":2761,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2761,"to":2785,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2785,"to":2786,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2786,"to":2816,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2816,"to":3029,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3029,"to":3030,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3030,"to":3056,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3056,"to":3057,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3057,"to":3088,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3088,"to":3310,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3310,"to":3312,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3312,"to":3316,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3316,"to":3320,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3320,"to":3324,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3324,"to":3328,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3328,"to":3332,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3332,"to":3336,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3336,"to":3340,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3340,"to":3342,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3342,"to":3343,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3343,"to":3344,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3344,"to":3345,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3345,"to":3346,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3346,"to":3347,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3347,"to":3348,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3348,"to":3351,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3351,"to":3356,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3356,"to":3359,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3359,"to":3360,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3360,"to":3361,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3361,"to":3362,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3362,"to":3363,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3363,"to":3364,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3364,"to":3368,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3368,"to":3369,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3369,"to":3379,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3379,"to":3380,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":3380,"to":3381,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3381,"to":3382,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3382,"to":3384,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3384,"to":3385,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3385,"to":3386,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3386,"to":3387,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3387,"to":3388,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3388,"to":3389,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3389,"to":3390,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3390,"to":3391,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3391,"to":3392,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3392,"to":3395,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3395,"to":3407,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3407,"to":3410,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3410,"to":3411,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3411,"to":3412,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3412,"to":3642,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3642,"to":3644,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3644,"to":3648,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3648,"to":3652,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3652,"to":3656,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3656,"to":3660,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3660,"to":3664,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3664,"to":3668,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3668,"to":3672,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3672,"to":3676,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3676,"to":3680,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3680,"to":3721,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":3721,"to":3722,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}}]}
+",
+  "content/sprites.json": "{
+  "version": 1,
+  "sprites": [
+    {
+      "type": "@player",
+      "base": "hero-topdown",
+      "recolor": {
+        "accent": "#9aa0ab",
+        "garment": "#2c3a5e"
+      },
+      "overlays": [
+        {
+          "anims": [
+            "down-idle",
+            "down-run",
+            "down-attack",
+            "down-hurt",
+            "up-idle",
+            "up-run",
+            "up-attack",
+            "up-hurt"
+          ],
+          "x": 1,
+          "y": 0,
+          "rows": [
+            "aa__bb"
+          ]
+        },
+        {
+          "anims": [
+            "side-idle",
+            "side-run",
+            "side-attack",
+            "side-hurt"
+          ],
+          "x": 2,
+          "y": 0,
+          "rows": [
+            "a_Ab"
+          ]
+        },
+        {
+          "anims": [
+            "down-idle",
+            "down-run",
+            "down-attack",
+            "down-hurt"
+          ],
+          "x": 3,
+          "y": 5,
+          "rows": [
+            "ww"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "tea",
+      "base": "cup",
+      "recolor": {
+        "accent": "#c8577a"
+      }
+    },
+    {
+      "type": "table",
+      "base": "table",
+      "recolor": {
+        "wood": "#a0683a",
+        "secondary": "#5f86c9"
+      }
+    },
+    {
+      "type": "kitchen",
+      "base": "counter",
+      "recolor": {
+        "wood": "#a0683a"
+      }
+    }
+  ]
+}
+",
+  "content/waves.json": "{
+  "version": 1,
+  "designNotes": "difficulty 0.25 ramp over 60s",
+  "waves": [
+    {
+      "atS": 2,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 8,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 14,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 20,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 4,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 26,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 4,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 32,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 38,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 44,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 50,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 6,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 56,
+      "spawns": [
+        {
+          "enemy": "chaser",
+          "count": 6,
+          "pattern": "ring"
+        }
+      ]
+    }
+  ]
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "hit",
+    "channels": [
+      "shake",
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "death",
+    "channels": [
+      "shake",
+      "sfx"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "custom:lift",
+    "channels": [
+      "particle",
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:deliver",
+    "channels": [
+      "particle",
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:drop",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:no_order",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:not_ready",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:order",
+    "channels": [
+      "particle",
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:order_hurry",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:order_filled",
+    "channels": [
+      "particle",
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:order_missed",
+    "channels": [
+      "particle",
+      "sfx"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"Tea Room Rush","genre":"freeform","base":"survivors","scopeTier":"small","pillars":["every table is waiting on you","the next order is already ringing","three walkouts and the afternoon is lost"],"scope":{"levels":1,"enemies":0,"items":1,"bosses":0},"targets":{"sessionMin":5,"levelTimeS":60,"deathsPerLevel":1},"verbs":["move","carry","serve"],"feedbackEvents":[{"event":"hit","channels":["shake","flash","sfx"]},{"event":"death","channels":["shake","sfx"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+x
+
+## Pillars
+x
+
+## Core loop
+x
+
+## Progression
+x
+
+## Scope
+x
+
+## Feedback
+x
+",
+  "design/mechanics.json": "{ "version": 1, "mechanics": [] }
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "freeform",
+  "composition": {
+    "base": "survivors"
+  },
+  "feelPreset": "arena-melee",
+  "systems": [
+    {
+      "id": "movement-topdown",
+      "params": {}
+    },
+    {
+      "id": "carry",
+      "params": {
+        "dropoffs": 4
+      }
+    },
+    {
+      "id": "orders",
+      "params": {
+        "everyS": 5,
+        "patienceS": 14,
+        "maxOpen": 3
+      }
+    },
+    {
+      "id": "objectives",
+      "params": {}
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tea Room Rush</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-tearoom",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs",
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
+import type { FeedbackBinding, SimOptions } from '@gg/sdk';
+import { simOptionsFor } from '@gg/template-core';
+import { compose } from '@gg/template-freeform';
+import rosterJson from '../content/entities.json';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+/** A freeform game on survivors: its systems from any genre's catalog, its roster's entities, composed at load. */
+export const SYSTEMS = systemsJson as unknown as FreeformSystemsJson;
+export const ROSTER = rosterJson as unknown as EntityRoster;
+const runtime = compose(SYSTEMS, ROSTER).runtime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob(['../content/*.json', '!../content/entities.json'], { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** The selected systems (in systems.json order), then bespoke systems, then the feedback binder; the roster's entities. */
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = simOptionsFor(runtime, SYSTEMS, { behaviours: sorted(behaviourFiles), rules: sorted(ruleFiles), content: CONTENT, feedback: FEEDBACK, bespoke: BESPOKE });
+export const BEHAVIOURS: BehaviourFsm[] = SIM_OPTIONS.behaviours ?? [];
+export const RULES: EcaRule[] = SIM_OPTIONS.rules ?? [];
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-tearoom', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'survivors',
+    title: 'Tea Room Rush',
   },
   parent: 'game',
   defaultSeed: 1,

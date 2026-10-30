@@ -1,0 +1,51 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-topdown",
+      "carry",
+      "orders",
+      "objectives"
+    ],
+    "entityDefs": "ce1954c9aea230c3",
+    "types": [
+      "chaser",
+      "brute",
+      "xp",
+      "tea<cargo",
+      "table<dropoff",
+      "kitchen<source"
+    ],
+    "behaviours": "94810155a5ff6f2c",
+    "vocab": "3c23db6356fb1f7f",
+    "composedParams": {
+      "carry": {
+        "cargoType": "tea",
+        "sourceType": "kitchen",
+        "dropoffType": "table"
+      }
+    },
+    "feedbackExtras": [
+      "custom:lift",
+      "custom:deliver",
+      "custom:drop",
+      "custom:no_order",
+      "custom:not_ready",
+      "custom:order",
+      "custom:order_hurry",
+      "custom:order_filled",
+      "custom:order_missed"
+    ],
+    "player": {
+      "w": 8,
+      "h": 10,
+      "hp": 3
+    }
+  },
+  "arena": {
+    "level": "0fc2b623711277da",
+    "content": "4fee5e664506a967",
+    "by": "bot",
+    "ticks": 3643,
+    "script": "e5fd9d1163a9525f"
+  }
+}
