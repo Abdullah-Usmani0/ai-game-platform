@@ -34,6 +34,15 @@ win (the `objectives` system can: reach the goal, survive, defeat, collect, a HU
 does when anything can hurt the player, every system's needs are met (its movement, the entities and content it uses),
 and no key has two uses.
 
+Two blocks only freeform games compose:
+- `auto-run` (side view) makes a runner: the player runs right on their own at `pace` of the feel's top speed, rising by
+  `rampPerMin`; left and right do nothing, so the play page and the explorer leave them out, and the levels are generated
+  as long as the GDD's level time at that pace. It cannot go with `movement-metroidvania`, whose maps are won by going back.
+- `player-shooter` `aim`: `up` (a vertical shooter), `facing` (top-down where the arrows last pointed; side view forward,
+  or up with up held), `nearest` (the closest hostile within `range`: a twin-stick arena on one fire key). A side view
+  takes `facing` or `nearest`. In an arena, a `defeat` clause beside `survive` makes the shots needed: a good kiter
+  outlasts a minute without firing.
+
 The composition stage then writes, as data:
 - `game/content/entities.json` (`EntityRoster`): the game's names for shipped entities, `{ type, archetype: "<genre>:<type>", hp }`
   with `hp` a health scale from 0.5 to 3; entities left out keep their own names.

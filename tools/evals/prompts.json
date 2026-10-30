@@ -355,6 +355,20 @@
       "tier": "F0",
       "scopeTier": "small",
       "prompt": "A crab farming kelp gardens on the seabed: sow the beds, water them with bubbles and ship the harvest at the reef market before the tide turns."
+    },
+    {
+      "id": "f14",
+      "genre": "freeform",
+      "tier": "F1",
+      "scopeTier": "small",
+      "prompt": "An endless-runner fox courier who never stops on the city rooftops: jump every gap, bounce on the rats and grab the letters along the way."
+    },
+    {
+      "id": "f15",
+      "genre": "freeform",
+      "tier": "F1",
+      "scopeTier": "small",
+      "prompt": "A twin-stick garden defence: a gnome holding out against waves of slugs and beetles, a water pistol that squirts the nearest pest, until sundown."
     }
   ]
 }

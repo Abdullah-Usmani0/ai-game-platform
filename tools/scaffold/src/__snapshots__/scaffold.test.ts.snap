@@ -3422,7 +3422,9 @@ Hits flash and sound, deaths shake and flash, dashes and pickups sound, survivin
         "shotSpeed": 220,
         "damage": 1,
         "spread": 1,
-        "killScore": 10
+        "killScore": 10,
+        "aim": "up",
+        "range": 160
       }
     },
     {
@@ -5691,6 +5693,717 @@ describe('topdown-action game', () => {
     const bots = { [SOLVER_BOT]: BOTS[SOLVER_BOT]!, chaos: BOTS['chaos']! };
     const r = conformance({ options: SIM_OPTIONS, levels, contracts: MECHANICS, bespoke: BESPOKE.map((s) => s.id), bots, ticks: levelTicksOf(SIM_OPTIONS) });
     expect(r.issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;
+
+exports[`scaffold output is pinned for the freeform examples > gnome files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/behaviour/chaser.fsm.json": "{
+  "version": 1,
+  "id": "chaser",
+  "designNotes": "Runs straight at the player; staggers briefly when hit.",
+  "initial": "chase",
+  "states": {
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 38
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stagger",
+          "when": {
+            "kind": "took_damage"
+          }
+        }
+      ]
+    },
+    "stagger": {
+      "onEnter": [
+        {
+          "kind": "move_away_from_player",
+          "speed": 60
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 200
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/entities.json": "{
+  "version": 1,
+  "designNotes": "The arena chasers are slugs, the brutes are beetles; the shot is a squirt of water.",
+  "player": {},
+  "types": [
+    {
+      "type": "slug",
+      "archetype": "survivors:chaser",
+      "hp": 1
+    },
+    {
+      "type": "beetle",
+      "archetype": "survivors:brute",
+      "hp": 1
+    },
+    {
+      "type": "squirt",
+      "archetype": "shmup:shot",
+      "hp": 1
+    }
+  ]
+}
+",
+  "content/levels/L01-arena.json": "{
+  "version": 1,
+  "id": "arena",
+  "name": "Arena",
+  "tileSize": 8,
+  "width": 56,
+  "height": 34,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "S": "spawn",
+    "G": "goal"
+  },
+  "rows": [
+    "########################################################",
+    "#......................................................#",
+    "#......................................................#",
+    "#....................##................................#",
+    "#....................##................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................##..............#",
+    "#......................................##..............#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#...........................SG.........................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#........................................##............#",
+    "#........................................##............#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "#............................................##........#",
+    "#............................................##........#",
+    "#......................................................#",
+    "#......................................................#",
+    "#......................................................#",
+    "########################################################"
+  ],
+  "entities": [],
+  "spawn": {
+    "x": 28,
+    "y": 17
+  },
+  "goal": {
+    "x": 29,
+    "y": 17
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.25
+  }
+}
+",
+  "content/objectives.json": "{
+  "version": 1,
+  "win": {
+    "mode": "all",
+    "clauses": [
+      {
+        "kind": "survive",
+        "seconds": 45
+      },
+      {
+        "kind": "defeat",
+        "count": 20
+      }
+    ]
+  },
+  "lose": [
+    {
+      "kind": "lives",
+      "count": 2
+    }
+  ]
+}
+",
+  "content/proofs/arena.json": "{"version":1,"level":"arena","seed":1,"ticks":2700,"by":"explorer","script":[{"from":0,"to":2,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2,"to":18,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":18,"to":23,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":23,"to":32,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":32,"to":44,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":44,"to":57,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":57,"to":62,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":62,"to":72,"input":{"left":false,"right":true,"up":false,"down":true,"jump":true,"dash":false,"action":true,"pause":false}},{"from":72,"to":83,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":83,"to":88,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":88,"to":95,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":95,"to":105,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":105,"to":116,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":116,"to":118,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":118,"to":124,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":124,"to":143,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":143,"to":147,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":147,"to":163,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":163,"to":166,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":166,"to":190,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":190,"to":200,"input":{"left":true,"right":false,"up":false,"down":true,"jump":true,"dash":false,"action":false,"pause":false}},{"from":200,"to":204,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":204,"to":207,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":207,"to":217,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":217,"to":235,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":235,"to":238,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":238,"to":242,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":242,"to":252,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":252,"to":255,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":255,"to":267,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":267,"to":284,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":284,"to":288,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":true,"action":true,"pause":false}},{"from":288,"to":290,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":290,"to":297,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":297,"to":311,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":311,"to":316,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":316,"to":337,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":337,"to":349,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":true,"action":true,"pause":false}},{"from":349,"to":363,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":363,"to":366,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":366,"to":378,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":378,"to":385,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":385,"to":393,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":true,"action":false,"pause":false}},{"from":393,"to":398,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":398,"to":401,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":401,"to":420,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":420,"to":428,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":428,"to":440,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":440,"to":452,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":452,"to":459,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":459,"to":463,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":463,"to":470,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":470,"to":487,"input":{"left":true,"right":false,"up":true,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":487,"to":494,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":494,"to":510,"input":{"left":false,"right":true,"up":false,"down":true,"jump":true,"dash":false,"action":false,"pause":false}},{"from":510,"to":517,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":517,"to":523,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":523,"to":535,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":535,"to":548,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":548,"to":560,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":560,"to":562,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":562,"to":576,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":576,"to":589,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":589,"to":607,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":607,"to":609,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":609,"to":623,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":623,"to":627,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":627,"to":646,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":646,"to":663,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":true,"action":false,"pause":false}},{"from":663,"to":672,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":672,"to":677,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":677,"to":699,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":699,"to":712,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":712,"to":720,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":720,"to":738,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":738,"to":747,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":747,"to":750,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":750,"to":760,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":760,"to":766,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":766,"to":779,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":779,"to":788,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":788,"to":796,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":796,"to":800,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":800,"to":817,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":817,"to":819,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":819,"to":829,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":829,"to":836,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":836,"to":844,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":844,"to":859,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":859,"to":875,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":875,"to":877,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":877,"to":896,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":896,"to":906,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":906,"to":913,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":913,"to":916,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":916,"to":928,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":928,"to":935,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":935,"to":939,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":939,"to":942,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":942,"to":952,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":952,"to":965,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":965,"to":971,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":971,"to":978,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":978,"to":996,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":996,"to":1003,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1003,"to":1008,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":1008,"to":1018,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1018,"to":1025,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1025,"to":1035,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1035,"to":1038,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":1038,"to":1055,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1055,"to":1063,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1063,"to":1075,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1075,"to":1088,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1088,"to":1102,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1102,"to":1106,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1106,"to":1125,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1125,"to":1132,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1132,"to":1149,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1149,"to":1157,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1157,"to":1166,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1166,"to":1187,"input":{"left":true,"right":false,"up":false,"down":true,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1187,"to":1205,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1205,"to":1217,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1217,"to":1220,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1220,"to":1232,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1232,"to":1235,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1235,"to":1251,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":true,"action":false,"pause":false}},{"from":1251,"to":1257,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1257,"to":1266,"input":{"left":false,"right":true,"up":true,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1266,"to":1271,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1271,"to":1290,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1290,"to":1307,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1307,"to":1324,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1324,"to":1336,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1336,"to":1354,"input":{"left":false,"right":false,"up":true,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1354,"to":1370,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1370,"to":1376,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1376,"to":1387,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1387,"to":1397,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1397,"to":1412,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":1412,"to":1433,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1433,"to":1450,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1450,"to":1460,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1460,"to":1464,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1464,"to":1466,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1466,"to":1471,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":true,"action":false,"pause":false}},{"from":1471,"to":1486,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1486,"to":1491,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1491,"to":1505,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":1505,"to":1516,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1516,"to":1534,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1534,"to":1537,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1537,"to":1552,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1552,"to":1560,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1560,"to":1568,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1568,"to":1577,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":1577,"to":1585,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1585,"to":1590,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1590,"to":1592,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1592,"to":1600,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1600,"to":1615,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1615,"to":1621,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1621,"to":1625,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1625,"to":1636,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1636,"to":1644,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1644,"to":1657,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1657,"to":1670,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1670,"to":1687,"input":{"left":false,"right":false,"up":false,"down":true,"jump":true,"dash":false,"action":true,"pause":false}},{"from":1687,"to":1700,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1700,"to":1721,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1721,"to":1723,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1723,"to":1742,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":1742,"to":1760,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1760,"to":1763,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1763,"to":1782,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1782,"to":1794,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1794,"to":1801,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1801,"to":1803,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1803,"to":1806,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1806,"to":1823,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1823,"to":1826,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1826,"to":1837,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1837,"to":1852,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1852,"to":1863,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":true,"action":true,"pause":false}},{"from":1863,"to":1870,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1870,"to":1885,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1885,"to":1891,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1891,"to":1901,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":1901,"to":1906,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":1906,"to":1916,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1916,"to":1920,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":1920,"to":1925,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1925,"to":1938,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1938,"to":1948,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1948,"to":1960,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1960,"to":1962,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1962,"to":1965,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1965,"to":1975,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":1975,"to":1983,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1983,"to":1988,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":1988,"to":1999,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1999,"to":2011,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2011,"to":2023,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2023,"to":2025,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2025,"to":2041,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2041,"to":2058,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2058,"to":2076,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2076,"to":2079,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2079,"to":2096,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2096,"to":2115,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2115,"to":2132,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":2132,"to":2143,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2143,"to":2154,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2154,"to":2161,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2161,"to":2168,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2168,"to":2180,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2180,"to":2185,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2185,"to":2202,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2202,"to":2214,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2214,"to":2225,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2225,"to":2228,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2228,"to":2234,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2234,"to":2239,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2239,"to":2256,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2256,"to":2268,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":2268,"to":2276,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2276,"to":2285,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2285,"to":2302,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":2302,"to":2313,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2313,"to":2332,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2332,"to":2333,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2333,"to":2339,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":2339,"to":2353,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":true,"action":true,"pause":false}},{"from":2353,"to":2369,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":true,"action":true,"pause":false}},{"from":2369,"to":2380,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2380,"to":2396,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2396,"to":2398,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":true,"action":true,"pause":false}},{"from":2398,"to":2404,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2404,"to":2422,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2422,"to":2437,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2437,"to":2451,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2451,"to":2459,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2459,"to":2463,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2463,"to":2475,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2475,"to":2481,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2481,"to":2500,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2500,"to":2518,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2518,"to":2527,"input":{"left":true,"right":false,"up":true,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":2527,"to":2530,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2530,"to":2551,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2551,"to":2566,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2566,"to":2571,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2571,"to":2575,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2575,"to":2578,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2578,"to":2582,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2582,"to":2593,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":2593,"to":2617,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2617,"to":2624,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2624,"to":2637,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2637,"to":2642,"input":{"left":true,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2642,"to":2656,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2656,"to":2662,"input":{"left":false,"right":true,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2662,"to":2681,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":2681,"to":2687,"input":{"left":false,"right":true,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2687,"to":2690,"input":{"left":true,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2690,"to":2700,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}}]}
+",
+  "content/sprites.json": "{
+  "version": 1,
+  "sprites": [
+    {
+      "type": "@player",
+      "base": "hero-topdown",
+      "recolor": {
+        "hero": "#f2c29a",
+        "accent": "#d8373a",
+        "garment": "#3d6fc8",
+        "rim": "#f4f1ea"
+      },
+      "overlays": [
+        {
+          "x": 2,
+          "y": 0,
+          "rows": [
+            "_..__"
+          ]
+        },
+        {
+          "anims": [
+            "down-idle",
+            "down-run",
+            "down-attack",
+            "down-hurt"
+          ],
+          "x": 1,
+          "y": 4,
+          "rows": [
+            "yYYYYy",
+            ".yYYy."
+          ]
+        },
+        {
+          "anims": [
+            "side-idle",
+            "side-run",
+            "side-attack",
+            "side-hurt"
+          ],
+          "x": 4,
+          "y": 4,
+          "rows": [
+            "YYYy",
+            "yYy."
+          ]
+        }
+      ]
+    },
+    {
+      "type": "slug",
+      "base": "drone",
+      "recolor": {
+        "danger": "#d9a441"
+      },
+      "overlays": [
+        {
+          "x": 2,
+          "y": 0,
+          "rows": [
+            "k..k"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "beetle",
+      "base": "brute",
+      "recolor": {
+        "danger": "#5b4bb3"
+      },
+      "overlays": [
+        {
+          "x": 2,
+          "y": 0,
+          "rows": [
+            "kk....kk"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "squirt",
+      "base": "laser",
+      "recolor": {
+        "accent": "#5ab8ff"
+      }
+    }
+  ]
+}
+",
+  "content/waves.json": "{
+  "version": 1,
+  "designNotes": "difficulty 0.25 ramp over 60s",
+  "waves": [
+    {
+      "atS": 2,
+      "spawns": [
+        {
+          "enemy": "slug",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 8,
+      "spawns": [
+        {
+          "enemy": "slug",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 14,
+      "spawns": [
+        {
+          "enemy": "slug",
+          "count": 3,
+          "pattern": "edge"
+        }
+      ]
+    },
+    {
+      "atS": 20,
+      "spawns": [
+        {
+          "enemy": "slug",
+          "count": 4,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 26,
+      "spawns": [
+        {
+          "enemy": "slug",
+          "count": 4,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 32,
+      "spawns": [
+        {
+          "enemy": "slug",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 38,
+      "spawns": [
+        {
+          "enemy": "slug",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 44,
+      "spawns": [
+        {
+          "enemy": "slug",
+          "count": 5,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 50,
+      "spawns": [
+        {
+          "enemy": "slug",
+          "count": 6,
+          "pattern": "ring"
+        }
+      ]
+    },
+    {
+      "atS": 56,
+      "spawns": [
+        {
+          "enemy": "slug",
+          "count": 6,
+          "pattern": "ring"
+        }
+      ]
+    }
+  ]
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "dash",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "hit",
+    "channels": [
+      "hitstop",
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "death",
+    "channels": [
+      "shake",
+      "sfx"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"Gnome Guard","genre":"freeform","base":"survivors","scopeTier":"small","pillars":["the pistol finds the pest, you find the room","keep moving or be cornered","hold the patch until sundown"],"scope":{"levels":1,"enemies":2,"items":0,"bosses":0},"targets":{"sessionMin":5,"levelTimeS":45,"deathsPerLevel":1},"verbs":["move","dash","shoot"],"feedbackEvents":[{"event":"dash","channels":["sfx"]},{"event":"hit","channels":["hitstop","flash","sfx"]},{"event":"death","channels":["shake","sfx"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+x
+
+## Pillars
+x
+
+## Core loop
+x
+
+## Progression
+x
+
+## Scope
+x
+
+## Feedback
+x
+",
+  "design/mechanics.json": "{ "version": 1, "mechanics": [] }
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "freeform",
+  "composition": {
+    "base": "survivors"
+  },
+  "feelPreset": "arena-melee",
+  "systems": [
+    {
+      "id": "movement-topdown",
+      "params": {}
+    },
+    {
+      "id": "player-shooter",
+      "params": {
+        "aim": "nearest",
+        "fireCooldownTicks": 10
+      }
+    },
+    {
+      "id": "spawner",
+      "params": {}
+    },
+    {
+      "id": "objectives",
+      "params": {}
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gnome Guard</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-gnome",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs",
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
+import type { FeedbackBinding, SimOptions } from '@gg/sdk';
+import { simOptionsFor } from '@gg/template-core';
+import { compose } from '@gg/template-freeform';
+import rosterJson from '../content/entities.json';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+/** A freeform game on survivors: its systems from any genre's catalog, its roster's entities, composed at load. */
+export const SYSTEMS = systemsJson as unknown as FreeformSystemsJson;
+export const ROSTER = rosterJson as unknown as EntityRoster;
+const runtime = compose(SYSTEMS, ROSTER).runtime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob(['../content/*.json', '!../content/entities.json'], { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** The selected systems (in systems.json order), then bespoke systems, then the feedback binder; the roster's entities. */
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = simOptionsFor(runtime, SYSTEMS, { behaviours: sorted(behaviourFiles), rules: sorted(ruleFiles), content: CONTENT, feedback: FEEDBACK, bespoke: BESPOKE });
+export const BEHAVIOURS: BehaviourFsm[] = SIM_OPTIONS.behaviours ?? [];
+export const RULES: EcaRule[] = SIM_OPTIONS.rules ?? [];
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-gnome', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'survivors',
+    title: 'Gnome Guard',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', list it here, and write its contract in design/mechanics.json: the game's
+ * test holds the code to it. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import type { EntityRoster, FreeformSystemsJson, LevelProof } from '@gg/schemas';
+import { freeformCheck } from '@gg/template-freeform/check';
+import rosterJson from '../../content/entities.json';
+import systemsJson from '../../design/systems.json';
+
+const proofFiles = import.meta.glob('../../content/proofs/*.json', { eager: true, import: 'default' }) as Record<string, LevelProof>;
+const kit = freeformCheck(systemsJson as unknown as FreeformSystemsJson, rosterJson as unknown as EntityRoster, Object.values(proofFiles));
+/** The proof bot replays each level's recorded winning run; chaos presses keys at random. */
+export const BOTS = kit.bots;
+export const SOLVER_BOT = kit.solverBot;
+",
+  "tests/unit/game.test.ts": "import { MechanicsFile } from '@gg/schemas';
+import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
+import { conformance, levelTicksOf, runBot } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+const MECHANICS = MechanicsFile.parse(mechanicsJson).mechanics;
+
+describe('freeform game', () => {
+  it('every level is completable by the solver bot, at the seed the level is played with', () => {
+    for (const [i, level] of LEVELS.entries()) {
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), BOTS[SOLVER_BOT]!, levelTicksOf(SIM_OPTIONS));
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+  // The game's own systems (src/systems) do what their contracts (design/mechanics.json) say, and keep the game sound.
+  it.runIf(BESPOKE.length > 0 || MECHANICS.length > 0)('its own systems keep to their contracts', () => {
+    const levels = LEVELS.map((level, i) => ({ level, seed: levelSeed(DEFAULT_SEED, i) }));
+    const bots = { [SOLVER_BOT]: BOTS[SOLVER_BOT]!, chaos: BOTS['chaos']! };
+    const r = conformance({ options: SIM_OPTIONS, levels, contracts: MECHANICS, bespoke: BESPOKE.map((s) => s.id), bots, ticks: levelTicksOf(SIM_OPTIONS) });
+    expect(r.issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+});
+",
+  "tests/unit/prove.test.ts": "import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { LevelProof, MechanicsFile } from '@gg/schemas';
+import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
+import { describe, expect, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
+import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
+
+const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
+
+describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
+  it("every level gets one, played with the game's own systems: the stored run while it wins, else the solver, else the explorer", () => {
+    const base = BASE_MANIFESTS[SYSTEMS.composition.base];
+    const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
+    mkdirSync(proofs, { recursive: true });
+    for (const [i, level] of LEVELS.entries()) {
+      const file = \`\${proofs}\${level.id}.json\`;
+      const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000 };
+      const r = proveLevel(level, i, inputs, stored);
+      expect(r.proof, \`\${level.id}: \${r.tried.join('; ')}\`).not.toBeNull();
+      writeFileSync(file, JSON.stringify(r.proof) + '\\n');
+    }
   });
 });
 ",
@@ -10073,6 +10786,1314 @@ void createGame({
     animationFps: style.animationFps,
     genre: 'lifesim',
     title: 'Moon Garden',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', list it here, and write its contract in design/mechanics.json: the game's
+ * test holds the code to it. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import type { EntityRoster, FreeformSystemsJson, LevelProof } from '@gg/schemas';
+import { freeformCheck } from '@gg/template-freeform/check';
+import rosterJson from '../../content/entities.json';
+import systemsJson from '../../design/systems.json';
+
+const proofFiles = import.meta.glob('../../content/proofs/*.json', { eager: true, import: 'default' }) as Record<string, LevelProof>;
+const kit = freeformCheck(systemsJson as unknown as FreeformSystemsJson, rosterJson as unknown as EntityRoster, Object.values(proofFiles));
+/** The proof bot replays each level's recorded winning run; chaos presses keys at random. */
+export const BOTS = kit.bots;
+export const SOLVER_BOT = kit.solverBot;
+",
+  "tests/unit/game.test.ts": "import { MechanicsFile } from '@gg/schemas';
+import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
+import { conformance, levelTicksOf, runBot } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+const MECHANICS = MechanicsFile.parse(mechanicsJson).mechanics;
+
+describe('freeform game', () => {
+  it('every level is completable by the solver bot, at the seed the level is played with', () => {
+    for (const [i, level] of LEVELS.entries()) {
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), BOTS[SOLVER_BOT]!, levelTicksOf(SIM_OPTIONS));
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+  // The game's own systems (src/systems) do what their contracts (design/mechanics.json) say, and keep the game sound.
+  it.runIf(BESPOKE.length > 0 || MECHANICS.length > 0)('its own systems keep to their contracts', () => {
+    const levels = LEVELS.map((level, i) => ({ level, seed: levelSeed(DEFAULT_SEED, i) }));
+    const bots = { [SOLVER_BOT]: BOTS[SOLVER_BOT]!, chaos: BOTS['chaos']! };
+    const r = conformance({ options: SIM_OPTIONS, levels, contracts: MECHANICS, bespoke: BESPOKE.map((s) => s.id), bots, ticks: levelTicksOf(SIM_OPTIONS) });
+    expect(r.issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+});
+",
+  "tests/unit/prove.test.ts": "import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { LevelProof, MechanicsFile } from '@gg/schemas';
+import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
+import { describe, expect, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
+import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
+
+const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
+
+describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
+  it("every level gets one, played with the game's own systems: the stored run while it wins, else the solver, else the explorer", () => {
+    const base = BASE_MANIFESTS[SYSTEMS.composition.base];
+    const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
+    mkdirSync(proofs, { recursive: true });
+    for (const [i, level] of LEVELS.entries()) {
+      const file = \`\${proofs}\${level.id}.json\`;
+      const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000 };
+      const r = proveLevel(level, i, inputs, stored);
+      expect(r.proof, \`\${level.id}: \${r.tried.join('; ')}\`).not.toBeNull();
+      writeFileSync(file, JSON.stringify(r.proof) + '\\n');
+    }
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;
+
+exports[`scaffold output is pinned for the freeform examples > rooftop files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/behaviour/hopper.fsm.json": "{
+  "version": 1,
+  "id": "hopper",
+  "designNotes": "Waits, then hops toward the player in short bursts.",
+  "initial": "wait",
+  "states": {
+    "wait": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "hop",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 700
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "hop": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 60
+        },
+        {
+          "kind": "jump",
+          "vy": -120
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "wait",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 300
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/turret.fsm.json": "{
+  "version": 1,
+  "id": "turret",
+  "designNotes": "Stationary; fires a bolt at the player every second while they are in range.",
+  "initial": "idle",
+  "states": {
+    "idle": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "fire",
+          "when": {
+            "kind": "player_within",
+            "px": 96
+          }
+        }
+      ]
+    },
+    "fire": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "shoot",
+          "projectile": "spark",
+          "speed": 90,
+          "cooldownMs": 1000
+        }
+      ],
+      "transitions": [
+        {
+          "to": "idle",
+          "when": {
+            "kind": "player_beyond",
+            "px": 128
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/walker.fsm.json": "{
+  "version": 1,
+  "id": "walker",
+  "designNotes": "Patrols its ledge; chases when the player comes close; gives up when the player gets away.",
+  "initial": "patrol",
+  "states": {
+    "patrol": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "walk"
+        }
+      ],
+      "update": [
+        {
+          "kind": "patrol",
+          "speed": 25
+        }
+      ],
+      "transitions": [
+        {
+          "to": "chase",
+          "when": {
+            "kind": "player_within",
+            "px": 48
+          }
+        }
+      ]
+    },
+    "chase": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 45
+        }
+      ],
+      "transitions": [
+        {
+          "to": "patrol",
+          "when": {
+            "kind": "player_beyond",
+            "px": 96
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/entities.json": "{
+  "version": 1,
+  "designNotes": "Coins are letters; walkers are rats, hoppers are alley cats, turrets are chimney pots spitting sparks.",
+  "player": {},
+  "types": [
+    {
+      "type": "letter",
+      "archetype": "platformer:coin",
+      "hp": 1
+    },
+    {
+      "type": "rat",
+      "archetype": "platformer:walker",
+      "hp": 1
+    },
+    {
+      "type": "cat",
+      "archetype": "platformer:hopper",
+      "hp": 1
+    },
+    {
+      "type": "chimney",
+      "archetype": "platformer:turret",
+      "hp": 1
+    },
+    {
+      "type": "spark",
+      "archetype": "platformer:bolt",
+      "hp": 1
+    }
+  ]
+}
+",
+  "content/levels/L01-l01.json": "{
+  "version": 1,
+  "id": "l01",
+  "name": "Level 1",
+  "tileSize": 8,
+  "width": 203,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    ".............................-----..-------.....................-----..-------......................................................................-------..------..................------................",
+    "...........................................................................................................................................................................................................",
+    "..S...................####...................####...#....####.........................####...######...........................######...####..........................#..........#............#...........G.",
+    "######################################################################################################..####..####..####..################################################..###############################",
+    "######################################################################################################..####..####..####..################################################..###############################",
+    "######################################################################################################^^####^^####^^####^^################################################^^###############################"
+  ],
+  "entities": [
+    {
+      "type": "letter",
+      "x": 6,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "rat",
+      "x": 12,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "rat",
+      "x": 18,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 24,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 30,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 32,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 37,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 39,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 41,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 47,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 59,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 65,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 67,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 72,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 74,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 76,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 88,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 96,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 129,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 137,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 149,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 151,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 153,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 158,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 160,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 182,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 184,
+      "y": 15,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 2,
+    "y": 19
+  },
+  "goal": {
+    "x": 201,
+    "y": 19
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.15
+  }
+}
+",
+  "content/levels/L02-l02.json": "{
+  "version": 1,
+  "id": "l02",
+  "name": "Level 2",
+  "tileSize": 8,
+  "width": 203,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "..........-------.......------...........................------....................-------..................------..........................................................................-----..........",
+    "...................#................................................................................................#..................#.......................#...........................................",
+    "..S................#..................####..................................................####...######...........#..........#####...#....####...............#.........................................G.",
+    "################################..#################..####################################################################..########################..###############..##########..####..###################",
+    "################################..#################..####################################################################..########################..###############..##########..####..###################",
+    "################################^^#################^^####################################################################^^########################^^###############^^##########^^####^^###################"
+  ],
+  "entities": [
+    {
+      "type": "letter",
+      "x": 6,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 11,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 13,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 15,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 25,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 27,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 40,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "rat",
+      "x": 47,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 58,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 60,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "rat",
+      "x": 67,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 84,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 86,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 88,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 94,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 102,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 109,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 111,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 129,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 142,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 189,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 191,
+      "y": 15,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 2,
+    "y": 19
+  },
+  "goal": {
+    "x": 201,
+    "y": 19
+  },
+  "ramp": {
+    "segment": 1,
+    "difficulty": 0.35
+  }
+}
+",
+  "content/levels/L03-l03.json": "{
+  "version": 1,
+  "id": "l03",
+  "name": "Level 3",
+  "tileSize": 8,
+  "width": 203,
+  "height": 23,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    "...........................................................................................................................................................................................................",
+    ".........................------..............................-----...............................-------.................------....................................------..................................",
+    ".................................#....#...........#.........................................#...........................................#................#....#............................#...............",
+    "..S.............######...........#....#...........#.........................................#.............#####..................####...#................#....#............######..........#....#####....G.",
+    "###########################################...#########..#############################..##########################...########################..#####################################...####################",
+    "###########################################...#########..#############################..##########################...########################..#####################################...####################",
+    "###########################################^^^#########^^#############################^^##########################^^^########################^^#####################################^^^####################"
+  ],
+  "entities": [
+    {
+      "type": "letter",
+      "x": 6,
+      "y": 18,
+      "props": {}
+    },
+    {
+      "type": "rat",
+      "x": 12,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 19,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 26,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 28,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 62,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 64,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "rat",
+      "x": 70,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "rat",
+      "x": 76,
+      "y": 19,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 98,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 100,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 102,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 108,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 122,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 124,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 131,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 164,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 166,
+      "y": 15,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 174,
+      "y": 17,
+      "props": {}
+    },
+    {
+      "type": "letter",
+      "x": 194,
+      "y": 17,
+      "props": {}
+    }
+  ],
+  "spawn": {
+    "x": 2,
+    "y": 19
+  },
+  "goal": {
+    "x": 201,
+    "y": 19
+  },
+  "ramp": {
+    "segment": 2,
+    "difficulty": 0.55
+  }
+}
+",
+  "content/objectives.json": "{
+  "version": 1,
+  "win": {
+    "mode": "all",
+    "clauses": [
+      {
+        "kind": "reach_goal"
+      }
+    ]
+  },
+  "lose": [
+    {
+      "kind": "lives",
+      "count": 3
+    }
+  ]
+}
+",
+  "content/proofs/l01.json": "{"version":1,"level":"l01","seed":1,"ticks":1663,"by":"solver","script":[{"from":0,"to":104,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":104,"to":116,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":116,"to":135,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":135,"to":147,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":147,"to":170,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":170,"to":182,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":182,"to":215,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":215,"to":227,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":227,"to":264,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":264,"to":276,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":276,"to":299,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":299,"to":311,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":311,"to":330,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":330,"to":342,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":342,"to":364,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":364,"to":376,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":376,"to":409,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":409,"to":421,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":421,"to":452,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":452,"to":464,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":464,"to":483,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":483,"to":495,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":495,"to":522,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":522,"to":534,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":534,"to":566,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":566,"to":578,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":578,"to":600,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":600,"to":612,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":612,"to":769,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":769,"to":781,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":781,"to":800,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":800,"to":812,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":812,"to":833,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":833,"to":845,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":845,"to":875,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":875,"to":887,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":887,"to":921,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":921,"to":933,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":933,"to":955,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":955,"to":967,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":967,"to":986,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":986,"to":998,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":998,"to":1018,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1018,"to":1030,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1030,"to":1060,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1060,"to":1072,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1072,"to":1103,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1103,"to":1115,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1115,"to":1134,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1134,"to":1146,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1146,"to":1170,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1170,"to":1182,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1182,"to":1212,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1212,"to":1224,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1224,"to":1246,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1246,"to":1258,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1258,"to":1298,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1298,"to":1310,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1310,"to":1333,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1333,"to":1345,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1345,"to":1367,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1367,"to":1379,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1379,"to":1490,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1490,"to":1502,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1502,"to":1524,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1524,"to":1536,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1536,"to":1555,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1555,"to":1567,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1567,"to":1596,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1596,"to":1608,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1608,"to":1663,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}}]}
+",
+  "content/proofs/l02.json": "{"version":1,"level":"l02","seed":2,"ticks":836,"by":"explorer","script":[{"from":0,"to":2,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":2,"to":10,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":10,"to":26,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":26,"to":42,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":42,"to":48,"input":{"left":false,"right":false,"up":true,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":48,"to":62,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":62,"to":80,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":80,"to":84,"input":{"left":false,"right":false,"up":false,"down":true,"jump":true,"dash":false,"action":false,"pause":false}},{"from":84,"to":92,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":92,"to":96,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":96,"to":100,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":100,"to":119,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":119,"to":136,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":136,"to":145,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":145,"to":150,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":150,"to":157,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":157,"to":172,"input":{"left":false,"right":false,"up":true,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":172,"to":183,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":183,"to":187,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":187,"to":200,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":200,"to":204,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":204,"to":218,"input":{"left":false,"right":false,"up":true,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":218,"to":230,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":230,"to":247,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":247,"to":264,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":264,"to":268,"input":{"left":false,"right":false,"up":false,"down":true,"jump":true,"dash":false,"action":false,"pause":false}},{"from":268,"to":289,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":289,"to":308,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":308,"to":310,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":310,"to":315,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":315,"to":327,"input":{"left":false,"right":false,"up":true,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":327,"to":340,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":340,"to":348,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":348,"to":354,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":354,"to":366,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":366,"to":375,"input":{"left":false,"right":false,"up":true,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":375,"to":378,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":true,"action":true,"pause":false}},{"from":378,"to":388,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":388,"to":394,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":394,"to":398,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":398,"to":406,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":406,"to":410,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":410,"to":427,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":427,"to":429,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":429,"to":439,"input":{"left":false,"right":false,"up":true,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":439,"to":445,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":true,"pause":false}},{"from":445,"to":451,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":451,"to":455,"input":{"left":false,"right":false,"up":false,"down":true,"jump":true,"dash":false,"action":true,"pause":false}},{"from":455,"to":465,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":465,"to":478,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":478,"to":495,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":495,"to":500,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":500,"to":511,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":511,"to":520,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":520,"to":522,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":522,"to":550,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":550,"to":560,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":560,"to":567,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":567,"to":584,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":584,"to":587,"input":{"left":false,"right":false,"up":true,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":587,"to":599,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":599,"to":600,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":600,"to":604,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":604,"to":607,"input":{"left":false,"right":false,"up":true,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":607,"to":617,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":617,"to":618,"input":{"left":false,"right":false,"up":false,"down":true,"jump":true,"dash":false,"action":true,"pause":false}},{"from":618,"to":625,"input":{"left":false,"right":false,"up":false,"down":true,"jump":false,"dash":false,"action":false,"pause":false}},{"from":625,"to":644,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":644,"to":662,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":662,"to":673,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":673,"to":680,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":680,"to":684,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":true,"action":false,"pause":false}},{"from":684,"to":695,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":695,"to":704,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":704,"to":713,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":713,"to":730,"input":{"left":false,"right":false,"up":false,"down":true,"jump":true,"dash":false,"action":false,"pause":false}},{"from":730,"to":738,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":738,"to":750,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":true,"pause":false}},{"from":750,"to":763,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":763,"to":778,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":778,"to":795,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":true,"pause":false}},{"from":795,"to":818,"input":{"left":false,"right":false,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":818,"to":825,"input":{"left":false,"right":false,"up":true,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":825,"to":836,"input":{"left":false,"right":false,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}}]}
+",
+  "content/proofs/l03.json": "{"version":1,"level":"l03","seed":3,"ticks":1143,"by":"solver","script":[{"from":0,"to":72,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":72,"to":84,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":84,"to":109,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":109,"to":121,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":121,"to":154,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":154,"to":166,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":166,"to":197,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":197,"to":209,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":209,"to":233,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":233,"to":245,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":245,"to":272,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":272,"to":284,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":284,"to":308,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":308,"to":320,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":320,"to":466,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":466,"to":478,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":478,"to":500,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":500,"to":512,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":512,"to":586,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":586,"to":598,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":598,"to":617,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":617,"to":629,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":629,"to":710,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":710,"to":722,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":722,"to":741,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":741,"to":753,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":753,"to":778,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":778,"to":790,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":790,"to":835,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":835,"to":847,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":847,"to":874,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":874,"to":886,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":886,"to":953,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":953,"to":965,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":965,"to":988,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":988,"to":1000,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1000,"to":1039,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1039,"to":1051,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1051,"to":1078,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1078,"to":1090,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1090,"to":1109,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}},{"from":1109,"to":1121,"input":{"left":false,"right":true,"up":false,"down":false,"jump":true,"dash":false,"action":false,"pause":false}},{"from":1121,"to":1143,"input":{"left":false,"right":true,"up":false,"down":false,"jump":false,"dash":false,"action":false,"pause":false}}]}
+",
+  "content/sprites.json": "{
+  "version": 1,
+  "sprites": [
+    {
+      "type": "@player",
+      "base": "hero-side",
+      "recolor": {
+        "hero": "#e58a45",
+        "accent": "#c4552a",
+        "garment": "#3e7b52",
+        "rim": "#fff1de",
+        "wood": "#7a4a2a"
+      },
+      "overlays": [
+        {
+          "x": 2,
+          "y": 0,
+          "rows": [
+            "_a__a_"
+          ]
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "rows": [
+            "yy"
+          ]
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "rows": [
+            "Y.",
+            "AA"
+          ],
+          "under": true
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "rows": [
+            "p.."
+          ]
+        }
+      ]
+    },
+    {
+      "type": "letter",
+      "base": "coin",
+      "recolor": {
+        "accent": "#efe3c4"
+      },
+      "overlays": [
+        {
+          "x": 0,
+          "y": 1,
+          "rows": [
+            "a....a",
+            ".a..a.",
+            "..dd.."
+          ]
+        }
+      ]
+    },
+    {
+      "type": "rat",
+      "base": "walker",
+      "recolor": {
+        "danger": "#8d8a96",
+        "secondary": "#e08aa0"
+      },
+      "overlays": [
+        {
+          "x": 5,
+          "y": 0,
+          "rows": [
+            "N"
+          ]
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "rows": [
+            "m",
+            "m"
+          ],
+          "under": true
+        }
+      ]
+    },
+    {
+      "type": "cat",
+      "base": "hopper",
+      "recolor": {
+        "secondary": "#5b4f7a"
+      },
+      "overlays": [
+        {
+          "x": 1,
+          "y": 2,
+          "rows": [
+            "N....N"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "chimney",
+      "base": "turret",
+      "recolor": {
+        "danger": "#7d8597"
+      }
+    },
+    {
+      "type": "spark",
+      "base": "orb",
+      "recolor": {
+        "danger": "#c6f25c"
+      }
+    }
+  ]
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "jump",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "land",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "dash",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "hit",
+    "channels": [
+      "shake",
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "death",
+    "channels": [
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "pickup",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"Rooftop Courier","genre":"freeform","base":"platformer","scopeTier":"small","pillars":["never stop running","every leap is timed on the move","the letters lie on the way"],"scope":{"levels":3,"enemies":2,"items":1,"bosses":0},"targets":{"sessionMin":5,"levelTimeS":30,"deathsPerLevel":2},"verbs":["jump","dash","stomp"],"feedbackEvents":[{"event":"jump","channels":["sfx"]},{"event":"land","channels":["sfx"]},{"event":"dash","channels":["sfx"]},{"event":"hit","channels":["shake","flash","sfx"]},{"event":"death","channels":["flash","sfx"]},{"event":"pickup","channels":["sfx","particle"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+x
+
+## Pillars
+x
+
+## Core loop
+x
+
+## Progression
+x
+
+## Scope
+x
+
+## Feedback
+x
+",
+  "design/mechanics.json": "{ "version": 1, "mechanics": [] }
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "freeform",
+  "composition": {
+    "base": "platformer"
+  },
+  "feelPreset": "celeste-class",
+  "systems": [
+    {
+      "id": "movement-platformer",
+      "params": {}
+    },
+    {
+      "id": "auto-run",
+      "params": {
+        "rampPerMin": 0.3
+      }
+    },
+    {
+      "id": "hazards",
+      "params": {}
+    },
+    {
+      "id": "combat-stomp",
+      "params": {}
+    },
+    {
+      "id": "pickups",
+      "params": {}
+    },
+    {
+      "id": "objectives",
+      "params": {}
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rooftop Courier</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-rooftop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs",
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
+import type { FeedbackBinding, SimOptions } from '@gg/sdk';
+import { simOptionsFor } from '@gg/template-core';
+import { compose } from '@gg/template-freeform';
+import rosterJson from '../content/entities.json';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+/** A freeform game on platformer: its systems from any genre's catalog, its roster's entities, composed at load. */
+export const SYSTEMS = systemsJson as unknown as FreeformSystemsJson;
+export const ROSTER = rosterJson as unknown as EntityRoster;
+const runtime = compose(SYSTEMS, ROSTER).runtime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob(['../content/*.json', '!../content/entities.json'], { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** The selected systems (in systems.json order), then bespoke systems, then the feedback binder; the roster's entities. */
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = simOptionsFor(runtime, SYSTEMS, { behaviours: sorted(behaviourFiles), rules: sorted(ruleFiles), content: CONTENT, feedback: FEEDBACK, bespoke: BESPOKE });
+export const BEHAVIOURS: BehaviourFsm[] = SIM_OPTIONS.behaviours ?? [];
+export const RULES: EcaRule[] = SIM_OPTIONS.rules ?? [];
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-rooftop', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'platformer',
+    title: 'Rooftop Courier',
   },
   parent: 'game',
   defaultSeed: 1,

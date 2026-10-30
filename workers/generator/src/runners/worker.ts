@@ -6,8 +6,8 @@ import { costUsd, generateArtifact, providerFor, type GenerateResult, type Usage
 import { BundleManifest, LevelJson, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type CreateRequest, type GddFrontmatter, type LevelProof, type SystemsJson } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from '@gg/scaffold';
-import { checkLevel, levelPlan, levelTicksOf, plannedLevelCount, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
-import { BASE_MANIFESTS, IDENTITY_ROSTER, proveLevel } from '@gg/template-freeform/node';
+import { checkLevel, EXPERT_SHARE, levelPlan, levelTicksOf, plannedLevelCount, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
+import { BASE_MANIFESTS, generatorParams, IDENTITY_ROSTER, idleWins, proveLevel } from '@gg/template-freeform/node';
 import { CATALOG, catalogFor, genre as genreOf, readGameInputs, readMechanics, resolveGame } from '@gg/templates/node';
 import { sfxPresetFor } from '@gg/sdk/art';
 import { checkGdd, checkSystems, controlsLegend, impact, mechanicMeta, silentSfx, validateBehaviour, type ValidationReport } from '@gg/validators';
@@ -352,18 +352,24 @@ const levels: StageFn = async (ctx) => {
   const levelsDir = join(ctx.gameDir, 'content', 'levels');
   const kSeeds = Math.min(16, Math.max(4, ctx.policy?.k ?? 8));
   const baseSeed = (ctx.request?.seed ?? 1) * 1000 + (ctx.attempt - 1) * 100;
-  const targetTicks = Math.round(fm.targets.levelTimeS * 60 * 0.6);
+  const targetTicks = Math.round(fm.targets.levelTimeS * 60 * EXPERT_SHARE);
 
   // A freeform game's candidates get a winning run instead of a solver bot: its base genre's solver under the base names,
   // else a short explorer search. The chosen level ships with its run (content/proofs/).
   const freeform = sys.genre === 'freeform' ? sys : null;
   const roster = freeform ? compositionOf(ctx.gameDir).roster : IDENTITY_ROSTER;
   const baseSolver = freeform ? BASE_MANIFESTS[freeform.composition.base].bots[BASE_MANIFESTS[freeform.composition.base].solverBot] : undefined;
-  const oracle = (level: LevelJson, content: Record<string, unknown>, playSeed: number, index: number): { ok: boolean; ticks: number; proof?: LevelProof } => {
+  // A runner's levels are as long as it runs in the target time; any other game's are as long as the grammar makes them.
+  const genParams = freeform ? generatorParams(freeform, fm.targets.levelTimeS) : {};
+  const oracle = (level: LevelJson, content: Record<string, unknown>, playSeed: number, index: number): { ok: boolean; ticks: number; proof?: LevelProof; idle?: boolean } => {
     if (!g.levelGrammar.validate(level, feel).ok) return { ok: false, ticks: 0 };
     if (freeform) {
-      const r = proveLevel(level, index, { file: freeform, roster, behaviours, rules, content, feedback, solver: baseSolver, budget: 20_000 });
-      return r.proof ? { ok: true, ticks: r.proof.ticks, proof: r.proof } : { ok: false, ticks: 0 };
+      const inputs = { file: freeform, roster, behaviours, rules, content, feedback, solver: baseSolver, budget: 20_000 };
+      const r = proveLevel(level, index, inputs);
+      if (!r.proof) return { ok: false, ticks: 0 };
+      // A level that standing still wins asks nothing of the player: a runner's with nothing in the way.
+      if (idleWins(level, index, inputs, r.proof.ticks)) return { ok: false, ticks: 0, idle: true };
+      return { ok: true, ticks: r.proof.ticks, proof: r.proof };
     }
     const so = simOptionsFor(g, sys, { behaviours, rules, content, feedback });
     const r = runBot(createSim({ ...so, level, seed: playSeed }), solver, levelTicksOf(so));
@@ -384,7 +390,7 @@ const levels: StageFn = async (ctx) => {
       const content = g.extraContent?.(params) ?? {};
       // The game's other content (a freeform game's objectives) plays along with the arena's own waves.
       const r = oracle(level, { ...gameContent, ...content }, slot.seed, slot.index);
-      tried.push(`${s}:${r.ok ? 'ok' : 'x'}`);
+      tried.push(`${s}:${r.ok ? 'ok' : r.idle ? 'idle' : 'x'}`);
       if (r.ok) best = { level, content, dist: 0, proof: r.proof };
     }
     if (!best) return fail(`no arena seed from ${baseSeed} passed the solver at difficulty ${difficulty} (${tried.join(' ')})`, 'semantic_invalid', { durationMs: Date.now() - t0 });
@@ -409,9 +415,9 @@ const levels: StageFn = async (ctx) => {
       for (let round = 0; round < 4 && !best; round++) {
         const from = baseSeed + i * 50 + round * kSeeds;
         for (let s = from; s < from + kSeeds; s++) {
-          const level: LevelJson = { ...g.levelGrammar.generate({ seed: s, difficulty, boss }), id, name: `Level ${i + 1}`, ramp: { segment: i, difficulty } };
+          const level: LevelJson = { ...g.levelGrammar.generate({ seed: s, difficulty, boss, ...genParams }), id, name: `Level ${i + 1}`, ramp: { segment: i, difficulty } };
           const r = oracle(level, gameContent, playSeed, i);
-          tried.push(`${id}@${s}:${r.ok ? r.ticks : 'x'}`);
+          tried.push(`${id}@${s}:${r.ok ? r.ticks : r.idle ? 'idle' : 'x'}`);
           if (!r.ok) continue;
           const dist = Math.abs(r.ticks - targetTicks);
           // A level the base genre's solver finishes beats one only the explorer won: it is won the way the base's are.

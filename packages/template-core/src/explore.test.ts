@@ -64,4 +64,9 @@ describe('explorer options from system metadata', () => {
     expect(explorerOptionsFor(grid)).toEqual({ keys: ['left', 'right', 'up', 'down', 'jump'], taps: true });
     expect(explorerOptionsFor([{}, { controls: { action: 'attack' } }])).toEqual({ keys: ['left', 'right', 'up', 'down', 'jump', 'dash', 'action'], taps: false });
   });
+
+  it('never presses a key a system takes over: a runner\'s left and right do nothing', () => {
+    const runner = [{ controls: { left: 'run', right: 'run', jump: 'jump', dash: 'dash' } }, { controls: {}, takesOver: ['left', 'right'] }];
+    expect(explorerKeys(runner)).toEqual(['up', 'down', 'jump', 'dash', 'action']);
+  });
 });

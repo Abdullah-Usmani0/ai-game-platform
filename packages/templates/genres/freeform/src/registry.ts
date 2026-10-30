@@ -1,7 +1,7 @@
 import type { BehaviourFsm, CuratedGenre } from '@gg/schemas';
 import type { EntityDef } from '@gg/sdk';
 import { metroidvaniaRuntime } from '@gg/template-metroidvania';
-import { platformerRuntime } from '@gg/template-platformer';
+import { autoRun, autoRunMeta, platformerRuntime } from '@gg/template-platformer';
 import { puzzleRuntime } from '@gg/template-puzzle';
 import { lifesimRuntime } from '@gg/template-lifesim';
 import { shmupRuntime } from '@gg/template-shmup';
@@ -22,7 +22,10 @@ export const RUNTIMES: Readonly<Record<CuratedGenre, GenreRuntime>> = {
 };
 export const CURATED_IDS = Object.keys(RUNTIMES) as CuratedGenre[];
 
-/** Every system by id, with the genres that ship it (the first is its home); the shared objectives belong to none. */
+/**
+ * Every system by id, with the genres that ship it (the first is its home); the shared objectives belong to none, and
+ * neither does the runner, which only freeform games compose.
+ */
 export const SYSTEMS: Readonly<Record<string, SystemModule & { genres: CuratedGenre[] }>> = (() => {
   const out: Record<string, SystemModule & { genres: CuratedGenre[] }> = {};
   for (const id of CURATED_IDS) {
@@ -33,6 +36,7 @@ export const SYSTEMS: Readonly<Record<string, SystemModule & { genres: CuratedGe
     }
   }
   out[objectivesMeta.id] = { meta: objectivesMeta, create: () => objectives, genres: [] };
+  out[autoRunMeta.id] = { meta: autoRunMeta, create: () => autoRun, genres: [] };
   return out;
 })();
 

@@ -12,6 +12,8 @@ export * from './entities.js';
 export * from './behaviours.js';
 export { movement, hazards, combat, pickups, goal };
 export { createMovement, ABILITY_DASH, ABILITY_DOUBLE_JUMP, type MovementOptions, type MovementState } from './systems/movement.js';
+// A runner is composed by freeform games only: the platformer's own solver plans as a player who can stop.
+export { autoRun, meta as autoRunMeta, MAX_PACE, RUN_SPEED, runLevelLength, runSpeed } from './systems/auto-run.js';
 
 /** Browser-safe runtime description of the platformer genre. */
 export const platformerRuntime: GenreRuntime = {

@@ -1,0 +1,37 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-topdown",
+      "player-shooter",
+      "spawner",
+      "objectives"
+    ],
+    "entityDefs": "0dddfdd2a42b64e7",
+    "types": [
+      "slug<chaser",
+      "beetle<brute",
+      "xp",
+      "squirt<shot"
+    ],
+    "behaviours": "94810155a5ff6f2c",
+    "vocab": "3c23db6356fb1f7f",
+    "composedParams": {
+      "player-shooter": {
+        "shotType": "squirt"
+      }
+    },
+    "feedbackExtras": [],
+    "player": {
+      "w": 8,
+      "h": 10,
+      "hp": 5
+    }
+  },
+  "arena": {
+    "level": "42ad3572df6c0420",
+    "content": "57b213583251f9cd",
+    "by": "explorer",
+    "ticks": 2700,
+    "script": "02fae6dd87ddca1d"
+  }
+}

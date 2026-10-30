@@ -1,8 +1,9 @@
-import { createSim } from '@gg/sdk';
+import { createSim, emptyInput, type InputState } from '@gg/sdk';
 import { runBot, validateWaves } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import { generateWaves } from './level/generate.js';
 import { shmup } from './node.js';
+import { playerShooter } from './systems/player-shooter.js';
 
 function simFor(seed: number, difficulty: number, winAtS = 40) {
   const level = shmup.levelGrammar.generate({ seed: 1, difficulty });
@@ -42,5 +43,69 @@ describe('shmup template', () => {
     const a = runBot(simFor(7, 0.5), shmup.bots['chaos']!, 1200);
     const b = runBot(simFor(7, 0.5), shmup.bots['chaos']!, 1200);
     expect(a.finalHash).toBe(b.finalHash);
+  });
+});
+
+/** The shooter alone in the sky, a drone standing where given (in tiles from the player's), moving as the mode says. */
+function aimSim(params: Record<string, string | number>, opts: { mode?: 'topdown' | 'platformer'; foe?: { dx: number; dy: number } } = {}) {
+  const level = shmup.levelGrammar.generate({ seed: 1, difficulty: 0.3 });
+  const foe = opts.foe ? [{ type: 'drone', x: level.spawn.x + opts.foe.dx, y: level.spawn.y + opts.foe.dy, props: {} }] : [];
+  return createSim({
+    level: { ...level, entities: foe },
+    feel: shmup.feelPresets[shmup.defaultFeel]!,
+    seed: 1,
+    systems: [playerShooter],
+    entityDefs: shmup.entityDefs,
+    player: shmup.player,
+    behaviours: [],
+    params: { 'player-shooter': params },
+    content: {},
+    movementMode: opts.mode ?? 'topdown',
+  });
+}
+
+/** Fires once (holding the keys given), returns the volley's velocities, rounded, and waits out the cooldown. */
+function volley(sim: ReturnType<typeof aimSim>, held: Partial<InputState> = {}): Array<[number, number]> {
+  const before = new Set(sim.world.entities.map((e) => e.id));
+  sim.step({ ...emptyInput(), ...held, action: true });
+  const shots = sim.world.entities.filter((e) => e.type === 'shot' && !before.has(e.id)).map((e): [number, number] => [Math.round(e.vx), Math.round(e.vy)]);
+  for (let i = 0; i < 12; i++) sim.step({ ...emptyInput(), ...held });
+  return shots;
+}
+
+describe('player-shooter aim', () => {
+  it("'up' fires straight up, as the vertical shooter always has", () => {
+    expect(volley(aimSim({}, { foe: { dx: 8, dy: 0 } }))).toEqual([[0, -220]]);
+    expect(volley(aimSim({ spread: 3 }))).toEqual([[-40, -220], [0, -220], [40, -220]]);
+  });
+
+  it("'nearest' fires at the closest hostile within range, else forward", () => {
+    const [[vx, vy]] = volley(aimSim({ aim: 'nearest' }, { foe: { dx: 8, dy: 0 } })) as [[number, number]];
+    expect(vx).toBeGreaterThan(210);
+    expect(Math.abs(vy)).toBeLessThan(30);
+    const [[ux, uy]] = volley(aimSim({ aim: 'nearest' }, { foe: { dx: -3, dy: -6 } })) as [[number, number]];
+    expect(ux).toBeLessThan(0);
+    expect(uy).toBeLessThan(-150);
+    // Out of range: the way the player faces.
+    expect(volley(aimSim({ aim: 'nearest', range: 48 }, { foe: { dx: 8, dy: 0 } }))).toEqual([[220, 0]]);
+  });
+
+  it("'facing' fires where the arrows last pointed top-down, and forward or up in a side view", () => {
+    const top = aimSim({ aim: 'facing' });
+    expect(volley(top)).toEqual([[0, -220]]);
+    expect(volley(top, { left: true, down: true })).toEqual([[-156, 156]]);
+    // The aim stays where the arrows left it.
+    expect(volley(top)).toEqual([[-156, 156]]);
+    const side = aimSim({ aim: 'facing' }, { mode: 'platformer' });
+    expect(volley(side)).toEqual([[220, 0]]);
+    expect(volley(side, { up: true })).toEqual([[0, -220]]);
+    expect(volley(side, { up: true, right: true })).toEqual([[156, -156]]);
+  });
+
+  it('fans an aimed spread around the aim', () => {
+    const shots = volley(aimSim({ aim: 'nearest', spread: 3 }, { foe: { dx: 8, dy: 0 } }));
+    expect(shots).toHaveLength(3);
+    expect(shots[0]![1]).toBeLessThan(shots[1]![1]);
+    expect(shots[2]![1]).toBeGreaterThan(shots[1]![1]);
   });
 });

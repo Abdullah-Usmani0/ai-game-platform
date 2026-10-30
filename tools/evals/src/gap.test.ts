@@ -9,7 +9,7 @@ describe('the mechanic-gap report', () => {
   it('counts the ideas the catalog builds whole, and orders the missing mechanics by the ideas each makes whole', () => {
     const ideas: Idea[] = [
       { id: 'a', prompt: 'a platformer', needs: ['move-side', 'collect', 'reach-goal'] },
-      { id: 'b', prompt: 'a runner', needs: ['move-side', 'auto-run', 'hazards'] },
+      { id: 'b', prompt: 'a flapper', needs: ['move-side', 'flap', 'hazards'] },
       { id: 'c', prompt: 'a racer', needs: ['move-vehicle', 'laps'] },
       { id: 'd', prompt: 'a delivery rush', needs: ['move-topdown', 'carry-deliver'] },
       { id: 'e', prompt: 'a courier', needs: ['move-vehicle', 'carry-deliver'] },
@@ -19,8 +19,8 @@ describe('the mechanic-gap report', () => {
     expect(r.missing.find((g) => g.mechanic === 'carry-deliver')).toEqual({ mechanic: 'carry-deliver', askedBy: 2, completes: 1 });
     expect(r.missing.find((g) => g.mechanic === 'laps')).toMatchObject({ askedBy: 1, completes: 0 });
     // Each of the first three makes one idea whole: the tie goes to the one more ideas ask for (carry-deliver, then the
-    // vehicle, which the courier now needs alone), then auto-run; laps make the racer whole last.
-    expect(r.plan.map((p) => p.mechanic)).toEqual(['carry-deliver', 'move-vehicle', 'auto-run', 'laps']);
+    // vehicle, which the courier now needs alone), then flapping; laps make the racer whole last.
+    expect(r.plan.map((p) => p.mechanic)).toEqual(['carry-deliver', 'move-vehicle', 'flap', 'laps']);
     expect(r.plan.at(-1)!.buildable).toBe(5);
   });
 

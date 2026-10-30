@@ -77,6 +77,15 @@ describe('objectives', () => {
     sim.step(emptyInput());
     expect(sim.world.player.alive).toBe(true);
     expect(sim.world.flags.won).toBe(true);
+    expect(sim.world.hud['defeated']).toBe('1/1');
+  });
+
+  it('shows a count up to its target and no further', () => {
+    // Two coins on the way to the goal, one asked for: past it the HUD still reads 1/1.
+    const sim = game(win('all', { kind: 'reach_goal' }, { kind: 'collect', type: 'coin', count: 1 }), room(['#########', '#S.o.o.G#', '#########']))();
+    sim.run([{ from: 0, to: 120, input: { right: true } }], 120);
+    expect(sim.events.count('pickup')).toBe(2);
+    expect(sim.world.hud['collected']).toBe('1/1');
   });
 
   it('survive: the clock runs only while the game does, so a menu does not eat it', () => {

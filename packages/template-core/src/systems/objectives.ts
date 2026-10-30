@@ -74,8 +74,9 @@ export const objectives = defineSystem<ObjectivesState>({
     s.elapsed++;
     for (const c of rules.win.clauses) {
       if (c.kind === 'survive') w.hud['time'] = Math.max(0, Math.ceil((Math.round(c.seconds * 60) - s.elapsed) / 60));
-      if (c.kind === 'defeat' && c.count !== 'all') w.hud['defeated'] = `${s.kills[c.type ?? ALL] ?? 0}/${c.count}`;
-      if (c.kind === 'collect') w.hud['collected'] = `${s.found[c.type ?? ALL] ?? 0}/${c.count}`;
+      // A count stops at its target: past it the clause is met, and '22/20' reads as a fault.
+      if (c.kind === 'defeat' && c.count !== 'all') w.hud['defeated'] = `${Math.min(s.kills[c.type ?? ALL] ?? 0, c.count)}/${c.count}`;
+      if (c.kind === 'collect') w.hud['collected'] = `${Math.min(s.found[c.type ?? ALL] ?? 0, c.count)}/${c.count}`;
     }
     const met = rules.win.clauses.map((c) => clause(c, s, ctx).met);
     if (w.player.alive && (rules.win.mode === 'any' ? met.some(Boolean) : met.every(Boolean))) {

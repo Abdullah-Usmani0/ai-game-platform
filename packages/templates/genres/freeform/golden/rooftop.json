@@ -1,0 +1,54 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-platformer",
+      "auto-run",
+      "hazards",
+      "combat-stomp",
+      "pickups",
+      "objectives"
+    ],
+    "entityDefs": "ec879631381e5948",
+    "types": [
+      "rat<walker",
+      "cat<hopper",
+      "chimney<turret",
+      "spark<bolt",
+      "letter<coin"
+    ],
+    "behaviours": "e641e300be749d8c",
+    "vocab": "6a8571b793646307",
+    "composedParams": {
+      "hazards": {
+        "respawn": false
+      }
+    },
+    "feedbackExtras": [],
+    "player": {
+      "w": 8,
+      "h": 11,
+      "hp": 3
+    }
+  },
+  "l01": {
+    "level": "89893192a9e2843a",
+    "content": "19079fa30a9068c3",
+    "by": "solver",
+    "ticks": 1009,
+    "script": "525ead462173cc4c"
+  },
+  "l02": {
+    "level": "9be8ef3850dc46c0",
+    "content": "19079fa30a9068c3",
+    "by": "solver",
+    "ticks": 1064,
+    "script": "b2d9b1df7d55a901"
+  },
+  "l03": {
+    "level": "6cc760203710d8cd",
+    "content": "19079fa30a9068c3",
+    "by": "solver",
+    "ticks": 1056,
+    "script": "e619a77fe092b648"
+  }
+}

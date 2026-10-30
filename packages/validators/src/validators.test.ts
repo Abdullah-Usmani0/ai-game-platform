@@ -6,7 +6,7 @@ import { checkGdd } from './gdd.js';
 import { juiceLint, juiceLintRuns, silentSfx } from './juice.js';
 import { jumpEnvelope } from './jump-envelope.js';
 import { validateLevel, validateRamp } from './level.js';
-import { checkSystems, controlsLegend, impact, type SystemsCatalog } from './systems.js';
+import { checkSystems, controlsInUse, controlsLegend, impact, type SystemsCatalog } from './systems.js';
 
 function level(rows: string[], extra: Partial<LevelJson> = {}): LevelJson {
   return {
@@ -176,6 +176,23 @@ describe('checkSystems and impact', () => {
     // The same systems in a curated platformer: a top-down system, and the platformer's own movement missing.
     expect(checkSystems({ ...base, systems: mixed.systems }, { ...catalog, melee }).issues.map((i) => i.code).sort()).toEqual(['required_system_missing', 'system_wrong_genre']);
   });
+  it('holds a parameter to the values that work with the movement the game has, its default too', () => {
+    const shooter = {
+      id: 'shooter',
+      genres: ['shmup'],
+      summary: 's',
+      params: { aim: { type: 'string' as const, values: ['up', 'facing', 'nearest'], default: 'up', affects: 'levels' as const, valuesWith: { platformer: ['facing', 'nearest'] } } },
+      emits: [],
+      feedbackFor: [],
+    };
+    const side = { ...catalog, 'movement-platformer': { ...catalog['movement-platformer']!, provides: { movement: 'platformer' as const } }, shooter };
+    const file = (params: Record<string, string>): FreeformSystemsJson => ({ version: 1, genre: 'freeform', composition: { base: 'platformer' }, feelPreset: 'celeste-class', systems: [{ id: 'movement-platformer', params: {} }, { id: 'shooter', params }] });
+    expect(checkSystems(file({}), side).issues.map((i) => `${i.code}: ${i.message}`)).toEqual(["param_movement: shooter.aim='up' does not work with platformer movement: set it to 'facing' or 'nearest'"]);
+    expect(checkSystems(file({ aim: 'facing' }), side).issues).toEqual([]);
+    // Top-down, straight up is a vertical shooter.
+    const top = { ...side, 'movement-platformer': { ...side['movement-platformer'], provides: { movement: 'topdown' as const } } };
+    expect(checkSystems(file({}), top).issues).toEqual([]);
+  });
   it('reports what a change invalidates', () => {
     const after: SystemsJson = { ...base, systems: [{ id: 'movement-platformer', params: { maxRun: 120 } }, { id: 'pickups', params: { value: 2 } }] };
     const i = impact(base, after, catalog);
@@ -286,6 +303,27 @@ describe('controlsLegend', () => {
     const lantern = { controls: { action: 'light the lantern' }, params: {} };
     expect(controlsLegend([{ meta: move }, { meta: lantern }])).toContainEqual(['E / Enter', 'light the lantern']);
     expect(controlsLegend([])).toEqual([['Esc / P', 'pause']]);
+  });
+
+  it('reads a key only with the parameter values it is used with, and leaves out the keys a system takes over', () => {
+    const arrows = { param: 'aim', values: ['facing'] };
+    const shooter = {
+      controls: { action: 'shoot', left: 'aim', right: 'aim', up: 'aim', down: 'aim' },
+      controlGates: { left: arrows, right: arrows, up: arrows, down: arrows },
+      params: { aim: { type: 'string' as const, values: ['up', 'facing', 'nearest'], default: 'up', affects: 'levels' as const } },
+    };
+    expect(controlsInUse(shooter)).toEqual({ action: 'shoot' });
+    expect(controlsInUse(shooter, { aim: 'facing' })).toEqual(shooter.controls);
+    expect(controlsLegend([{ meta: move }, { meta: shooter, params: { aim: 'facing' } }])).toContainEqual(['Arrows / WASD', 'move, aim']);
+    expect(controlsLegend([{ meta: move }, { meta: shooter, params: { aim: 'nearest' } }])).toContainEqual(['Arrows / WASD', 'move']);
+    // A runner: left and right do nothing, so the legend starts at the jump.
+    const run = { controls: { left: 'run', right: 'run', jump: 'jump', dash: 'dash' }, params: {} };
+    const auto = { controls: {}, takesOver: ['left', 'right'] as const, params: {} };
+    expect(controlsLegend([{ meta: run }, { meta: auto }])).toEqual([
+      ['Z / Space', 'jump'],
+      ['X / Shift', 'dash'],
+      ['Esc / P', 'pause'],
+    ]);
   });
 });
 

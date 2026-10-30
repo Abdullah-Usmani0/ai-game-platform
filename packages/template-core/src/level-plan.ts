@@ -22,6 +22,9 @@ export const ARENA_DIFFICULTY: Record<ScopeTier, number> = { small: 0.25, medium
 /** The most levels a game ships. */
 export const MAX_LEVELS = 10;
 
+/** The share of a GDD's level time an expert run takes: the levels stage picks the level a solver finishes nearest it. */
+export const EXPERT_SHARE = 0.6;
+
 /**
  * The levels a game ships, from its GDD scope. Arena grammars build exactly one arena (their scope counts one level
  * whatever the tier). Other grammars ramp from 0.15 by at most 0.2 a level toward 0.75, a single level sits at 0.25,

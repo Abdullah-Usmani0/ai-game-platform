@@ -53,12 +53,18 @@ interface Cell {
 
 const DEFAULT_KEYS: ReadonlyArray<keyof InputState> = ['left', 'right', 'up', 'down', 'jump', 'dash', 'action'];
 
-type Controls = ReadonlyArray<{ controls?: Partial<Record<string, string>> }>;
+type Controls = ReadonlyArray<{ controls?: Partial<Record<string, string>>; takesOver?: readonly string[] }>;
 
-/** Keys an explorer may press for a set of systems: every key but those a system uses to undo or restart. */
+/**
+ * Keys an explorer may press for a set of systems: every key but those a system uses to undo or restart, and those a
+ * system takes over (a runner's left and right do nothing).
+ */
 export function explorerKeys(systems: Controls): Array<keyof InputState> {
   const skip = new Set<string>();
-  for (const s of systems) for (const [k, v] of Object.entries(s.controls ?? {})) if (v === 'undo' || v === 'restart') skip.add(k);
+  for (const s of systems) {
+    for (const [k, v] of Object.entries(s.controls ?? {})) if (v === 'undo' || v === 'restart') skip.add(k);
+    for (const k of s.takesOver ?? []) skip.add(k);
+  }
   return DEFAULT_KEYS.filter((k) => !skip.has(k));
 }
 

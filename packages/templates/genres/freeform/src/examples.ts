@@ -54,8 +54,8 @@ export const HIVE: FreeformExample = {
       { type: 'hornet', archetype: 'survivors:brute', hp: 1.5 },
     ],
   },
-  // Kiting alone does not last the minute on two lives: the swarm has to be thinned (measured: attack is needed,
-  // random mashing and standing still never win).
+  // Two lives for the minute: the arena's kiter lasts it on dodging alone, losing one; the sting thins the swarm for
+  // everyone who dodges less well (random mashing and standing still never win).
   objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'survive', seconds: 60 }] }, lose: [{ kind: 'lives', count: 2 }] },
   content: {
     // A yellow bee with feelers, a striped body and pale wings; orange wasps with clear wings and a dark band, and
@@ -337,4 +337,166 @@ export const MOON: FreeformExample = {
   },
 };
 
-export const EXAMPLES: readonly FreeformExample[] = [HIVE, HEIST, LANTERN, MOON];
+/**
+ * A runner on the platformer: the courier never stops, so every leap is timed on the move; its levels run as long as the
+ * level time at its pace, a little faster as each goes on.
+ */
+export const ROOFTOP: FreeformExample = {
+  id: 'rooftop',
+  prompt: 'A fox courier running across the city rooftops at dusk without ever stopping: leap the gaps, bounce on the rats and grab the letters on the way.',
+  gdd: {
+    title: 'Rooftop Courier',
+    genre: 'freeform',
+    base: 'platformer',
+    scopeTier: 'small',
+    pillars: ['never stop running', 'every leap is timed on the move', 'the letters lie on the way'],
+    scope: { levels: 3, enemies: 2, items: 1, bosses: 0 },
+    targets: { sessionMin: 5, levelTimeS: 30, deathsPerLevel: 2 },
+    verbs: ['jump', 'dash', 'stomp'],
+    feedbackEvents: [
+      { event: 'jump', channels: ['sfx'] },
+      { event: 'land', channels: ['sfx'] },
+      { event: 'dash', channels: ['sfx'] },
+      { event: 'hit', channels: ['shake', 'flash', 'sfx'] },
+      { event: 'death', channels: ['flash', 'sfx'] },
+      { event: 'pickup', channels: ['sfx', 'particle'] },
+      { event: 'level_complete', channels: ['sfx', 'particle'] },
+    ],
+  },
+  systems: {
+    version: 1,
+    genre: 'freeform',
+    composition: { base: 'platformer' },
+    feelPreset: 'celeste-class',
+    systems: [
+      { id: 'movement-platformer', params: {} },
+      { id: 'auto-run', params: { rampPerMin: 0.3 } },
+      { id: 'hazards', params: {} },
+      { id: 'combat-stomp', params: {} },
+      { id: 'pickups', params: {} },
+      { id: 'objectives', params: {} },
+    ],
+  },
+  roster: {
+    version: 1,
+    designNotes: 'Coins are letters; walkers are rats, hoppers are alley cats, turrets are chimney pots spitting sparks.',
+    player: {},
+    types: [
+      { type: 'letter', archetype: 'platformer:coin', hp: 1 },
+      { type: 'rat', archetype: 'platformer:walker', hp: 1 },
+      { type: 'cat', archetype: 'platformer:hopper', hp: 1 },
+      { type: 'chimney', archetype: 'platformer:turret', hp: 1 },
+      { type: 'spark', archetype: 'platformer:bolt', hp: 1 },
+    ],
+  },
+  // The letters score; the last roof wins, on three lives a level.
+  objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'reach_goal' }] }, lose: [{ kind: 'lives', count: 3 }] },
+  content: {
+    // An orange fox with pointed ears, a white muzzle and tail tip, a green courier jacket and a satchel strap; cream
+    // letters with a red seal, grey rats with a pink ear and tail, dusk-purple alley cats, slate chimney pots spitting
+    // lime sparks: no foe in the fox's orange or its jacket's green, in any of the sample palettes.
+    sprites: {
+      version: 1,
+      sprites: [
+        {
+          type: '@player',
+          base: 'hero-side',
+          recolor: { hero: '#e58a45', accent: '#c4552a', garment: '#3e7b52', rim: '#fff1de', wood: '#7a4a2a' },
+          overlays: [
+            { x: 2, y: 0, rows: ['_a__a_'] },
+            { x: 6, y: 4, rows: ['yy'] },
+            { x: 0, y: 7, rows: ['Y.', 'AA'], under: true },
+            { x: 3, y: 7, rows: ['p..'] },
+          ],
+        },
+        { type: 'letter', base: 'coin', recolor: { accent: '#efe3c4' }, overlays: [{ x: 0, y: 1, rows: ['a....a', '.a..a.', '..dd..'] }] },
+        {
+          type: 'rat',
+          base: 'walker',
+          recolor: { danger: '#8d8a96', secondary: '#e08aa0' },
+          overlays: [
+            { x: 5, y: 0, rows: ['N'] },
+            { x: 0, y: 2, rows: ['m', 'm'], under: true },
+          ],
+        },
+        { type: 'cat', base: 'hopper', recolor: { secondary: '#5b4f7a' }, overlays: [{ x: 1, y: 2, rows: ['N....N'] }] },
+        { type: 'chimney', base: 'turret', recolor: { danger: '#7d8597' } },
+        { type: 'spark', base: 'orb', recolor: { danger: '#c6f25c' } },
+      ],
+    },
+  },
+};
+
+/**
+ * A survivors arena held with the shmup's gun, aimed for the player: every squirt flies at the nearest pest, one key to
+ * fire, the arrows free to keep away.
+ */
+export const GNOME: FreeformExample = {
+  id: 'gnome',
+  prompt: 'A garden gnome guarding the vegetable patch from waves of slugs and beetles, a water pistol squirting the nearest pest, until sundown.',
+  gdd: {
+    title: 'Gnome Guard',
+    genre: 'freeform',
+    base: 'survivors',
+    scopeTier: 'small',
+    pillars: ['the pistol finds the pest, you find the room', 'keep moving or be cornered', 'hold the patch until sundown'],
+    scope: { levels: 1, enemies: 2, items: 0, bosses: 0 },
+    targets: { sessionMin: 5, levelTimeS: 45, deathsPerLevel: 1 },
+    verbs: ['move', 'dash', 'shoot'],
+    feedbackEvents: [
+      { event: 'dash', channels: ['sfx'] },
+      { event: 'hit', channels: ['hitstop', 'flash', 'sfx'] },
+      { event: 'death', channels: ['shake', 'sfx'] },
+      { event: 'level_complete', channels: ['sfx', 'particle'] },
+    ],
+  },
+  systems: {
+    version: 1,
+    genre: 'freeform',
+    composition: { base: 'survivors' },
+    feelPreset: 'arena-melee',
+    systems: [
+      { id: 'movement-topdown', params: {} },
+      { id: 'player-shooter', params: { aim: 'nearest', fireCooldownTicks: 10 } },
+      { id: 'spawner', params: {} },
+      { id: 'objectives', params: {} },
+    ],
+  },
+  roster: {
+    version: 1,
+    designNotes: 'The arena chasers are slugs, the brutes are beetles; the shot is a squirt of water.',
+    player: {},
+    types: [
+      { type: 'slug', archetype: 'survivors:chaser', hp: 1 },
+      { type: 'beetle', archetype: 'survivors:brute', hp: 1 },
+      { type: 'squirt', archetype: 'shmup:shot', hp: 1 },
+    ],
+  },
+  // Dodging alone never wins: sundown also takes twenty squashed pests (measured: the arena's kiter, which never fires,
+  // runs out of lives; the explorer squashes 26 to 28 in the 45 s; standing still and mashing never win).
+  objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'survive', seconds: 45 }, { kind: 'defeat', count: 20 }] }, lose: [{ kind: 'lives', count: 2 }] },
+  content: {
+    // A gnome in a red pointed hat, a white beard and a blue tunic; tan slugs on eye stalks, violet beetles with
+    // feelers, and a blue squirt of water.
+    sprites: {
+      version: 1,
+      sprites: [
+        {
+          type: '@player',
+          base: 'hero-topdown',
+          recolor: { hero: '#f2c29a', accent: '#d8373a', garment: '#3d6fc8', rim: '#f4f1ea' },
+          overlays: [
+            { x: 2, y: 0, rows: ['_..__'] },
+            { anims: ['down-idle', 'down-run', 'down-attack', 'down-hurt'], x: 1, y: 4, rows: ['yYYYYy', '.yYYy.'] },
+            { anims: ['side-idle', 'side-run', 'side-attack', 'side-hurt'], x: 4, y: 4, rows: ['YYYy', 'yYy.'] },
+          ],
+        },
+        { type: 'slug', base: 'drone', recolor: { danger: '#d9a441' }, overlays: [{ x: 2, y: 0, rows: ['k..k'] }] },
+        { type: 'beetle', base: 'brute', recolor: { danger: '#5b4bb3' }, overlays: [{ x: 2, y: 0, rows: ['kk....kk'] }] },
+        { type: 'squirt', base: 'laser', recolor: { accent: '#5ab8ff' } },
+      ],
+    },
+  },
+};
+
+export const EXAMPLES: readonly FreeformExample[] = [HIVE, HEIST, LANTERN, MOON, ROOFTOP, GNOME];

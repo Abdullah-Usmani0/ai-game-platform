@@ -1,6 +1,6 @@
 import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson, LevelProof, Mechanic } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding, type Sim, type SystemDef } from '@gg/sdk';
-import { explore, explorerOptionsFor, levelTicksOf, runBot, scriptFromLog, simOptionsFor, type BotPolicy } from '@gg/template-core';
+import { afkWins, explore, explorerOptionsFor, levelTicksOf, runBot, scriptFromLog, simOptionsFor, type BotPolicy } from '@gg/template-core';
 import { compose, type Composed } from './compose.js';
 import { inverse, retypeContent, retypeFsm, retypeLevel, retypeRule, type Rename } from './retype.js';
 
@@ -27,6 +27,22 @@ export interface Proving {
   tried: string[];
 }
 
+/** A fresh sim of a level of the game, at the seed it is played with. */
+function gameSim(level: LevelJson, index: number, inputs: ProveInputs, game = compose(inputs.file, inputs.roster)): () => Sim {
+  const options = simOptionsFor(game.runtime, inputs.file, { behaviours: inputs.behaviours, rules: inputs.rules, content: inputs.content, feedback: inputs.feedback, bespoke: inputs.bespoke });
+  const seed = levelSeed(DEFAULT_SEED, index);
+  return () => createSim({ ...options, level, seed });
+}
+
+/**
+ * Whether standing still wins a level, given as long as twice its winning run takes (ten seconds at least): a level
+ * that plays itself asks nothing of the player (a runner's with nothing in the way, a survival nothing can reach). The
+ * levels stage never ships one.
+ */
+export function idleWins(level: LevelJson, index: number, inputs: ProveInputs, winTicks: number): boolean {
+  return afkWins(gameSim(level, index, inputs), Math.max(600, winTicks * 2));
+}
+
 /** The same game under the base genre's names: the roster's entities and tuning, each named as it ships. */
 function underBaseNames(inputs: ProveInputs, game: Composed): { composed: Composed; back: Rename } | null {
   const back = inverse(new Map([...game.roster.typeOf].map(([archetype, type]) => [archetype.slice(archetype.indexOf(':') + 1), type])));
@@ -43,8 +59,7 @@ function underBaseNames(inputs: ProveInputs, game: Composed): { composed: Compos
 export function proveLevel(level: LevelJson, index: number, inputs: ProveInputs, stored?: LevelProof): Proving {
   const seed = levelSeed(DEFAULT_SEED, index);
   const game = compose(inputs.file, inputs.roster);
-  const options = simOptionsFor(game.runtime, inputs.file, { behaviours: inputs.behaviours, rules: inputs.rules, content: inputs.content, feedback: inputs.feedback, bespoke: inputs.bespoke });
-  const fresh = (): Sim => createSim({ ...options, level, seed });
+  const fresh = gameSim(level, index, inputs, game);
   const wins = (script: LevelProof['script'], ticks: number) => {
     const sim = fresh();
     sim.run(script, ticks);

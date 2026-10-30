@@ -418,9 +418,7 @@ export class MainScene extends Phaser.Scene {
     this.horizonY = by + bh - viewH;
     cam.startFollow(this.followTarget, true, this.style.camera.lerp, this.style.camera.lerp);
     cam.setDeadzone(this.style.camera.deadzone.w, this.style.camera.deadzone.h);
-    const p = sim.world.player;
-    this.followTarget.x = Math.round(p.x + p.w / 2);
-    this.followTarget.y = Math.round(p.y + p.h / 2);
+    this.aimCamera(sim.world.player);
     cam.centerOn(this.followTarget.x, this.followTarget.y);
     this.buildBackdrop();
     this.buildTiles();
@@ -660,7 +658,10 @@ export class MainScene extends Phaser.Scene {
       s.img.setScale(e.scaleX, e.scaleY);
       const flips = this.setting === 'side' ? true : s.sheet.directional ? s.dir === 'side' : this.setting !== 'space' && !e.pickup;
       s.img.setFlipX(flips && e.facing < 0);
-      if ((this.drawAs.get(e.type) ?? e.type) === 'arrow') s.img.setRotation(Math.atan2(e.vy, e.vx));
+      const kind = this.drawAs.get(e.type) ?? e.type;
+      if (kind === 'arrow') s.img.setRotation(Math.atan2(e.vy, e.vx));
+      // A shot is drawn flying up: one aimed another way turns to fly along its path.
+      else if (kind === 'shot') s.img.setRotation(e.vx === 0 && e.vy <= 0 ? 0 : Math.atan2(e.vy, e.vx) + Math.PI / 2);
       // Invulnerable after a hit: blink. Not while dashing (the dash's own frames are its afterimages).
       const blink = e.isPlayer && e.invulnTicks > 0 && !e.flags['dashing'] && Math.floor(e.invulnTicks / 4) % 2 === 0;
       s.img.setAlpha(blink ? 0.35 : 1);
@@ -752,6 +753,18 @@ export class MainScene extends Phaser.Scene {
       if (p.fade) p.img.setAlpha(Math.min(1, k * 1.3) * 0.85);
       if (p.img.texture.key === 'gg-p-ring') p.img.setScale(1 + (1 - k) * 2.2);
     }
+  }
+
+  /**
+   * Where the camera looks: the player's middle, and a quarter of the view ahead of a runner (the runSpeed prop the
+   * auto-run system sets), so it sees what comes before it gets there.
+   */
+  private aimCamera(p: Entity): void {
+    const cam = this.cameras.main;
+    const run = p.props['runSpeed'];
+    const lead = typeof run === 'number' && run !== 0 ? Math.sign(run) * Math.round(cam.width / cam.zoom / 4) : 0;
+    this.followTarget.x = Math.round(p.x + p.w / 2) + lead;
+    this.followTarget.y = Math.round(p.y + p.h / 2);
   }
 
   private where(payload: Record<string, unknown>): { x: number; y: number } {
@@ -867,9 +880,14 @@ export class MainScene extends Phaser.Scene {
         this.burst('spark', at.x, at.y, [this.pal.danger[4], this.pal.accent[4], this.pal.white], 16, { speed: 2, life: 22, add: true });
         break;
       }
-      case 'custom:fire':
-        this.burst('dot', p.x + p.w / 2, p.y, [this.pal.accent[4], this.pal.white], 2, { speed: 0.6, angle: -Math.PI / 2, spread: 0.8, life: 6, add: true });
+      case 'custom:fire': {
+        // The muzzle flash leaves the way the volley flies: off the top when the shots fly up, else along their aim.
+        const dirX = typeof payload['dirX'] === 'number' ? payload['dirX'] : null;
+        const dirY = typeof payload['dirY'] === 'number' ? payload['dirY'] : null;
+        if (dirX === null || dirY === null) this.burst('dot', p.x + p.w / 2, p.y, [this.pal.accent[4], this.pal.white], 2, { speed: 0.6, angle: -Math.PI / 2, spread: 0.8, life: 6, add: true });
+        else this.burst('dot', p.x + p.w / 2 + dirX * 5, p.y + p.h / 2 + dirY * 5, [this.pal.accent[4], this.pal.white], 2, { speed: 0.6, angle: Math.atan2(dirY, dirX), spread: 0.8, life: 6, add: true });
         break;
+      }
       case 'push': {
         const at = this.where(payload);
         this.burst('dot', at.x, at.y + 6, dust, 4, { speed: 0.5, angle: Math.PI / 2, spread: 2.6, life: 14 });
@@ -1268,9 +1286,7 @@ export class MainScene extends Phaser.Scene {
     const sim = this.controller.sim;
     const tick = sim.tick;
     if (sim.map.version !== this.drawnVersion || (this.setting === 'dungeon' && this.exitLocked() !== this.drawnExitLocked)) this.buildTiles();
-    const p = sim.world.player;
-    this.followTarget.x = Math.round(p.x + p.w / 2);
-    this.followTarget.y = Math.round(p.y + p.h / 2);
+    this.aimCamera(sim.world.player);
     this.syncEntities();
     this.stepParticles(tick);
     this.animTick = this.controller.mode === 'realtime' ? this.animTick + delta / (1000 / 60) : tick;

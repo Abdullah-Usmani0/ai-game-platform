@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { Objectives, parseAnyGdd, type EntityRoster, type LevelJson, type LevelProof, type StyleCard, type SystemsFile, type SystemsJson } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
 import { type GenreManifest, type LevelGenParams, levelPlan, levelTicksOf, rolesPresent, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
-import { BASE_MANIFESTS, checkFreeformObjectives, freeformManifest, IDENTITY_ROSTER, proveLevel, type FreeformExample } from '@gg/template-freeform/node';
+import { BASE_MANIFESTS, checkFreeformObjectives, freeformManifest, generatorParams, IDENTITY_ROSTER, idleWins, proveLevel, type FreeformExample } from '@gg/template-freeform/node';
 import { catalogFor, genre as genreOf } from '@gg/templates/node';
 import { checkComposition, checkSystems, parseFrontmatter, type Issue } from '@gg/validators';
 import * as F from './files.js';
@@ -161,18 +161,23 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
     // What the level's generator makes (an arena's waves) is written over the design stages' files, so it wins here too.
     const all = { ...opts.content, ...content };
     if (freeform) {
-      const r = proveLevel(level, index, { file: freeform, roster, behaviours: g.defaultBehaviours, content: all, feedback, solver, budget: 20_000 });
-      if (r.proof) proofs.push(r.proof);
-      return r.proof !== null;
+      const inputs = { file: freeform, roster, behaviours: g.defaultBehaviours, content: all, feedback, solver, budget: 20_000 };
+      const r = proveLevel(level, index, inputs);
+      // A level that standing still wins is no level, as in the levels stage.
+      if (!r.proof || idleWins(level, index, inputs, r.proof.ticks)) return false;
+      proofs.push(r.proof);
+      return true;
     }
     const so = simOptionsFor(g, systems, { behaviours: g.defaultBehaviours, content: all, feedback });
     return runBot(createSim({ ...so, level, seed: playSeed }), solver, levelTicksOf(so)).completed;
   };
   const arena = g.levelGrammar.kind === 'arena';
   const plan = levelPlan(g.levelGrammar.kind, { levels: opts.levels ?? gdd.data.scope.levels, bosses: gdd.data.scope.bosses, tier: gdd.data.scopeTier });
+  // A runner's levels are as long as it runs in the target time, as the levels stage makes them.
+  const extra = freeform ? generatorParams(freeform, gdd.data.targets.levelTimeS) : {};
   let s = seed;
   for (const slot of plan) {
-    const paramsAt = (genSeed: number): LevelGenParams => (arena ? { seed: genSeed, difficulty: slot.difficulty } : { seed: genSeed, difficulty: slot.difficulty, boss: slot.boss });
+    const paramsAt = (genSeed: number): LevelGenParams => (arena ? { seed: genSeed, difficulty: slot.difficulty } : { seed: genSeed, difficulty: slot.difficulty, boss: slot.boss, ...extra });
     // The level as the game ships it (its id is what proofs and the editor know it by).
     const named = (l: LevelJson): LevelJson => (arena ? { ...l, id: 'arena', name: 'Arena' } : { ...l, id: slot.id, name: `Level ${slot.index + 1}`, ramp: { segment: slot.index, difficulty: slot.difficulty } });
     let params = paramsAt(s);

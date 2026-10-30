@@ -16,6 +16,8 @@ export interface CatalogParam {
    * when the objectives decide what a death does).
    */
   composed?: 'entity' | 'switch';
+  /** The values a string parameter may take with a movement some of its values make no sense with (shots fired straight up in a side view). */
+  valuesWith?: Partial<Record<'platformer' | 'topdown' | 'grid', readonly string[]>>;
 }
 
 /** How the player moves. Every game has exactly one system that provides it. */
@@ -67,6 +69,15 @@ export interface SystemRequires {
   systems?: readonly string[];
 }
 
+/** The keys a system can read: the SDK's inputs. */
+export type ControlKey = 'left' | 'right' | 'up' | 'down' | 'jump' | 'dash' | 'action' | 'pause';
+
+/**
+ * When a key is in use: the boolean parameter it needs on (movement-topdown's dash), or a parameter and the values it
+ * is read with (player-shooter reads the arrows only while it fires the way the player faces).
+ */
+export type ControlGate = string | { param: string; values: readonly string[] };
+
 export interface CatalogSystem {
   id: string;
   genres: readonly string[] | '*';
@@ -80,9 +91,14 @@ export interface CatalogSystem {
    * What the system does with each key it reads (action: 'attack', dash: 'restart'). The play page lists them; bots
    * that explore leave alone the keys marked 'undo' or 'restart' (a save point does that job better).
    */
-  controls?: Partial<Record<'left' | 'right' | 'up' | 'down' | 'jump' | 'dash' | 'action' | 'pause', string>>;
-  /** The boolean parameter a key needs on: a game that switches it off does not use the key (movement-topdown's dash). */
-  controlGates?: Partial<Record<'left' | 'right' | 'up' | 'down' | 'jump' | 'dash' | 'action' | 'pause', string>>;
+  controls?: Partial<Record<ControlKey, string>>;
+  /** When a key is in use: a game whose parameters switch it off does not use the key (movement-topdown's dash). */
+  controlGates?: Partial<Record<ControlKey, ControlGate>>;
+  /**
+   * Keys the system takes from the others: they do nothing in its game (a runner runs on its own, so left and right).
+   * The play page leaves them out and bots that explore never press them.
+   */
+  takesOver?: readonly ControlKey[];
   /** What the system owns in a game (movement, the win, the death rule, combat, spawns); checked against its runs. */
   provides?: SystemProvides;
   /** What it needs from the rest of the game. */
@@ -111,6 +127,7 @@ export function checkSystems(systems: SystemsFile, catalog: SystemsCatalog, gdd?
   const issues: Issue[] = [];
   const freeform = systems.genre === 'freeform';
   const ids = new Set<string>();
+  const movement = systems.systems.map((s) => catalog[s.id]?.provides?.movement).find((m) => m !== undefined);
   for (const s of systems.systems) {
     if (ids.has(s.id)) issues.push(err('duplicate_system', `system '${s.id}' listed twice`, { path: s.id }));
     ids.add(s.id);
@@ -130,6 +147,12 @@ export function checkSystems(systems: SystemsFile, catalog: SystemsCatalog, gdd?
       else if (typeof v !== p.type) issues.push(err('param_type', `${s.id}.${k} should be ${p.type}`, { path: `${s.id}.${k}` }));
       else if (p.type === 'number' && typeof v === 'number' && ((p.min !== undefined && v < p.min) || (p.max !== undefined && v > p.max))) issues.push(err('param_range', `${s.id}.${k}=${v} outside [${p.min ?? '-inf'}, ${p.max ?? 'inf'}]`, { path: `${s.id}.${k}` }));
       else if (p.type === 'string' && p.values && typeof v === 'string' && !p.values.includes(v)) issues.push(err('param_enum', `${s.id}.${k}='${v}' not one of ${p.values.join('|')}`, { path: `${s.id}.${k}` }));
+    }
+    // A value the game's movement makes no sense of, the default included.
+    for (const [k, p] of Object.entries(cat.params)) {
+      const allowed = movement ? p.valuesWith?.[movement] : undefined;
+      const v = s.params[k] ?? p.default;
+      if (allowed && typeof v === 'string' && !allowed.includes(v)) issues.push(err('param_movement', `${s.id}.${k}='${v}' does not work with ${movement} movement: set it to ${allowed.map((a) => `'${a}'`).join(' or ')}`, { path: `${s.id}.${k}` }));
     }
   }
   for (const [id, cat] of Object.entries(catalog)) {
@@ -178,16 +201,34 @@ export function impact(before: Pick<SystemsJson, 'feelPreset' | 'systems'>, afte
 const KEY_NAMES = { jump: 'Z / Space', dash: 'X / Shift', action: 'E / Enter', pause: 'Esc / P' } as const;
 
 /**
+ * What a system does with each key it reads, with the parameters a game gives it: its declared controls, less the keys
+ * those parameters switch off.
+ */
+export function controlsInUse(meta: Pick<CatalogSystem, 'controls' | 'controlGates' | 'params'>, params?: Readonly<Record<string, unknown>>): Partial<Record<ControlKey, string>> {
+  const out: Partial<Record<ControlKey, string>> = {};
+  for (const [key, what] of Object.entries(meta.controls ?? {}) as Array<[ControlKey, string | undefined]>) {
+    const gate = meta.controlGates?.[key];
+    const param = gate === undefined ? undefined : typeof gate === 'string' ? gate : gate.param;
+    const value = param === undefined ? undefined : (params?.[param] ?? meta.params[param]?.default);
+    const on = gate === undefined || (typeof gate === 'string' ? value !== false : gate.values.includes(String(value)));
+    if (what && on) out[key] = what;
+  }
+  return out;
+}
+
+/**
  * The keys a game uses and what each does in it, from its systems' declared controls (catalog systems with the values
  * the game gives their parameters, its own systems' contracts): the movement keys first (arrows and WASD, or left and
- * right only), then jump, dash and action, then pause. A key a parameter switches off is left out.
+ * right only), then jump, dash and action, then pause. A key a parameter switches off is left out, and so is a key a
+ * system takes over (a runner's left and right).
  */
-export function controlsLegend(systems: ReadonlyArray<{ meta: Pick<CatalogSystem, 'controls' | 'controlGates' | 'params'> | undefined; params?: Readonly<Record<string, unknown>> }>): Array<[keys: string, action: string]> {
+export function controlsLegend(systems: ReadonlyArray<{ meta: Pick<CatalogSystem, 'controls' | 'controlGates' | 'params' | 'takesOver'> | undefined; params?: Readonly<Record<string, unknown>> }>): Array<[keys: string, action: string]> {
+  const taken = new Set<string>(systems.flatMap(({ meta }) => meta?.takesOver ?? []));
   const uses = new Map<string, string[]>();
   for (const { meta, params } of systems) {
-    for (const [key, what] of Object.entries(meta?.controls ?? {})) {
-      const gate = meta?.controlGates?.[key as keyof NonNullable<CatalogSystem['controlGates']>];
-      if (!what || (gate && (params?.[gate] ?? meta?.params[gate]?.default) === false)) continue;
+    if (!meta) continue;
+    for (const [key, what] of Object.entries(controlsInUse(meta, params))) {
+      if (taken.has(key)) continue;
       const list = uses.get(key) ?? [];
       if (!list.includes(what)) list.push(what);
       uses.set(key, list);

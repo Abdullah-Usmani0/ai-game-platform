@@ -88,7 +88,8 @@ export const GENRES: GenreInfo[] = [
     controls: [],
     examples: [
       'A moth carrying lanterns home through a night forest: collect them on the way, and mind the frogs.',
-      'A bee guarding its hive with its stinger, holding out against wasp swarms until the sun comes up.',
+      'A fox courier running across the city rooftops at dusk without ever stopping: leap the gaps, bounce on the rats and grab the letters on the way.',
+      'A garden gnome guarding the vegetable patch from waves of slugs and beetles, a water pistol squirting the nearest pest, until sundown.',
       "A moth keeping a moon garden: sow glowcaps in the moonbeds, leave the harvest in the offering chest, buy spores at the beetle's stall.",
     ],
   },

@@ -1,4 +1,5 @@
 import { approach, defineSystem } from '@gg/sdk';
+import { RUN_SPEED } from './auto-run.js';
 
 export interface MovementState {
   coyote: number;
@@ -51,7 +52,9 @@ export function createMovement(opts: MovementOptions) {
       const f = ctx.feel;
       const dt = ctx.dt;
       if (!p.alive) return;
-      const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+      // A runner (the auto-run system) sets the speed the player keeps running at: left and right do nothing then.
+      const run = typeof p.props[RUN_SPEED] === 'number' ? p.props[RUN_SPEED] : 0;
+      const dir = run !== 0 ? Math.sign(run) : (input.right ? 1 : 0) - (input.left ? 1 : 0);
       if (dir !== 0) p.facing = dir;
       const canDash = !opts.gated || (p.flags[ABILITY_DASH] === true && !s.airDashed);
       const maxAirJumps = opts.gated && p.flags[ABILITY_DOUBLE_JUMP] === true ? 1 : 0;
@@ -78,8 +81,8 @@ export function createMovement(opts: MovementOptions) {
       } else {
         // Horizontal: accelerate toward target, reduce when over max.
         const mult = p.grounded ? 1 : f.airMult;
-        const target = dir * f.maxRun;
-        if (Math.abs(p.vx) > f.maxRun && Math.sign(p.vx) === Math.sign(target) && target !== 0) {
+        const target = run !== 0 ? run : dir * f.maxRun;
+        if (Math.abs(p.vx) > Math.abs(target) && Math.sign(p.vx) === Math.sign(target) && target !== 0) {
           p.vx = approach(p.vx, target, f.runReduce * mult * dt);
         } else {
           p.vx = approach(p.vx, target, f.runAccel * mult * dt);
