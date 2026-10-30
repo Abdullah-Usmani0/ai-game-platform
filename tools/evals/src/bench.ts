@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { FileStore } from '@gg/db';
 import { CreateRequest, ModelPolicy } from '@gg/schemas';
 import { runJob } from '@gg/worker-generator';
+import { CASTLE_RUBRIC, grade, measure, rubricInputsOf } from './rubric.js';
 
 /**
  * `pnpm bench`: run every benchmark prompt k times through the create pipeline and report pass rate per stage,
@@ -20,7 +21,7 @@ const { values } = parseArgs({
     k: { type: 'string', default: '3' },
     limit: { type: 'string' },
     genre: { type: 'string' },
-    /** Freeform prompts of one tier only (F0 to F3, see prompts.json). */
+    /** Prompts of one tier only: freeform F0 to F3, or R for the reference tier (see prompts.json). */
     tier: { type: 'string' },
     filter: { type: 'string' },
     out: { type: 'string', default: resolve(here, 'reports') },
@@ -55,6 +56,8 @@ interface Run {
   /** Why a failed run failed: the last failing gate check's detail, or the job's own reason. */
   failure: string | null;
   stages: Record<string, { passed: boolean; attempts: number }>;
+  /** A reference-tier game graded against the bar (tier R): lines passed of those measured, and the misses. */
+  rubric: { passed: number; measured: number; total: number; misses: string[] } | null;
 }
 const runs: Run[] = [];
 const t0 = Date.now();
@@ -88,9 +91,15 @@ for (const p of prompts) {
       const detail = (gateFailed?.payload['detail'] as string[] | undefined)?.join('; ');
       failure = (detail || error?.reason || error?.message || status).slice(0, 300);
     }
-    const run: Run = { prompt: p.id, genre: p.genre, tier: p.tier ?? null, run: i + 1, status, costUsd: after?.costUsd ?? 0, durationMs: Date.now() - start, failedStage: error?.stage ?? null, failure, stages };
+    let rubric: Run['rubric'] = null;
+    if (p.tier === 'R' && status === 'succeeded') {
+      const g = grade(CASTLE_RUBRIC, measure(rubricInputsOf(resolve(values['work-root'], job.id, 'game'))));
+      rubric = { passed: g.passed, measured: g.measured, total: g.total, misses: g.results.filter((r) => r.pass === false).map((r) => `${r.id} ${r.value} (${r.target})`) };
+    }
+    const run: Run = { prompt: p.id, genre: p.genre, tier: p.tier ?? null, run: i + 1, status, costUsd: after?.costUsd ?? 0, durationMs: Date.now() - start, failedStage: error?.stage ?? null, failure, stages, rubric };
     runs.push(run);
     console.log(`${p.id} run ${i + 1}: ${status} in ${Math.round(run.durationMs / 1000)} s, $${run.costUsd.toFixed(3)}${run.failedStage ? ` (failed at ${run.failedStage}: ${failure})` : ''}`);
+    if (rubric) console.log(`  rubric: ${rubric.passed} of ${rubric.measured} measured lines pass (${rubric.total} in all)${rubric.misses.length ? `; short of the bar: ${rubric.misses.join(', ')}` : ''}`);
     rmSync(resolve(values['work-root'], job.id), { recursive: true, force: true });
   }
 }
