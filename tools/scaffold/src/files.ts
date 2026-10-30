@@ -278,7 +278,8 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
       }
     }
     if (waiting.length) console.warn(\`waiting for a winning run: \${waiting.join(', ')}\`);
-  });
+    // Each level's search stops at its tick budget; a level no bot wins spends all of it, so the test waits for them.
+  }, 600_000);
 });
 `;
 
