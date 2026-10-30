@@ -113,6 +113,20 @@ describe('objectives', () => {
     expect(lives.events.history().filter((e) => e.name === 'spawn' && e.payload['type'] === 'player')).toHaveLength(1);
   });
 
+  it('a HUD goal counts the number its system keeps, and the score itself; the HUD reads each against its goal', () => {
+    // Two coins on the way: the pickups system keeps them as 'coins', and each adds to the score.
+    const coins = game(win('all', { kind: 'hud_at_least', key: 'coins', value: 2 }), room(['#########', '#S.o.o..#', '#########']))();
+    coins.run([{ from: 0, to: 120, input: { right: true } }], 120);
+    expect(coins.world.flags.won).toBe(true);
+    expect(coins.world.hud['_goal_coins']).toBe(2);
+    // The score is no HUD key: a goal on it counts the world's score.
+    const score = game(win('all', { kind: 'hud_at_least', key: 'score', value: 2 }), room(['#########', '#S.o.o..#', '#########']))();
+    score.run([{ from: 0, to: 120, input: { right: true } }], 120);
+    expect(score.world.score).toBeGreaterThanOrEqual(2);
+    expect(score.world.flags.won).toBe(true);
+    expect(score.world.hud['_goal_score']).toBe(2);
+  });
+
   it('progress is the mean of the clauses (all) or the furthest (any)', () => {
     const half = game(win('all', { kind: 'survive', seconds: 10 }, { kind: 'collect', count: 4 }))();
     for (let i = 0; i < 300; i++) half.step(emptyInput());

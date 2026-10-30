@@ -7,6 +7,8 @@ export interface ObjectivesContext {
   roles: ReadonlyMap<string, ReadonlySet<EntityRole>>;
   /** The level grammar places a goal tile (tilemaps, rooms); an arena's goal is its spawn. */
   goal: boolean;
+  /** The numbers the game's systems keep on the HUD (CatalogSystem.hud): what hud_at_least can count, besides the score. */
+  hud?: ReadonlySet<string>;
 }
 
 /**
@@ -29,6 +31,10 @@ export function checkObjectives(o: Objectives, ctx: ObjectivesContext): Validati
       if (c.type === undefined && !any('collectible')) issues.push(err('objective_type', 'collect counts pickups, and the game has none', { path }));
     }
     if (c.kind === 'reach_goal' && !ctx.goal) issues.push(err('no_goal', "reach_goal needs levels with a goal tile; this game's levels have none", { path }));
+    if (c.kind === 'hud_at_least' && c.key !== 'score' && ctx.hud && !ctx.hud.has(c.key)) {
+      const kept = [...ctx.hud].sort();
+      issues.push(err('objective_hud', `hud_at_least counts '${c.key}', which no system of the game keeps on the HUD (${kept.length ? `it keeps ${kept.join(', ')}, and the score` : 'it keeps only the score'})`, { path }));
+    }
     if (c.kind === 'survive' && !o.lose.some((l) => l.kind === 'lives')) issues.push(err('free_deaths', 'a survival clock needs a lives rule: without one dying costs nothing', { path }));
   }
   return report(issues, { clauses: o.win.clauses.length });

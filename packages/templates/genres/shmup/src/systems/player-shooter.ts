@@ -136,4 +136,5 @@ export const meta = {
   controlGates: { left: AIM_KEYS, right: AIM_KEYS, up: AIM_KEYS, down: AIM_KEYS },
   provides: { combat: 'shoot', spawns: ['shot'] },
   requires: { movement: ['topdown', 'platformer'], roles: ['hostile'] },
+  hud: ['kills'],
 } as const;

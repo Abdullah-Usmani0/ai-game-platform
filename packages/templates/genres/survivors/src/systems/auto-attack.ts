@@ -81,4 +81,5 @@ export const meta = {
   feedbackFor: ['hit'],
   provides: { combat: 'aura', spawns: ['xp'] },
   requires: { roles: ['hostile'] },
+  hud: ['lvl', 'kills'],
 } as const;

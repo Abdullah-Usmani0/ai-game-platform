@@ -81,4 +81,5 @@ export const meta = {
   feedbackFor: ['level_complete', 'custom:season_over'],
   provides: { win: 'earn' },
   requires: { systems: ['day-clock'] },
+  hud: ['gold', 'quota'],
 } as const;

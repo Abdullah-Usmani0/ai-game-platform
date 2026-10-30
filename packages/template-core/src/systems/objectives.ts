@@ -45,7 +45,8 @@ function clause(c: WinClause, s: ObjectivesState, ctx: SimCtx): { met: boolean; 
       return { met: n >= c.count, progress: n / c.count };
     }
     case 'hud_at_least': {
-      const v = Number(ctx.world.hud[c.key] ?? 0);
+      // The score is the world's own count, not a HUD key (the HUD draws it as a star).
+      const v = c.key === 'score' ? ctx.world.score : Number(ctx.world.hud[c.key] ?? 0);
       return { met: v >= c.value, progress: c.value > 0 ? v / c.value : 1 };
     }
   }
@@ -77,6 +78,8 @@ export const objectives = defineSystem<ObjectivesState>({
       // A count stops at its target: past it the clause is met, and '22/20' reads as a fault.
       if (c.kind === 'defeat' && c.count !== 'all') w.hud['defeated'] = `${Math.min(s.kills[c.type ?? ALL] ?? 0, c.count)}/${c.count}`;
       if (c.kind === 'collect') w.hud['collected'] = `${Math.min(s.found[c.type ?? ALL] ?? 0, c.count)}/${c.count}`;
+      // The number a HUD goal is after, for the view to draw the count against it ('3/12').
+      if (c.kind === 'hud_at_least') w.hud[`_goal_${c.key}`] = c.value;
     }
     const met = rules.win.clauses.map((c) => clause(c, s, ctx).met);
     if (w.player.alive && (rules.win.mode === 'any' ? met.some(Boolean) : met.every(Boolean))) {
@@ -142,5 +145,6 @@ export const meta = {
   emits: ['level_complete', 'custom:game_over', 'spawn'],
   feedbackFor: ['level_complete'],
   provides: { win: 'objectives', death: 'lives', spawns: ['player'] },
+  hud: ['time'],
   requires: { content: ['objectives'] },
 } as const;

@@ -76,8 +76,16 @@ export function freeformDesignManifest(base: CuratedGenre): GenreManifest {
   };
 }
 
-/** A freeform game's objectives, checked against its roster's roles and whether its base genre's levels have a goal. */
-export function checkFreeformObjectives(file: FreeformSystemsJson, roster: EntityRoster, objectives: Objectives): ValidationReport {
+/**
+ * A freeform game's objectives, checked against its roster's roles, whether its base genre's levels have a goal, and
+ * the numbers its systems keep on the HUD (with those its own systems' contracts name: `ownHud`).
+ */
+export function checkFreeformObjectives(file: FreeformSystemsJson, roster: EntityRoster, objectives: Objectives, ownHud: readonly string[] = []): ValidationReport {
   const { runtime } = compose(file, roster);
-  return checkObjectives(objectives, { roles: rolesOf(runtime), goal: grammarHasGoal(BASE_MANIFESTS[file.composition.base].levelGrammar.kind) });
+  return checkObjectives(objectives, { roles: rolesOf(runtime), goal: grammarHasGoal(BASE_MANIFESTS[file.composition.base].levelGrammar.kind), hud: new Set([...hudKeysOf(runtime), ...ownHud]) });
+}
+
+/** The numbers a composed game's systems keep on the HUD: what a hud_at_least goal can count, besides the score. */
+export function hudKeysOf(runtime: Pick<GenreManifest, 'systems'>): string[] {
+  return [...new Set(Object.values(runtime.systems).flatMap((m) => m.meta.hud ?? []))].sort();
 }

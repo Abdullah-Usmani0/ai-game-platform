@@ -26,4 +26,5 @@ export const meta = {
   emits: ['pickup', 'despawn'],
   feedbackFor: ['pickup'],
   requires: { roles: ['collectible'] },
+  hud: ['coins'],
 } as const;

@@ -981,9 +981,13 @@ export class MainScene extends Phaser.Scene {
       // hp is drawn as hearts; a key starting with _ is for the view (a farm's clock as minutes), not the player.
       if (key === 'hp' || key.startsWith('_')) continue;
       const icon = HUD_KEY_ICONS[key];
-      entries.push({ icon, text: icon ? String(v).toUpperCase() : `${k.toUpperCase()} ${String(v).toUpperCase()}` });
+      // A number the level's goal counts reads against the goal ('3/12').
+      const goal = w.hud[`_goal_${k}`];
+      const value = goal === undefined ? String(v) : `${String(v)}/${String(goal)}`;
+      entries.push({ icon, text: icon ? value.toUpperCase() : `${k.toUpperCase()} ${value.toUpperCase()}` });
     }
-    if (w.score > 0 || entries.length === 0) entries.unshift({ icon: 'star', text: String(w.score) });
+    const scoreGoal = w.hud['_goal_score'];
+    if (w.score > 0 || entries.length === 0 || scoreGoal !== undefined) entries.unshift({ icon: 'star', text: scoreGoal === undefined ? String(w.score) : `${w.score}/${String(scoreGoal)}` });
     const sig = JSON.stringify([p.hp, p.maxHp, entries, this.controller.levelIndex, levels]);
     if (sig === this.hudSig) return;
     this.hudSig = sig;

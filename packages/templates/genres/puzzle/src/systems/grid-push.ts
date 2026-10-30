@@ -268,4 +268,5 @@ export const meta = {
   controlGates: { action: 'allowUndo' },
   provides: { movement: 'grid', win: 'place_crates' },
   requires: { roles: ['crate', 'target'] },
+  hud: ['moves', 'pushes'],
 } as const;

@@ -56,4 +56,5 @@ export const meta = {
   feedbackFor: ['menu_open', 'menu_choose', 'custom:buy'],
   controls: { left: 'face', right: 'face', up: 'face', down: 'face', action: 'work' },
   requires: { movement: ['topdown'], roles: ['shop'] },
+  hud: ['gold'],
 } as const;

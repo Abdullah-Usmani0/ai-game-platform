@@ -87,7 +87,7 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   if (freeform) {
     // The composition rules hold a freeform game together, over its roster's roles and the content it ships.
     const content = [...Object.keys(g.extraContent?.({ seed, difficulty: 0.3 }) ?? {}), ...Object.keys(opts.content ?? {})];
-    issues.push(...checkComposition(Object.values(g.systems).map((m) => m.meta), { roles: rolesPresent(g), content }).issues);
+    issues.push(...checkComposition(Object.values(g.systems).map((m) => m.meta), { roles: rolesPresent(g), content, params: Object.fromEntries(systems.systems.map((s) => [s.id, s.params])) }).issues);
     if (opts.content?.['objectives'] !== undefined) {
       const objectives = Objectives.safeParse(opts.content['objectives']);
       if (!objectives.success) throw new Error(`content/objectives.json is invalid: ${objectives.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);

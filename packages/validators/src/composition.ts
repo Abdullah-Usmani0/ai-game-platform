@@ -1,5 +1,5 @@
 import { err, report, type Issue, type ValidationReport } from './report.js';
-import type { CatalogSystem, EntityRole } from './systems.js';
+import { controlsInUse, type CatalogSystem, type EntityRole } from './systems.js';
 
 /** What a set of systems is checked against besides itself: the roles the game's entities fill, the content it ships. */
 export interface CompositionContext {
@@ -7,6 +7,8 @@ export interface CompositionContext {
   roles: Iterable<EntityRole>;
   /** Content files the game ships (waves). */
   content: Iterable<string>;
+  /** The parameters the game gives each system (systems.json): a key a parameter switches off is not in use. */
+  params?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 }
 
 /** Uses that may share keys with another system's: aiming and facing read the movement keys. */
@@ -35,7 +37,8 @@ export function deathSwitches(systems: ReadonlyArray<CatalogSystem>): Record<str
  *   game can hurt the player (a hostile);
  * - every requirement is met: the movement a system works with, the entity roles, content files and systems it needs;
  * - no key has two uses (aiming and facing may share the movement keys; systems may share one use, as a farm's work
- *   the action key does on whatever the player faces), and no listed conflict is selected.
+ *   the action key does on whatever the player faces), judged with the parameters the game gives each system (a
+ *   courier set to carry on jump leaves action to a sword), and no listed conflict is selected.
  */
 export function checkComposition(systems: ReadonlyArray<CatalogSystem>, ctx: CompositionContext): ValidationReport {
   const issues: Issue[] = [];
@@ -67,7 +70,7 @@ export function checkComposition(systems: ReadonlyArray<CatalogSystem>, ctx: Com
   }
 
   const uses = new Map<string, Array<{ system: string; use: string }>>();
-  for (const s of systems) for (const [key, use] of Object.entries(s.controls ?? {})) if (use) uses.set(key, [...(uses.get(key) ?? []), { system: s.id, use }]);
+  for (const s of systems) for (const [key, use] of Object.entries(controlsInUse(s, ctx.params?.[s.id]))) if (use) uses.set(key, [...(uses.get(key) ?? []), { system: s.id, use }]);
   for (const [key, all] of uses) {
     const own = all.filter((u) => !SHARED_USES.has(u.use));
     if (new Set(own.map((u) => u.use)).size > 1) issues.push(err('key_twice', `the ${key} key would ${own.map((u) => `${u.use} (${u.system})`).join(' and ')}`, { path: key }));

@@ -74,4 +74,5 @@ export const meta = {
   feedbackFor: ['custom:ship', 'custom:payout', 'custom:bin_empty'],
   controls: { left: 'face', right: 'face', up: 'face', down: 'face', action: 'work' },
   requires: { movement: ['topdown'], roles: ['bin'], systems: ['day-clock'] },
+  hud: ['gold'],
 } as const;

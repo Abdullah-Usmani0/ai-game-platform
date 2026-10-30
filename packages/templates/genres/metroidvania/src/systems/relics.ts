@@ -93,4 +93,5 @@ export const meta = {
   emits: ['pickup', 'despawn', 'checkpoint', 'custom:door_open'],
   feedbackFor: ['pickup', 'checkpoint'],
   requires: { movement: ['platformer'], roles: ['relic'] },
+  hud: ['keys'],
 } as const;

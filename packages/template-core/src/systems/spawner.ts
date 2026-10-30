@@ -61,4 +61,5 @@ export const meta = {
   feedbackFor: [],
   provides: { spawns: ['waves'] },
   requires: { content: ['waves'] },
+  hud: ['wave'],
 } as const;

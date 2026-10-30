@@ -38,7 +38,7 @@ describe('compose', () => {
       expect(issues, ex.id).toEqual([]);
       const base = BASE_MANIFESTS[ex.systems.composition.base];
       const content = [...Object.keys(base.extraContent?.({ seed: 1, difficulty: 0.3 }) ?? {}), ...(ex.objectives ? ['objectives'] : []), ...Object.keys(ex.content ?? {})];
-      expect(checkComposition(Object.values(runtime.systems).map((m) => m.meta), { roles: rolesPresent(runtime), content }).issues, ex.id).toEqual([]);
+      expect(checkComposition(Object.values(runtime.systems).map((m) => m.meta), { roles: rolesPresent(runtime), content, params: Object.fromEntries(ex.systems.systems.map((s) => [s.id, s.params])) }).issues, ex.id).toEqual([]);
       expect(runtime.movementMode, ex.id).toBe(base.movementMode);
       expect(runtime.feelPresets[ex.systems.feelPreset], ex.id).toBeDefined();
     }

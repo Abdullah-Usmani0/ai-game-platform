@@ -176,4 +176,5 @@ export const meta = {
   controls: { left: 'face', right: 'face', up: 'face', down: 'face', action: 'work', jump: 'choose seed' },
   provides: { spawns: ['crop'] },
   requires: { movement: ['topdown'], roles: ['plot'], systems: ['day-clock'] },
+  hud: ['energy'],
 } as const;

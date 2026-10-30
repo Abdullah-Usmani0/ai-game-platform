@@ -82,4 +82,5 @@ export const meta = {
   feedbackFor: ['custom:day_end', 'custom:day_start', 'custom:dusk'],
   // Each morning the player wakes at the door.
   provides: { spawns: ['player'] },
+  hud: ['day'],
 } as const;

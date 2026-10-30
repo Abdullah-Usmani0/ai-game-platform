@@ -151,6 +151,11 @@ export function replayRun(gameDir: string, proof: LevelProof): { won: boolean; l
   return runEnds({ ...options, level: slot.level, seed: slot.seed }, proof);
 }
 
+/** The parameters a systems file gives each of its systems, by id: what the composition rules judge keys with. */
+export function paramsOf(file: Pick<SystemsFile, 'systems'>): Record<string, Readonly<Record<string, unknown>>> {
+  return Object.fromEntries(file.systems.map((s) => [s.id, s.params]));
+}
+
 /** The catalog a game's systems.json is checked against: its genre's, or for a freeform game every system's. */
 export function catalogFor(systems: Pick<SystemsFile, 'genre'>): SystemsCatalog {
   return systems.genre === 'freeform' ? FREEFORM_CATALOG : CATALOG;
@@ -195,16 +200,17 @@ export function checkGameSystems(gameDir: string): ValidationReport {
     const m = own!;
     const composed = existsSync(join(dir, 'entities.json'));
     const content = [...new Set([...written, ...toCome(m), ...(composed ? [] : ['objectives'])])];
-    issues.push(...checkComposition([...Object.values(m.systems).map((s) => s.meta), ...bespoke], { roles: rolesPresent(m), content }).issues);
+    issues.push(...checkComposition([...Object.values(m.systems).map((s) => s.meta), ...bespoke], { roles: rolesPresent(m), content, params: paramsOf(parsed.data) }).issues);
     const objectivesPath = join(dir, 'objectives.json');
     if (existsSync(objectivesPath)) {
       const o = Objectives.safeParse(readJson(objectivesPath));
-      if (o.success) issues.push(...checkFreeformObjectives(parsed.data, files.roster ?? IDENTITY_ROSTER, o.data).issues);
+      // The game's own systems may keep numbers on the HUD a goal counts (their contracts name them).
+      if (o.success) issues.push(...checkFreeformObjectives(parsed.data, files.roster ?? IDENTITY_ROSTER, o.data, mechanics.flatMap((x) => x.hud ?? [])).issues);
       else issues.push(...o.error.issues.map((i) => err('objectives_invalid', `content/objectives.json ${i.path.join('.')}: ${i.message}`)));
     }
   } else if (own && bespoke.length > 0) {
     // A curated genre's systems are held together by the genre; what the game's own add to the rules is its to answer.
-    const ctx = { roles: rolesPresent(own), content: [...new Set([...written, ...toCome(own), ...(own.designContent ?? []).map((d) => d.key)])] };
+    const ctx = { roles: rolesPresent(own), content: [...new Set([...written, ...toCome(own), ...(own.designContent ?? []).map((d) => d.key)])], params: paramsOf(parsed.data) };
     const metas = parsed.data.systems.flatMap((s) => (catalog[s.id] ? [catalog[s.id]!] : []));
     const before = new Set(checkComposition(metas, ctx).issues.map((i) => `${i.code}|${i.message}`));
     issues.push(...checkComposition([...metas, ...bespoke], ctx).issues.filter((i) => !before.has(`${i.code}|${i.message}`)));

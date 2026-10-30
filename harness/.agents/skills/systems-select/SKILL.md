@@ -32,7 +32,9 @@ base genre. `pnpm catalog freeform <base>` lists the systems it may use: every g
 No system is required, but the composition rules hold: exactly one system moves the player and exactly one decides the
 win (the `objectives` system can: reach the goal, survive, defeat, collect, a HUD value), one rule decides what a death
 does when anything can hurt the player, every system's needs are met (its movement, the entities and content it uses),
-and no key has two uses.
+and no key has two uses, with the parameters you give each system (a key a parameter switches off is free). A HUD goal
+(`hud_at_least`) counts a number one of the selected systems keeps on the HUD (each catalog entry lists its `hud`
+numbers: coins, kills, wave...) or the score; the HUD shows it against its goal ('3/12').
 
 Two blocks only freeform games compose:
 - `auto-run` (side view) makes a runner: the player runs right on their own at `pace` of the feel's top speed, rising by

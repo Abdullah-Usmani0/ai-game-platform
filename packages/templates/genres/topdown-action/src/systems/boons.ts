@@ -107,4 +107,5 @@ export const meta = {
   params: { enabled: { type: 'boolean', default: true, affects: 'none' } },
   emits: ['menu_open', 'custom:boon'],
   feedbackFor: ['custom:boon'],
+  hud: ['boons'],
 } as const;

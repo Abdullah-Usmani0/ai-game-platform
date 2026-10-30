@@ -5,7 +5,7 @@ import { generateArtifact, providerFor, type GenerateResult } from '@gg/llm';
 import { CURATED_GENRES, type CreateRequest, type CuratedGenre, type EntityRoster, type FreeformGddFrontmatter, type FreeformSystemsJson, type Objectives, type ScopeTier } from '@gg/schemas';
 import { sfxPresetFor } from '@gg/sdk/art';
 import { grammarHasGoal, plannedLevelCount, rolesPresent, type GenreManifest } from '@gg/template-core';
-import { ARCHETYPES, BASE_MANIFESTS, checkFreeformObjectives, compileRoster, compose, designContentFor, FREEFORM_CATALOG, freeformDesignManifest, IDENTITY_ROSTER, movementOf, proveLevel, RUNTIMES, SYSTEMS, usableSystems } from '@gg/template-freeform/node';
+import { ARCHETYPES, BASE_MANIFESTS, checkFreeformObjectives, compileRoster, compose, designContentFor, FREEFORM_CATALOG, freeformDesignManifest, hudKeysOf, IDENTITY_ROSTER, movementOf, proveLevel, RUNTIMES, SYSTEMS, usableSystems } from '@gg/template-freeform/node';
 import { hasBespokeSystems, readGameFiles, readGameInputs, readGameLevels } from '@gg/templates/node';
 import { checkComposition, checkSystems, silentSfx } from '@gg/validators';
 import { baseSystems, defaultObjectives, draftFreeformFrontmatter, exampleFor, guessBase } from '../freeform.js';
@@ -89,7 +89,7 @@ export function verifyFreeformSystems(v: FreeformSystemsJson, gdd: FreeformGddFr
   const { runtime } = compose(v, IDENTITY_ROSTER);
   // The objectives' own file comes with the composition stage, right after this one.
   const content = [...Object.keys(base.extraContent?.({ seed: 1, difficulty: 0.3 }) ?? {}), ...(v.systems.some((s) => s.id === 'objectives') ? ['objectives'] : [])];
-  issues.push(...checkComposition(Object.values(runtime.systems).map((m) => m.meta), { roles: rolesPresent(runtime), content }).issues.filter((i) => i.severity === 'error').map((i) => i.message));
+  issues.push(...checkComposition(Object.values(runtime.systems).map((m) => m.meta), { roles: rolesPresent(runtime), content, params: Object.fromEntries(v.systems.map((s) => [s.id, s.params])) }).issues.filter((i) => i.severity === 'error').map((i) => i.message));
   return issues;
 }
 
@@ -204,6 +204,7 @@ export async function composition(ctx: StageContext): Promise<StageOutcome> {
       `Game: "${gdd.title}". Pillars: ${gdd.pillars.join(' / ')}.`,
       `Base genre: ${base}; its levels ${goal ? 'have a goal tile to reach' : 'are one arena without a goal tile'}. Level time: ${Math.round(gdd.targets.levelTimeS)} s.`,
       `Entity types: ${compiled.defs.map((d) => `${d.type} (${compiled.roles[d.type]?.join(', ') || 'prop'})`).join('; ')}.`,
+      `Numbers its systems keep on the HUD, which hud_at_least can count: ${[...hudKeysOf(compose(sys, roster).runtime), 'score'].join(', ')}.`,
       'Write content/objectives.json: win { mode all|any, clauses } from reach_goal, survive { seconds }, defeat { type?, count | all }, collect { type?, count }, hud_at_least { key, value }; lose from time_out { seconds } and lives { count }. A survive clause needs a lives rule.',
       example?.objectives ? `Example of a freeform game on this base: ${JSON.stringify(example.objectives)}` : '',
     ].join('\n\n');

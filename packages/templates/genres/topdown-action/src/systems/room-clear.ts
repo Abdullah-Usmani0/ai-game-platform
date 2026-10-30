@@ -78,4 +78,5 @@ export const meta = {
   feedbackFor: ['level_complete'],
   provides: { win: 'clear_room', death: 'game_over' },
   requires: { roles: ['hostile'] },
+  hud: ['enemies'],
 } as const;

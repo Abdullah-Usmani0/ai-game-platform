@@ -23,6 +23,16 @@ describe('checkObjectives', () => {
     expect(checkObjectives(rules([{ kind: 'collect', count: 1 }]), { roles: new Map(), goal: true }).issues.map((i) => i.code)).toEqual(['objective_type']);
   });
 
+  it('counts on the HUD only a number some system of the game keeps there, or the score', () => {
+    const hud = new Set(['coins', 'delivered']);
+    const at = (key: string) => checkObjectives(rules([{ kind: 'hud_at_least', key, value: 5 }]), { roles, goal: true, hud }).issues;
+    expect(at('delivered')).toEqual([]);
+    expect(at('score')).toEqual([]);
+    expect(at('served').map((i) => [i.code, i.message])).toEqual([['objective_hud', "hud_at_least counts 'served', which no system of the game keeps on the HUD (it keeps coins, delivered, and the score)"]]);
+    // Without the systems' declarations to go by, the key is not judged.
+    expect(codes(rules([{ kind: 'hud_at_least', key: 'served', value: 5 }]))).toEqual([]);
+  });
+
   it('needs a goal tile for reach_goal, and lives for a survival clock', () => {
     expect(codes(rules([{ kind: 'reach_goal' }]), false)).toEqual(['no_goal']);
     expect(codes(rules([{ kind: 'survive', seconds: 45 }]))).toEqual(['free_deaths']);

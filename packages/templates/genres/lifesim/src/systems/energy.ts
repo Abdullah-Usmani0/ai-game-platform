@@ -34,4 +34,5 @@ export const meta = {
   emits: ['custom:exhausted'],
   feedbackFor: ['custom:exhausted'],
   requires: { systems: ['day-clock'] },
+  hud: ['energy'],
 } as const;

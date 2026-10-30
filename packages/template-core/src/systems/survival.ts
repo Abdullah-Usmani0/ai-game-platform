@@ -39,4 +39,5 @@ export const meta = {
   emits: ['level_complete', 'custom:game_over'],
   feedbackFor: ['level_complete'],
   provides: { win: 'survive', death: 'game_over' },
+  hud: ['time'],
 } as const;

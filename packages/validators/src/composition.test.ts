@@ -69,4 +69,15 @@ describe('checkComposition', () => {
     expect(both.issues.map((i) => i.code)).toEqual(['key_twice']);
     expect(both.issues[0]!.message).toBe('the action key would attack (sword) and shoot (gun)');
   });
+
+  it('judges keys with the parameters the game gives each system: a courier on jump leaves action to the sword', () => {
+    const courier = sys('courier', {
+      params: { key: { type: 'string', values: ['action', 'jump'], default: 'action', affects: 'none' } },
+      controls: { action: 'carry', jump: 'carry' },
+      controlGates: { action: { param: 'key', values: ['action'] }, jump: { param: 'key', values: ['jump'] } },
+    });
+    expect(codes([walk, clock, sword, courier])).toEqual(['key_twice']);
+    expect(checkComposition([walk, clock, sword, courier], { ...ok, params: { courier: { key: 'jump' } } }).issues).toEqual([]);
+    expect(checkComposition([walk, clock, sword, courier], { ...ok, params: { courier: { key: 'action' } } }).issues.map((i) => i.message)).toEqual(['the action key would attack (sword) and carry (courier)']);
+  });
 });

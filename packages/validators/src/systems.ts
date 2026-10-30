@@ -31,9 +31,10 @@ export type WinKind = 'reach_goal' | 'survive' | 'clear_room' | 'place_crates' |
 
 /**
  * What entities in a game are for, whatever their type is called: what systems need to find in a level. A farm's soil
- * plots, seed shop, shipping bin and bed are roles too.
+ * plots, seed shop, shipping bin and bed are roles too, and so are what a courier carries, where it is made and where
+ * it goes (cargo, source, dropoff).
  */
-export type EntityRole = 'hostile' | 'collectible' | 'relic' | 'key' | 'door' | 'crate' | 'target' | 'plot' | 'shop' | 'bin' | 'bed';
+export type EntityRole = 'hostile' | 'collectible' | 'relic' | 'key' | 'door' | 'crate' | 'target' | 'plot' | 'shop' | 'bin' | 'bed' | 'cargo' | 'source' | 'dropoff';
 
 /** What a system owns in a game. The composition rules allow one movement, one win and one death owner per game. */
 export interface SystemProvides {
@@ -101,6 +102,11 @@ export interface CatalogSystem {
   takesOver?: readonly ControlKey[];
   /** What the system owns in a game (movement, the win, the death rule, combat, spawns); checked against its runs. */
   provides?: SystemProvides;
+  /**
+   * The numbers the system keeps on the HUD (coins, kills, delivered): what a game's objectives can count with
+   * hud_at_least. Text it shows there (a clock face, '2/5') is for the player only. Checked against its runs.
+   */
+  hud?: readonly string[];
   /** What it needs from the rest of the game. */
   requires?: SystemRequires;
   /** Systems it cannot share a game with. */
