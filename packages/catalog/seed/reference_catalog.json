@@ -1,11 +1,11 @@
 {
-  "$comment": "Curated style references. A card holds only unprotectable attributes (palette mood, pixel density, outline rule, animation feel, camera, UI/typography class, audio mood). blockedTerms never reach a prompt: character names, place names, logos and signature items. riskTier drives how strictly the output IP screen treats matches.",
+  "$comment": "Curated style references. A card holds only unprotectable attributes (palette mood, pixel density, outline rule, animation feel, camera, UI/typography class, audio mood). blockedTerms never reach a prompt: character names, place names, logos and signature items. commonTerms are ordinary words a game also uses as names (knight, survivors): ideas keep them and the worker only reports them. riskTier drives how strictly the output IP screen treats matches.",
   "entries": [
     {
       "title": "Celeste", "aliases": ["celeste"], "riskTier": "medium",
       "card": { "family": "16bit", "canvas": { "w": 320, "h": 180 }, "pixelArt": true, "palette": { "background": "#1b1b3a", "mid": "#4c5ba3", "foreground": "#f4f4ff", "accent": "#ff5c8d", "danger": "#ff3d3d", "ui": "#ffffff" }, "outline": "selective", "animationFps": { "character": 12, "effects": 15 }, "camera": { "follow": "room", "lerp": 0.2, "deadzone": { "w": 0, "h": 0 }, "maxShake": 0.5, "zoom": 1 }, "typography": { "font": "press-start-2p", "size": 8 }, "audioMood": ["melodic synth", "piano", "driving"], "postFx": { "vignette": false, "bloom": false, "crt": false },
         "notes": ["cold mountain blues with hot pink and red accents", "tiles read as clean 8 px blocks; hazards are high-contrast", "characters are small (8x11) with strong silhouettes and hair-colour state cues", "screen-by-screen rooms, instant respawn, dash trails and squash on jump"] },
-      "blockedTerms": ["Madeline", "Badeline", "Theo", "Granny", "Oshiro", "Mt. Celeste", "Celeste Mountain", "Mirror Temple", "Farewell"]
+      "blockedTerms": ["Madeline", "Badeline", "Theo", "Oshiro", "Mt. Celeste", "Celeste Mountain", "Mirror Temple"], "commonTerms": ["Granny", "Farewell"]
     },
     {
       "title": "Hades", "aliases": ["hades", "hades 2", "hades ii"], "riskTier": "high",
@@ -23,19 +23,19 @@
       "title": "Dead Cells", "aliases": ["dead cells", "deadcells"], "riskTier": "medium",
       "card": { "family": "hd-pixel", "canvas": { "w": 480, "h": 270 }, "pixelArt": true, "palette": { "background": "#0f1b2d", "mid": "#2e4a6b", "foreground": "#e9f1ff", "accent": "#36d6c3", "danger": "#ff5533", "ui": "#dfe9ff" }, "outline": "dark", "animationFps": { "character": 15, "effects": 20 }, "camera": { "follow": "lerp", "lerp": 0.15, "deadzone": { "w": 40, "h": 20 }, "maxShake": 0.7, "zoom": 1 }, "typography": { "font": "system", "size": 11 }, "audioMood": ["dark electronic", "orchestral hits", "tense"], "postFx": { "vignette": true, "bloom": true, "crt": false },
         "notes": ["moody teal-and-amber dungeons with glowing accents", "fluid high-frame animation on a pixel grid, generous hit pause and screen shake", "fast lateral movement, rolls with i-frames, damage numbers", "minimal HUD, item icons with coloured borders"] },
-      "blockedTerms": ["Beheaded", "Prisoners' Quarters", "Collector", "Hand of the King", "Motion Twin"]
+      "blockedTerms": ["Prisoners' Quarters", "Hand of the King", "Motion Twin"], "commonTerms": ["Beheaded", "Collector"]
     },
     {
       "title": "Hollow Knight", "aliases": ["hollow knight", "silksong"], "riskTier": "high",
       "card": { "family": "painted", "canvas": { "w": 480, "h": 270 }, "pixelArt": false, "palette": { "background": "#0b0d14", "mid": "#243043", "foreground": "#dfe6f3", "accent": "#7fc8ff", "danger": "#ff7a45", "ui": "#e8edf5" }, "outline": "dark", "animationFps": { "character": 20, "effects": 24 }, "camera": { "follow": "lerp", "lerp": 0.08, "deadzone": { "w": 48, "h": 32 }, "maxShake": 0.4, "zoom": 1 }, "typography": { "font": "system", "size": 11 }, "audioMood": ["orchestral", "melancholic", "sparse"], "postFx": { "vignette": true, "bloom": false, "crt": false },
         "notes": ["hand-drawn ink silhouettes on dark blue-grey backdrops with pale highlights", "parallax layers, soft particle dust, cold light", "weighty nail hits with brief pause, pogo bounces", "elegant thin-line UI, mask icons for health"] },
-      "blockedTerms": ["Hallownest", "Hornet", "Knight", "Dirtmouth", "Radiance", "Grimm", "Pale King", "Team Cherry", "Pharloom"]
+      "blockedTerms": ["Hallownest", "Dirtmouth", "Grimm", "Pale King", "Team Cherry", "Pharloom"], "commonTerms": ["Knight", "Hornet", "Radiance"]
     },
     {
       "title": "Shovel Knight", "aliases": ["shovel knight"], "riskTier": "medium",
       "card": { "family": "8bit", "canvas": { "w": 400, "h": 240 }, "pixelArt": true, "palette": { "background": "#0d1b3a", "mid": "#3b5bd5", "foreground": "#f8f8f8", "accent": "#f8d878", "danger": "#e45c5c", "ui": "#ffffff" }, "outline": "dark", "animationFps": { "character": 8, "effects": 12 }, "camera": { "follow": "room", "lerp": 0.2, "deadzone": { "w": 0, "h": 0 }, "maxShake": 0.3, "zoom": 1 }, "typography": { "font": "press-start-2p", "size": 8 }, "audioMood": ["chiptune", "heroic", "catchy"], "postFx": { "vignette": false, "bloom": false, "crt": false },
         "notes": ["bright saturated NES-style palette with a few colours per sprite", "single-screen-ish rooms, bold blocky tiles, visible hit flashes", "downward bounce attack, stair-step level rhythm", "boxy white-bordered dialogue panels"] },
-      "blockedTerms": ["Shield Knight", "Plague Knight", "Specter Knight", "King Knight", "Enchantress", "Black Knight", "Yacht Club"]
+      "blockedTerms": ["Shield Knight", "Plague Knight", "Specter Knight", "King Knight", "Yacht Club"], "commonTerms": ["Enchantress", "Black Knight"]
     },
     {
       "title": "Terraria", "aliases": ["terraria"], "riskTier": "medium",
@@ -47,37 +47,37 @@
       "title": "Undertale", "aliases": ["undertale", "deltarune"], "riskTier": "high",
       "card": { "family": "8bit", "canvas": { "w": 320, "h": 240 }, "pixelArt": true, "palette": { "background": "#000000", "mid": "#3a3a3a", "foreground": "#ffffff", "accent": "#ffff00", "danger": "#ff0000", "ui": "#ffffff" }, "outline": "none", "animationFps": { "character": 6, "effects": 10 }, "camera": { "follow": "room", "lerp": 0.2, "deadzone": { "w": 0, "h": 0 }, "maxShake": 0.3, "zoom": 1 }, "typography": { "font": "press-start-2p", "size": 8 }, "audioMood": ["chiptune", "emotional", "quirky"], "postFx": { "vignette": false, "bloom": false, "crt": false },
         "notes": ["mostly monochrome scenes with single bold accent colours", "deliberately simple sprites, limited animation", "boxed dialogue with typewriter text, bullet-dodge menus", "stark white-on-black UI"] },
-      "blockedTerms": ["Sans", "Papyrus", "Toriel", "Flowey", "Asgore", "Undyne", "Frisk", "Chara", "Kris", "Ralsei", "Toby Fox"]
+      "blockedTerms": ["Sans", "Toriel", "Flowey", "Asgore", "Undyne", "Frisk", "Chara", "Kris", "Ralsei", "Toby Fox"], "commonTerms": ["Papyrus"]
     },
     {
       "title": "Hyper Light Drifter", "aliases": ["hyper light drifter", "hyper light"], "riskTier": "medium",
       "card": { "family": "16bit", "canvas": { "w": 480, "h": 270 }, "pixelArt": true, "palette": { "background": "#1c0f2e", "mid": "#5a2d82", "foreground": "#f6e7ff", "accent": "#ff2e88", "danger": "#ff5a36", "ui": "#efe3ff" }, "outline": "none", "animationFps": { "character": 12, "effects": 18 }, "camera": { "follow": "lerp", "lerp": 0.1, "deadzone": { "w": 32, "h": 24 }, "maxShake": 0.6, "zoom": 1 }, "typography": { "font": "system", "size": 10 }, "audioMood": ["ambient synth", "melancholic", "pulsing"], "postFx": { "vignette": true, "bloom": true, "crt": false },
         "notes": ["neon magenta, violet and teal on dark grounds; strong colour blocking", "top-down action with dashes leaving afterimages, hard hit stops", "painterly pixel tiles with no outlines, lots of glow", "wordless icon-driven UI"] },
-      "blockedTerms": ["Drifter", "Judgement", "Heart Machine"]
+      "blockedTerms": ["Heart Machine"], "commonTerms": ["Drifter", "Judgement"]
     },
     {
       "title": "Katana ZERO", "aliases": ["katana zero", "katana 0"], "riskTier": "medium",
       "card": { "family": "16bit", "canvas": { "w": 480, "h": 270 }, "pixelArt": true, "palette": { "background": "#120a1a", "mid": "#3b1f4e", "foreground": "#f3e9ff", "accent": "#ff3cac", "danger": "#ff4040", "ui": "#efe6ff" }, "outline": "none", "animationFps": { "character": 15, "effects": 24 }, "camera": { "follow": "lerp", "lerp": 0.2, "deadzone": { "w": 16, "h": 16 }, "maxShake": 0.8, "zoom": 1 }, "typography": { "font": "system", "size": 10 }, "audioMood": ["synthwave", "driving", "neon"], "postFx": { "vignette": true, "bloom": true, "crt": true },
         "notes": ["neon-noir magenta and cyan lighting on dark interiors, VHS grain", "one-hit kills, slow-motion dodge, extreme hit stop and shake", "side-view rooms with quick restarts", "dialogue in choice bubbles"] },
-      "blockedTerms": ["Zero", "Dragon", "Comedy", "Askiisoft", "Chronos"]
+      "blockedTerms": ["Askiisoft", "Chronos"], "commonTerms": ["Zero", "Dragon", "Comedy"]
     },
     {
       "title": "Enter the Gungeon", "aliases": ["gungeon", "enter the gungeon"], "riskTier": "medium",
       "card": { "family": "16bit", "canvas": { "w": 480, "h": 270 }, "pixelArt": true, "palette": { "background": "#17171f", "mid": "#4a4a5e", "foreground": "#f2f2f2", "accent": "#ffc857", "danger": "#ff5a5a", "ui": "#ffffff" }, "outline": "dark", "animationFps": { "character": 12, "effects": 15 }, "camera": { "follow": "lerp", "lerp": 0.12, "deadzone": { "w": 40, "h": 30 }, "maxShake": 0.5, "zoom": 1 }, "typography": { "font": "pixelify-sans", "size": 10 }, "audioMood": ["energetic", "orchestral chiptune"], "postFx": { "vignette": false, "bloom": false, "crt": false },
         "notes": ["top-down rooms with dense bullet patterns in bright colours on muted stone", "dodge-roll with i-frames, table flips, readable hitboxes", "chunky outlined sprites, cartoon proportions", "ammo bars and heart containers HUD"] },
-      "blockedTerms": ["Gungeoneer", "Bullet Kin", "Dodge Roll", "Gun That Can Kill The Past", "Devolver"]
+      "blockedTerms": ["Gungeoneer", "Bullet Kin", "Gun That Can Kill The Past", "Devolver"], "commonTerms": ["Dodge Roll"]
     },
     {
       "title": "Vampire Survivors", "aliases": ["vampire survivors", "survivors"], "riskTier": "low",
       "card": { "family": "16bit", "canvas": { "w": 480, "h": 270 }, "pixelArt": true, "palette": { "background": "#1e1b2e", "mid": "#4d3b63", "foreground": "#f5f0ff", "accent": "#7ed957", "danger": "#ff4d4d", "ui": "#ffffff" }, "outline": "dark", "animationFps": { "character": 8, "effects": 12 }, "camera": { "follow": "lerp", "lerp": 0.2, "deadzone": { "w": 0, "h": 0 }, "maxShake": 0.2, "zoom": 1 }, "typography": { "font": "press-start-2p", "size": 8 }, "audioMood": ["gothic chiptune", "frantic"], "postFx": { "vignette": false, "bloom": false, "crt": false },
         "notes": ["gothic purple nights with glowing green pickups", "hundreds of small sprites, auto-attacks, experience bar across the top", "retro 16-bit character sprites with heavy outlines", "level-up choice cards"] },
-      "blockedTerms": ["Antonio", "Imelda", "Poncle", "Mad Forest"]
+      "blockedTerms": ["Antonio", "Imelda", "Poncle", "Mad Forest"], "commonTerms": ["survivors"]
     },
     {
       "title": "Cuphead", "aliases": ["cuphead"], "riskTier": "high",
       "card": { "family": "painted", "canvas": { "w": 640, "h": 360 }, "pixelArt": false, "palette": { "background": "#efe4c8", "mid": "#a86f3c", "foreground": "#2b1d14", "accent": "#e63946", "danger": "#ff2a2a", "ui": "#2b1d14" }, "outline": "dark", "animationFps": { "character": 24, "effects": 24 }, "camera": { "follow": "lerp", "lerp": 0.15, "deadzone": { "w": 24, "h": 16 }, "maxShake": 0.4, "zoom": 1 }, "typography": { "font": "system", "size": 12 }, "audioMood": ["big band jazz", "ragtime"], "postFx": { "vignette": true, "bloom": false, "crt": false },
         "notes": ["1930s rubber-hose cartoon look: inked outlines, cream paper tones, film grain", "run-and-gun boss fights with parry pink objects", "exaggerated squash and stretch, 24 fps hand-drawn feel", "vintage title-card typography"] },
-      "blockedTerms": ["Cuphead", "Mugman", "Devil", "King Dice", "Inkwell Isle", "Studio MDHR"]
+      "blockedTerms": ["Cuphead", "Mugman", "King Dice", "Inkwell Isle", "Studio MDHR"], "commonTerms": ["Devil"]
     },
     {
       "title": "Ori and the Blind Forest", "aliases": ["ori", "ori and the will of the wisps"], "riskTier": "high",
@@ -101,25 +101,25 @@
       "title": "The Binding of Isaac", "aliases": ["isaac", "binding of isaac", "rebirth"], "riskTier": "medium",
       "card": { "family": "hd-pixel", "canvas": { "w": 480, "h": 270 }, "pixelArt": true, "palette": { "background": "#3a2e2a", "mid": "#6b5247", "foreground": "#f2e6dc", "accent": "#d9a441", "danger": "#c0392b", "ui": "#f2e6dc" }, "outline": "dark", "animationFps": { "character": 10, "effects": 12 }, "camera": { "follow": "room", "lerp": 0.2, "deadzone": { "w": 0, "h": 0 }, "maxShake": 0.3, "zoom": 1 }, "typography": { "font": "pixelify-sans", "size": 10 }, "audioMood": ["eerie", "organ", "lo-fi"], "postFx": { "vignette": true, "bloom": false, "crt": false },
         "notes": ["grimy basement browns, single-screen rooms, doors on four sides", "twin-stick tears with knockback, item synergies", "round cartoon-grotesque sprites with thick outlines", "hearts row and item slots HUD"] },
-      "blockedTerms": ["Isaac", "Mom", "Satan", "Lamb", "Edmund McMillen", "Nicalis"]
+      "blockedTerms": ["Isaac", "Satan", "Edmund McMillen", "Nicalis"], "commonTerms": ["Mom", "Lamb", "rebirth"]
     },
     {
       "title": "Nuclear Throne", "aliases": ["nuclear throne"], "riskTier": "medium",
       "card": { "family": "8bit", "canvas": { "w": 320, "h": 240 }, "pixelArt": true, "palette": { "background": "#2b2113", "mid": "#8c6d3f", "foreground": "#f5e6c4", "accent": "#c9f24e", "danger": "#ff5533", "ui": "#f5e6c4" }, "outline": "dark", "animationFps": { "character": 10, "effects": 15 }, "camera": { "follow": "lerp", "lerp": 0.2, "deadzone": { "w": 16, "h": 16 }, "maxShake": 0.9, "zoom": 1 }, "typography": { "font": "press-start-2p", "size": 8 }, "audioMood": ["gritty electronic", "chaotic"], "postFx": { "vignette": false, "bloom": false, "crt": false },
         "notes": ["low-res wasteland ochres with acid green mutation accents", "violent screen shake, chunky muzzle flashes, destructible walls", "tiny sprites, fast top-down runs", "mutation choice screen between levels"] },
-      "blockedTerms": ["Fish", "Crystal", "Eyes", "Melting", "Plant", "Y.V.", "Vlambeer"]
+      "blockedTerms": ["Y.V.", "Vlambeer"], "commonTerms": ["Fish", "Crystal", "Eyes", "Melting", "Plant"]
     },
     {
       "title": "Blasphemous", "aliases": ["blasphemous", "blasphemous 2"], "riskTier": "medium",
       "card": { "family": "hd-pixel", "canvas": { "w": 480, "h": 270 }, "pixelArt": true, "palette": { "background": "#120d0b", "mid": "#4a3326", "foreground": "#efe3cf", "accent": "#c9a227", "danger": "#b3122b", "ui": "#efe3cf" }, "outline": "dark", "animationFps": { "character": 15, "effects": 18 }, "camera": { "follow": "lerp", "lerp": 0.1, "deadzone": { "w": 40, "h": 24 }, "maxShake": 0.5, "zoom": 1 }, "typography": { "font": "system", "size": 11 }, "audioMood": ["spanish guitar", "liturgical", "dark"], "postFx": { "vignette": true, "bloom": false, "crt": false },
         "notes": ["gothic baroque ruins in near-black browns with gold and blood red", "detailed high-res pixel art, slow heavy sword arcs, executions", "parallax cathedrals and candlelight", "ornate framed health bar"] },
-      "blockedTerms": ["Penitent One", "Cvstodia", "Miracle", "Game Kitchen"]
+      "blockedTerms": ["Penitent One", "Cvstodia", "Game Kitchen"], "commonTerms": ["Miracle"]
     },
     {
       "title": "Risk of Rain", "aliases": ["risk of rain", "risk of rain returns"], "riskTier": "low",
       "card": { "family": "8bit", "canvas": { "w": 400, "h": 225 }, "pixelArt": true, "palette": { "background": "#0f1c2b", "mid": "#355d7a", "foreground": "#e8f4ff", "accent": "#5ee0ff", "danger": "#ff5e5e", "ui": "#e8f4ff" }, "outline": "none", "animationFps": { "character": 8, "effects": 12 }, "camera": { "follow": "lerp", "lerp": 0.12, "deadzone": { "w": 48, "h": 32 }, "maxShake": 0.3, "zoom": 1 }, "typography": { "font": "press-start-2p", "size": 8 }, "audioMood": ["synth", "atmospheric", "escalating"], "postFx": { "vignette": false, "bloom": false, "crt": false },
         "notes": ["tiny sprites on huge alien landscapes in cool blues and teals", "escalating difficulty timer, item stacking", "rain and weather particles", "item icons strip at the bottom"] },
-      "blockedTerms": ["Commando", "Providence", "Hopoo"]
+      "blockedTerms": ["Hopoo"], "commonTerms": ["Commando", "Providence"]
     },
     {
       "title": "Owlboy", "aliases": ["owlboy"], "riskTier": "medium",
@@ -137,13 +137,19 @@
       "title": "Pizza Tower", "aliases": ["pizza tower"], "riskTier": "medium",
       "card": { "family": "hd-pixel", "canvas": { "w": 480, "h": 270 }, "pixelArt": true, "palette": { "background": "#f5e1b8", "mid": "#c0773a", "foreground": "#1d1410", "accent": "#ff5f1f", "danger": "#e71d36", "ui": "#1d1410" }, "outline": "dark", "animationFps": { "character": 15, "effects": 20 }, "camera": { "follow": "lerp", "lerp": 0.25, "deadzone": { "w": 16, "h": 16 }, "maxShake": 0.9, "zoom": 1 }, "typography": { "font": "system", "size": 12 }, "audioMood": ["funk", "chaotic", "loud"], "postFx": { "vignette": false, "bloom": false, "crt": false },
         "notes": ["loud 90s cartoon style with wobbly inked sprites and hot orange accents", "momentum-driven dashes that smash through walls, extreme squash and stretch", "rank letters and combo meters", "hand-lettered chunky UI"] },
-      "blockedTerms": ["Peppino", "Noise", "Gustavo", "Tour De Pizza"]
+      "blockedTerms": ["Peppino", "Gustavo", "Tour De Pizza"], "commonTerms": ["Noise"]
     },
     {
       "title": "Animal Well", "aliases": ["animal well"], "riskTier": "medium",
       "card": { "family": "8bit", "canvas": { "w": 320, "h": 180 }, "pixelArt": true, "palette": { "background": "#0a0f1a", "mid": "#1f3b4d", "foreground": "#d7f0ff", "accent": "#c3ff6b", "danger": "#ff5a7a", "ui": "#d7f0ff" }, "outline": "none", "animationFps": { "character": 8, "effects": 12 }, "camera": { "follow": "room", "lerp": 0.2, "deadzone": { "w": 0, "h": 0 }, "maxShake": 0.2, "zoom": 1 }, "typography": { "font": "press-start-2p", "size": 8 }, "audioMood": ["ambient", "mysterious", "wet"], "postFx": { "vignette": true, "bloom": true, "crt": false },
         "notes": ["dark cavern blues with phosphorescent greens and soft glowing light", "single-screen rooms, dense secrets, tiny protagonist", "water and light effects on a low-res grid", "almost no HUD"] },
       "blockedTerms": ["Billy Basso", "Shared Memory", "Bigmode"]
+    },
+    {
+      "title": "Castlevania: Dawn of Sorrow", "aliases": ["dawn of sorrow", "castlevania dawn of sorrow", "castlevania", "aria of sorrow"], "riskTier": "high",
+      "card": { "family": "16bit", "canvas": { "w": 320, "h": 180 }, "pixelArt": true, "palette": { "background": "#0e0b1e", "mid": "#3b3466", "foreground": "#e8e0f0", "accent": "#e0b54a", "danger": "#c4203c", "ui": "#f0e6d2" }, "outline": "dark", "animationFps": { "character": 12, "effects": 18 }, "camera": { "follow": "room", "lerp": 0.12, "deadzone": { "w": 32, "h": 24 }, "maxShake": 0.4, "zoom": 1 }, "typography": { "font": "pixelify-sans", "size": 10 }, "audioMood": ["gothic rock", "baroque organ", "melancholic strings"], "postFx": { "vignette": true, "bloom": false, "crt": false },
+        "notes": ["a gothic castle explored room by room, each wing in its own palette: moonlit halls, clock towers, flooded crypts", "crisp mid-size sprites with clear silhouettes over layered painted backdrops, candlelight and stained glass", "weapons with distinct reach and speed, magic taken from defeated foes, abilities that open new paths", "ornate gold-framed menus, health and mana bars, a map revealed room by room"] },
+      "blockedTerms": ["Soma Cruz", "Soma", "Alucard", "Arikado", "Belmont", "Belnades", "Mina Hakuba", "Celia Fortner", "Dmitrii", "Dario Bossi", "Dracula", "Vampire Killer", "Tactical Soul", "Konami", "Igarashi"], "commonTerms": ["Hammer", "Menace"]
     }
   ]
 }

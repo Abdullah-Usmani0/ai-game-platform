@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { blockedTermsFor, resolveReferences, sanitize, styleFromReferences } from '@gg/catalog';
+import { blockedTermsFor, commonTermsFor, mentions, referencesForRequest, sanitize, styleFromReferences } from '@gg/catalog';
 import { costUsd, generateArtifact, providerFor, type GenerateResult, type Usage } from '@gg/llm';
 import { BundleManifest, LevelJson, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type CreateRequest, type GddFrontmatter, type LevelHints, type LevelProof, type SystemsJson } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
@@ -88,10 +88,11 @@ const gdd: StageFn = async (ctx) => {
   if (!req) return fail('gdd stage needs a create request', 'spec_violation');
   const design = join(ctx.gameDir, 'design');
   mkdirSync(design, { recursive: true });
-  // Style references resolve to cards of unprotectable attributes; the titles and their blocked terms never
-  // reach a prompt or a public artifact (concept.md is private and stays out of the bundle).
-  const refs = resolveReferences(req.referenceTitles);
-  const blocked = blockedTermsFor(refs.matched);
+  // Style references (the request's titles and the games its idea cites) resolve to cards of unprotectable
+  // attributes; their titles and names, and every title the catalog does not know, never reach a prompt or a public
+  // artifact (concept.md is private and stays out of the bundle). Ordinary words a game also uses as a name stay.
+  const refs = referencesForRequest(req.prompt, req.referenceTitles);
+  const blocked = blockedTermsFor(refs.matched, refs.unmatched);
   const clean = sanitize(req.prompt.trim(), blocked);
   const cleanReq = { ...req, prompt: clean.text };
   if (!existsSync(join(design, 'style.json'))) {
@@ -102,6 +103,8 @@ const gdd: StageFn = async (ctx) => {
   const provider = providerFor(ctx.provider);
   const notes: string[] = [];
   if (clean.hits.length) notes.push(`prompt sanitised (${clean.hits.length} reference term(s) removed)`);
+  const kept = mentions(clean.text, commonTermsFor(refs.matched));
+  if (kept.length) notes.push(`kept as ordinary words: ${kept.join(', ')}`);
 
   // A freeform idea's front matter also picks the curated genre it builds on, whose manifest the rest of the stage uses.
   const front: FrontMatter<AnyGddFrontmatter> = req.genre === 'freeform' ? await freeformFrontmatter(ctx, cleanReq, styleNotes, GDD_SYSTEM) : await curatedFrontmatter(ctx, cleanReq, styleNotes, genreOf(req.genre));

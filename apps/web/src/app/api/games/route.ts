@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { resolveReferences } from '@gg/catalog';
+import { blockedTermsFor, referencesForRequest, sanitize } from '@gg/catalog';
 import { CreateRequest } from '@gg/schemas';
 import { viewerId } from '@/lib/identity';
 import { getStore } from '@/lib/store';
@@ -29,8 +29,9 @@ export async function POST(req: Request): Promise<Response> {
   const request = parsed.data;
   const store = getStore();
   const me = await viewerId();
-  const title = request.title ?? titleFromPrompt(request.prompt);
-  const refs = resolveReferences(request.referenceTitles);
+  const refs = referencesForRequest(request.prompt, request.referenceTitles);
+  // A title made from the idea never carries a referenced game's name (the slug is public).
+  const title = request.title ?? titleFromPrompt(sanitize(request.prompt, blockedTermsFor(refs.matched, refs.unmatched), ' ').text);
   const game = await store.createGame({ ownerId: me, slug: `${slugify(title)}-${randomBytes(2).toString('hex')}`, title, genre: request.genre, conceptMd: request.prompt, concept: { scopeTier: request.scopeTier, referenceTitles: request.referenceTitles, references: refs.matched.map((e) => ({ title: e.title, riskTier: e.riskTier, notes: e.card.notes })), unresolvedReferences: refs.unmatched } });
   const job = await store.enqueueJob({ gameId: game.id, userId: me, kind: 'create', input: request });
   return Response.json({ gameId: game.id, jobId: job.id, slug: game.slug, references: refs.matched.map((e) => e.title), unresolvedReferences: refs.unmatched }, { status: 201 });

@@ -1,6 +1,6 @@
 import { StyleCard } from '@gg/schemas';
 import { describe, expect, it } from 'vitest';
-import { blockedTermsFor, CATALOG, findReference, isClean, resolveReferences, sanitize, styleFromReferences } from './index.js';
+import { blockedTermsFor, CATALOG, commonTermsFor, findReference, isClean, mentions, referencesForRequest, referencesIn, resolveReferences, sanitize, styleFromReferences } from './index.js';
 
 const BASE: StyleCard = StyleCard.parse({
   version: 1,
@@ -46,6 +46,43 @@ describe('reference catalog', () => {
     expect(text).not.toMatch(/Hades|Zagreus|Tartarus/);
     expect(text).toContain('hadestown');
     expect(isClean(text, terms)).toBe(true);
+  });
+  it('keeps the ordinary words a game also uses as names, and blocks its names', () => {
+    const hk = resolveReferences(['Hollow Knight']).matched;
+    const idea = 'A knight with a hornet familiar climbs toward the radiance of a dead kingdom; no Hallownest, no Pale King.';
+    const { text, hits } = sanitize(idea, blockedTermsFor(hk));
+    expect(text).toContain('A knight with a hornet familiar climbs toward the radiance of a dead kingdom');
+    expect(text).not.toMatch(/Hallownest|Pale King/);
+    expect(hits).toEqual(expect.arrayContaining(['Hallownest', 'Pale King']));
+    expect(mentions(text, commonTermsFor(hk))).toEqual(['Knight', 'Hornet', 'Radiance']);
+    // An ordinary word among the aliases is not stripped either.
+    const vs = blockedTermsFor(resolveReferences(['Vampire Survivors']).matched);
+    expect(sanitize('An arena survivors game, unlike Vampire Survivors.', vs).text).toBe('An arena survivors game, unlike a reference game.');
+  });
+  it('lists every ordinary word apart from the names it would otherwise block', () => {
+    for (const e of CATALOG) {
+      const blocked = blockedTermsFor([e]).map((t) => t.toLowerCase());
+      for (const c of e.commonTerms ?? []) expect(blocked, `${e.title}: ${c}`).not.toContain(c.toLowerCase());
+    }
+  });
+  it('blocks a title the catalog does not know, whole and by its distinctive parts', () => {
+    const { text } = sanitize('Like Metroid Dread, or any Metroid, with a dread atmosphere.', blockedTermsFor([], ['Metroid: Dread']));
+    expect(text).toBe('Like a reference game, or any a reference game, with a dread atmosphere.');
+  });
+  it('finds the games an idea cites, and not titles used as ordinary words', () => {
+    const titles = (t: string): string[] => referencesIn(t).map((e) => e.title);
+    expect(titles('A gothic game like Blasphemous and Castlevania: Dawn of Sorrow, with heavy parries and Hades bosses.')).toEqual(['Blasphemous', 'Castlevania: Dawn of Sorrow']);
+    expect(titles('A Hades-like dungeon run, in the style of Celeste')).toEqual(['Hades', 'Celeste']);
+    expect(titles('Inspired by hollow knight; a blasphemous cult rises and you fight Hades in the underworld.')).toEqual(['Hollow Knight']);
+    expect(titles('An arena survivors game where I would like a knight')).toEqual([]);
+    expect(titles('Stardew meets Spelunky')).toEqual(['Stardew Valley', 'Spelunky']);
+  });
+  it("puts a request's reference titles first, then the games its idea cites", () => {
+    expect(findReference('Castlevania: Dawn of Sorrow')?.title).toBe('Castlevania: Dawn of Sorrow');
+    expect(findReference('castlevania')?.title).toBe('Castlevania: Dawn of Sorrow');
+    const r = referencesForRequest('Gothic and grim, like Blasphemous.', ['Dawn of Sorrow', 'Metroid Dread', 'blasphemous']);
+    expect(r.matched.map((e) => e.title)).toEqual(['Castlevania: Dawn of Sorrow', 'Blasphemous']);
+    expect(r.unmatched).toEqual(['Metroid Dread']);
   });
   it('merges several references: first dominates structure, moods union', () => {
     const { matched } = resolveReferences(['Celeste', 'Hades']);
