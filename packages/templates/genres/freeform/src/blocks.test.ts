@@ -3,11 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { blockBots, blockTypes } from './blocks.js';
 import { compose } from './compose.js';
 import { freeformManifest } from './node.js';
-import { proveLevel } from './prove.js';
+import { idleWins, proveLevel } from './prove.js';
 import { ARCHETYPES, paramArchetype } from './registry.js';
 import { compileRoster } from './roster.js';
 
-const deliveries = (n: number): Objectives => ({ version: 1, win: { mode: 'all', clauses: [{ kind: 'hud_at_least', key: 'delivered', value: n }] }, lose: [] });
+const deliveries = (n: number, lives?: number): Objectives => ({ version: 1, win: { mode: 'all', clauses: [{ kind: 'hud_at_least', key: 'delivered', value: n }] }, lose: lives === undefined ? [] : [{ kind: 'lives', count: lives }] });
+const survive = (seconds: number): Objectives => ({ version: 1, win: { mode: 'all', clauses: [{ kind: 'survive', seconds }] }, lose: [{ kind: 'lives', count: 3 }] });
 
 /** A tea room on the survivors' arena: carry tea from the kitchen to the tables. */
 const TEA: FreeformSystemsJson = {
@@ -106,5 +107,57 @@ describe('a carry game', () => {
     expect(m.levelGrammar.validate(level, m.feelPresets[OIL.feelPreset]!).issues.filter((i) => i.severity === 'error')).toEqual([]);
     const r = proveLevel(level, 0, { file: OIL, roster: { version: 1, designNotes: '', player: {}, types: [] }, content: { objectives: deliveries(2) }, budget: 20_000 });
     expect(r.proof, r.tried.join('; ')).not.toBeNull();
+  });
+});
+
+/** The tea room at rush hour: four tables order in turn, and a waiter with three hearts can lose three customers. */
+const RUSH: FreeformSystemsJson = {
+  ...TEA,
+  systems: [
+    { id: 'movement-topdown', params: {} },
+    { id: 'carry', params: { dropoffs: 4 } },
+    { id: 'orders', params: {} },
+    { id: 'objectives', params: {} },
+  ],
+};
+/** The lighthouse at night: the lamp asks for oil every so often along a path of pits and walkers, and going out costs a life. */
+const NIGHT: FreeformSystemsJson = {
+  ...OIL,
+  systems: [
+    { id: 'movement-platformer', params: {} },
+    { id: 'hazards', params: {} },
+    { id: 'combat-stomp', params: {} },
+    { id: 'carry', params: { dropoffs: 1 } },
+    { id: 'orders', params: { patienceS: 20, everyS: 10, maxOpen: 1, missDamage: 3 } },
+    { id: 'objectives', params: {} },
+  ],
+};
+const THREE_HEARTS: EntityRoster = { version: 1, designNotes: '', player: { hp: 3 }, types: [] };
+
+describe('timed orders', () => {
+  it('top-down: the courier serves twelve before three walk out, walking at its own size round the tables; standing still loses', () => {
+    const roster = { ...TEA_ROSTER, player: { hp: 3 } };
+    const m = freeformManifest(RUSH, roster);
+    // A waiter a little taller than a tile, who would wedge on a table's corner walking tile by tile.
+    const level = { ...m.levelGrammar.generate({ seed: 1, difficulty: 0.3 }), id: 'arena', ramp: { segment: 0, difficulty: 0.3 } };
+    const inputs = { file: RUSH, roster, content: { objectives: deliveries(12, 1) }, budget: 20_000 };
+    const r = proveLevel(level, 0, inputs);
+    expect(r.proof?.by, r.tried.join('; ')).toBe('bot');
+    expect(idleWins(level, 0, inputs, r.proof!.ticks)).toBe(false);
+  });
+
+  it('side view: the courier keeps the lamp lit, hopping pits in a row and landing short of the next after a stomp', () => {
+    const m = freeformManifest(NIGHT, THREE_HEARTS);
+    for (const [seed, difficulty] of [
+      [3, 0.5],
+      [19, 0.6],
+    ] as const) {
+      const level = { ...m.levelGrammar.generate({ seed, difficulty }), id: 'l01', ramp: { segment: 0, difficulty } };
+      const inputs = { file: NIGHT, roster: THREE_HEARTS, content: { objectives: survive(75) }, budget: 20_000 };
+      const r = proveLevel(level, 0, inputs);
+      expect(r.proof?.by, `seed ${seed}: ${r.tried.join('; ')}`).toBe('bot');
+      // Three walkouts put the lamp out three times before the night is over.
+      expect(idleWins(level, 0, inputs, r.proof!.ticks)).toBe(false);
+    }
   });
 });

@@ -136,6 +136,14 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return 'coins';
     case 'custom:drop':
       return 'thunk';
+    case 'custom:order':
+      return 'menu_open';
+    case 'custom:order_hurry':
+      return 'sow';
+    case 'custom:order_filled':
+      return 'coins';
+    case 'custom:order_missed':
+      return 'sigh';
     case 'custom:no_seeds':
     case 'custom:too_tired':
     case 'custom:bin_empty':

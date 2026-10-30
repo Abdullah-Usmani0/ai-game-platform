@@ -2,6 +2,7 @@ import { courier } from './courier.js';
 import { checkStations, dressStations, type StationsCtx } from './level/stations.js';
 import type { BlockLevelCtx, BlockModule } from './manifest.js';
 import { carry, meta as carryMeta } from './systems/carry.js';
+import { orders, meta as ordersMeta } from './systems/orders.js';
 
 /** The courier's stations as a game names and sizes them, with as many dropoffs as it asks for. */
 function stationsCtx(ctx: BlockLevelCtx): StationsCtx {
@@ -42,4 +43,21 @@ export const carryBlock: BlockModule = {
   bot: courier,
   dress: (level, seed, ctx) => dressStations(level, seed, stationsCtx(ctx)),
   checkLevel: (level, ctx) => checkStations(level, stationsCtx(ctx)),
+};
+
+/**
+ * Timed orders, as a block on top of carry: the dropoffs ask in turn and wait, and a walkout costs a heart. It brings
+ * no entities of its own (it orders at carry's dropoffs) and no bot (the courier already serves the most urgent order
+ * first), only the feedback its events need.
+ */
+export const ordersBlock: BlockModule = {
+  meta: ordersMeta,
+  create: () => orders,
+  feedbackExtras: [
+    { event: 'custom:order', channels: ['particle', 'sfx'] },
+    { event: 'custom:order_hurry', channels: ['sfx'] },
+    { event: 'custom:order_filled', channels: ['particle', 'sfx'] },
+    // The heart it costs shakes the screen as any blow does; the walkout itself puffs and sighs.
+    { event: 'custom:order_missed', channels: ['particle', 'sfx'] },
+  ],
 };

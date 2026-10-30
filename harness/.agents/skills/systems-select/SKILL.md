@@ -46,6 +46,13 @@ Blocks only freeform games compose:
   cargo lying about, or a source's next item (one every `makeS` seconds); at a dropoff it delivers, one at a time, and
   every delivery counts on the HUD: the goal is `hud_at_least delivered N`. A hit knocks the load to the floor. Its
   courier bot plays the job, so its levels are proven without the explorer.
+- `orders` (needs `carry`) makes the job a rush: every `everyS` seconds, give or take a quarter, a free dropoff asks for
+  a delivery and waits `patienceS` seconds, with at most `maxOpen` waiting; a dropoff takes cargo only while it asks. A
+  fill scores 10 and a tip for the time left; a walkout costs `missDamage` health, so the `lives` rule decides how many
+  walkouts lose. Both timings tighten by up to a fifth on harder levels. The defaults suit a delivered goal in a room of
+  three or four dropoffs. With a `survive` goal, walkouts must cost enough that standing still loses: one dropoff at
+  `missDamage` 3 on three hearts and three lives puts the lamp out three times in about seventy seconds. The courier
+  serves the order that runs out first, so these levels are proven without the explorer too.
 - `player-shooter` `aim`: `up` (a vertical shooter), `facing` (top-down where the arrows last pointed; side view forward,
   or up with up held), `nearest` (the closest hostile within `range`: a twin-stick arena on one fire key). A side view
   takes `facing` or `nearest`. In an arena, a `defeat` clause beside `survive` makes the shots needed: a good kiter
