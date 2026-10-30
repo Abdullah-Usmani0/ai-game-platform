@@ -30,6 +30,12 @@ export interface SimCtx {
   readonly feel: FeelPreset;
   /** This system's parameters from systems.json (typed loosely; validate in init). */
   readonly params: Readonly<Record<string, ParamValue>>;
+  /**
+   * Another system's parameters (empty when it has none set), or undefined when the game does not run that system. For
+   * a rule that follows the game's other rules: a farm season's gold target depends on how long a day lasts and how
+   * many seeds a pack holds.
+   */
+  paramsOf(systemId: string): Readonly<Record<string, ParamValue>> | undefined;
   /** Content JSON (waves, dialogue, progression) the game ships with. */
   readonly content: Readonly<Record<string, unknown>>;
   readonly movementMode: 'platformer' | 'topdown';
@@ -60,6 +66,12 @@ export interface SystemDef<S> {
    * analytics read it; it never changes the game. The universal explorer bot steers by it.
    */
   progress?(state: S, ctx: SimCtx): number;
+  /**
+   * The longest a level can last under this system's rules, in ticks, for rules that take longer than the 90 seconds
+   * every level gets: a survival of fifteen minutes, a farm season of days. Tooling reads it (solver runs and proofs
+   * stop there); it never changes the game.
+   */
+  levelTicks?(ctx: Pick<SimCtx, 'params' | 'paramsOf' | 'content'>): number;
 }
 
 /** Author a simulation system. Pure data in, pure data out; the only API GlueTS code sees. */

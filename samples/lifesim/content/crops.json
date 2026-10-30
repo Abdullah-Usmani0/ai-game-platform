@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "crops": [
+    { "id": "parsnip", "name": "Parsnip", "seedPrice": 10, "sellPrice": 30, "growDays": 2, "look": { "shape": "root", "color": "#f1dfa6" } },
+    { "id": "kale", "name": "Kale", "seedPrice": 20, "sellPrice": 70, "growDays": 3, "look": { "shape": "leafy", "color": "#5fa85a" } },
+    { "id": "blueberry", "name": "Blueberry", "seedPrice": 45, "sellPrice": 35, "growDays": 4, "regrowDays": 1, "look": { "shape": "bush", "color": "#5b7bd5" } },
+    { "id": "sunflower", "name": "Sunflower", "seedPrice": 50, "sellPrice": 180, "growDays": 5, "look": { "shape": "tall", "color": "#f6c445" } }
+  ]
+}

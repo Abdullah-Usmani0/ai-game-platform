@@ -1,9 +1,10 @@
 import type { CuratedGenre, EntityRoster, FreeformSystemsJson, LevelProof, Objectives } from '@gg/schemas';
-import { rolesOf, type GenreManifest, type PanelSpec } from '@gg/template-core';
+import { grammarHasGoal, rolesOf, type GenreManifest, type PanelSpec } from '@gg/template-core';
 import { checkObjectives, type ValidationReport } from '@gg/validators';
 import { metroidvania } from '@gg/template-metroidvania/node';
 import { platformer } from '@gg/template-platformer/node';
 import { puzzle } from '@gg/template-puzzle/node';
+import { lifesim } from '@gg/template-lifesim/node';
 import { shmup } from '@gg/template-shmup/node';
 import { survivors } from '@gg/template-survivors/node';
 import { topdownAction } from '@gg/template-topdown-action/node';
@@ -17,7 +18,7 @@ export * from './check.js';
 export * from './prove.js';
 
 /** The curated genres' full manifests: a freeform game takes its level grammar, budgets and prompts from its base's. */
-export const BASE_MANIFESTS: Readonly<Record<CuratedGenre, GenreManifest>> = { platformer, survivors, 'topdown-action': topdownAction, metroidvania, shmup, puzzle };
+export const BASE_MANIFESTS: Readonly<Record<CuratedGenre, GenreManifest>> = { platformer, survivors, 'topdown-action': topdownAction, metroidvania, shmup, puzzle, lifesim };
 
 /**
  * A freeform game's manifest, the same shape as a genre's: its composed runtime and check kit, and its base genre's
@@ -68,5 +69,5 @@ export function freeformDesignManifest(base: CuratedGenre): GenreManifest {
 /** A freeform game's objectives, checked against its roster's roles and whether its base genre's levels have a goal. */
 export function checkFreeformObjectives(file: FreeformSystemsJson, roster: EntityRoster, objectives: Objectives): ValidationReport {
   const { runtime } = compose(file, roster);
-  return checkObjectives(objectives, { roles: rolesOf(runtime), goal: BASE_MANIFESTS[file.composition.base].levelGrammar.kind !== 'arena' });
+  return checkObjectives(objectives, { roles: rolesOf(runtime), goal: grammarHasGoal(BASE_MANIFESTS[file.composition.base].levelGrammar.kind) });
 }

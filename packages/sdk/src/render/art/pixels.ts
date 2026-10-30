@@ -54,6 +54,17 @@ export class PixelCanvas {
     for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) this.set(xx, yy, c, alpha);
   }
 
+  /** Mixes what is painted in a rectangle toward a colour by t (0 to 1), keeping it as opaque as it was. */
+  tint(x: number, y: number, w: number, h: number, c: RGB, t: number): void {
+    for (let yy = y; yy < y + h; yy++) {
+      for (let xx = x; xx < x + w; xx++) {
+        if (!this.inside(xx, yy)) continue;
+        const i = (yy * this.w + xx) * 4;
+        for (let k = 0; k < 3; k++) this.data[i + k] = Math.round(this.data[i + k]! + (c[k]! - this.data[i + k]!) * t);
+      }
+    }
+  }
+
   /** Paints a template at (ox, oy), mirrored when flip is set. */
   stamp(t: Template, legend: Legend, ox = 0, oy = 0, flip = false): void {
     const width = Math.max(...t.map((r) => r.length));

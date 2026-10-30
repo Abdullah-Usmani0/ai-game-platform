@@ -91,8 +91,8 @@ describe('playable genres', () => {
     for (const g of GENRES.filter((x) => !(PLAYABLE_GENRES as readonly string[]).includes(x))) expect(req(g).success, g).toBe(false);
     expect(req('deckbuilder').success).toBe(false);
     const jam = (genres: string[]) => JamInput.safeParse({ slug: 'spring-jam', title: 'Spring jam', theme: 'growth', genres, startsAt: '2026-11-01T00:00:00Z', submissionsClose: '2026-11-08T00:00:00Z', votingClose: '2026-11-15T00:00:00Z' });
-    expect(jam(['puzzle', 'shmup']).success).toBe(true);
-    expect(jam(['lifesim']).success).toBe(false);
+    expect(jam(['puzzle', 'lifesim']).success).toBe(true);
+    expect(jam(['deckbuilder']).success).toBe(false);
   });
 });
 

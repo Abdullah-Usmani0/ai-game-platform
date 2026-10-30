@@ -7,7 +7,7 @@
  */
 import type { GameEventRecord } from '@gg/schemas';
 import { createSim, type FeedbackBinding, type SimCtx, type SystemDef } from '@gg/sdk';
-import { runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
+import { levelTicksOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import { GENRES } from './node.js';
 
@@ -55,14 +55,15 @@ describe('systems do what their metadata says', () => {
         for (const m of JSON.stringify(content['waves'] ?? null).matchAll(/"([a-z][a-z0-9_-]*)"/g)) wavesTypes.add(m[1]!);
         const feedback = [...g.gddDefaults.feedbackEvents, ...(g.feedbackExtras ?? [])] as FeedbackBinding[];
         const options = simOptionsFor(g, systemsJsonFor(g), { behaviours: g.defaultBehaviours, content, feedback });
-        for (const bot of Object.values(g.bots)) {
+        for (const [name, bot] of Object.entries(g.bots)) {
           const sim = createSim({ ...options, systems: options.systems.map(wrap), level, seed: 1 });
           sim.events.on('*', (ev) => {
             if (!current) return;
             rec(current).emits.add(ev.name);
             if (ev.name === 'spawn') rec(current).spawns.add(String(ev.payload['type']));
           });
-          runBot(sim, bot, 4000);
+          // The solver plays as long as the rules let a level last (a farm season runs for days); the rest a while.
+          runBot(sim, bot, name === g.solverBot ? levelTicksOf(options) : 4000);
         }
       }
       for (const [id, r] of seen) {

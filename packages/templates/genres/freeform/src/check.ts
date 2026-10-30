@@ -4,6 +4,7 @@ import type { BotPolicy, GenreCheck } from '@gg/template-core';
 import { metroidvaniaCheck } from '@gg/template-metroidvania/check';
 import { platformerCheck } from '@gg/template-platformer/check';
 import { puzzleCheck } from '@gg/template-puzzle/check';
+import { lifesimCheck } from '@gg/template-lifesim/check';
 import { shmupCheck } from '@gg/template-shmup/check';
 import { survivorsCheck } from '@gg/template-survivors/check';
 import { topdownActionCheck } from '@gg/template-topdown-action/check';
@@ -12,7 +13,7 @@ import { compose, IDENTITY_ROSTER, type Composed } from './compose.js';
 import { inverse, retypeLevel } from './retype.js';
 
 /** The curated genres' check kits: a freeform game is checked by its base genre's, under the base names. */
-export const BASE_CHECKS = { platformer: platformerCheck, survivors: survivorsCheck, 'topdown-action': topdownActionCheck, metroidvania: metroidvaniaCheck, shmup: shmupCheck, puzzle: puzzleCheck } as const;
+export const BASE_CHECKS = { platformer: platformerCheck, survivors: survivorsCheck, 'topdown-action': topdownActionCheck, metroidvania: metroidvaniaCheck, shmup: shmupCheck, puzzle: puzzleCheck, lifesim: lifesimCheck } as const;
 
 /** Replays each level's recorded winning run (its proof): the solver of a freeform game. Drives menus as recorded. */
 export function proofBot(proofs: readonly LevelProof[]): BotPolicy {

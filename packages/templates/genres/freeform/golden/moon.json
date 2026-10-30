@@ -1,0 +1,82 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-topdown",
+      "day-clock",
+      "farming",
+      "shipping",
+      "season",
+      "shop",
+      "sleep",
+      "energy"
+    ],
+    "entityDefs": "5a81e90507a5158e",
+    "types": [
+      "moonbed<plot",
+      "glowcap<crop",
+      "offering<bin",
+      "beetle_stall<shop",
+      "hollow<bed",
+      "house",
+      "tree",
+      "bush"
+    ],
+    "behaviours": "09612b07b5ecb5a5",
+    "vocab": "3c23db6356fb1f7f",
+    "composedParams": {
+      "farming": {
+        "plotType": "moonbed",
+        "cropType": "glowcap"
+      },
+      "shipping": {
+        "binType": "offering"
+      },
+      "season": {
+        "binType": "offering",
+        "plotType": "moonbed"
+      },
+      "shop": {
+        "shopType": "beetle_stall"
+      },
+      "sleep": {
+        "bedType": "hollow"
+      }
+    },
+    "feedbackExtras": [
+      "custom:till",
+      "custom:plant",
+      "custom:water",
+      "custom:harvest",
+      "custom:ship",
+      "custom:payout",
+      "custom:buy",
+      "custom:sleep",
+      "custom:day_start",
+      "custom:dusk",
+      "custom:exhausted",
+      "custom:season_over",
+      "custom:no_seeds",
+      "custom:too_tired",
+      "custom:bin_empty"
+    ],
+    "player": {
+      "w": 6,
+      "h": 6,
+      "hp": 1
+    }
+  },
+  "l01": {
+    "level": "03dae9f69f4e9c04",
+    "content": "08f44b07b5901a25",
+    "by": "solver",
+    "ticks": 4238,
+    "script": "3a623089515cef25"
+  },
+  "l02": {
+    "level": "a3a15f8ccf2154e3",
+    "content": "08f44b07b5901a25",
+    "by": "solver",
+    "ticks": 5860,
+    "script": "ebc87bc53dd5aad8"
+  }
+}

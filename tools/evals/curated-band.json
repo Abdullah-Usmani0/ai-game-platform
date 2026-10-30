@@ -18,17 +18,17 @@
     "levelGamesPerTier": 1
   },
   "overall": {
-    "levels": 80,
+    "levels": 89,
     "rates": {
-      "explorerFound": 0.7,
+      "explorerFound": 0.629,
       "afkWins": 0
     },
     "metrics": {
       "proofTicks": {
-        "n": 80,
-        "p5": 161.65,
-        "p50": 487.5,
-        "p95": 3601
+        "n": 89,
+        "p5": 164.8,
+        "p50": 594,
+        "p95": 5626
       },
       "explorerEffort": {
         "n": 56,
@@ -43,13 +43,13 @@
         "p95": 77.256
       },
       "jitter": {
-        "n": 80,
+        "n": 89,
         "p5": 0,
-        "p50": 0.833,
+        "p50": 0.667,
         "p95": 1
       },
       "randomWins": {
-        "n": 80,
+        "n": 89,
         "p5": 0,
         "p50": 0,
         "p95": 0
@@ -67,27 +67,27 @@
         "p95": 1
       },
       "feedbackAnswered": {
-        "n": 80,
+        "n": 89,
         "p5": 1,
         "p50": 1,
         "p95": 1
       },
       "unboundSalientEvents": {
-        "n": 80,
+        "n": 89,
         "p5": 0,
         "p50": 0,
         "p95": 0
       },
       "rampEffort": {
-        "n": 9,
+        "n": 11,
         "p5": 0,
-        "p50": 0.377,
-        "p95": 0.597
+        "p50": 0.37,
+        "p95": 0.588
       },
       "rampProofTicks": {
-        "n": 9,
-        "p5": 0.783,
-        "p50": 0.994,
+        "n": 11,
+        "p5": 0.786,
+        "p50": 1,
         "p95": 1
       }
     }
@@ -500,6 +500,61 @@
           "p5": 0.974,
           "p50": 0.986,
           "p95": 0.999
+        }
+      }
+    },
+    "lifesim": {
+      "levels": 9,
+      "rates": {
+        "explorerFound": 0,
+        "afkWins": 0
+      },
+      "metrics": {
+        "proofTicks": {
+          "n": 9,
+          "p5": 3998,
+          "p50": 5626,
+          "p95": 7293.2
+        },
+        "explorerEffort": null,
+        "explorerEffortPerProofTick": null,
+        "jitter": {
+          "n": 9,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "randomWins": {
+          "n": 9,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "verbsNeeded": null,
+        "verbsNeededShare": null,
+        "feedbackAnswered": {
+          "n": 9,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
+        },
+        "unboundSalientEvents": {
+          "n": 9,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "rampEffort": {
+          "n": 2,
+          "p5": 0,
+          "p50": 0,
+          "p95": 0
+        },
+        "rampProofTicks": {
+          "n": 2,
+          "p5": 1,
+          "p50": 1,
+          "p95": 1
         }
       }
     }

@@ -9,8 +9,8 @@ export interface CompositionContext {
   content: Iterable<string>;
 }
 
-/** Uses that may share keys with another system's: aiming reads the movement keys. */
-const SHARED_USES = new Set(['aim']);
+/** Uses that may share keys with another system's: aiming and facing read the movement keys. */
+const SHARED_USES = new Set(['aim', 'face']);
 
 /**
  * Who decides what a death does: the one system whose rule stands. A rule with a switch (provides.deathSwitch, as
@@ -33,8 +33,9 @@ export function deathSwitches(systems: ReadonlyArray<CatalogSystem>): Record<str
  * - exactly one system provides the player's movement, and exactly one owns the win;
  * - one rule decides what a death does (a switchable one yields to another), and there must be one when anything in the
  *   game can hurt the player (a hostile);
- * - every requirement is met: the movement a system works with, the entity roles and content files it needs;
- * - no key has two uses (aiming may share the movement keys), and no listed conflict is selected.
+ * - every requirement is met: the movement a system works with, the entity roles, content files and systems it needs;
+ * - no key has two uses (aiming and facing may share the movement keys; systems may share one use, as a farm's work
+ *   the action key does on whatever the player faces), and no listed conflict is selected.
  */
 export function checkComposition(systems: ReadonlyArray<CatalogSystem>, ctx: CompositionContext): ValidationReport {
   const issues: Issue[] = [];
@@ -61,6 +62,7 @@ export function checkComposition(systems: ReadonlyArray<CatalogSystem>, ctx: Com
     if (r?.movement && movement && !r.movement.includes(movement)) issues.push(err('movement_mismatch', `${s.id} works with ${r.movement.join(' or ')} movement, not ${movement}`, { path: s.id }));
     for (const role of r?.roles ?? []) if (!roles.has(role)) issues.push(err('missing_role', `${s.id} needs entities that are ${role}, and the game has none`, { path: s.id }));
     for (const c of r?.content ?? []) if (!content.has(c)) issues.push(err('missing_content', `${s.id} needs content/${c}.json`, { path: s.id }));
+    for (const other of r?.systems ?? []) if (!ids.has(other)) issues.push(err('missing_system', `${s.id} needs the ${other} system`, { path: s.id }));
     for (const other of s.conflicts ?? []) if (ids.has(other)) issues.push(err('conflict', `${s.id} cannot share a game with ${other}`, { path: s.id }));
   }
 
@@ -68,7 +70,7 @@ export function checkComposition(systems: ReadonlyArray<CatalogSystem>, ctx: Com
   for (const s of systems) for (const [key, use] of Object.entries(s.controls ?? {})) if (use) uses.set(key, [...(uses.get(key) ?? []), { system: s.id, use }]);
   for (const [key, all] of uses) {
     const own = all.filter((u) => !SHARED_USES.has(u.use));
-    if (own.length > 1) issues.push(err('key_twice', `the ${key} key would ${own.map((u) => `${u.use} (${u.system})`).join(' and ')}`, { path: key }));
+    if (new Set(own.map((u) => u.use)).size > 1) issues.push(err('key_twice', `the ${key} key would ${own.map((u) => `${u.use} (${u.system})`).join(' and ')}`, { path: key }));
   }
   return report(issues, { systems: systems.length, movement: movement ?? 'none' });
 }

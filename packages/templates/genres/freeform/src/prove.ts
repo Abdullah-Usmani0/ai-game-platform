@@ -1,6 +1,6 @@
 import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson, LevelProof } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding, type Sim } from '@gg/sdk';
-import { explore, explorerOptionsFor, runBot, scriptFromLog, simOptionsFor, type BotPolicy } from '@gg/template-core';
+import { explore, explorerOptionsFor, levelTicksOf, runBot, scriptFromLog, simOptionsFor, type BotPolicy } from '@gg/template-core';
 import { compose, type Composed } from './compose.js';
 import { inverse, retypeContent, retypeFsm, retypeLevel, retypeRule, type Rename } from './retype.js';
 
@@ -62,7 +62,7 @@ export function proveLevel(level: LevelJson, index: number, inputs: ProveInputs,
         feedback: inputs.feedback,
       });
       const sim = createSim({ ...o, level: retypeLevel(level, plain.back), seed });
-      const r = runBot(sim, inputs.solver, 90 * 60);
+      const r = runBot(sim, inputs.solver, levelTicksOf(o));
       if (r.completed) {
         const script = scriptFromLog(sim, sim.tick);
         if (wins(script, sim.tick)) return { proof: { version: 1, level: level.id, seed, ticks: sim.tick, by: 'solver', script }, tried: [...tried, `solver: wins in ${sim.tick} ticks`] };

@@ -3,6 +3,7 @@ import type { EntityDef } from '@gg/sdk';
 import { metroidvaniaRuntime } from '@gg/template-metroidvania';
 import { platformerRuntime } from '@gg/template-platformer';
 import { puzzleRuntime } from '@gg/template-puzzle';
+import { lifesimRuntime } from '@gg/template-lifesim';
 import { shmupRuntime } from '@gg/template-shmup';
 import { survivorsRuntime } from '@gg/template-survivors';
 import { topdownActionRuntime } from '@gg/template-topdown-action';
@@ -17,6 +18,7 @@ export const RUNTIMES: Readonly<Record<CuratedGenre, GenreRuntime>> = {
   metroidvania: metroidvaniaRuntime,
   shmup: shmupRuntime,
   puzzle: puzzleRuntime,
+  lifesim: lifesimRuntime,
 };
 export const CURATED_IDS = Object.keys(RUNTIMES) as CuratedGenre[];
 

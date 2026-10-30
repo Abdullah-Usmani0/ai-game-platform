@@ -37,6 +37,24 @@ export function simOptionsFor(runtime: GenreRuntime, systems: Pick<SystemsJson, 
   };
 }
 
+/** The time every level gets to be finished in: 90 seconds. */
+export const LEVEL_TICKS = 90 * 60;
+
+/**
+ * The longest a level of the game can last: 90 seconds, or longer where a system's rules take longer (a survival of
+ * fifteen minutes, a farm season of days; SystemDef.levelTicks). Solver runs and proofs of the game's levels stop there.
+ */
+export function levelTicksOf(options: Pick<SimOptions, 'systems' | 'params' | 'content'>): number {
+  // As the sim answers it: a system the game runs has parameters, its own or none.
+  const paramsOf = (id: string) => (options.systems.some((s) => s.id === id) ? (options.params?.[id] ?? {}) : undefined);
+  let ticks = LEVEL_TICKS;
+  for (const s of options.systems) {
+    if (!s.levelTicks) continue;
+    ticks = Math.max(ticks, Math.ceil(s.levelTicks({ params: options.params?.[s.id] ?? {}, paramsOf, content: options.content ?? {} })));
+  }
+  return ticks;
+}
+
 /**
  * A systems.json drafted from a genre: the named systems (by default every required and optional one), each with the
  * catalog's default parameters under the genre's own (paramDefaults). The scaffold, the golden lock and the sweeps use it.

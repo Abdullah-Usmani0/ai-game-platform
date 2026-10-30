@@ -52,9 +52,18 @@ describe('checkComposition', () => {
     expect(codes([run, goal, spikes, stomp], { roles: ['collectible'], content: [] })).toEqual(['missing_role']);
     expect(codes([walk, clock, waves], { roles: ['hostile'], content: [] })).toEqual(['missing_content']);
     expect(codes([run, goal, spikes, sys('lonely', { conflicts: ['spikes'] })])).toEqual(['conflict']);
+    // Crops grow overnight: a farm without the day clock is missing a system, not a role.
+    const farm = sys('farm', { requires: { systems: ['clock'] } });
+    expect(codes([walk, clock, farm])).toEqual([]);
+    expect(codes([walk, goal, farm], { roles: [], content: [] })).toEqual(['missing_system']);
   });
 
-  it('gives every key one use; aiming may share the movement keys', () => {
+  it('gives every key one use; aiming and facing may share the movement keys, and systems may share a use', () => {
+    // A farm's systems all work the action key on whatever the player faces: one use, shared.
+    const hoe = sys('hoe', { controls: { action: 'work', left: 'face', right: 'face' } });
+    const stall = sys('stall', { controls: { action: 'work', up: 'face' } });
+    expect(codes([walk, clock, hoe, stall])).toEqual([]);
+    expect(codes([walk, clock, hoe, sword])).toEqual(['key_twice']);
     expect(codes([walk, clock, sword])).toEqual([]);
     const both = checkComposition([walk, clock, sword, gun], ok);
     expect(both.issues.map((i) => i.code)).toEqual(['key_twice']);

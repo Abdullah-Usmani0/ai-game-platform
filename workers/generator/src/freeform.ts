@@ -1,5 +1,5 @@
 import { CURATED_GENRES, FreeformGddFrontmatter, type CreateRequest, type CuratedGenre, type EntityRoster, type FreeformSystemsJson, type Objectives } from '@gg/schemas';
-import { systemsJsonFor } from '@gg/template-core';
+import { grammarHasGoal, systemsJsonFor } from '@gg/template-core';
 import { BASE_MANIFESTS, EXAMPLES, IDENTITY_ROSTER, type FreeformExample } from '@gg/template-freeform/node';
 import { draftFrontmatter } from './gdd-draft.js';
 
@@ -11,6 +11,7 @@ const BASE_WORDS: Record<CuratedGenre, RegExp> = {
   metroidvania: /\b(explor\w*|abilit\w*|keys?|doors?|unlock\w*|backtrack\w*|caves?|relics?)\b/g,
   shmup: /\b(ships?|space\w*|shoot\w*|bullets?|lasers?|pilots?|starfighter\w*)\b/g,
   puzzle: /\b(puzzl\w*|push\w*|crates?|box(es)?|sokoban|blocks?|slid\w*)\b/g,
+  lifesim: /\b(farm\w*|crops?|harvest\w*|seeds?|sow\w*|garden\w*|orchard\w*|ranch\w*|cozy|cosy|villag\w*|homestead\w*)\b/g,
 };
 
 /** The base genre a freeform idea reads closest to, from its words: the dry run's choice and the fallback's. */
@@ -50,11 +51,20 @@ export function baseSystems(base: CuratedGenre): FreeformSystemsJson {
 export const BASE_ROSTER: EntityRoster = IDENTITY_ROSTER;
 
 /**
- * Objectives for a freeform game when none are accepted: hold out for the level time on an arena base, which has no
- * goal tile, else reach the goal; on lives either way, so dying always costs something.
+ * Objectives for a freeform game when none are accepted: on a farm, which nothing hurts, a season's purse before time
+ * runs out; on an arena base, which has no goal tile, hold out for the level time; else reach the goal. Arenas and
+ * goals come with lives, so dying always costs something.
  */
 export function defaultObjectives(base: CuratedGenre, levelTimeS: number): Objectives {
-  const arena = BASE_MANIFESTS[base].levelGrammar.kind === 'arena';
+  const grammar = BASE_MANIFESTS[base].levelGrammar.kind;
+  if (grammar === 'farm') {
+    return {
+      version: 1,
+      win: { mode: 'all', clauses: [{ kind: 'hud_at_least', key: 'gold', value: 500 }] },
+      lose: [{ kind: 'time_out', seconds: Math.max(300, Math.min(900, Math.round(levelTimeS * 2))) }],
+    };
+  }
+  const arena = !grammarHasGoal(grammar);
   return {
     version: 1,
     win: { mode: 'all', clauses: [arena ? { kind: 'survive', seconds: Math.max(20, Math.min(900, Math.round(levelTimeS))) } : { kind: 'reach_goal' }] },

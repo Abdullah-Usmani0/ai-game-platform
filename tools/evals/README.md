@@ -9,7 +9,7 @@ measure a model policy: pass^k, per-stage first-try rate, cost per passing game.
 ```
 pnpm bench                                  # all 40 prompts, k=3, dry
 pnpm bench --limit 2 --k 1                  # quick CI smoke (platformer and survivors)
-pnpm bench --limit 6 --k 1                  # one prompt per genre
+pnpm bench --limit 7 --k 1                  # one prompt per genre
 pnpm bench --genre shmup --k 1              # one genre, every tier
 pnpm bench --live --policy policies/frontier-v1.json --k 3
 pnpm bench --live --policy policies/cheap-experiment-v1.json --genre survivors

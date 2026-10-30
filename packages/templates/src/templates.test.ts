@@ -6,7 +6,7 @@ import { createSim } from '@gg/sdk';
 import { SETTING_BY_GENRE, TYPE_RECIPES } from '@gg/sdk/art';
 import { checkSystems } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
-import { runBot } from '@gg/template-core';
+import { levelTicksOf, runBot } from '@gg/template-core';
 import { CHECKS, checkKit, checkLevel } from './check.js';
 import { CATALOG, GENRES } from './node.js';
 
@@ -63,7 +63,7 @@ describe('genre manifests', () => {
             content: g.extraContent?.({ seed, difficulty: 0.2 }) ?? {},
             movementMode: g.movementMode,
           });
-          done = runBot(sim, g.bots[g.solverBot]!, 60 * 60).completed;
+          done = runBot(sim, g.bots[g.solverBot]!, levelTicksOf(sim.options)).completed;
         }
         expect(done).toBe(true);
       });

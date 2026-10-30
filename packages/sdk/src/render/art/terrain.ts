@@ -3,13 +3,14 @@ import type { ArtPalette } from './palette.js';
 import { hash2, type PixelCanvas } from './pixels.js';
 
 /**
- * The level itself. A level is drawn in one of four settings: side (rock under a sky), dungeon (3/4 walls, flagstone
- * floors, torchlight), field (grass, stone pillars) or space (nothing: stars behind). The painter works on the whole
+ * The level itself. A level is drawn in one of five settings: side (rock under a sky), dungeon (3/4 walls, flagstone
+ * floors, torchlight), field (grass, stone pillars), farm (a meadow inside a wooden fence) or space (nothing: stars
+ * behind). The painter works on the whole
  * level, not tile by tile: rock darkens with depth below its surface, moss grows on top of it, walls cast shadows on
  * the floor and torches light it. Everything is seeded by position, so a level looks the same every time it loads.
  */
 
-export type Setting = 'side' | 'dungeon' | 'field' | 'space';
+export type Setting = 'side' | 'dungeon' | 'field' | 'farm' | 'space';
 
 /** The setting each genre is drawn in; a genre not listed here falls back by how its player moves. */
 export const SETTING_BY_GENRE: Readonly<Record<string, Setting>> = {
@@ -20,7 +21,7 @@ export const SETTING_BY_GENRE: Readonly<Record<string, Setting>> = {
   roguelike: 'dungeon',
   deckbuilder: 'dungeon',
   survivors: 'field',
-  lifesim: 'field',
+  lifesim: 'farm',
   shmup: 'space',
 };
 
@@ -357,6 +358,109 @@ function paintFieldDetails(art: LevelArt, pc: PixelCanvas, x0: number, y0: numbe
 
 const TUFT_SHAPES = [['#.#', '###'], ['.#.#', '#.##'], ['#..#', '####']];
 
+// ---------------------------------------------------------------- farm
+
+/**
+ * A post-and-rail fence over its tile's grass, where the fence rings the farm: two rails along the top and bottom of
+ * the farm with a post each tile, a rail seen end-on down its sides with a post in each tile, a post at each corner.
+ * Null where the grass shows between the rails.
+ */
+function fencePx(art: LevelArt, tx: number, ty: number, lx: number, ly: number): RGB | null {
+  const { pal, map } = art;
+  const W = pal.wood;
+  const ts = map.tileSize;
+  const across = ty === 0 || ty === map.height - 1;
+  const down = tx === 0 || tx === map.width - 1;
+  const post = (x0: number, y0: number, w: number, h: number): RGB | null => {
+    if (lx < x0 || lx >= x0 + w || ly < y0 || ly >= y0 + h) return null;
+    return ly === y0 ? W[4] : lx === x0 ? W[3] : ly === y0 + h - 1 ? W[0] : W[2];
+  };
+  const pw = Math.max(2, Math.round(ts / 4));
+  if (across && down) return post(Math.round((ts - pw) / 2), 1, pw, ts - 1);
+  if (across) {
+    const p = post(0, 1, pw, ts - 1);
+    if (p) return p;
+    for (const r of [Math.round(ts * 0.25), Math.round(ts * 0.6)]) {
+      if (ly === r) return W[3];
+      if (ly === r + 1) return W[1];
+    }
+    return null;
+  }
+  const p = post(Math.round((ts - pw) / 2) - 1, Math.round(ts * 0.25), pw + 2, Math.round(ts * 0.4));
+  if (p) return p;
+  const rail = Math.round((ts - pw) / 2);
+  if (lx === rail) return W[3];
+  if (lx === rail + 1) return W[1];
+  return null;
+}
+
+/**
+ * Farm ground: a meadow of soft grass patches. A wall inside the fence is the ground under a piece of the farm's
+ * scenery (the house, a tree, the stall, which their sprites draw), so it is grass too; the fence that rings the farm
+ * stands on its own grass and casts a short shadow into the farm.
+ */
+function paintFarmPx(art: LevelArt, gx: number, gy: number): RGB {
+  const { pal, map } = art;
+  const ts = map.tileSize;
+  const tx = Math.floor(gx / ts);
+  const ty = Math.floor(gy / ts);
+  const lx = gx - tx * ts;
+  const ly = gy - ty * ts;
+  const G = pal.rim;
+  const n = valueNoise(gx / 26, gy / 26, 141) * 0.6 + valueNoise(gx / 8, gy / 8, 143) * 0.4;
+  const t = n + (bayer(gx, gy) - 0.5) * 0.14;
+  let c: RGB = t > 0.64 ? mix(G[2], G[3], 0.35) : t > 0.4 ? G[2] : mix(G[1], G[2], 0.55);
+  if (solidTile(map, tx, ty)) {
+    const ring = tx === 0 || ty === 0 || tx === map.width - 1 || ty === map.height - 1;
+    if (!ring) return c;
+    const fence = fencePx(art, tx, ty, lx, ly);
+    if (fence) return fence;
+    return c;
+  }
+  // The fence throws a short shadow into the farm (the scenery's own shadows come with their sprites).
+  const ring = (x: number, y: number) => solidTile(map, x, y) && (x === 0 || y === 0 || x === map.width - 1 || y === map.height - 1);
+  const shadowN = ring(tx, ty - 1) ? Math.max(0, 2 - ly) : 0;
+  const shadowW = ring(tx - 1, ty) ? Math.max(0, 2 - lx) : 0;
+  const shadow = Math.max(shadowN, shadowW);
+  if (shadow > 0) c = mix(c, pal.ink, shadow === 2 ? 0.3 : 0.16);
+  return c;
+}
+
+/** Meadow details: tufts, clover, and flowers in little clusters of three colours. */
+function paintFarmDetails(art: LevelArt, pc: PixelCanvas, x0: number, y0: number): void {
+  const { pal, map } = art;
+  const ts = map.tileSize;
+  const G = pal.rim;
+  const petals = [pal.white, pal.accent[4], pal.danger[3], mix(pal.garment[3], pal.white, 0.3)];
+  for (let ty = Math.floor(y0 / ts); ty < Math.ceil((y0 + pc.h) / ts); ty++) {
+    for (let tx = Math.floor(x0 / ts); tx < Math.ceil((x0 + pc.w) / ts); tx++) {
+      if (kindAt(map, tx, ty) !== 'air' && kindAt(map, tx, ty) !== 'spawn') continue;
+      const roll = hash2(tx, ty, 191);
+      const ox = tx * ts - x0 + 1 + Math.floor(hash2(tx, ty, 193) * Math.max(1, ts - 6));
+      const oy = ty * ts - y0 + 2 + Math.floor(hash2(ty, tx, 195) * Math.max(1, ts - 5));
+      if (roll < 0.22) {
+        const tuft = TUFT_SHAPES[Math.floor(hash2(tx, ty, 197) * TUFT_SHAPES.length)]!;
+        tuft.forEach((r, y) => {
+          for (let x = 0; x < r.length; x++) if (r[x] === '#') pc.set(ox + x, oy + y, y === 0 ? G[4] : G[3]);
+        });
+      } else if (roll < 0.3) {
+        // A cluster of flowers, one colour to a cluster.
+        const petal = petals[Math.floor(hash2(tx, ty, 199) * petals.length)]!;
+        for (const [dx, dy] of [[0, 0], [2, 1], [1, 3]] as const) {
+          pc.set(ox + dx, oy + dy, petal);
+          pc.set(ox + dx, oy + dy + 1, G[3]);
+        }
+      } else if (roll < 0.34) {
+        // Clover: three round leaves.
+        pc.set(ox, oy, G[3]);
+        pc.set(ox + 1, oy, G[4]);
+        pc.set(ox, oy + 1, G[3]);
+        pc.set(ox + 1, oy + 1, G[1]);
+      }
+    }
+  }
+}
+
 /**
  * A top-down wall in 3/4 view: a lit top face, and with open floor below it a brick front face. Field walls are stone
  * pillars with moss on their tops.
@@ -475,7 +579,8 @@ export function paintRegion(art: LevelArt, pc: PixelCanvas, x0: number, y0: numb
       const kind = kindAt(map, tx, ty);
       if (setting === 'side') {
         if (kind === 'solid') paintSideRock(art, pc, x0, y0, gx, gy);
-      } else if (kind === 'solid') pc.set(px, py, paintWallPx(art, gx, gy));
+      } else if (setting === 'farm' && (kind === 'solid' || kind === 'air' || kind === 'spawn')) pc.set(px, py, paintFarmPx(art, gx, gy));
+      else if (kind === 'solid') pc.set(px, py, paintWallPx(art, gx, gy));
       else pc.set(px, py, paintFloorPx(art, gx, gy));
     }
   }
@@ -500,6 +605,7 @@ export function paintRegion(art: LevelArt, pc: PixelCanvas, x0: number, y0: numb
   }
   if (setting === 'side') paintSideDetails(art, pc, x0, y0);
   if (setting === 'field') paintFieldDetails(art, pc, x0, y0);
+  if (setting === 'farm') paintFarmDetails(art, pc, x0, y0);
   if (setting === 'dungeon') applyLight(art, pc, x0, y0);
 }
 

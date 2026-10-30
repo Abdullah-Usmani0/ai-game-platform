@@ -6,7 +6,7 @@ import { registerProvider, type Provider, type StructuredRequest, type Structure
 import { GddFrontmatter, type CreateRequest, type LevelJson } from '@gg/schemas';
 import { defaultSystems } from '@gg/scaffold';
 import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
-import { levelPlan, runBot, simOptionsFor } from '@gg/template-core';
+import { levelPlan, levelTicksOf, runBot, simOptionsFor } from '@gg/template-core';
 import { genre } from '@gg/templates/node';
 import { parseFrontmatter } from '@gg/validators';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -72,7 +72,7 @@ describe('levels stage', () => {
     expect(levels.map((l) => l.entities.some((e) => e.type === 'warden'))).toEqual(plan.map((p) => p.boss === 1));
     const options = simOptionsFor(g, defaultSystems(g.id, g.optionalSystems), { behaviours: g.defaultBehaviours });
     for (const [i, level] of levels.entries()) {
-      expect(runBot(createSim({ ...options, level, seed: levelSeed(DEFAULT_SEED, i) }), g.bots[g.solverBot]!, 90 * 60).completed, level.id).toBe(true);
+      expect(runBot(createSim({ ...options, level, seed: levelSeed(DEFAULT_SEED, i) }), g.bots[g.solverBot]!, levelTicksOf(options)).completed, level.id).toBe(true);
     }
   });
 

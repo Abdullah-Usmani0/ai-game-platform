@@ -17,7 +17,7 @@ const ALL = '*';
 const DEFAULT: Objectives = { version: 1, win: { mode: 'all', clauses: [{ kind: 'reach_goal' }] }, lose: [] };
 
 /** The game's rules from content/objectives.json; a level without them is won at the goal. */
-function rulesOf(ctx: SimCtx): Objectives {
+function rulesOf(ctx: Pick<SimCtx, 'content'>): Objectives {
   const o = ctx.content['objectives'] as Partial<Objectives> | undefined;
   return o?.win && Array.isArray(o.win.clauses) && o.win.clauses.length > 0 ? { version: 1, win: { mode: o.win.mode === 'any' ? 'any' : 'all', clauses: o.win.clauses }, lose: Array.isArray(o.lose) ? o.lose : [] } : DEFAULT;
 }
@@ -119,6 +119,13 @@ export const objectives = defineSystem<ObjectivesState>({
     const rules = rulesOf(ctx);
     const p = rules.win.clauses.map((c) => Math.max(0, Math.min(1, clause(c, s, ctx).progress)));
     return rules.win.mode === 'any' ? Math.max(...p) : p.reduce((a, b) => a + b, 0) / p.length;
+  },
+  // The longest clock in the rules (a survival to last, the time a level allows), which menus and pause hold still: a
+  // tenth more for them, and ten seconds.
+  levelTicks(ctx) {
+    const rules = rulesOf(ctx);
+    const clocks = [...rules.win.clauses.map((c) => (c.kind === 'survive' ? c.seconds : 0)), ...rules.lose.map((l) => (l.kind === 'time_out' ? l.seconds : 0))];
+    return Math.round(Math.max(0, ...clocks) * 66) + 600;
   },
 });
 

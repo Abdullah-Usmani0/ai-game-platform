@@ -40,6 +40,11 @@ export function levelPlan(grammar: GenreManifest['levelGrammar']['kind'], scope:
   }));
 }
 
+/** Whether a grammar's levels end at a goal to reach: an arena is held out in, and a farm's season is won by the purse. */
+export function grammarHasGoal(grammar: GenreManifest['levelGrammar']['kind']): boolean {
+  return grammar !== 'arena' && grammar !== 'farm';
+}
+
 /** How many levels a grammar can ship for a scope: what a GDD may promise. */
 export function plannedLevelCount(grammar: GenreManifest['levelGrammar']['kind'], levels: number): number {
   return grammar === 'arena' ? 1 : Math.max(1, Math.min(MAX_LEVELS, Math.round(levels)));

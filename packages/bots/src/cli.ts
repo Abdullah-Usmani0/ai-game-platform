@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { InputSegment } from '@gg/sdk';
 import { parseArgs } from 'node:util';
 import { contactSheet } from './contact-sheet.js';
 import { runSmoke } from './smoke.js';
@@ -13,11 +15,13 @@ const { positionals, values } = parseArgs({
     'replay-check': { type: 'boolean', default: false },
     frames: { type: 'string', default: '12' },
     tick: { type: 'string', default: '240' },
+    // still: a recorded run to drive the game with (a level proof, or a bare list of segments) instead of the runner.
+    script: { type: 'string' },
   },
 });
 const [cmd, dirArg] = positionals;
 if (!cmd || !dirArg) {
-  console.error('usage: gg-bots <smoke|contact-sheet|still> <bundle-dir> [--seed N] [--ticks N] [--out DIR|FILE] [--replay-check] [--frames N] [--tick N]');
+  console.error('usage: gg-bots <smoke|contact-sheet|still> <bundle-dir> [--seed N] [--ticks N] [--out DIR|FILE] [--replay-check] [--frames N] [--tick N] [--script PROOF.json]');
   process.exit(2);
 }
 const dir = resolve(dirArg);
@@ -35,7 +39,9 @@ if (cmd === 'smoke') {
   console.log(out);
 } else if (cmd === 'still') {
   // One frame at the game's own resolution, `--out` naming the PNG file.
-  const result = await still({ dir, seed, tick: Number(values.tick), out: outDir.endsWith('.png') ? outDir : `${outDir}/still-seed${seed}-t${values.tick}.png` });
+  const recorded = values.script ? (JSON.parse(readFileSync(resolve(values.script), 'utf8')) as InputSegment[] | { script: InputSegment[] }) : null;
+  const script = recorded ? (Array.isArray(recorded) ? recorded : recorded.script) : undefined;
+  const result = await still({ dir, seed, tick: Number(values.tick), script, out: outDir.endsWith('.png') ? outDir : `${outDir}/still-seed${seed}-t${values.tick}.png` });
   console.log(result.out);
   if (result.errors.length) {
     console.error(result.errors.join('\n'));

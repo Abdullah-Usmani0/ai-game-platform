@@ -1,0 +1,19 @@
+[
+  { "event": "pickup", "channels": ["particle", "sfx"] },
+  { "event": "level_complete", "channels": ["sfx", "particle"] },
+  { "event": "custom:till", "channels": ["particle", "sfx"] },
+  { "event": "custom:plant", "channels": ["particle", "sfx"] },
+  { "event": "custom:water", "channels": ["particle", "sfx"] },
+  { "event": "custom:harvest", "channels": ["particle", "sfx"] },
+  { "event": "custom:ship", "channels": ["particle", "sfx"] },
+  { "event": "custom:payout", "channels": ["sfx"] },
+  { "event": "custom:buy", "channels": ["sfx"] },
+  { "event": "custom:sleep", "channels": ["sfx"] },
+  { "event": "custom:day_start", "channels": ["sfx"] },
+  { "event": "custom:dusk", "channels": ["sfx"] },
+  { "event": "custom:exhausted", "channels": ["sfx"] },
+  { "event": "custom:season_over", "channels": ["sfx"] },
+  { "event": "custom:no_seeds", "channels": ["sfx"] },
+  { "event": "custom:too_tired", "channels": ["sfx"] },
+  { "event": "custom:bin_empty", "channels": ["sfx"] }
+]

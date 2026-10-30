@@ -1,6 +1,7 @@
 import type { EntityRoster, LevelProof, SystemsFile } from '@gg/schemas';
 import type { GenreCheck } from '@gg/template-core';
 import { freeformCheck } from '@gg/template-freeform/check';
+import { lifesimCheck } from '@gg/template-lifesim/check';
 import { metroidvaniaCheck } from '@gg/template-metroidvania/check';
 import { platformerCheck } from '@gg/template-platformer/check';
 import { puzzleCheck } from '@gg/template-puzzle/check';
@@ -16,6 +17,7 @@ export const CHECKS: Record<string, GenreCheck> = {
   shmup: shmupCheck,
   metroidvania: metroidvaniaCheck,
   puzzle: puzzleCheck,
+  lifesim: lifesimCheck,
 };
 
 export function checkKit(genreId: string): GenreCheck {

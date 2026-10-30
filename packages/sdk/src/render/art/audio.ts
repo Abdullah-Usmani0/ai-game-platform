@@ -65,6 +65,25 @@ export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
   ],
   menu_open: arp([392, 523, 659, 784], 0.05, 0.14, 0.07, 'triangle'),
   menu_pick: [...arp([784, 1047, 1568], 0.045, 0.12, 0.09), { wave: 'noise', from: 6000, to: 2000, dur: 0.12, vol: 0.04 }],
+  // The farm: a hoe biting the soil, a seed pressed in, the watering can, a crop pulled up, the bin's lid, coins.
+  dig: [
+    { wave: 'noise', from: 900, to: 200, dur: 0.09, vol: 0.12 },
+    { wave: 'triangle', from: 160, to: 90, dur: 0.07, vol: 0.1 },
+  ],
+  sow: [{ wave: 'triangle', from: 520, to: 700, dur: 0.05, vol: 0.07 }],
+  splash: [
+    { wave: 'noise', from: 4000, to: 1200, dur: 0.18, vol: 0.07 },
+    { wave: 'noise', from: 1800, to: 600, dur: 0.14, vol: 0.05, delay: 0.05 },
+  ],
+  pluck: [{ wave: 'square', from: 660, to: 990, dur: 0.06, vol: 0.08 }, ...arp([1319, 1760], 0.05, 0.08, 0.06).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.05 }))],
+  thunk: [{ wave: 'triangle', from: 150, to: 90, dur: 0.1, vol: 0.16 }, ...arp([1047, 1319], 0.05, 0.08, 0.06).map((v) => ({ ...v, delay: (v.delay ?? 0) + 0.08 }))],
+  coins: arp([988, 1319, 1568], 0.06, 0.09, 0.08),
+  // The day's turns: a falling lullaby to bed, a rising phrase for the morning, two low notes as evening comes.
+  lullaby: arp([784, 659, 523, 392], 0.16, 0.3, 0.06, 'triangle'),
+  morning: arp([523, 659, 784, 1047], 0.1, 0.22, 0.06, 'triangle'),
+  dusk: arp([440, 392], 0.2, 0.4, 0.05, 'triangle'),
+  sigh: [{ wave: 'triangle', from: 330, to: 180, dur: 0.35, vol: 0.08 }],
+  wilt: arp([392, 349, 330, 262], 0.18, 0.3, 0.08, 'triangle'),
 };
 
 /** What each gameplay event sounds like (the feedback table decides whether it sounds at all). */
@@ -88,6 +107,33 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return 'slam';
     case 'custom:enrage':
       return 'roar';
+    case 'custom:till':
+      return 'dig';
+    case 'custom:plant':
+      return 'sow';
+    case 'custom:water':
+      return 'splash';
+    case 'custom:harvest':
+      return 'pluck';
+    case 'custom:ship':
+      return 'thunk';
+    case 'custom:payout':
+    case 'custom:buy':
+      return 'coins';
+    case 'custom:sleep':
+      return 'lullaby';
+    case 'custom:day_start':
+      return 'morning';
+    case 'custom:dusk':
+      return 'dusk';
+    case 'custom:exhausted':
+      return 'sigh';
+    case 'custom:season_over':
+      return 'wilt';
+    case 'custom:no_seeds':
+    case 'custom:too_tired':
+    case 'custom:bin_empty':
+      return 'bump';
     default:
       return SFX_PRESETS[event] ? event : null;
   }

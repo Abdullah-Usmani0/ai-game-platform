@@ -67,6 +67,14 @@ export const GENRES: GenreInfo[] = [
     controls: [['Arrows / WASD', 'step and push'], ['E / Enter', 'undo'], ['X / Shift', 'restart the board'], PAUSE],
     examples: ['A wine cellar where every barrel has its rack; three boards that teach one idea each.', 'A greenhouse of sliding planters: short boards with one clever push each.'],
   },
+  {
+    id: 'lifesim',
+    label: 'Cozy farm',
+    hint: 'Stardew-style seasons: till, sow, water, harvest, ship for gold, buy seeds, sleep; make the buyer\'s quota.',
+    image: '/genres/lifesim.png',
+    controls: [['Arrows / WASD', 'walk and face'], ['E / Enter', 'work the tile you face'], ['Z / Space', 'change seed'], PAUSE],
+    examples: ['A hillside farm of moon melons and starfruit: three seasons, each buyer greedier than the last.', 'A tiny allotment by the sea where kale grows fast and pumpkins pay best, if you can wait.'],
+  },
 ];
 
 export const GENRE_BY_ID: Readonly<Record<string, GenreInfo>> = Object.fromEntries(GENRES.map((g) => [g.id, g]));

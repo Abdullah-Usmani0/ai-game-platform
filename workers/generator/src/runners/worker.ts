@@ -6,7 +6,7 @@ import { costUsd, generateArtifact, providerFor, type GenerateResult, type Usage
 import { BundleManifest, LevelJson, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type CreateRequest, type GddFrontmatter, type LevelProof, type SystemsJson } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from '@gg/scaffold';
-import { checkLevel, levelPlan, plannedLevelCount, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
+import { checkLevel, levelPlan, levelTicksOf, plannedLevelCount, runBot, simOptionsFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
 import { BASE_MANIFESTS, IDENTITY_ROSTER, proveLevel } from '@gg/template-freeform/node';
 import { CATALOG, catalogFor, genre as genreOf, readGameInputs, resolveGame } from '@gg/templates/node';
 import { sfxPresetFor } from '@gg/sdk/art';
@@ -357,7 +357,7 @@ const levels: StageFn = async (ctx) => {
       return r.proof ? { ok: true, ticks: r.proof.ticks, proof: r.proof } : { ok: false, ticks: 0 };
     }
     const so = simOptionsFor(g, sys, { behaviours, rules, content, feedback });
-    const r = runBot(createSim({ ...so, level, seed: playSeed }), solver, 90 * 60);
+    const r = runBot(createSim({ ...so, level, seed: playSeed }), solver, levelTicksOf(so));
     return { ok: r.completed, ticks: r.ticks };
   };
   const proofsDir = join(ctx.gameDir, 'content', 'proofs');

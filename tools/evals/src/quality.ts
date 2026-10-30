@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import type { LevelJson, ScopeTier } from '@gg/schemas';
 import { createSim, type FeedbackBinding, type Sim } from '@gg/sdk';
-import { levelPlan, levelQuality, plannedLevelCount, rankCorrelation, runBot, scriptFromLog, simOptionsFor, systemsJsonFor, type GenreManifest, type LevelQuality } from '@gg/template-core';
+import { levelPlan, levelQuality, levelTicksOf, plannedLevelCount, rankCorrelation, runBot, scriptFromLog, simOptionsFor, systemsJsonFor, type GenreManifest, type LevelQuality } from '@gg/template-core';
 import { GENRES } from '@gg/templates/node';
 
 /**
@@ -50,7 +50,7 @@ function buildGame(g: GenreManifest, tier: ScopeTier, game: number) {
       const options = simOptionsFor(g, systems, { behaviours: g.defaultBehaviours, content: g.extraContent?.(params) ?? {}, feedback });
       const make = () => createSim({ ...options, level, seed: slot.seed });
       const sim = make();
-      if (!runBot(sim, g.bots[g.solverBot]!, 90 * 60).completed) continue;
+      if (!runBot(sim, g.bots[g.solverBot]!, levelTicksOf(options)).completed) continue;
       out.push({ id: slot.id, make, proof: { script: scriptFromLog(sim, sim.tick), ticks: sim.tick } });
       break;
     }

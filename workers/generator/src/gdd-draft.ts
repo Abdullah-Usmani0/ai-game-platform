@@ -40,8 +40,38 @@ export function draftFrontmatter(req: CreateRequest, g: GenreManifest): GddFront
   });
 }
 
+/** A farm's GDD body: seasons, crops and a buyer's quota instead of enemies and deaths. */
+function draftFarmBody(req: CreateRequest, g: GenreManifest, fm: AnyGddFrontmatter): string {
+  const n = fm.scope.levels;
+  const seasons = `${n} season${n === 1 ? '' : 's'}`;
+  const feedback = fm.feedbackEvents.map((f) => `${f.event}: ${f.channels.join(', ')}`).join('; ');
+  return [
+    '## Concept',
+    req.prompt.trim(),
+    '',
+    `A ${fm.scopeTier} ${g.name.toLowerCase()} built on the fixed runtime: ${seasons} on a farm, the default crops (turnip, lettuce, tomato that bears again, corn) unless content/crops.json names others. The player's verbs are ${fm.verbs.join(', ')}.`,
+    '',
+    '## Pillars',
+    ...fm.pillars.map((p, i) => `${i + 1}. ${p[0]!.toUpperCase()}${p.slice(1)}: every system and season is judged against this.`),
+    '',
+    '## Core loop',
+    `30 seconds: till a plot, sow the seed in hand and water it. 5 minutes: a season of days: harvest what ripened overnight, ship it at the bin, buy better seeds at the stall with yesterday's pay, sow and water, go to bed before two. Session (${fm.targets.sessionMin} min): make every season's quota, each a little harder than the last.`,
+    '',
+    '## Progression',
+    `Each of the ${seasons} starts fresh on its own farm: the field grows from about ten plots toward thirty, in two fields later on, and the buyer's quota rises from about half of what an ideal season earns toward two thirds. Seeds sown in the last days cannot ripen in time, so a season is planned. Target ${fm.targets.levelTimeS} seconds a season.`,
+    '',
+    '## Scope',
+    `${seasons}, no enemies, items or bosses: the crops and the economy are the content (tier ${fm.scopeTier}).`,
+    '',
+    '## Feedback',
+    `Every listed event produces its channels at runtime through the feedback binder and the juice linter proves it: ${feedback}. The farm's own events (till, plant, water, harvest, ship, payout, buy, sleep, morning, dusk, a job that cannot be done) each have a sound.`,
+    '',
+  ].join('\n');
+}
+
 /** A GDD body with every required section, written from the concept and the front matter. */
 export function draftBody(req: CreateRequest, g: GenreManifest, fm: AnyGddFrontmatter): string {
+  if (g.levelGrammar.kind === 'farm') return draftFarmBody(req, g, fm);
   const enemies = g.entityDefs.filter((e) => e.fsm && !e.boss).map((e) => e.type).slice(0, fm.scope.enemies);
   const bosses = g.entityDefs.filter((e) => e.boss).map((e) => e.type).slice(0, fm.scope.bosses);
   const items = g.collectibleTypes.slice(0, fm.scope.items);

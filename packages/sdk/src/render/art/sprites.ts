@@ -1,6 +1,6 @@
 import { mix, ramp, type RGB } from './color.js';
 import type { ArtPalette } from './palette.js';
-import { PixelCanvas, type Legend, type Template } from './pixels.js';
+import { hash2, PixelCanvas, type Legend, type Template } from './pixels.js';
 
 /**
  * Entity sprites: hand-made pixel templates per animation, recoloured from the game's palette and outlined in the
@@ -9,6 +9,7 @@ import { PixelCanvas, type Legend, type Template } from './pixels.js';
  *   k ink        w white      1-5 hero ramp (dark to light)      a A b B accent (shadow, base, light, glint)
  *   x d D e E danger (darkest to light)   t T u U terrain/metal   p q Q r R wood   i I ui
  *   m M n N secondary hue (between danger and accent)   g G h H the hero's garment (opposite the danger hue)
+ *   o v V y Y foliage (darkest to light)   O s wet earth (darkest, dark)   c C z Z produce (a crop's own colour; the accent by default)
  */
 
 export type Anchor = 'feet' | 'center';
@@ -21,6 +22,10 @@ export interface Recipe {
   tune?: (pal: ArtPalette) => Partial<Record<string, RGB | null>>;
   /** Outline off for glows and effects. */
   noOutline?: boolean;
+  /** Lies on the ground (a soil plot): drawn under everything that stands, whatever its row. */
+  floor?: boolean;
+  /** Casts no shadow (a door in a wall, a house front). */
+  noShadow?: boolean;
 }
 
 export function legendFor(pal: ArtPalette, tune?: Partial<Record<string, RGB | null>>): Legend {
@@ -61,6 +66,17 @@ export function legendFor(pal: ArtPalette, tune?: Partial<Record<string, RGB | n
     G: pal.garment[2],
     h: pal.garment[3],
     H: pal.garment[4],
+    o: pal.rim[0],
+    v: pal.rim[1],
+    V: pal.rim[2],
+    y: pal.rim[3],
+    Y: pal.rim[4],
+    O: mix(pal.wood[0], pal.ink, 0.45),
+    s: mix(pal.wood[1], pal.ink, 0.35),
+    c: pal.accent[1],
+    C: pal.accent[2],
+    z: pal.accent[3],
+    Z: pal.accent[4],
   };
   for (const [k, v] of Object.entries(tune ?? {})) if (v !== undefined) base[k] = v;
   return base;
@@ -323,6 +339,153 @@ const TARGET: Recipe = {
   },
 };
 
+// ---------------------------------------------------------------- the farm
+
+/** The farmer: the top-down hero under a straw hat. */
+const FARMER_FRONT: Template = ['..rRRr..', 'rRRRRRRr', '.A5555A.', '.5k55k5.', '.555555.'];
+const FARMER_BACK: Template = ['..rRRr..', 'rRRRRRRr', '.AAAAAA.', '.aAAAAa.', '..aAAa..'];
+const FARMER_SIDE: Template = ['..rRRr..', '.rRRRRRr', '.aA5555.', '.aA5k5k.', '..a5555.'];
+const FARMER: Recipe = { anchor: 'feet', anims: { ...prefixed('down', tdView(FARMER_FRONT)), ...prefixed('up', tdView(FARMER_BACK)), ...prefixed('side', tdView(FARMER_SIDE)) } };
+
+/** A soil plot (8 x 8): rough untilled ground, furrowed tilled soil, or soil dark and glinting from the watering can. */
+const SOIL: Template = ['.qQQqQq.', 'qQrQQQrq', 'QQQqQQQQ', 'QrQQQqQQ', 'QQQQrQQq', 'qQqQQQQQ', 'QQQQQqrQ', '.qQQQQq.'];
+const TILLED: Template = ['.pqqqqp.', 'pqrrrrqp', 'pppppppp', 'pqrrrrqp', 'pppppppp', 'pqrrrrqp', 'pppppppp', '.pqqqqp.'];
+const WATERED: Template = TILLED.map((r) => r.replace(/p/g, 'O').replace(/q/g, 's').replace(/r/g, 'q'));
+const PLOT: Recipe = { anchor: 'center', noOutline: true, floor: true, noShadow: true, anims: { soil: [SOIL], tilled: [TILLED], watered: [withRows(WATERED, { 1: 'Osqwqqso', 5: 'Osqqqwso' }), WATERED] } };
+
+/** A planting's first two stages, the same for every crop: a seed in its mound, then a sprout. */
+const SEEDLING: Template = [W8, W8, W8, W8, W8, '...Rr...', '..qrrq..', W8];
+const SPROUT: Template = [W8, W8, W8, '..Y..Y..', '..yVVy..', '...vv...', '...vv...', W8];
+const tall = (t: Template): Template => [W8, W8, W8, W8, ...t];
+/**
+ * Crops by shape, in their four stages (seed, sprout, grown, ripe); the produce is drawn in the crop's own colour
+ * (cropRecipe, cropTune). Tall crops stand twelve pixels high.
+ */
+const CROP_SHAPES: Readonly<Record<string, Readonly<Record<string, Template>>>> = {
+  root: {
+    seed: SEEDLING,
+    sprout: SPROUT,
+    grown: [W8, '.Y....Y.', '.yV..Vy.', '..yVVy..', '...VV...', '..vVVv..', '...vv...', W8],
+    ripe: ['.Y....Y.', '.yV..Vy.', '..yVVy..', '...VV...', '..zZZz..', '.zCCCCc.', '.cCCCCc.', '..cCCc..'],
+  },
+  leafy: {
+    seed: SEEDLING,
+    sprout: SPROUT,
+    grown: [W8, W8, '...yY...', '..yVVy..', '.yVvVVy.', '.vVVvVv.', '..vvvv..', W8],
+    ripe: [W8, '..zZZz..', '.zCZCCz.', 'zCCzCCCz', 'cCzCCzCc', 'cCCCCCCc', '.cCCCCc.', '..cccc..'],
+  },
+  tall: {
+    seed: tall(SEEDLING),
+    sprout: tall(SPROUT),
+    grown: [W8, '...Y....', '...yV...', '..yVv...', '.y.Vv.Y.', '...Vvy..', '..yVv...', '...Vv...', '.yVVv...', '...Vv.y.', '...Vvy..', '...vv...'],
+    ripe: ['...Z....', '..zZz...', '...yV...', '..yVv...', '.y.VvzZ.', '...VczC.', '..yVcCv.', '...Vvc..', '.yVVv...', 'zZ.Vv.y.', 'cC.Vvy..', '...vv...'],
+  },
+  bush: {
+    seed: SEEDLING,
+    sprout: SPROUT,
+    grown: [W8, '..yYYy..', '.yVVVVy.', 'yVVvVVVy', 'vVVVvVVv', '.vVVVVv.', '..vqqv..', '...qq...'],
+    ripe: [W8, '..yYYy..', '.yVZzVy.', 'yVzCcVVy', 'vVVcVZzv', '.vZzVCcv', '..cCqv..', '...qq...'],
+  },
+};
+export const CROP_SHAPE_NAMES: readonly string[] = Object.keys(CROP_SHAPES);
+/** The recipe of a crop of a shape (root, leafy, tall, bush; another shape draws as a root). */
+export function cropRecipe(shape: string): Recipe {
+  const stages = CROP_SHAPES[shape] ?? CROP_SHAPES['root']!;
+  return { anchor: 'feet', anims: Object.fromEntries(Object.entries(stages).map(([stage, t]) => [stage, [t]])) };
+}
+/** A crop's produce colours from its own colour: shadow, base, light and glint. */
+export function cropTune(color: RGB): Partial<Record<string, RGB>> {
+  const r = ramp(color);
+  return { c: r[1], C: r[2], z: r[3], Z: r[4] };
+}
+
+/** The shipping bin (8 x 8): a lidded wooden box with a brass badge. */
+const BIN: Recipe = { anchor: 'feet', anims: { idle: [['.rRRRRr.', 'rQQQQQQr', 'qppppppq', 'qQrQQrQq', 'qQrbBrQq', 'qQrQQrQq', 'qqqqqqqq', '.p....p.']] } };
+
+/** The seed stall (16 x 16): a striped awning over a counter of produce, a coin on its sign. */
+const STALL_BASE: Template = [
+  '..wAAwwAAwwAAw..',
+  '.wAAwwAAwwAAwwA.',
+  'wAAwwAAwwAAwwAAw',
+  'aAAaaAAaaAAaaAAa',
+  '.a.a.a.a.a.a.a.a',
+  '.q............q.',
+  '.q..zZ..nN.yY.q.',
+  '.q.zCCz.nM.Vyyq.',
+  '.qrRRRRRRRRRRRq.',
+  '.qQQQQQQQQQQQQq.',
+  '.qQpQQQQQQQQpQq.',
+  '.qQQQrrrrrrQQQq.',
+  '.qQQQrrbBrrQQQq.',
+  '.qQQQrrrrrrQQQq.',
+  '.qqqqqqqqqqqqqq.',
+  '.pp..........pp.',
+];
+const STALL: Recipe = { anchor: 'feet', anims: { idle: [STALL_BASE, withRows(STALL_BASE, { 4: 'a.a.a.a.a.a.a.a.' })] } };
+
+/** The farmhouse door (8 x 8), where the farmer goes to bed: planks, iron bands, a brass knob. */
+const DOOR_FRONT: Recipe = { anchor: 'feet', noShadow: true, anims: { idle: [['.pqqqqp.', 'pqQQQQqp', 'pQrQQrQp', 'ptttttup', 'pQrQQbQp', 'pQrQQrQp', 'ptttttup', 'pppppppp']] } };
+
+/** The farmhouse front (48 x 24): a tiled roof with a chimney, plank walls, two lit windows with flower boxes. */
+function houseFront(): Template {
+  const W = 48;
+  const rows = Array.from({ length: 24 }, () => Array<string>(W).fill('.'));
+  const put = (x: number, y: number, c: string) => {
+    if (x >= 0 && x < W && y >= 0 && y < 24) rows[y]![x] = c;
+  };
+  // The roof: a ridge thirty-two pixels wide that widens a pixel each side a row, in courses of tiles.
+  for (let y = 0; y < 12; y++) {
+    const from = Math.max(0, 8 - y);
+    const to = Math.min(W - 1, 39 + y);
+    for (let x = from; x <= to; x++) {
+      const course = Math.floor(y / 3);
+      const tile = (x + course * 2) % 4 === 0;
+      put(x, y, y === 0 ? 'N' : x === from || x === to || y % 3 === 2 ? 'm' : tile ? 'M' : y % 3 === 0 ? 'n' : 'M');
+    }
+  }
+  // A stone chimney on the right of the roof.
+  for (let y = 0; y < 6; y++) for (let x = 34; x < 38; x++) put(x, y, y === 0 ? 'u' : x === 34 || x === 37 ? 't' : 'T');
+  // Walls of vertical planks under the eaves' shadow, on a stone footing.
+  for (let y = 12; y < 24; y++) for (let x = 0; x < W; x++) put(x, y, y === 12 ? 'p' : y === 13 ? 'q' : y === 23 ? (x % 3 === 0 ? 't' : 'T') : x % 4 === 0 ? 'q' : x % 4 === 1 ? 'r' : 'Q');
+  // Two warm windows with a cross bar, a flower box under each.
+  for (const wx of [4, 37]) {
+    for (let y = 14; y < 20; y++) {
+      for (let x = wx; x < wx + 7; x++) put(x, y, y === 14 || y === 19 || x === wx || x === wx + 6 ? 'p' : x === wx + 3 || y === 16 ? 'q' : y === 15 && x < wx + 3 ? 'B' : 'b');
+    }
+    for (let x = wx - 1; x < wx + 8; x++) put(x, 20, 'q');
+    for (let x = wx; x < wx + 7; x++) put(x, 21, x % 2 === 0 ? 'y' : 'n');
+  }
+  return rows.map((r) => r.join(''));
+}
+const HOUSE: Recipe = { anchor: 'feet', noShadow: true, anims: { idle: [houseFront()] } };
+
+/** A round tree (16 x 16): a lumpy canopy lit from the top left over a short trunk; it sways a little. */
+function treeFrame(sway: number): Template {
+  const rows = Array.from({ length: 16 }, () => Array<string>(16).fill('.'));
+  for (let y = 10; y < 16; y++) {
+    rows[y]![7] = y === 15 ? 'p' : 'q';
+    rows[y]![8] = y === 15 ? 'p' : 'Q';
+  }
+  rows[15]![6] = 'p';
+  rows[15]![9] = 'p';
+  for (let y = 0; y < 13; y++) {
+    for (let x = 0; x < 16; x++) {
+      const dx = x + 0.5 - 8 - (y < 6 ? sway : 0);
+      const dy = (y + 0.5 - 6.5) * 1.12;
+      const lump = hash2(Math.floor(x / 2), Math.floor(y / 2), 211) * 7;
+      const r2 = dx * dx + dy * dy;
+      if (r2 > 40 + lump) continue;
+      const light = -dx - dy + hash2(x, y, 223) * 2.2;
+      rows[y]![x] = r2 > 30 + lump ? 'o' : light > 5 ? 'Y' : light > 1.5 ? 'y' : light > -2.5 ? 'V' : 'v';
+    }
+  }
+  return rows.map((r) => r.join(''));
+}
+const TREE: Recipe = { anchor: 'feet', anims: { idle: [treeFrame(0), treeFrame(0), treeFrame(1), treeFrame(0)] } };
+
+/** A bush (8 x 8) with a few berries. */
+const BUSH: Recipe = { anchor: 'feet', anims: { idle: [['..yYYy..', '.yVVYVy.', 'yVVVVVVy', 'VVnVVVnV', 'vVVVVNVv', '.vVVVVv.', '..oooo..', W8]] } };
+
 export const RECIPES: Record<string, Recipe> = {
   'hero-side': SIDE_HERO,
   'hero-topdown': TOPDOWN_HERO,
@@ -352,6 +515,15 @@ export const RECIPES: Record<string, Recipe> = {
   door: DOOR,
   crate: CRATE,
   target: TARGET,
+  farmer: FARMER,
+  plot: PLOT,
+  bin: BIN,
+  stall: STALL,
+  'door-front': DOOR_FRONT,
+  house: HOUSE,
+  tree: TREE,
+  bush: BUSH,
+  ...Object.fromEntries(CROP_SHAPE_NAMES.map((shape) => [`crop-${shape}`, cropRecipe(shape)])),
 };
 
 /** Entity types of the shipped genres and the recipe each draws with; anything else falls back by role. */
@@ -381,6 +553,15 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   door: 'door',
   crate: 'crate',
   target: 'target',
+  plot: 'plot',
+  bin: 'bin',
+  shop: 'stall',
+  bed: 'door-front',
+  house: 'house',
+  tree: 'tree',
+  bush: 'bush',
+  // A crop draws by its shape and colour (cropRecipe); this is its look before it knows them.
+  crop: 'crop-root',
 };
 
 /** The recipe an entity type draws with: its own, or that of the shipped type it is drawn as (a renamed type). */

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { generateArtifact, providerFor, type GenerateResult } from '@gg/llm';
 import { CURATED_GENRES, type CreateRequest, type CuratedGenre, type EntityRoster, type FreeformGddFrontmatter, type FreeformSystemsJson, type Objectives, type ScopeTier } from '@gg/schemas';
 import { sfxPresetFor } from '@gg/sdk/art';
-import { plannedLevelCount, rolesPresent, type GenreManifest } from '@gg/template-core';
+import { grammarHasGoal, plannedLevelCount, rolesPresent, type GenreManifest } from '@gg/template-core';
 import { ARCHETYPES, BASE_MANIFESTS, checkFreeformObjectives, compileRoster, compose, FREEFORM_CATALOG, freeformDesignManifest, IDENTITY_ROSTER, movementOf, proveLevel, RUNTIMES, SYSTEMS, usableSystems } from '@gg/template-freeform/node';
 import { readGameFiles, readGameInputs, readGameLevels } from '@gg/templates/node';
 import { checkComposition, checkSystems, silentSfx } from '@gg/validators';
@@ -197,7 +197,7 @@ export async function composition(ctx: StageContext): Promise<StageOutcome> {
   let objectives: Objectives | null = null;
   if (ids.includes('objectives')) {
     const compiled = compileRoster(base, roster, ids);
-    const goal = BASE_MANIFESTS[base].levelGrammar.kind !== 'arena';
+    const goal = grammarHasGoal(BASE_MANIFESTS[base].levelGrammar.kind);
     const objectivesPrompt = [
       `Game: "${gdd.title}". Pillars: ${gdd.pillars.join(' / ')}.`,
       `Base genre: ${base}; its levels ${goal ? 'have a goal tile to reach' : 'are one arena without a goal tile'}. Level time: ${Math.round(gdd.targets.levelTimeS)} s.`,

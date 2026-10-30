@@ -1,5 +1,5 @@
 {
-  "$comment": "Benchmark prompts for every genre and scope tier, round-robin by genre so --limit 6 covers each genre once (--limit 2: platformer and survivors). Freeform ideas follow (--genre freeform), by tier: F0 an idea a curated genre covers, F1 systems from several genres, F2 a mechanic no system has yet, F3 an idea of its own; the dry run builds each on the base genre its words point at. Each row is graded by the full gate set.",
+  "$comment": "Benchmark prompts for every genre and scope tier, round-robin by genre so --limit 7 covers each genre once (--limit 2: platformer and survivors). Freeform ideas follow (--genre freeform), by tier: F0 an idea a curated genre covers, F1 systems from several genres, F2 a mechanic no system has yet, F3 an idea of its own; the dry run builds each on the base genre its words point at. Each row is graded by the full gate set.",
   "prompts": [
     {
       "id": "p01",
@@ -38,6 +38,12 @@
       "prompt": "A cosy warehouse puzzle: a little forklift pushes crates onto glowing loading bays, one crate at first and three by the end."
     },
     {
+      "id": "l01",
+      "genre": "lifesim",
+      "scopeTier": "small",
+      "prompt": "A cosy hillside farm where a fox tends turnips and lettuce, ships the harvest from a little red box and sleeps under a patchwork quilt."
+    },
+    {
       "id": "p02",
       "genre": "platformer",
       "scopeTier": "small",
@@ -72,6 +78,12 @@
       "genre": "puzzle",
       "scopeTier": "small",
       "prompt": "A temple of sliding stone blocks: an explorer shoves boulders onto pressure plates to open the inner sanctum, with free undo."
+    },
+    {
+      "id": "l02",
+      "genre": "lifesim",
+      "scopeTier": "medium",
+      "prompt": "Three seasons on a windswept island farm: quick radishes keep the purse alive, slow pumpkins pay off if you plan the days right."
     },
     {
       "id": "p03",
@@ -110,6 +122,12 @@
       "prompt": "Six snowy boards where a penguin nudges presents under the right trees; calm steps, gentle start, a tricky four-present finale."
     },
     {
+      "id": "l03",
+      "genre": "lifesim",
+      "scopeTier": "small",
+      "prompt": "A tiny allotment behind a bakery: grow wheat and berries, sell at the stall each night, and make the baker's order before market day."
+    },
+    {
       "id": "p04",
       "genre": "platformer",
       "scopeTier": "medium",
@@ -144,6 +162,12 @@
       "genre": "puzzle",
       "scopeTier": "large",
       "prompt": "Puzzles in a lighthouse keeper's storeroom: push the oil crates onto the marked tiles, room after room of trickier layouts, with undo always one key away."
+    },
+    {
+      "id": "l04",
+      "genre": "lifesim",
+      "scopeTier": "large",
+      "prompt": "A sunflower valley over four seasons, each field bigger and each buyer greedier, with tomatoes that keep fruiting once they ripen."
     },
     {
       "id": "p05",
@@ -324,6 +348,13 @@
       "tier": "F3",
       "scopeTier": "small",
       "prompt": "A dance-floor duel where each step on the beat pushes your partner's boxes of confetti onto the glowing tiles."
+    },
+    {
+      "id": "f13",
+      "genre": "freeform",
+      "tier": "F0",
+      "scopeTier": "small",
+      "prompt": "A crab farming kelp gardens on the seabed: sow the beds, water them with bubbles and ship the harvest at the reef market before the tide turns."
     }
   ]
 }

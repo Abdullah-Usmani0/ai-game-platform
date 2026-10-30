@@ -27,7 +27,7 @@ export const TemplateGenre = Genre.exclude(['freeform']);
 export type TemplateGenre = z.infer<typeof TemplateGenre>;
 
 /** The genres with a template of their own (systems, level generator, solver bot); a freeform game builds on one of them. */
-export const CURATED_GENRES = ['platformer', 'survivors', 'topdown-action', 'metroidvania', 'shmup', 'puzzle'] as const satisfies readonly Genre[];
+export const CURATED_GENRES = ['platformer', 'survivors', 'topdown-action', 'metroidvania', 'shmup', 'puzzle', 'lifesim'] as const satisfies readonly Genre[];
 export const CuratedGenre = z.enum(CURATED_GENRES);
 export type CuratedGenre = z.infer<typeof CuratedGenre>;
 

@@ -156,4 +156,52 @@ export const LANTERN: FreeformExample = {
   objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'collect', type: 'lantern', count: 2 }, { kind: 'reach_goal' }] }, lose: [{ kind: 'lives', count: 3 }] },
 };
 
-export const EXAMPLES: readonly FreeformExample[] = [HIVE, HEIST, LANTERN];
+/** The cozy farm's systems under another sky: a moth's moon garden, every farm thing renamed, the season won by the purse. */
+export const MOON: FreeformExample = {
+  id: 'moon',
+  prompt: "A moth keeping a moon garden: sow glowcaps in the moonbeds, leave the harvest in the offering chest, buy spores at the beetle's stall.",
+  gdd: {
+    title: 'Moon Garden',
+    genre: 'freeform',
+    base: 'lifesim',
+    scopeTier: 'small',
+    pillars: ['every night ends with something grown', 'the garden is a plan, never a chore', 'the moon pays the patient'],
+    scope: { levels: 2, enemies: 0, items: 0, bosses: 0 },
+    targets: { sessionMin: 15, levelTimeS: 300, deathsPerLevel: 0 },
+    verbs: ['move', 'work', 'choose seed'],
+    feedbackEvents: [
+      { event: 'pickup', channels: ['particle', 'sfx'] },
+      { event: 'level_complete', channels: ['sfx', 'particle'] },
+    ],
+  },
+  systems: {
+    version: 1,
+    genre: 'freeform',
+    composition: { base: 'lifesim' },
+    feelPreset: 'farm-stroll',
+    systems: [
+      { id: 'movement-topdown', params: { dash: false, cornerSlip: 3 } },
+      { id: 'day-clock', params: {} },
+      { id: 'farming', params: {} },
+      { id: 'shipping', params: {} },
+      { id: 'season', params: {} },
+      { id: 'shop', params: {} },
+      { id: 'sleep', params: {} },
+      { id: 'energy', params: {} },
+    ],
+  },
+  roster: {
+    version: 1,
+    designNotes: "Plots are moonbeds and what grows in them glowcaps; the shipping bin is the offering chest, the stall a beetle's, the bed a hollow in the old oak.",
+    player: {},
+    types: [
+      { type: 'moonbed', archetype: 'lifesim:plot', hp: 1 },
+      { type: 'glowcap', archetype: 'lifesim:crop', hp: 1 },
+      { type: 'offering', archetype: 'lifesim:bin', hp: 1 },
+      { type: 'beetle_stall', archetype: 'lifesim:shop', hp: 1 },
+      { type: 'hollow', archetype: 'lifesim:bed', hp: 1 },
+    ],
+  },
+};
+
+export const EXAMPLES: readonly FreeformExample[] = [HIVE, HEIST, LANTERN, MOON];

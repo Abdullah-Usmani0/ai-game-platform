@@ -1,8 +1,9 @@
 import { createSim } from '@gg/sdk';
-import { runBot } from '@gg/template-core';
+import { checkLevel, LEVEL_TICKS, runBot, systemsJsonFor } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import { generateWaves } from './level/generate.js';
 import { validateWaves } from './level/validate.js';
+import { survivorsCheck } from './check.js';
 import { survivors } from './node.js';
 
 function simFor(seed: number, difficulty: number, winAtS = 40) {
@@ -38,6 +39,18 @@ describe('survivors template', () => {
     expect(kiter.completed).toBe(true);
     expect(kiter.events['hit']).toBeGreaterThan(0);
     expect(kiter.events['pickup']).toBeGreaterThan(0);
+  });
+
+  it('an arena held for two minutes is proven: the solver plays for as long as the survival lasts', () => {
+    const level = survivors.levelGrammar.generate({ seed: 3, difficulty: 0.15 });
+    const file = systemsJsonFor(survivors);
+    const systems = { ...file, systems: file.systems.map((s) => (s.id === 'survival' ? { ...s, params: { ...s.params, winAtS: 120 } } : s)) };
+    const inputs = { behaviours: survivors.defaultBehaviours, content: { waves: generateWaves({ seed: 3, difficulty: 0.15 }, 120) } };
+    const r = checkLevel(survivorsCheck, level, systems, inputs);
+    expect(r.ok, JSON.stringify(r.solver)).toBe(true);
+    expect(r.solver!.ticks).toBeGreaterThan(120 * 60);
+    // Cut off at the 90 seconds every level used to get, the same run never reaches the win.
+    expect(checkLevel(survivorsCheck, level, systems, inputs, { maxTicks: LEVEL_TICKS }).ok).toBe(false);
   });
 
   it('is deterministic under the chaos bot', () => {

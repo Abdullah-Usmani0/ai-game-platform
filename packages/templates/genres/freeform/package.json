@@ -19,6 +19,7 @@
     "@gg/schemas": "workspace:*",
     "@gg/sdk": "workspace:*",
     "@gg/template-core": "workspace:*",
+    "@gg/template-lifesim": "workspace:*",
     "@gg/template-metroidvania": "workspace:*",
     "@gg/template-platformer": "workspace:*",
     "@gg/template-puzzle": "workspace:*",

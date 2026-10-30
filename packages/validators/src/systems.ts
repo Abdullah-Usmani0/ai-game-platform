@@ -22,13 +22,16 @@ export interface CatalogParam {
 export type MovementKind = 'platformer' | 'topdown' | 'grid';
 
 /**
- * How a level is won: reach the goal, survive the clock, clear the hostiles then exit, put every crate on a target, or
- * by the clauses of content/objectives.json.
+ * How a level is won: reach the goal, survive the clock, clear the hostiles then exit, put every crate on a target, earn
+ * a season's gold quota, or by the clauses of content/objectives.json.
  */
-export type WinKind = 'reach_goal' | 'survive' | 'clear_room' | 'place_crates' | 'objectives';
+export type WinKind = 'reach_goal' | 'survive' | 'clear_room' | 'place_crates' | 'earn' | 'objectives';
 
-/** What entities in a game are for, whatever their type is called: what systems need to find in a level. */
-export type EntityRole = 'hostile' | 'collectible' | 'relic' | 'key' | 'door' | 'crate' | 'target';
+/**
+ * What entities in a game are for, whatever their type is called: what systems need to find in a level. A farm's soil
+ * plots, seed shop, shipping bin and bed are roles too.
+ */
+export type EntityRole = 'hostile' | 'collectible' | 'relic' | 'key' | 'door' | 'crate' | 'target' | 'plot' | 'shop' | 'bin' | 'bed';
 
 /** What a system owns in a game. The composition rules allow one movement, one win and one death owner per game. */
 export interface SystemProvides {
@@ -60,6 +63,8 @@ export interface SystemRequires {
   roles?: readonly EntityRole[];
   /** Content files the game must ship (waves.json). */
   content?: readonly string[];
+  /** Other systems it works with and cannot do without (crops grow overnight: the farm needs the day clock). */
+  systems?: readonly string[];
 }
 
 export interface CatalogSystem {

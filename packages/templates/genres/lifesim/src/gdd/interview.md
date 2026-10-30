@@ -1,0 +1,1 @@
+Ask (one at a time, short): How long should a day feel (a relaxed two minutes, or a rush)? How many days in a season, and how many seasons? Which crops (quick cheap ones, slow valuable ones, ones that bear again)? How demanding is the buyer? What is the mood (sunny and gentle, misty and quiet, storybook)?

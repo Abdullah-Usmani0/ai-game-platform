@@ -23,6 +23,8 @@ export const survival = defineSystem<{ done: boolean }>({
     }
   },
   progress: (_s, ctx) => (ctx.world.player.alive ? ctx.tick / Math.round(Number(ctx.params['winAtS'] ?? 60) * 60) : 0),
+  // Won the tick the timer runs out: ten seconds of grace on top.
+  levelTicks: (ctx) => Math.round(Number(ctx.params['winAtS'] ?? 60) * 60) + 600,
 });
 
 export const meta = {
@@ -31,7 +33,7 @@ export const meta = {
   required: true,
   summary: 'Win by surviving until the timer ends; dying ends the run.',
   params: {
-    winAtS: { type: 'number', min: 20, max: 900, default: 60, affects: 'none' },
+    winAtS: { type: 'number', min: 20, max: 900, default: 60, affects: 'levels' },
     winBonus: { type: 'number', min: 0, max: 500, default: 50, affects: 'none' },
   },
   emits: ['level_complete', 'custom:game_over'],

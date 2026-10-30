@@ -1,12 +1,12 @@
 import Phaser from 'phaser';
 import type { Entity, Menu } from '../sim/world.js';
 import { sfxFor } from './art/audio.js';
-import { mix, toInt, type RGB } from './art/color.js';
+import { mix, parseHex, toInt, type RGB } from './art/color.js';
 import { textImage, wrapText } from './art/font.js';
 import { artPalette, type ArtPalette, type OutlineMode } from './art/palette.js';
 import { PixelCanvas, hash2 } from './art/pixels.js';
 import { FLAG, PARTICLES, TORCH, paintClouds, paintGlow, paintNebula, paintParticle, paintPlanet, paintRidge, paintScanlines, paintShadow, paintSky, paintSkyOrb, paintStars, paintVignette, paintVoid } from './art/scenery.js';
-import { RECIPES, frameSize, legendFor, paintFrames, recipeForType, type Anchor, type Recipe } from './art/sprites.js';
+import { RECIPES, cropRecipe, cropTune, frameSize, legendFor, paintFrames, recipeForType, type Anchor, type Recipe } from './art/sprites.js';
 import { paintRegion, prepareLevelArt, settingFor, torchSpots, type Setting } from './art/terrain.js';
 import { toCanvas } from './canvas.js';
 import type { GameController } from './controller.js';
@@ -21,7 +21,7 @@ export interface ViewStyle {
   outline?: OutlineMode;
   postFx?: { vignette: boolean; bloom: boolean; crt: boolean };
   animationFps?: { character: number; effects: number };
-  /** The genre picks the setting (side, dungeon, field, space) and the player's look. */
+  /** The genre picks the setting (side, dungeon, field, farm, space) and the player's look. */
   genre?: string;
   /** Shown on the title screen. */
   title?: string;
@@ -46,6 +46,10 @@ interface Sheet {
   anchor: Anchor;
   anims: Map<string, string[]>;
   directional: boolean;
+  /** Lies on the ground under everything that stands (a soil plot). */
+  floor: boolean;
+  /** Casts no shadow (a door in a wall, a house front). */
+  noShadow: boolean;
 }
 
 interface Shown {
@@ -111,6 +115,11 @@ export class MainScene extends Phaser.Scene {
   /** The open menu's id and highlight when last drawn, to click on a highlight change. */
   private menuSeen = '';
   private fadeImg!: Phaser.GameObjects.Image;
+  /** A farm's light through the day (multiplied over the world), the dark of a night's sleep, the faced tile's cursor. */
+  private dayImg!: Phaser.GameObjects.Image;
+  private sleepImg!: Phaser.GameObjects.Image;
+  private sleepFrom = -1;
+  private cursorImg!: Phaser.GameObjects.Image;
   private bannerImg: Phaser.GameObjects.Image | null = null;
   private followTarget = { x: 0, y: 0 };
   private unsubs: Array<() => void> = [];
@@ -174,6 +183,9 @@ export class MainScene extends Phaser.Scene {
     this.overlayTex = this.textures.createCanvas('gg-overlay', w, h);
     this.overlayImg = this.add.image(0, 0, 'gg-overlay').setOrigin(0).setScrollFactor(0).setDepth(11_000).setVisible(false);
     this.fadeImg = this.add.image(0, 0, 'gg-px').setOrigin(0).setScrollFactor(0).setDisplaySize(w, h).setTint(toInt(this.pal.ink)).setDepth(12_000).setAlpha(0);
+    this.dayImg = this.add.image(0, 0, 'gg-px').setOrigin(0).setScrollFactor(0).setDisplaySize(w, h).setBlendMode(Phaser.BlendModes.MULTIPLY).setDepth(9_000).setVisible(false);
+    this.sleepImg = this.add.image(0, 0, 'gg-px').setOrigin(0).setScrollFactor(0).setDisplaySize(w, h).setTint(toInt(mix(this.pal.ink, this.pal.garment[0], 0.3))).setDepth(11_500).setAlpha(0);
+    this.cursorImg = this.add.image(0, 0, 'gg-cursor').setVisible(false);
     this.unsubs.push(this.controller.onLevelChange(() => this.bindLevel()));
     this.unsubs.push(this.controller.onSceneChange(() => (this.overlaySig = '')));
     this.bindLevel();
@@ -223,7 +235,7 @@ export class MainScene extends Phaser.Scene {
       tex?.add(frame, 0, i * w, 0, w, h);
       anims.set(f.anim, [...(anims.get(f.anim) ?? []), frame]);
     });
-    const sheet: Sheet = { key, w, h, anchor: recipe.anchor, anims, directional: anims.has('down-idle') };
+    const sheet: Sheet = { key, w, h, anchor: recipe.anchor, anims, directional: anims.has('down-idle'), floor: recipe.floor === true, noShadow: recipe.noShadow === true || recipe.floor === true };
     this.sheets.set(name, sheet);
     return sheet;
   }
@@ -287,6 +299,16 @@ export class MainScene extends Phaser.Scene {
       }
     }
     this.addCanvasTexture('gg-telegraph', tele);
+    // The faced tile's cursor: four corner ticks around a tile.
+    const ts = this.controller.sim.map.tileSize;
+    const cur = new PixelCanvas(ts + 2, ts + 2);
+    for (const [cx, cy, dx, dy] of [[0, 0, 1, 1], [ts + 1, 0, -1, 1], [0, ts + 1, 1, -1], [ts + 1, ts + 1, -1, -1]] as const) {
+      for (let i = 0; i < 3; i++) {
+        cur.set(cx + dx * i, cy, [255, 255, 255]);
+        cur.set(cx, cy + dy * i, [255, 255, 255]);
+      }
+    }
+    this.addCanvasTexture('gg-cursor', cur);
     const legend = legendFor(this.pal);
     for (const [key, tpl] of Object.entries(HUD_ICONS)) {
       const pc = new PixelCanvas(tpl[0]!.length + 2, tpl.length + 2);
@@ -351,12 +373,14 @@ export class MainScene extends Phaser.Scene {
     const sim = this.controller.sim;
     const map = sim.map;
     const cam = this.cameras.main;
-    // A level smaller than the view sits in its middle: grow the bounds evenly around it instead of pinning it top-left.
+    // A level smaller than the view sits in its middle (below the HUD, when it fits there): grow the bounds evenly around
+    // it instead of pinning it top-left.
     const viewW = cam.width / cam.zoom;
     const viewH = cam.height / cam.zoom;
     const bw = Math.max(map.pixelWidth, viewW);
     const bh = Math.max(map.pixelHeight, viewH);
-    const by = -(bh - map.pixelHeight) / 2;
+    const spare = bh - map.pixelHeight;
+    const by = -(spare >= HUD_H ? spare + HUD_H : spare) / 2;
     cam.setBounds(-(bw - map.pixelWidth) / 2, by, bw, bh);
     this.horizonY = by + bh - viewH;
     cam.startFollow(this.followTarget, true, this.style.camera.lerp, this.style.camera.lerp);
@@ -523,12 +547,21 @@ export class MainScene extends Phaser.Scene {
     if (e.isPlayer) {
       if (this.setting === 'side') return 'hero-side';
       if (this.setting === 'space') return 'ship';
+      if (this.setting === 'farm') return 'farmer';
       return e.w >= 12 ? 'keeper' : 'hero-topdown';
     }
     return recipeForType(e.type, this.drawAs.get(e.type)) ?? (e.isProjectile ? 'orb' : null);
   }
 
   private sheetFor(e: Entity): Sheet {
+    // A crop draws by its shape, its produce in its own colour.
+    const shape = e.props['shape'];
+    const color = e.props['color'];
+    if (typeof shape === 'string' && typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color)) {
+      const name = `crop-${shape}-${color.toLowerCase()}`;
+      const tune = cropTune(parseHex(color));
+      return this.sheets.get(name) ?? this.sheetFromRecipe(name, { ...cropRecipe(shape), tune: () => tune });
+    }
     const name = this.recipeName(e);
     return (name && this.sheets.get(name)) || this.fallbackSheet(e);
   }
@@ -569,7 +602,7 @@ export class MainScene extends Phaser.Scene {
     const tick = sim.tick;
     const seen = new Set<number>();
     const ysort = this.setting !== 'side';
-    const shadows = this.setting === 'dungeon' || this.setting === 'field';
+    const shadows = this.setting === 'dungeon' || this.setting === 'field' || this.setting === 'farm';
     for (const e of sim.world.entities) {
       if (!e.alive) continue;
       seen.add(e.id);
@@ -579,7 +612,7 @@ export class MainScene extends Phaser.Scene {
         const img = this.add.image(0, 0, sheet.key, sheet.anims.values().next().value![0]);
         img.setOrigin(0.5, sheet.anchor === 'feet' ? 1 : 0.5);
         const grounded = !e.isProjectile && (sheet.anchor === 'feet' || e.pickup || e.fsm !== null);
-        const shadow = shadows && grounded && (this.drawAs.get(e.type) ?? e.type) !== 'target' ? this.add.image(0, 0, 'gg-shadow') : null;
+        const shadow = shadows && grounded && !sheet.noShadow && (this.drawAs.get(e.type) ?? e.type) !== 'target' ? this.add.image(0, 0, 'gg-shadow') : null;
         const glow = this.fx.bloom && (e.pickup || e.isProjectile) ? this.add.image(0, 0, 'gg-glow').setBlendMode(Phaser.BlendModes.ADD) : null;
         s = { img, shadow, glow, sheet, dir: 'down' };
         this.shown.set(e.id, s);
@@ -607,7 +640,7 @@ export class MainScene extends Phaser.Scene {
       if (e.tookDamageTick >= 0 && tick - e.tookDamageTick < 4) s.img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
       else if (telegraph) s.img.setTint(toInt(this.pal.danger[3])).setTintMode(Phaser.TintModes.FILL);
       else s.img.clearTint();
-      const depth = ysort ? 100 + feet : e.isPlayer ? 120 : e.pickup ? 90 : e.isProjectile ? 115 : 110;
+      const depth = s.sheet.floor ? 60 : ysort ? 100 + feet : e.isPlayer ? 120 : e.pickup ? 90 : e.isProjectile ? 115 : 110;
       s.img.setDepth(depth);
       if (s.shadow) s.shadow.setPosition(Math.round(cx), Math.round(feet)).setScale(Math.max(0.5, e.w / 9), 1).setDepth(50);
       if (s.glow) {
@@ -813,6 +846,47 @@ export class MainScene extends Phaser.Scene {
         this.burst('dot', at.x, at.y + 6, dust, 4, { speed: 0.5, angle: Math.PI / 2, spread: 2.6, life: 14 });
         break;
       }
+      // The farm's work: dirt off the hoe, a seed pressed in, drops from the can, a crop pulled with a leafy pop, coins.
+      case 'custom:till': {
+        const at = this.where(payload);
+        this.burst('chunk', at.x, at.y + 1, [this.pal.wood[1], this.pal.wood[2], this.pal.wood[3]], 6, { speed: 0.9, angle: -Math.PI / 2, spread: 2.4, ay: 0.07, life: 16 });
+        break;
+      }
+      case 'custom:plant': {
+        const at = this.where(payload);
+        this.burst('dot', at.x, at.y, [this.pal.rim[3], this.pal.wood[3]], 4, { speed: 0.5, angle: -Math.PI / 2, spread: 2, ay: 0.04, life: 12 });
+        break;
+      }
+      case 'custom:water': {
+        const at = this.where(payload);
+        const drop = mix(this.pal.white, this.pal.garment[3], 0.35);
+        this.burst('dot', at.x, at.y - 6, [drop, this.pal.white], 8, { speed: 0.6, angle: Math.PI / 2, spread: 1.2, ay: 0.08, life: 14 });
+        this.burst('ring', at.x, at.y + 1, [drop], 1, { speed: 0, life: 10, add: true });
+        break;
+      }
+      case 'custom:harvest': {
+        const at = this.where(payload);
+        const produce = typeof payload['color'] === 'string' && /^#[0-9a-f]{6}$/i.test(payload['color']) ? parseHex(payload['color']) : this.pal.accent[3];
+        this.burst('chunk', at.x, at.y, [this.pal.rim[2], this.pal.rim[3]], 6, { speed: 1.1, angle: -Math.PI / 2, spread: 2.2, ay: 0.06, life: 18 });
+        this.burst('star', at.x, at.y - 3, [produce, this.pal.white], 4, { speed: 0.9, angle: -Math.PI / 2, spread: 1.8, life: 18, add: true });
+        break;
+      }
+      case 'custom:ship':
+      case 'custom:buy': {
+        const at = name === 'custom:ship' ? this.where(payload) : { x: feet.x, y: feet.y - 8 };
+        this.burst('star', at.x, at.y - 2, [this.pal.accent[4], this.pal.white, this.pal.accent[3]], 6, { speed: 1, angle: -Math.PI / 2, spread: 1.6, life: 20, add: true });
+        break;
+      }
+      case 'custom:no_seeds':
+      case 'custom:too_tired':
+      case 'custom:bin_empty': {
+        const at = this.where(payload);
+        this.burst('dot', at.x, at.y - 2, [this.pal.ui[2], this.pal.terrain[3]], 3, { speed: 0.4, angle: -Math.PI / 2, spread: 1.4, life: 12 });
+        break;
+      }
+      case 'custom:sleep':
+        if (this.controller.mode === 'realtime') this.sleepFrom = performance.now();
+        break;
       // Menus are UI: they always sound, whatever the feedback table says.
       case 'menu_open':
         this.sfx.play('menu_open');
@@ -857,7 +931,8 @@ export class MainScene extends Phaser.Scene {
     const entries: Array<{ icon?: string; text: string }> = [];
     for (const [k, v] of Object.entries(w.hud)) {
       const key = k.toLowerCase();
-      if (key === 'hp') continue;
+      // hp is drawn as hearts; a key starting with _ is for the view (a farm's clock as minutes), not the player.
+      if (key === 'hp' || key.startsWith('_')) continue;
       const icon = HUD_KEY_ICONS[key];
       entries.push({ icon, text: icon ? String(v).toUpperCase() : `${k.toUpperCase()} ${String(v).toUpperCase()}` });
     }
@@ -891,6 +966,34 @@ export class MainScene extends Phaser.Scene {
     }
     this.repaint(this.hudTex, pc);
     this.hudImg.setVisible(true);
+  }
+
+  /**
+   * A farm's light through the day (from the clock's minutes, multiplied over the world), the dark of a night's sleep,
+   * and the cursor on the tile the farmer faces. The light follows the sim, so a frame at a tick always looks the same;
+   * the sleep's dark runs on real time, so a stepped game (bots, screenshots) never sees it.
+   */
+  private stepFarm(): void {
+    const w = this.controller.sim.world;
+    const play = this.controller.scene === 'play';
+    const minute = w.hud['_minute'];
+    if (play && typeof minute === 'number') this.dayImg.setTint(toInt(daylight(minute))).setVisible(true);
+    else this.dayImg.setVisible(false);
+    const t = this.sleepFrom < 0 ? -1 : performance.now() - this.sleepFrom;
+    if (t >= 1250) this.sleepFrom = -1;
+    this.sleepImg.setAlpha(t < 0 || t >= 1250 ? 0 : t < 350 ? t / 350 : t < 650 ? 1 : 1 - (t - 650) / 600);
+    const p = w.player;
+    const tx = p.props['targetTx'];
+    const ty = p.props['targetTy'];
+    if (play && !w.menu && p.alive && typeof tx === 'number' && typeof ty === 'number') {
+      const ts = this.controller.sim.map.tileSize;
+      this.cursorImg
+        .setPosition(tx * ts + ts / 2, ty * ts + ts / 2)
+        .setDepth(100 + (ty + 1) * ts + 0.5)
+        .setTint(toInt(this.pal.white))
+        .setAlpha(0.5 + 0.25 * Math.sin(this.animTick / 9))
+        .setVisible(true);
+    } else this.cursorImg.setVisible(false);
   }
 
   /** Telegraphs grow brighter as the attack nears and go when the attacker stops winding up. */
@@ -1001,10 +1104,10 @@ export class MainScene extends Phaser.Scene {
       lines.push({ text: `SCORE ${w.score}${w.deaths ? ` · DEATHS ${w.deaths}` : ''}`, scale: 1, color: this.pal.white, gap: 10 });
       lines.push({ text: blink ? 'PRESS ENTER TO PLAY AGAIN' : '', scale: 1, color: this.pal.ui[3] });
     } else if (w.flags.won) {
-      lines.push({ text: 'LEVEL CLEAR', scale: 2, color: this.pal.accent[4] });
+      lines.push({ text: this.setting === 'farm' ? 'QUOTA MET!' : 'LEVEL CLEAR', scale: 2, color: this.pal.accent[4] });
     } else if (w.flags.gameOver) {
       dim = 0.5;
-      lines.push({ text: 'GAME OVER', scale: 2, color: this.pal.danger[3], gap: 8 });
+      lines.push({ text: this.setting === 'farm' ? 'SEASON OVER' : 'GAME OVER', scale: 2, color: this.pal.danger[3], gap: 8 });
       if (this.controller.mode === 'realtime') lines.push({ text: blink ? 'PRESS ENTER TO RETRY' : '', scale: 1, color: this.pal.white });
     } else if (w.flags.paused) {
       dim = 0.45;
@@ -1100,7 +1203,8 @@ export class MainScene extends Phaser.Scene {
       }
       pc.fillRect(x + 10, ty + 1, cardW - 20, 1, sel ? pal.accent[2] : mix(pal.ink, pal.terrain[3], 0.45));
       ty += 5;
-      const rest = opt.cost !== undefined ? 3 : 4;
+      // As many lines of detail as the card has room for, above the price when there is one.
+      const rest = Math.max(1, Math.floor((y + cardH - (opt.cost !== undefined ? 15 : 4) - ty) / 9));
       for (const line of wrapText((opt.detail ?? '').toUpperCase(), cardW - 8).slice(0, rest)) {
         const t = this.text(line, sel ? pal.ui[3] : pal.ui[2]);
         pc.blit(t, x + Math.round((cardW - t.w) / 2), ty);
@@ -1113,7 +1217,8 @@ export class MainScene extends Phaser.Scene {
         pc.blit(coin, px, y + cardH - 13);
         pc.blit(price, px + coin.w, y + cardH - 13);
       }
-      if (opt.disabled) pc.fillRect(x + 1, y + 1, cardW - 2, cardH - 2, pal.ink, 120);
+      // An option out of reach (a pack the purse cannot pay for) stays readable, dimmed.
+      if (opt.disabled) pc.tint(x + 1, y + 1, cardW - 2, cardH - 2, pal.ink, 0.5);
     });
     const hint = this.text(`< > TO CHOOSE · ENTER TO TAKE${menu.cancellable ? ' · X TO LEAVE' : ''}`, pal.ui[2]);
     pc.blit(hint, Math.round((cw - hint.w) / 2), Math.min(ch - 11, y0 + cardH + 6));
@@ -1155,6 +1260,7 @@ export class MainScene extends Phaser.Scene {
       d.glow?.setAlpha(0.3 + 0.08 * Math.sin(this.animTick / 5 + d.phase));
     }
     this.stepTelegraphs(tick);
+    this.stepFarm();
     if (this.controller.scene === 'play') {
       this.drawHud();
       this.drawBossBar(Math.min(60, Math.max(0, tick - this.lastBossTick)));
@@ -1188,6 +1294,9 @@ const HUD_ICONS: Record<string, readonly string[]> = {
   flame: ['..E..', '.eE..', '.eEe.', 'eEBEe', 'eBwBe', '.eBe.'],
   sword: ['..w..', '..U..', '..U..', '..U..', 'bBBBb', '..q..', '..q..'],
   hammer: ['tTTTt', 'tUUUt', 'tTTTt', '..q..', '..q..', '..q..'],
+  sun: ['b.b.b', '.bBb.', 'bBBBb', '.bBb.', 'b.b.b'],
+  seed: ['.y.Y.', '.yVy.', '..V..', '.qrq.', 'qqqqq'],
+  moon: ['..bB.', '.bB..', '.bB..', '.bB..', '..bB.'],
 };
 const HUD_KEY_ICONS: Record<string, string> = {
   coins: 'coin',
@@ -1209,6 +1318,11 @@ const HUD_KEY_ICONS: Record<string, string> = {
   relics: 'gem',
   keys: 'key',
   boons: 'flame',
+  day: 'sun',
+  gold: 'coin',
+  quota: 'target',
+  energy: 'bolt',
+  seeds: 'seed',
 };
 
 export function createPhaserGame(controller: GameController, style: ViewStyle, parent: HTMLElement | string | undefined, onCreated: () => void): { game: Phaser.Game; scene: MainScene } {
@@ -1226,4 +1340,20 @@ export function createPhaserGame(controller: GameController, style: ViewStyle, p
     scene: [scene],
   };
   return { game: new Phaser.Game(config), scene };
+}
+
+/**
+ * The colour a farm's world is multiplied by at a time of day (minutes since midnight, past 24:00 at night): a rosy
+ * dawn, plain daylight, a warm dusk from four, deep blue night from nine.
+ */
+function daylight(minute: number): RGB {
+  const dawn: RGB = [255, 228, 214];
+  const day: RGB = [255, 255, 255];
+  const dusk: RGB = [255, 206, 160];
+  const night: RGB = [92, 104, 170];
+  if (minute < 7.5 * 60) return mix(dawn, day, Math.max(0, (minute - 6 * 60) / 90));
+  if (minute < 16 * 60) return day;
+  if (minute < 19 * 60) return mix(day, dusk, (minute - 16 * 60) / 180);
+  if (minute < 21 * 60) return mix(dusk, night, (minute - 19 * 60) / 120);
+  return night;
 }

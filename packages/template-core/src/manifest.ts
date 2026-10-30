@@ -118,7 +118,8 @@ export interface GenreCheck {
 /** Node-only part: generators, validators, bots, prompt fragments, exemplars, panels, samples. */
 export interface GenreManifest extends GenreRuntime {
   levelGrammar: {
-    kind: 'tilemap' | 'arena' | 'rooms' | 'graph';
+    /** A farm's levels are seasons on one farm map, won by the purse rather than at a goal. */
+    kind: 'tilemap' | 'arena' | 'rooms' | 'graph' | 'farm';
     generate(params: LevelGenParams): LevelJson;
     validate(level: LevelJson, feel: FeelPreset): ValidationReport;
   };

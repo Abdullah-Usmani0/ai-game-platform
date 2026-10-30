@@ -269,6 +269,9 @@ importers:
       '@gg/template-freeform':
         specifier: workspace:*
         version: link:../templates/genres/freeform
+      '@gg/template-lifesim':
+        specifier: workspace:*
+        version: link:../templates/genres/lifesim
       '@gg/template-metroidvania':
         specifier: workspace:*
         version: link:../templates/genres/metroidvania
@@ -429,6 +432,9 @@ importers:
       '@gg/template-freeform':
         specifier: workspace:*
         version: link:genres/freeform
+      '@gg/template-lifesim':
+        specifier: workspace:*
+        version: link:genres/lifesim
       '@gg/template-metroidvania':
         specifier: workspace:*
         version: link:genres/metroidvania
@@ -478,6 +484,9 @@ importers:
       '@gg/template-core':
         specifier: workspace:*
         version: link:../../../template-core
+      '@gg/template-lifesim':
+        specifier: workspace:*
+        version: link:../lifesim
       '@gg/template-metroidvania':
         specifier: workspace:*
         version: link:../metroidvania
@@ -496,6 +505,37 @@ importers:
       '@gg/template-topdown-action':
         specifier: workspace:*
         version: link:../topdown-action
+      '@gg/validators':
+        specifier: workspace:*
+        version: link:../../../validators
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../../../config
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/templates/genres/lifesim:
+    dependencies:
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../../../schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../../../sdk
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../../../template-core
       '@gg/validators':
         specifier: workspace:*
         version: link:../../../validators
@@ -741,6 +781,46 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  samples/lifesim:
+    dependencies:
+      '@gg/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
+      '@gg/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@gg/template-lifesim':
+        specifier: workspace:*
+        version: link:../../packages/templates/genres/lifesim
+    devDependencies:
+      '@gg/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@gg/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@gg/template-core':
+        specifier: workspace:*
+        version: link:../../packages/template-core
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      eslint:
+        specifier: 10.13.0
+        version: 10.13.0
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vite:
+        specifier: 8.3.5
+        version: 8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)
       vitest:
         specifier: 5.0.5
         version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))

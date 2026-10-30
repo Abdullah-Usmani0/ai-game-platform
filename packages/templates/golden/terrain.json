@@ -10,5 +10,7 @@
   "metroidvania:side:open": "425ac8f2257322bc",
   "metroidvania:side:locked": "425ac8f2257322bc",
   "puzzle:dungeon:open": "7180875d185db9dc",
-  "puzzle:dungeon:locked": "7180875d185db9dc"
+  "puzzle:dungeon:locked": "7180875d185db9dc",
+  "lifesim:farm:open": "4bee59155bbedd0a",
+  "lifesim:farm:locked": "4bee59155bbedd0a"
 }

@@ -3,7 +3,7 @@ import { createSim } from '@gg/sdk';
 import type { ValidationReport } from '@gg/validators';
 import { runBot } from './bots.js';
 import type { BotResult, GenreCheck } from './manifest.js';
-import { simOptionsFor, type SimOptionsInputs } from './sim-options.js';
+import { levelTicksOf, simOptionsFor, type SimOptionsInputs } from './sim-options.js';
 
 export interface LevelCheck {
   /** Static validator passed and the solver bot completed the level. */
@@ -16,7 +16,8 @@ export interface LevelCheck {
 /**
  * The solvability oracle every level must pass: the genre's static validator under the game's feel preset, then
  * the solver bot over the real sim with the game's systems, behaviours and content, at the seed the level is played
- * with (level i of a game plays at levelSeed(DEFAULT_SEED, i); the first level's, 1, by default). Deterministic.
+ * with (level i of a game plays at levelSeed(DEFAULT_SEED, i); the first level's, 1, by default), for as long as the
+ * game's rules let a level last (levelTicksOf). Deterministic.
  */
 export function checkLevel(
   kit: GenreCheck,
@@ -32,10 +33,7 @@ export function checkLevel(
   if (!report.ok) return { ok: false, report, solver: null };
   const policy = kit.bots[kit.solverBot];
   if (!policy) throw new Error(`genre ${kit.runtime.id} has no solver bot '${kit.solverBot}'`);
-  const solver = runBot(
-    createSim({ ...simOptionsFor(kit.runtime, systems, inputs), level, seed: opts.seed ?? 1 }),
-    policy,
-    opts.maxTicks ?? 90 * 60,
-  );
+  const options = simOptionsFor(kit.runtime, systems, inputs);
+  const solver = runBot(createSim({ ...options, level, seed: opts.seed ?? 1 }), policy, opts.maxTicks ?? levelTicksOf(options));
   return { ok: solver.completed, report, solver };
 }

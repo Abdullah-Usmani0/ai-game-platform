@@ -144,7 +144,7 @@ void createGame({
 `;
 
 export const GAME_TEST = (genre: string) => `import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
-import { runBot } from '@gg/template-core';
+import { levelTicksOf, runBot } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
 import { BOTS, SOLVER_BOT } from './bots.js';
@@ -152,7 +152,7 @@ import { BOTS, SOLVER_BOT } from './bots.js';
 describe('${genre} game', () => {
   it('every level is completable by the solver bot, at the seed the level is played with', () => {
     for (const [i, level] of LEVELS.entries()) {
-      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), BOTS[SOLVER_BOT]!, 90 * 60);
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), BOTS[SOLVER_BOT]!, levelTicksOf(SIM_OPTIONS));
       expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
     }
   });

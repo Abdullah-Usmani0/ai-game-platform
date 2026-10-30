@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { Objectives, parseAnyGdd, type EntityRoster, type LevelJson, type LevelProof, type StyleCard, type SystemsFile, type SystemsJson } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
-import { type GenreManifest, type LevelGenParams, levelPlan, rolesPresent, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
+import { type GenreManifest, type LevelGenParams, levelPlan, levelTicksOf, rolesPresent, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { BASE_MANIFESTS, checkFreeformObjectives, freeformManifest, IDENTITY_ROSTER, proveLevel } from '@gg/template-freeform/node';
 import { catalogFor, genre as genreOf } from '@gg/templates/node';
 import { checkComposition, checkSystems, parseFrontmatter, type Issue } from '@gg/validators';
@@ -162,7 +162,7 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
       return r.proof !== null;
     }
     const so = simOptionsFor(g, systems, { behaviours: g.defaultBehaviours, content: all, feedback });
-    return runBot(createSim({ ...so, level, seed: playSeed }), solver, 90 * 60).completed;
+    return runBot(createSim({ ...so, level, seed: playSeed }), solver, levelTicksOf(so)).completed;
   };
   const arena = g.levelGrammar.kind === 'arena';
   const plan = levelPlan(g.levelGrammar.kind, { levels: opts.levels ?? gdd.data.scope.levels, bosses: gdd.data.scope.bosses, tier: gdd.data.scopeTier });
