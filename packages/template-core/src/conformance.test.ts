@@ -92,6 +92,18 @@ describe('conformance of bespoke systems', () => {
     expect(r.issues.find((i) => i.code === 'crash')!.message).toMatch(/^bell stopped the game on test at tick \d+ \(walk playing\): unknown entity type 'ghost'/);
   });
 
+  it('bringing the player back is no spawn of a new type, though the spawn event it emits is named', () => {
+    // A bell that sends the player back to the start on every third ring.
+    const homing = bellWith({
+      fixedUpdate(s, input, ctx) {
+        if (input.action && !s.prev && ++s.rings % 3 === 0) ctx.respawnPlayer();
+        s.prev = input.action;
+      },
+    });
+    expect(codes(check([walker, finish, homing], [{ ...CONTRACT, provides: {}, emits: ['spawn'], hud: [] }]))).toEqual([]);
+    expect(codes(check([walker, finish, homing], [{ ...CONTRACT, provides: {}, emits: [], hud: [] }]))).toEqual(['error:undeclared_emit']);
+  });
+
   it('state kept outside the state object breaks saving and loading, and leaks between two games', () => {
     // A ring count in a closure, not in the system's state: a save cannot hold it, and two games share it.
     const counter = { rings: 0 };
@@ -121,5 +133,6 @@ describe('conformance of bespoke systems', () => {
       },
     });
     expect(codes(check([walker, finish, slow], [{ ...CONTRACT, provides: {}, emits: [], hud: [] }], ['bell'], 60))).toContain('error:slow');
-  });
+    // The slow system burns real time on purpose: a busy machine stretches it well past the default five seconds.
+  }, 30_000);
 });

@@ -4,11 +4,12 @@ import tseslint from 'typescript-eslint';
 import { glueTsConfig } from './plugin-gg.js';
 
 /**
- * Base flat config for every package.
- * @param {{ gluets?: string[], browser?: boolean, node?: boolean, ignores?: string[] }} [opts]
+ * Base flat config for every package. `gluets` globs simulation code; `bots` globs a game's own bots, GlueTS too, which
+ * may also use the platform's bot helpers (@gg/template-core).
+ * @param {{ gluets?: string[], bots?: string[], browser?: boolean, node?: boolean, ignores?: string[] }} [opts]
  */
 export function baseConfig(opts = {}) {
-  const { gluets = [], browser = false, node = true, ignores = [] } = opts;
+  const { gluets = [], bots = [], browser = false, node = true, ignores = [] } = opts;
   const langGlobals = {
     ...(node ? globals.node : {}),
     ...(browser ? globals.browser : {}),
@@ -27,6 +28,7 @@ export function baseConfig(opts = {}) {
     },
   ];
   if (gluets.length > 0) configs.push(glueTsConfig(gluets));
+  if (bots.length > 0) configs.push(glueTsConfig(bots, { allowImports: ['@gg/template-core'], name: 'gg/gluets-bots' }));
   return configs;
 }
 

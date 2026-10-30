@@ -6,7 +6,7 @@ import { CURATED_GENRES, type CreateRequest, type CuratedGenre, type EntityRoste
 import { sfxPresetFor } from '@gg/sdk/art';
 import { grammarHasGoal, plannedLevelCount, rolesPresent, suggestHints, type GenreManifest } from '@gg/template-core';
 import { ARCHETYPES, BASE_MANIFESTS, checkFreeformObjectives, compileRoster, compose, designContentFor, FREEFORM_CATALOG, freeformDesignManifest, hudKeysOf, IDENTITY_ROSTER, movementOf, proveLevel, RUNTIMES, SYSTEMS, usableSystems } from '@gg/template-freeform/node';
-import { hasBespokeSystems, readGameFiles, readGameInputs, readGameLevels } from '@gg/templates/node';
+import { hasBespokeSystems, hasGameBots, readGameFiles, readGameInputs, readGameLevels } from '@gg/templates/node';
 import { checkComposition, checkSystems, silentSfx } from '@gg/validators';
 import { baseSystems, defaultObjectives, draftFreeformFrontmatter, exampleFor, guessBase } from '../freeform.js';
 import { designContentOf, writeDesignContent } from './design-content.js';
@@ -275,9 +275,9 @@ export function reproveLevels(ctx: Pick<StageContext, 'gameDir'>, budget = 40_00
     const ids = new Set(levels.map((l) => `${l.level.id}.json`));
     for (const dir of [proofsDir, hintsDir]) if (existsSync(dir)) for (const f of readdirSync(dir)) if (!ids.has(f)) rmSync(join(dir, f));
   };
-  // A game with systems of its own records its runs with its own code: its prover runs in the game's test runner.
+  // A game with systems or bots of its own records its runs with its own code: its prover runs in the game's test runner.
   const waiting = (ids: string[]) => (ids.length ? `; waiting for a winning run: ${ids.join(', ')}` : '');
-  if (hasBespokeSystems(ctx.gameDir)) {
+  if (hasBespokeSystems(ctx.gameDir) || hasGameBots(ctx.gameDir)) {
     const r = spawnSync('pnpm', ['run', 'prove'], { cwd: ctx.gameDir, encoding: 'utf8', env: { ...process.env, CI: '1' }, maxBuffer: 16 * 1024 * 1024 });
     prune();
     if (r.status !== 0) return { ok: false, summary: `the game's prover did not run: ${`${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n').slice(-12).join(' / ')}`, unproven: [], stuck: {} };

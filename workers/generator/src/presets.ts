@@ -14,6 +14,8 @@ export interface StagePreset {
   task?: string;
   /** Run the gate before any model session on the first attempt; skip the session when it already passes. */
   gateFirst?: boolean;
+  /** Run only when this holds of the game (levels_wait: a freeform game with code of its own has levels waiting for a run). */
+  when?: StageSpec['when'];
 }
 export type StagePresets = Record<string, StagePreset>;
 
@@ -41,5 +43,6 @@ export function applyPreset(spec: StageSpec, presets: StagePresets): StageSpec {
     task: spec.task ?? p.task,
     caps: spec.caps ?? p.caps,
     gateFirst: spec.gateFirst ?? p.gateFirst,
+    when: spec.when ?? p.when,
   };
 }

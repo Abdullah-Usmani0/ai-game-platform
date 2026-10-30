@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { EXAMPLES, HEIST, type FreeformExample } from '@gg/template-freeform';
+import { EXAMPLES, HEIST, LANTERN, type FreeformExample } from '@gg/template-freeform';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_STYLE, defaultSystems, scaffold, scaffoldExample } from './scaffold.js';
 
@@ -115,6 +115,29 @@ describe('scaffold', () => {
     expect(proved.ok, `prove failed:\n${proved.out.slice(-3000)}`).toBe(true);
     const fresh = run('pnpm', ['run', 'test'], out);
     expect(fresh.ok, `test failed after proving:\n${fresh.out.slice(-3000)}`).toBe(true);
+  });
+
+  it("a freeform game with a bot of its own: levels no bot of the platform wins wait, until the game's own bot plays them", () => {
+    const out = mkdtempSync(join(tmpdir(), 'gg-scaffold-own-bot-'));
+    scaffoldPinned(LANTERN, out, true);
+    // The bot-author skill's example: an owl that sends a moth moving in its sight back to the start (a system of the
+    // game's own), and the moth's bot, which keeps still while the owl watches.
+    const examples = join(root, 'harness', '.agents', 'skills', 'bot-author', 'examples');
+    copyFileSync(join(examples, 'owl.ts'), join(out, 'src', 'systems', 'owl.ts'));
+    copyFileSync(join(examples, 'mechanics.json'), join(out, 'design', 'mechanics.json'));
+    writeFileSync(join(out, 'src', 'systems', 'index.ts'), "import type { SystemDef } from '@gg/sdk';\nimport { owl } from './owl.js';\n\n// eslint-disable-next-line @typescript-eslint/no-explicit-any\nexport const BESPOKE: SystemDef<any>[] = [owl];\n");
+    // Neither the solver nor the explorer keeps still while the owl watches: every level waits for a winning run.
+    const alone = run('pnpm', ['run', 'prove'], out);
+    expect(alone.ok, `prove failed:\n${alone.out.slice(-3000)}`).toBe(true);
+    expect(alone.out).toMatch(/waiting for a winning run: l01 \(.*l02 \(.*l03 \(/s);
+    copyFileSync(join(examples, 'moth.ts'), join(out, 'src', 'bots', 'moth.ts'));
+    writeFileSync(join(out, 'src', 'bots', 'index.ts'), "import type { BotPolicy } from '@gg/template-core';\nimport { moth } from './moth.js';\n\nexport const GAME_BOTS: Record<string, BotPolicy> = { moth };\n");
+    for (const script of ['typecheck', 'lint', 'prove', 'test']) {
+      const r = run('pnpm', ['run', script], out);
+      expect(r.ok, `${script} failed:\n${r.out.slice(-3000)}`).toBe(true);
+    }
+    const proofs = readdirSync(join(out, 'content', 'proofs')).map((f) => (JSON.parse(readFileSync(join(out, 'content', 'proofs', f), 'utf8')) as { by: string }).by);
+    expect(proofs).toEqual(['bot', 'bot', 'bot']);
   });
 
   for (const genre of ['platformer', 'survivors', 'topdown-action', 'shmup', 'metroidvania', 'puzzle', 'lifesim'] as const) {

@@ -117,17 +117,18 @@ const noHostGlobals = {
 const noEngineImport = {
   meta: {
     type: 'problem',
-    docs: { description: 'Only allow imports from @gg/sdk, @gg/schemas and relative paths.' },
+    docs: { description: 'Only allow imports from @gg/sdk, @gg/schemas and relative paths (and any packages the options allow).' },
     messages: {
       banned: 'Import of `{{source}}` is not allowed in simulation code. Use the typed `@gg/sdk` API.',
     },
-    schema: [],
+    schema: [{ type: 'object', properties: { allow: { type: 'array', items: { type: 'string' } } }, additionalProperties: false }],
   },
   create(context) {
+    const extra = context.options[0]?.allow ?? [];
     const check = (node, source) => {
       if (typeof source !== 'string') return;
       const banned = BANNED_IMPORT_PREFIXES.some((p) => source === p || source.startsWith(p + '/'));
-      const allowed = ALLOWED_IMPORT_PREFIXES.some((p) => source === p || source.startsWith(p));
+      const allowed = ALLOWED_IMPORT_PREFIXES.some((p) => source === p || source.startsWith(p)) || extra.some((p) => source === p || source.startsWith(p + '/'));
       if (banned || !allowed) context.report({ node, messageId: 'banned', data: { source } });
     };
     return {
@@ -250,17 +251,20 @@ export const rules = {
 
 const plugin = { meta: { name: 'eslint-plugin-gg', version: '0.1.0' }, rules };
 
-/** Flat-config block applying every GlueTS rule to the given file globs. */
-export function glueTsConfig(files) {
+/**
+ * Flat-config block applying every GlueTS rule to the given file globs. `allowImports` names packages these files may
+ * import besides the SDK and the schemas (a game's own bots use the platform's bot helpers).
+ */
+export function glueTsConfig(files, { allowImports = [], name = 'gg/gluets' } = {}) {
   return {
-    name: 'gg/gluets',
+    name,
     files,
     plugins: { gg: plugin },
     rules: {
       'gg/no-nondeterminism': 'error',
       'gg/no-async': 'error',
       'gg/no-host-globals': 'error',
-      'gg/no-engine-import': 'error',
+      'gg/no-engine-import': allowImports.length ? ['error', { allow: allowImports }] : 'error',
       'gg/no-module-state': 'error',
     },
   };

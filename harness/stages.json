@@ -94,7 +94,7 @@
       "wallMin": 10
     },
     "skills": [],
-    "task": "A freeform game only: record a winning run for every level again after a change to how the game plays (worker step); a level no one can win fails the stage."
+    "task": "A freeform game only: record a winning run for every level again after a change to how the game plays (worker step), with hints for the explorer on levels nothing wins; a level still not won waits for a player's run."
   },
   "levels": {
     "runner": "worker",
@@ -107,6 +107,15 @@
     },
     "skills": ["level-design"],
     "task": "Produce the GDD's level count as data with a monotonic difficulty ramp; every level must pass the validator and the solver bot."
+  },
+  "bot": {
+    "runner": "claude-sdk",
+    "when": "levels_wait",
+    "gate": ["typecheck", "lint", "prove", "test"],
+    "allowedWrite": ["game/src/bots/**", "game/content/proofs/**", "game/design/deviations.md"],
+    "caps": { "turns": 80, "usd": 3, "wallMin": 25 },
+    "skills": ["bot-author", "verify"],
+    "task": "Some levels of this freeform game wait for a winning run: no bot of the platform wins them with the game's own systems. Write a bot of the game's own under game/src/bots (bot-author skill), list it in game/src/bots/index.ts, and run pnpm -C game prove until the waiting levels have runs. Never change a level, a system or the rules to make a bot win; a level the bot still cannot win ships waiting for a player's run (say why in game/design/deviations.md)."
   },
   "integrate": {
     "runner": "claude-sdk",

@@ -29,8 +29,9 @@ export default gameViteConfig({ root, entry: 'src/main.ts' });
 export const TSCONFIG = `{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
 `;
 
-export const ESLINT_CONFIG = `import { baseConfig } from '@gg/config/eslint';
-export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+/** The game's lint config: its own systems are GlueTS, and so are a freeform game's own bots (with the bot helpers). */
+export const ESLINT_CONFIG = (freeform: boolean) => `import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts']${freeform ? ", bots: ['src/bots/**/*.ts']" : ''} });
 `;
 
 export const VITEST_CONFIG = `import { defineConfig } from 'vitest/config';
@@ -64,6 +65,16 @@ export const SYSTEMS_INDEX = `import type { SystemDef } from '@gg/sdk';
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const BESPOKE: SystemDef<any>[] = [];
+`;
+
+export const BOTS_INDEX = `import type { BotPolicy } from '@gg/template-core';
+
+/**
+ * Bots of this game's own, for levels no bot of the platform wins because they play by this game's own rules (the
+ * bot-author skill). Add a file per bot under src/bots/, written in GlueTS, and list it here: \`pnpm prove\` plays them
+ * after the base genre's solver and before the explorer, and keeps a run one wins as the level's proof.
+ */
+export const GAME_BOTS: Record<string, BotPolicy> = {};
 `;
 
 export const GAME_TS = (genre: string, runtimeImport: string, runtimeName: string) => `import type { BehaviourFsm, EcaRule, LevelJson, SystemsJson } from '@gg/schemas';
@@ -239,6 +250,7 @@ import { LevelHints, LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
 import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
+import { GAME_BOTS } from '../../src/bots/index.js';
 import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
 
@@ -246,7 +258,7 @@ const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
 const hints = fileURLToPath(new URL('../../content/hints/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer (on the level's hints when it has them)", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the game's own bots, else the explorer (on the level's hints when it has them)", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
@@ -256,7 +268,7 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
       const hinted = \`\${hints}\${level.id}.json\`;
       const steps = existsSync(hinted) ? { hints: LevelHints.parse(JSON.parse(readFileSync(hinted, 'utf8'))) } : {};
-      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000, ...steps };
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, bots: GAME_BOTS, mechanics, budget: 40_000, ...steps };
       const r = proveLevel(level, i, inputs, stored);
       // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
       if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');

@@ -1,6 +1,6 @@
 import { LevelProof, type EntityRoster, type FreeformSystemsJson, type LevelJson } from '@gg/schemas';
-import { createSim, inputAtTick, winningRun, type FeedbackBinding } from '@gg/sdk';
-import { afkWins, feedbackCoverage, levelPlan, recordEvents, simOptionsFor, suggestHints } from '@gg/template-core';
+import { createSim, emptyInput, inputAtTick, winningRun, type FeedbackBinding } from '@gg/sdk';
+import { afkWins, feedbackCoverage, goalSpot, goToward, levelPlan, recordEvents, simOptionsFor, suggestHints, type BotPolicy } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import { EXAMPLES, HIVE, LANTERN, ROOFTOP } from './examples.js';
 import { generatorParams } from './levels.js';
@@ -73,13 +73,15 @@ describe('proveLevel', () => {
     }
   });
 
+  // A maze whose way doubles back, walked by a game that wins at the goal: closer as the crow flies is the wrong way.
+  const rows = ['##########################################', '#S.......................................#', '#........................................#', '####################################.....#', '####################################.....#', '#........................................#', '#........................................#', '#.....####################################', '#.....####################################', '#........................................#', '#........................................#', '####################################.....#', '####################################.....#', '#G.......................................#', '#........................................#', '##########################################'];
+  const maze: LevelJson = { version: 1, id: 'l01', name: 'Maze', tileSize: 8, width: rows[0]!.length, height: rows.length, legend: { '.': 'air', '#': 'solid', S: 'spawn', G: 'goal' }, rows, entities: [], spawn: { x: 1, y: 1 }, goal: { x: 1, y: 13 } };
+  const file: FreeformSystemsJson = { version: 1, genre: 'freeform', composition: { base: 'survivors' }, feelPreset: 'arena-melee', systems: [{ id: 'movement-topdown', params: {} }, { id: 'objectives', params: {} }] };
+  const roster: EntityRoster = { version: 1, designNotes: '', player: {}, types: [] };
+  const mazeInputs: ProveInputs = { file, roster, content: { objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'reach_goal' }] }, lose: [] } }, budget: 20_000 };
+
   it('finishes on its hints a level the explorer cannot alone, and says where it got stuck without them', () => {
-    // A maze whose way doubles back, walked by a game that wins at the goal: closer as the crow flies is the wrong way.
-    const rows = ['##########################################', '#S.......................................#', '#........................................#', '####################################.....#', '####################################.....#', '#........................................#', '#........................................#', '#.....####################################', '#.....####################################', '#........................................#', '#........................................#', '####################################.....#', '####################################.....#', '#G.......................................#', '#........................................#', '##########################################'];
-    const maze: LevelJson = { version: 1, id: 'l01', name: 'Maze', tileSize: 8, width: rows[0]!.length, height: rows.length, legend: { '.': 'air', '#': 'solid', S: 'spawn', G: 'goal' }, rows, entities: [], spawn: { x: 1, y: 1 }, goal: { x: 1, y: 13 } };
-    const file: FreeformSystemsJson = { version: 1, genre: 'freeform', composition: { base: 'survivors' }, feelPreset: 'arena-melee', systems: [{ id: 'movement-topdown', params: {} }, { id: 'objectives', params: {} }] };
-    const roster: EntityRoster = { version: 1, designNotes: '', player: {}, types: [] };
-    const inputs: ProveInputs = { file, roster, content: { objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'reach_goal' }] }, lose: [] } }, budget: 20_000 };
+    const inputs = mazeInputs;
     const alone = proveLevel(maze, 0, inputs);
     expect(alone.proof).toBeNull();
     expect(alone.stuck).toMatchObject({ at: { x: expect.any(Number), y: expect.any(Number) } });
@@ -89,6 +91,22 @@ describe('proveLevel', () => {
     expect(r.tried.at(-1)).toMatch(/^explorer with \d+ hints: wins in \d+ ticks/);
     // The run stands on its own: replayed with no hints at all, it wins.
     expect(proveLevel(maze, 0, inputs, r.proof!).tried).toEqual(['stored proof: wins']);
+  });
+
+  it("plays the game's own bots after the platform's and before the explorer, passing over one whose code fails", () => {
+    const broken: BotPolicy = () => {
+      throw new Error('no lantern here');
+    };
+    // A bot that knows the way: a shortest walk to the goal.
+    const walker: BotPolicy = (sim, tick, mem) => {
+      const input = emptyInput();
+      goToward(sim, goalSpot(sim), input, tick, mem);
+      return input;
+    };
+    const r = proveLevel(maze, 0, { ...mazeInputs, bots: { broken, walker } });
+    expect(r.proof?.by).toBe('bot');
+    expect(r.tried).toEqual(['broken: stopped (no lantern here)', expect.stringMatching(/^walker: wins in \d+ ticks$/)]);
+    expect(proveLevel(maze, 0, mazeInputs, r.proof!).tried).toEqual(['stored proof: wins']);
   });
 
   it('drops a stored proof that no longer wins and finds another', () => {

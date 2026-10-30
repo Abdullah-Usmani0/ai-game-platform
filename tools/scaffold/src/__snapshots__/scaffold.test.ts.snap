@@ -6235,7 +6235,7 @@ x
 }
 ",
   "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
-export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'], bots: ['src/bots/**/*.ts'] });
 ",
   "index.html": "<!doctype html>
 <html lang="en">
@@ -6266,7 +6266,7 @@ export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
     "lint": "eslint .",
     "test": "vitest run",
     "build": "vite build && node scripts/finish-build.mjs",
-    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts --silent=false"
   }
 }
 ",
@@ -6286,6 +6286,15 @@ copyFileSync(engineDist, \`\${here}dist/engine.js\`);
 const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
 if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
 console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/bots/index.ts": "import type { BotPolicy } from '@gg/template-core';
+
+/**
+ * Bots of this game's own, for levels no bot of the platform wins because they play by this game's own rules (the
+ * bot-author skill). Add a file per bot under src/bots/, written in GlueTS, and list it here: \`pnpm prove\` plays them
+ * after the base genre's solver and before the explorer, and keeps a run one wins as the level's proof.
+ */
+export const GAME_BOTS: Record<string, BotPolicy> = {};
 ",
   "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
 import type { FeedbackBinding, SimOptions } from '@gg/sdk';
@@ -6410,6 +6419,7 @@ import { LevelHints, LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
 import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
+import { GAME_BOTS } from '../../src/bots/index.js';
 import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
 
@@ -6417,7 +6427,7 @@ const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
 const hints = fileURLToPath(new URL('../../content/hints/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer (on the level's hints when it has them)", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the game's own bots, else the explorer (on the level's hints when it has them)", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
@@ -6427,7 +6437,7 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
       const hinted = \`\${hints}\${level.id}.json\`;
       const steps = existsSync(hinted) ? { hints: LevelHints.parse(JSON.parse(readFileSync(hinted, 'utf8'))) } : {};
-      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000, ...steps };
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, bots: GAME_BOTS, mechanics, budget: 40_000, ...steps };
       const r = proveLevel(level, i, inputs, stored);
       // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
       if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');
@@ -7914,7 +7924,7 @@ x
 }
 ",
   "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
-export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'], bots: ['src/bots/**/*.ts'] });
 ",
   "index.html": "<!doctype html>
 <html lang="en">
@@ -7945,7 +7955,7 @@ export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
     "lint": "eslint .",
     "test": "vitest run",
     "build": "vite build && node scripts/finish-build.mjs",
-    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts --silent=false"
   }
 }
 ",
@@ -7965,6 +7975,15 @@ copyFileSync(engineDist, \`\${here}dist/engine.js\`);
 const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
 if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
 console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/bots/index.ts": "import type { BotPolicy } from '@gg/template-core';
+
+/**
+ * Bots of this game's own, for levels no bot of the platform wins because they play by this game's own rules (the
+ * bot-author skill). Add a file per bot under src/bots/, written in GlueTS, and list it here: \`pnpm prove\` plays them
+ * after the base genre's solver and before the explorer, and keeps a run one wins as the level's proof.
+ */
+export const GAME_BOTS: Record<string, BotPolicy> = {};
 ",
   "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
 import type { FeedbackBinding, SimOptions } from '@gg/sdk';
@@ -8089,6 +8108,7 @@ import { LevelHints, LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
 import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
+import { GAME_BOTS } from '../../src/bots/index.js';
 import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
 
@@ -8096,7 +8116,7 @@ const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
 const hints = fileURLToPath(new URL('../../content/hints/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer (on the level's hints when it has them)", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the game's own bots, else the explorer (on the level's hints when it has them)", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
@@ -8106,7 +8126,7 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
       const hinted = \`\${hints}\${level.id}.json\`;
       const steps = existsSync(hinted) ? { hints: LevelHints.parse(JSON.parse(readFileSync(hinted, 'utf8'))) } : {};
-      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000, ...steps };
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, bots: GAME_BOTS, mechanics, budget: 40_000, ...steps };
       const r = proveLevel(level, i, inputs, stored);
       // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
       if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');
@@ -8657,7 +8677,7 @@ x
 }
 ",
   "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
-export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'], bots: ['src/bots/**/*.ts'] });
 ",
   "index.html": "<!doctype html>
 <html lang="en">
@@ -8688,7 +8708,7 @@ export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
     "lint": "eslint .",
     "test": "vitest run",
     "build": "vite build && node scripts/finish-build.mjs",
-    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts --silent=false"
   }
 }
 ",
@@ -8708,6 +8728,15 @@ copyFileSync(engineDist, \`\${here}dist/engine.js\`);
 const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
 if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
 console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/bots/index.ts": "import type { BotPolicy } from '@gg/template-core';
+
+/**
+ * Bots of this game's own, for levels no bot of the platform wins because they play by this game's own rules (the
+ * bot-author skill). Add a file per bot under src/bots/, written in GlueTS, and list it here: \`pnpm prove\` plays them
+ * after the base genre's solver and before the explorer, and keeps a run one wins as the level's proof.
+ */
+export const GAME_BOTS: Record<string, BotPolicy> = {};
 ",
   "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
 import type { FeedbackBinding, SimOptions } from '@gg/sdk';
@@ -8832,6 +8861,7 @@ import { LevelHints, LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
 import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
+import { GAME_BOTS } from '../../src/bots/index.js';
 import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
 
@@ -8839,7 +8869,7 @@ const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
 const hints = fileURLToPath(new URL('../../content/hints/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer (on the level's hints when it has them)", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the game's own bots, else the explorer (on the level's hints when it has them)", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
@@ -8849,7 +8879,7 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
       const hinted = \`\${hints}\${level.id}.json\`;
       const steps = existsSync(hinted) ? { hints: LevelHints.parse(JSON.parse(readFileSync(hinted, 'utf8'))) } : {};
-      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000, ...steps };
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, bots: GAME_BOTS, mechanics, budget: 40_000, ...steps };
       const r = proveLevel(level, i, inputs, stored);
       // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
       if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');
@@ -9666,7 +9696,7 @@ x
 }
 ",
   "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
-export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'], bots: ['src/bots/**/*.ts'] });
 ",
   "index.html": "<!doctype html>
 <html lang="en">
@@ -9697,7 +9727,7 @@ export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
     "lint": "eslint .",
     "test": "vitest run",
     "build": "vite build && node scripts/finish-build.mjs",
-    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts --silent=false"
   }
 }
 ",
@@ -9717,6 +9747,15 @@ copyFileSync(engineDist, \`\${here}dist/engine.js\`);
 const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
 if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
 console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/bots/index.ts": "import type { BotPolicy } from '@gg/template-core';
+
+/**
+ * Bots of this game's own, for levels no bot of the platform wins because they play by this game's own rules (the
+ * bot-author skill). Add a file per bot under src/bots/, written in GlueTS, and list it here: \`pnpm prove\` plays them
+ * after the base genre's solver and before the explorer, and keeps a run one wins as the level's proof.
+ */
+export const GAME_BOTS: Record<string, BotPolicy> = {};
 ",
   "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
 import type { FeedbackBinding, SimOptions } from '@gg/sdk';
@@ -9841,6 +9880,7 @@ import { LevelHints, LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
 import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
+import { GAME_BOTS } from '../../src/bots/index.js';
 import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
 
@@ -9848,7 +9888,7 @@ const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
 const hints = fileURLToPath(new URL('../../content/hints/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer (on the level's hints when it has them)", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the game's own bots, else the explorer (on the level's hints when it has them)", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
@@ -9858,7 +9898,7 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
       const hinted = \`\${hints}\${level.id}.json\`;
       const steps = existsSync(hinted) ? { hints: LevelHints.parse(JSON.parse(readFileSync(hinted, 'utf8'))) } : {};
-      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000, ...steps };
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, bots: GAME_BOTS, mechanics, budget: 40_000, ...steps };
       const r = proveLevel(level, i, inputs, stored);
       // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
       if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');
@@ -10766,7 +10806,7 @@ x
 }
 ",
   "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
-export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'], bots: ['src/bots/**/*.ts'] });
 ",
   "index.html": "<!doctype html>
 <html lang="en">
@@ -10797,7 +10837,7 @@ export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
     "lint": "eslint .",
     "test": "vitest run",
     "build": "vite build && node scripts/finish-build.mjs",
-    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts --silent=false"
   }
 }
 ",
@@ -10817,6 +10857,15 @@ copyFileSync(engineDist, \`\${here}dist/engine.js\`);
 const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
 if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
 console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/bots/index.ts": "import type { BotPolicy } from '@gg/template-core';
+
+/**
+ * Bots of this game's own, for levels no bot of the platform wins because they play by this game's own rules (the
+ * bot-author skill). Add a file per bot under src/bots/, written in GlueTS, and list it here: \`pnpm prove\` plays them
+ * after the base genre's solver and before the explorer, and keeps a run one wins as the level's proof.
+ */
+export const GAME_BOTS: Record<string, BotPolicy> = {};
 ",
   "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
 import type { FeedbackBinding, SimOptions } from '@gg/sdk';
@@ -10941,6 +10990,7 @@ import { LevelHints, LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
 import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
+import { GAME_BOTS } from '../../src/bots/index.js';
 import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
 
@@ -10948,7 +10998,7 @@ const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
 const hints = fileURLToPath(new URL('../../content/hints/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer (on the level's hints when it has them)", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the game's own bots, else the explorer (on the level's hints when it has them)", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
@@ -10958,7 +11008,7 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
       const hinted = \`\${hints}\${level.id}.json\`;
       const steps = existsSync(hinted) ? { hints: LevelHints.parse(JSON.parse(readFileSync(hinted, 'utf8'))) } : {};
-      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000, ...steps };
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, bots: GAME_BOTS, mechanics, budget: 40_000, ...steps };
       const r = proveLevel(level, i, inputs, stored);
       // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
       if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');
@@ -11848,7 +11898,7 @@ x
 }
 ",
   "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
-export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'], bots: ['src/bots/**/*.ts'] });
 ",
   "index.html": "<!doctype html>
 <html lang="en">
@@ -11879,7 +11929,7 @@ export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
     "lint": "eslint .",
     "test": "vitest run",
     "build": "vite build && node scripts/finish-build.mjs",
-    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts --silent=false"
   }
 }
 ",
@@ -11899,6 +11949,15 @@ copyFileSync(engineDist, \`\${here}dist/engine.js\`);
 const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
 if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
 console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/bots/index.ts": "import type { BotPolicy } from '@gg/template-core';
+
+/**
+ * Bots of this game's own, for levels no bot of the platform wins because they play by this game's own rules (the
+ * bot-author skill). Add a file per bot under src/bots/, written in GlueTS, and list it here: \`pnpm prove\` plays them
+ * after the base genre's solver and before the explorer, and keeps a run one wins as the level's proof.
+ */
+export const GAME_BOTS: Record<string, BotPolicy> = {};
 ",
   "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
 import type { FeedbackBinding, SimOptions } from '@gg/sdk';
@@ -12023,6 +12082,7 @@ import { LevelHints, LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
 import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
+import { GAME_BOTS } from '../../src/bots/index.js';
 import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
 
@@ -12030,7 +12090,7 @@ const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
 const hints = fileURLToPath(new URL('../../content/hints/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer (on the level's hints when it has them)", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the game's own bots, else the explorer (on the level's hints when it has them)", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
@@ -12040,7 +12100,7 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
       const hinted = \`\${hints}\${level.id}.json\`;
       const steps = existsSync(hinted) ? { hints: LevelHints.parse(JSON.parse(readFileSync(hinted, 'utf8'))) } : {};
-      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000, ...steps };
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, bots: GAME_BOTS, mechanics, budget: 40_000, ...steps };
       const r = proveLevel(level, i, inputs, stored);
       // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
       if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');
@@ -13168,7 +13228,7 @@ x
 }
 ",
   "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
-export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'], bots: ['src/bots/**/*.ts'] });
 ",
   "index.html": "<!doctype html>
 <html lang="en">
@@ -13199,7 +13259,7 @@ export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
     "lint": "eslint .",
     "test": "vitest run",
     "build": "vite build && node scripts/finish-build.mjs",
-    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts --silent=false"
   }
 }
 ",
@@ -13219,6 +13279,15 @@ copyFileSync(engineDist, \`\${here}dist/engine.js\`);
 const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
 if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
 console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/bots/index.ts": "import type { BotPolicy } from '@gg/template-core';
+
+/**
+ * Bots of this game's own, for levels no bot of the platform wins because they play by this game's own rules (the
+ * bot-author skill). Add a file per bot under src/bots/, written in GlueTS, and list it here: \`pnpm prove\` plays them
+ * after the base genre's solver and before the explorer, and keeps a run one wins as the level's proof.
+ */
+export const GAME_BOTS: Record<string, BotPolicy> = {};
 ",
   "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
 import type { FeedbackBinding, SimOptions } from '@gg/sdk';
@@ -13343,6 +13412,7 @@ import { LevelHints, LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
 import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
+import { GAME_BOTS } from '../../src/bots/index.js';
 import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
 
@@ -13350,7 +13420,7 @@ const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
 const hints = fileURLToPath(new URL('../../content/hints/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer (on the level's hints when it has them)", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the game's own bots, else the explorer (on the level's hints when it has them)", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
@@ -13360,7 +13430,7 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
       const hinted = \`\${hints}\${level.id}.json\`;
       const steps = existsSync(hinted) ? { hints: LevelHints.parse(JSON.parse(readFileSync(hinted, 'utf8'))) } : {};
-      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000, ...steps };
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, bots: GAME_BOTS, mechanics, budget: 40_000, ...steps };
       const r = proveLevel(level, i, inputs, stored);
       // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
       if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');
@@ -13966,7 +14036,7 @@ x
 }
 ",
   "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
-export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'], bots: ['src/bots/**/*.ts'] });
 ",
   "index.html": "<!doctype html>
 <html lang="en">
@@ -13997,7 +14067,7 @@ export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
     "lint": "eslint .",
     "test": "vitest run",
     "build": "vite build && node scripts/finish-build.mjs",
-    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts"
+    "prove": "GG_PROVE=1 vitest run tests/unit/prove.test.ts --silent=false"
   }
 }
 ",
@@ -14017,6 +14087,15 @@ copyFileSync(engineDist, \`\${here}dist/engine.js\`);
 const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
 if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
 console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/bots/index.ts": "import type { BotPolicy } from '@gg/template-core';
+
+/**
+ * Bots of this game's own, for levels no bot of the platform wins because they play by this game's own rules (the
+ * bot-author skill). Add a file per bot under src/bots/, written in GlueTS, and list it here: \`pnpm prove\` plays them
+ * after the base genre's solver and before the explorer, and keeps a run one wins as the level's proof.
+ */
+export const GAME_BOTS: Record<string, BotPolicy> = {};
 ",
   "src/game.ts": "import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson } from '@gg/schemas';
 import type { FeedbackBinding, SimOptions } from '@gg/sdk';
@@ -14141,6 +14220,7 @@ import { LevelHints, LevelProof, MechanicsFile } from '@gg/schemas';
 import { BASE_MANIFESTS, proveLevel } from '@gg/template-freeform/node';
 import { describe, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
+import { GAME_BOTS } from '../../src/bots/index.js';
 import { BEHAVIOURS, CONTENT, FEEDBACK, LEVELS, ROSTER, RULES, SYSTEMS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
 
@@ -14148,7 +14228,7 @@ const proofs = fileURLToPath(new URL('../../content/proofs/', import.meta.url));
 const hints = fileURLToPath(new URL('../../content/hints/', import.meta.url));
 
 describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
-  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the explorer (on the level's hints when it has them)", () => {
+  it("each level gets one if a bot can find it, played with the game's own systems: the stored run while it wins, else the solver, else the game's own bots, else the explorer (on the level's hints when it has them)", () => {
     const base = BASE_MANIFESTS[SYSTEMS.composition.base];
     const mechanics = MechanicsFile.parse(mechanicsJson).mechanics;
     mkdirSync(proofs, { recursive: true });
@@ -14158,7 +14238,7 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
       const stored = existsSync(file) ? LevelProof.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
       const hinted = \`\${hints}\${level.id}.json\`;
       const steps = existsSync(hinted) ? { hints: LevelHints.parse(JSON.parse(readFileSync(hinted, 'utf8'))) } : {};
-      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, mechanics, budget: 40_000, ...steps };
+      const inputs = { file: SYSTEMS, roster: ROSTER, behaviours: BEHAVIOURS, rules: RULES, content: CONTENT, feedback: FEEDBACK, solver: base.bots[base.solverBot], bespoke: BESPOKE, bots: GAME_BOTS, mechanics, budget: 40_000, ...steps };
       const r = proveLevel(level, i, inputs, stored);
       // A level no bot wins waits for a player's winning run; one that no longer wins is no evidence.
       if (r.proof) writeFileSync(file, JSON.stringify(r.proof) + '\\n');

@@ -27,6 +27,7 @@ from `stage.json`. Do not guess them; read the injected summary.
 | implement | you | validate:systems, typecheck, lint, test, build, smoke | mechanic-author, verify |
 | prove | worker, freeform games only | prove, test | - |
 | levels | worker (generator + solver) or level-designer | validate:levels, validate:ramp, prove, solver | level-design |
+| bot | you, freeform games with systems of their own whose levels wait for a run | typecheck, lint, prove, test | bot-author |
 | integrate | you | validate:assets, build, smoke | asset-prompting |
 | playtest | you (bots) | build, smoke, prove, solver | playtest |
 | juice | you | build, smoke, juice | juice-pass |
@@ -45,12 +46,13 @@ every genre whose player moves the same way. Its entities are shipped ones under
 (`content/objectives.json`). Each level has a recorded winning run (`content/proofs/<level>.json`, a `LevelProof`)
 at the seed the level is played with; the game's `proof` bot replays it, the `prove` check replays it in Node and smoke
 replays it in the browser. The worker records the runs (the base genre's solver under the base names, a block's own
-bot, else the explorer) and records them again whenever a change can break one. Where the explorer loses its way, the
-level's hints guide it (`content/hints/<level>.json`, a `LevelHints`: up to twelve steps in order, a tile to reach or a
-HUD number to get to); the worker asks the model for them and keeps only hints that found the win. A level no bot wins
-ships without a run (the `prove` check warns; a run on file that stops winning fails it): the game is published and
-played, privately and in the test queue, and is listed once a player wins the level and the worker, replaying that run
-on the version, sees it win.
+bot, the game's own bots in `src/bots`, else the explorer) and records them again whenever a change can break one. Where
+the explorer loses its way, the level's hints guide it (`content/hints/<level>.json`, a `LevelHints`: up to twelve steps
+in order, a tile to reach or a HUD number to get to); the worker asks the model for them and keeps only hints that found
+the win. Where the game's own systems change how a level is won, no bot of the platform's knows the way: the bot stage
+writes one of the game's own (bot-author skill). A level no bot wins ships without a run (the `prove` check warns; a run
+on file that stops winning fails it): the game is published and played, privately and in the test queue, and is listed
+once a player wins the level and the worker, replaying that run on the version, sees it win.
 `pnpm catalog freeform <base>` lists the systems a freeform game on that base can use.
 
 ## Project map
@@ -65,6 +67,8 @@ on the version, sees it win.
   way through a level for the explorer, kept beside the run it found)
 - `game/src/systems/` bespoke simulation systems in GlueTS (see rules), each with its contract in design/mechanics.json;
   a freeform game records its runs with them (`pnpm -C game prove`); `game/src/main.ts` is scaffolded, do not edit
+- `game/src/bots/` a freeform game's own bots (GAME_BOTS in index.ts), GlueTS too, which may use `@gg/template-core`'s
+  bot helpers; `pnpm -C game prove` plays them for levels the platform's bots cannot win
 - `game/assets/` requests.json and manifest.json; binary assets are produced by the asset pipeline, never by hand
 - `game/tests/` unit and playtest tests; `game/reports/` gate, playtest, juice, budget and screenshot evidence
 - `.agents/skills/` procedures with bundled scripts; `phaser-*` skills are engine reference only

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "mechanics": [
+    {
+      "id": "owl",
+      "summary": "An owl sleeps, stirs and watches in turn (the HUD's owl reads 0, 1, 2); a moth that moves while it watches is seen and flies back to the start.",
+      "emits": ["custom:seen", "spawn"],
+      "hud": ["owl"]
+    }
+  ]
+}

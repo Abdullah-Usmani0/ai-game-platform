@@ -170,7 +170,8 @@ export function conformance(o: ConformanceOptions): ValidationReport {
         if (!current.id) return;
         const r = seen.get(current.id)!;
         r.emits.add(ev.name);
-        if (ev.name === 'spawn') r.spawns.add(String(ev.payload['type']));
+        // The player brought back (ctx.respawnPlayer) is no new entity: only what a system makes counts as spawned.
+        if (ev.name === 'spawn' && ev.payload['type'] !== 'player') r.spawns.add(String(ev.payload['type']));
       });
       try {
         runBot(sim, bot, o.ticks);

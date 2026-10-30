@@ -42,9 +42,12 @@ interface GameView {
 }
 
 const CREATE_STAGES = ['gdd', 'systems', 'sprites', 'scaffold', 'behaviour', 'implement', 'levels', 'integrate', 'playtest', 'juice', 'review', 'budget', 'publish'];
-/** A freeform game names its cast after its systems and records its winning runs again after its code changes. */
-const FREEFORM_STAGES = CREATE_STAGES.flatMap((s) => (s === 'systems' ? [s, 'composition'] : s === 'implement' ? [s, 'prove'] : [s]));
-const STAGE_LABELS: Record<string, string> = { verify: 'Replay', gdd: 'Design', systems: 'Systems', composition: 'Cast', prove: 'Proofs', sprites: 'Sprites', scaffold: 'Scaffold', behaviour: 'Behaviour', implement: 'Code', levels: 'Levels', integrate: 'Integrate', playtest: 'Playtest', juice: 'Juice', review: 'Review', budget: 'Budget', publish: 'Publish' };
+/**
+ * A freeform game names its cast after its systems, records its winning runs again after its code changes, and gets a
+ * bot of its own for levels no bot of the platform wins (passed over when none waits).
+ */
+const FREEFORM_STAGES = CREATE_STAGES.flatMap((s) => (s === 'systems' ? [s, 'composition'] : s === 'implement' ? [s, 'prove'] : s === 'levels' ? [s, 'bot'] : [s]));
+const STAGE_LABELS: Record<string, string> = { verify: 'Replay', gdd: 'Design', systems: 'Systems', composition: 'Cast', prove: 'Proofs', bot: 'Bot', sprites: 'Sprites', scaffold: 'Scaffold', behaviour: 'Behaviour', implement: 'Code', levels: 'Levels', integrate: 'Integrate', playtest: 'Playtest', juice: 'Juice', review: 'Review', budget: 'Budget', publish: 'Publish' };
 const JOB_TONE: Record<string, string> = { queued: 'info', running: 'brand', succeeded: 'ok', failed: 'err', needs_human: 'warn', cancelled: 'neutral' };
 const JOB_TITLE: Record<string, string> = { create: 'Building the game', edit: 'Applying an edit', edit_content: 'Applying a level edit', verify_proof: "Checking a player's winning run" };
 const EDIT_EXAMPLES = ['make the walker chase more aggressively', 'make jumps a little floatier', 'a warmer, sunset palette', 'add a third level that is harder'];
@@ -54,7 +57,7 @@ const PROVEN_BY: Record<string, string> = { solver: 'the solver bot', explorer: 
 type Proofs = Record<string, { by: string; ticks?: number } | null>;
 const waitingOf = (evidence: Record<string, unknown> | null | undefined): number => Object.values((evidence?.['proofs'] as Proofs | undefined) ?? {}).filter((p) => p === null).length;
 
-type StageState = 'pending' | 'running' | 'passed' | 'failed' | 'retry';
+type StageState = 'pending' | 'running' | 'passed' | 'failed' | 'retry' | 'skipped';
 type Tab = 'overview' | 'tune' | 'style' | 'levels' | 'code' | 'history';
 
 function stageStates(view: JobView | null, genre: string): Array<{ stage: string; state: StageState; attempts: number; detail: string }> {
@@ -77,7 +80,11 @@ function stageStates(view: JobView | null, genre: string): Array<{ stage: string
       s.state = 'failed';
       s.detail = ((e.payload['failing'] as string[]) ?? []).join(', ');
     } else if (e.type === 'retry') s.state = 'retry';
-    else if (e.type === 'assistant_summary' && typeof e.payload['summary'] === 'string' && s.state !== 'failed') s.detail = e.payload['summary'] as string;
+    else if (e.type === 'warning' && e.payload['skipped'] === true) {
+      // A stage with nothing to do in this game (a bot of its own when no level waits) is passed over.
+      s.state = 'skipped';
+      s.detail = String(e.payload['note'] ?? '');
+    } else if (e.type === 'assistant_summary' && typeof e.payload['summary'] === 'string' && s.state !== 'failed') s.detail = e.payload['summary'] as string;
   }
   const stages = view.job.kind === 'create' ? [...plan] : order;
   for (const st of order) if (!stages.includes(st)) stages.push(st);
@@ -165,7 +172,7 @@ export function GameWorkspace({ game, initialJobId, initialHead }: { game: GameI
   const status = jobView?.job.status ?? (jobId ? 'loading' : 'idle');
   const active = status === 'queued' || status === 'running';
   const locked = sending || active || !game.headVersionId;
-  const passed = stages.filter((s) => s.state === 'passed').length;
+  const passed = stages.filter((s) => s.state === 'passed' || s.state === 'skipped').length;
   const evidence = head?.evidence as { gates?: Array<{ stage: string; passed: boolean; checks: string[]; durationMs: number }>; proofs?: Proofs; playtest?: { passed: boolean; replayHashMatch: boolean | null; readyMs: number | null; metrics: Record<string, number>; seeds: number[] } | null; budget?: { gameJsBytes: number }; thumbnail?: string | null } | null;
   const route = jobView?.events.find((e) => e.stage === 'route')?.payload as { route?: string; confidence?: number; designNotes?: string } | undefined;
   const tabs: Array<{ id: Tab; label: string; count?: number; show: boolean }> = [

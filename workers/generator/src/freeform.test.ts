@@ -110,9 +110,13 @@ describe('freeform plans', () => {
     expect(curated.slice(0, 4)).toEqual(['gdd', 'systems', 'sprites', 'scaffold']);
     expect(freeform.slice(0, 5)).toEqual(['gdd', 'systems', 'composition', 'sprites', 'scaffold']);
     expect(freeform[freeform.indexOf('implement') + 1]).toBe('prove');
-    expect(freeform.filter((s) => s !== 'composition' && s !== 'prove')).toEqual(curated);
-    expect(editPlan('code', presets, false, { freeform: true }).map((s) => s.stage).slice(0, 2)).toEqual(['implement', 'prove']);
+    // A bot of the game's own once its levels are made (and proven again after its code changes), when levels wait.
+    expect(freeform[freeform.indexOf('levels') + 1]).toBe('bot');
+    expect(freeform.filter((s) => s !== 'composition' && s !== 'prove' && s !== 'bot')).toEqual(curated);
+    expect(editPlan('code', presets, false, { freeform: true }).map((s) => s.stage).slice(0, 3)).toEqual(['implement', 'prove', 'bot']);
+    expect(editPlan('content', presets, false, { freeform: true }).map((s) => s.stage).slice(0, 2)).toEqual(['levels', 'bot']);
     expect(editPlan('code', presets).map((s) => s.stage)).not.toContain('prove');
+    expect(presets['bot']).toMatchObject({ when: 'levels_wait', skills: ['bot-author', 'verify'] });
     for (const s of freeform) expect(presets[s], s).toBeDefined();
   });
 });

@@ -112,20 +112,22 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
       lint: 'eslint .',
       test: 'vitest run',
       build: 'vite build && node scripts/finish-build.mjs',
-      // A freeform game records its levels' winning runs with its own code (tests/unit/prove.test.ts).
-      ...(freeform ? { prove: 'GG_PROVE=1 vitest run tests/unit/prove.test.ts' } : {}),
+      // A freeform game records its levels' winning runs with its own code (tests/unit/prove.test.ts), and says which
+      // levels still wait and why (vitest keeps a passing test's console quiet unless told).
+      ...(freeform ? { prove: 'GG_PROVE=1 vitest run tests/unit/prove.test.ts --silent=false' } : {}),
     },
   }, null, 2) + '\n');
   write(files, out, 'index.html', F.INDEX_HTML(opts.title));
   write(files, out, 'vite.config.ts', F.VITE_CONFIG);
   write(files, out, 'tsconfig.json', F.TSCONFIG);
-  write(files, out, 'eslint.config.js', F.ESLINT_CONFIG);
+  write(files, out, 'eslint.config.js', F.ESLINT_CONFIG(Boolean(freeform)));
   write(files, out, 'vitest.config.ts', F.VITEST_CONFIG);
   write(files, out, 'scripts/finish-build.mjs', F.FINISH_BUILD);
   // A freeform game is drawn in its base genre's setting.
   write(files, out, 'src/main.ts', F.MAIN_TS(opts.gameId, freeform ? freeform.composition.base : g.id, opts.title));
   write(files, out, 'src/game.ts', freeform ? F.FREEFORM_GAME_TS(freeform.composition.base) : F.GAME_TS(g.id, runtimeImport, runtimeName));
   write(files, out, 'src/systems/index.ts', F.SYSTEMS_INDEX);
+  if (freeform) write(files, out, 'src/bots/index.ts', F.BOTS_INDEX);
   write(files, out, 'tests/unit/bots.ts', freeform ? F.FREEFORM_BOTS_TS : F.BOTS_TS(`${runtimeImport}/node`, manifestName));
   write(files, out, 'tests/unit/game.test.ts', F.GAME_TEST(g.id));
   if (freeform) write(files, out, 'tests/unit/prove.test.ts', F.FREEFORM_PROVE_TEST);

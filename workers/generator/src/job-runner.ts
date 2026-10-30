@@ -5,7 +5,7 @@ import type { JobKind, JobRow, Store } from '@gg/db';
 import { providerFor, registerProvider, stagePolicy } from '@gg/llm';
 import { CreateRequest, EditRequest, EditRoute, parseSystemsFile, type ModelPolicy, type Stage, type StagePolicy, type SystemsFile, type Trajectory } from '@gg/schemas';
 import { BASE_MANIFESTS } from '@gg/template-freeform/node';
-import { genre as genreOf } from '@gg/templates/node';
+import { genre as genreOf, hasBespokeSystems, readGameFiles, readGameLevels } from '@gg/templates/node';
 import { checkpoint } from './checkpoint.js';
 import { routeEdit } from './edit-router.js';
 import { FakeProvider } from './fake-provider.js';
@@ -53,7 +53,22 @@ interface Resolved {
  * Stages a policy may leave out, and the stage whose entry they run on then: a freeform game's composition and the
  * cast's look are structured calls of the design phase, as choosing the systems is.
  */
-const POLICY_FALLBACK: Readonly<Record<string, Stage>> = { composition: 'systems', sprites: 'systems' };
+const POLICY_FALLBACK: Readonly<Record<string, Stage>> = { composition: 'systems', sprites: 'systems', bot: 'implement' };
+
+/**
+ * Whether a stage has work in this game: a stage with a condition (`when`) runs only while it holds, and is otherwise
+ * passed over at no cost (no session, no gate), saying why.
+ */
+export function stageWanted(spec: Pick<StageSpec, 'when'>, gameDir: string): { run: boolean; why: string } {
+  if (spec.when !== 'levels_wait') return { run: true, why: '' };
+  // A bot of the game's own is for levels no bot of the platform wins with the game's own code.
+  const files = readGameFiles(gameDir);
+  if (files.systems?.genre !== 'freeform') return { run: false, why: 'not needed: the genre solver proves the levels' };
+  if (!hasBespokeSystems(gameDir)) return { run: false, why: "not needed: the game plays by the catalog's rules, which the platform's bots know" };
+  const proven = new Set(files.proofs.map((p) => p.level));
+  const waiting = readGameLevels(gameDir).filter((l) => !proven.has(l.level.id)).map((l) => l.level.id);
+  return waiting.length ? { run: true, why: `waiting for a winning run: ${waiting.join(', ')}` } : { run: false, why: 'not needed: every level has a winning run' };
+}
 
 export function resolveStage(policy: ModelPolicy | null, spec: StageSpec, dryRun: boolean): Resolved {
   if (spec.runner === 'none') return { runnerKind: 'none', sp: null, model: 'none', provider: 'none' };
@@ -205,6 +220,12 @@ export async function runJob(opts: RunJobOptions): Promise<'succeeded' | 'failed
   };
 
   for (const spec of stages) {
+    const wanted = stageWanted(spec, gameDir);
+    if (!wanted.run) {
+      await store.appendEvent(job.id, 'warning', { note: wanted.why, skipped: true }, spec.stage);
+      log(`stage ${spec.stage} passed over (${wanted.why})`);
+      continue;
+    }
     let resolved = resolveStage(policy, spec, dryRun);
     const maxAttempts = (resolved.sp?.repairRounds ?? 1) + 1;
     let escalated = false;

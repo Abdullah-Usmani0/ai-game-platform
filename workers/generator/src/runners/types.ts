@@ -21,6 +21,8 @@ export interface StageSpec {
   caps?: { turns: number; usd: number; wallMin: number };
   /** Verify first: when the gate already passes on the first attempt, no model session runs. */
   gateFirst?: boolean;
+  /** The one condition the stage runs on (a stage preset's `when`); a stage whose condition does not hold is passed over. */
+  when?: 'levels_wait';
 }
 
 export interface StageContext {

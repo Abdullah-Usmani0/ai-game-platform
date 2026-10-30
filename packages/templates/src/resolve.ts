@@ -108,6 +108,12 @@ export function hasBespokeSystems(gameDir: string): boolean {
   return existsSync(dir) && readdirSync(dir).some((f) => f.endsWith('.ts') && f !== 'index.ts');
 }
 
+/** Whether a game has bots of its own (src/bots/*.ts beside the index): only its own prover (pnpm prove) plays them. */
+export function hasGameBots(gameDir: string): boolean {
+  const dir = join(gameDir, 'src', 'bots');
+  return existsSync(dir) && readdirSync(dir).some((f) => f.endsWith('.ts') && f !== 'index.ts');
+}
+
 /**
  * A freeform game's proofs against the game as it is now: every recorded winning run was recorded at the seed the level
  * is played with and still wins. Replayed here unless the game has bespoke systems (the game's own test replays those,

@@ -22,6 +22,8 @@ export interface ProveInputs {
   mechanics?: readonly Mechanic[];
   /** The level's hints (content/hints/<level>.json): steps toward the win the explorer climbs in order. */
   hints?: LevelHints;
+  /** The game's own bots (src/bots): they play the game as it is, after the blocks' bots and before the explorer. */
+  bots?: Readonly<Record<string, BotPolicy>>;
 }
 
 export interface Proving {
@@ -63,7 +65,8 @@ function underBaseNames(inputs: ProveInputs, game: Composed): { composed: Compos
 /**
  * Finds a run that wins a level at the seed it is played with, the evidence that it can be finished: the stored proof
  * if it still wins, else the base genre's solver playing the game under the base names (its run replays on the
- * game's names move for move), else the explorer. Every proof is replayed on a fresh sim before it is returned.
+ * game's names move for move), else the bots of the game's blocks and the game's own, else the explorer (climbing the
+ * level's hints when it has them). Every proof is replayed on a fresh sim before it is returned.
  */
 export function proveLevel(level: LevelJson, index: number, inputs: ProveInputs, stored?: LevelProof): Proving {
   const seed = levelSeed(DEFAULT_SEED, index);
@@ -104,10 +107,17 @@ export function proveLevel(level: LevelJson, index: number, inputs: ProveInputs,
       }
     }
   }
-  // The bots the game's blocks bring play their jobs on the game as it is, under its own names (the courier).
-  for (const [name, bot] of Object.entries(blockBots(inputs.file))) {
+  // The bots the game's blocks bring (the courier), then the game's own, play on the game as it is, under its names.
+  for (const [name, bot] of [...Object.entries(blockBots(inputs.file)), ...Object.entries(inputs.bots ?? {})]) {
     const sim = fresh();
-    const r = runBot(sim, bot, levelTicksOf(sim.options));
+    let r: ReturnType<typeof runBot>;
+    try {
+      r = runBot(sim, bot, levelTicksOf(sim.options));
+    } catch (e) {
+      // A bot's own code can fail (a game's bot is model-written): the next one plays.
+      tried.push(`${name}: stopped (${(e as Error).message})`);
+      continue;
+    }
     if (!r.completed) {
       tried.push(`${name}: no win in ${r.ticks} ticks (${r.deaths} deaths)`);
       continue;

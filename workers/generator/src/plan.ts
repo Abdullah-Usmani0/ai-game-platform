@@ -16,11 +16,14 @@ export const EDIT_PLANS: Record<EditRouteName, string[]> = {
 
 /**
  * A freeform game's stages besides a curated one's: it names its entities and writes its rules right after choosing its
- * systems, and records a winning run for every level again after its code changes (the other stages that change how it
- * plays prove the levels themselves).
+ * systems, records a winning run for every level again after its code changes (the other stages that change how it
+ * plays prove the levels themselves), and once its levels are made and proven, writes a bot of its own for levels no
+ * bot of the platform wins (a stage that runs only when the game has code of its own and levels wait).
  */
 function forFreeform(stages: readonly string[]): string[] {
-  return stages.flatMap((s) => (s === 'systems' ? [s, 'composition'] : s === 'implement' ? [s, 'prove'] : [s]));
+  const out = stages.flatMap((s) => (s === 'systems' ? [s, 'composition'] : s === 'implement' ? [s, 'prove'] : [s]));
+  const last = Math.max(out.lastIndexOf('levels'), out.lastIndexOf('prove'));
+  return last < 0 ? out : [...out.slice(0, last + 1), 'bot', ...out.slice(last + 1)];
 }
 
 export function createPlan(presets: StagePresets, opts: { freeform?: boolean } = {}): StageSpec[] {

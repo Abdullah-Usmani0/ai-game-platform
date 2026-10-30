@@ -10,6 +10,7 @@ export { objectives, meta as objectivesMeta } from './systems/objectives.js';
 export { carry, meta as carryMeta, boxGap, carryTarget, carryTypes, deliveriesWanted, ordersOn, CARRY_KEYS, CARRYING, ORDER_LEFT, READY_AT, type CarryKey, type CarryTarget } from './systems/carry.js';
 export { orders, meta as ordersMeta, orderTiming, HURRY_TICKS, ORDER_MAX, ORDER_TYPE, REST_UNTIL } from './systems/orders.js';
 export { courier } from './courier.js';
+export { goalSpot, goToward, type Spot } from './navigate.js';
 export { carryBlock, ordersBlock } from './blocks.js';
 export { checkStations, dressStations, SERVICE_WINDOW, SIDE_REACH, type StationsCtx } from './level/stations.js';
 export { suggestHints } from './level/hints.js';

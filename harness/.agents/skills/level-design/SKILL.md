@@ -18,7 +18,8 @@ Files are `game/content/levels/L<nn>-<id>.json` (`LevelJson`), ordered by number
 For a freeform game, pass `freeform` as the genre: its levels come from its base genre's generator under the game's own
 entity names. Its solver is the recorded winning run of each level (`game/content/proofs/<id>.json`): after you change a
 level, its old run no longer proves it, and the worker records a new one (the `prove` check fails while a run that stops
-winning is on file). A level no bot wins waits for a player's winning run, and the game is not listed until then.
+winning is on file). A level no bot wins waits for a player's winning run, and the game is not listed until then (a game
+whose own systems change how a level is won gets a bot of its own first: bot-author).
 Where the search loses its way (a maze, a long walk round, a goal behind a detour), hints guide it:
 `game/content/hints/<id>.json` (`LevelHints`, checked by `pnpm validate`) lists up to twelve steps in order, each
 `{"kind": "reach", "x": .., "y": .., "r": 1}` (stand within r tiles of a tile) or `{"kind": "hud_at_least", "key": ..,

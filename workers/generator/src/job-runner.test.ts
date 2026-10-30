@@ -1,11 +1,12 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FileStore } from '@gg/db';
 import { ModelPolicy } from '@gg/schemas';
+import { LANTERN } from '@gg/template-freeform/node';
 import { afterAll, describe, expect, it } from 'vitest';
-import { resolveStage, runJob } from './job-runner.js';
+import { resolveStage, runJob, stageWanted } from './job-runner.js';
 
 const harness = resolve(fileURLToPath(new URL('../../../harness', import.meta.url)));
 const dirs: string[] = [];
@@ -47,5 +48,28 @@ describe('stage policies', () => {
     expect(resolveStage(own, { stage: 'composition', gate: [], runner: 'worker' }, false).sp?.k).toBe(4);
     expect(resolveStage(policy, { stage: 'composition', gate: [], runner: 'worker' }, true).model).toBe('fake');
     expect(resolveStage(policy, { stage: 'prove', gate: [], runner: 'worker' }, false).sp).toBeNull();
+    // A bot of the game's own is code, written on the code stage's entry.
+    expect(resolveStage(policy, { stage: 'bot', gate: [] }, false).sp).toEqual(policy.stages.implement);
+  });
+});
+
+describe('stages that wait on the game', () => {
+  it('the bot stage runs only while levels of a freeform game with code of its own wait for a winning run', () => {
+    const dir = tempDir('gg-job-runner-bot-');
+    const write = (rel: string, v: unknown) => {
+      mkdirSync(dirname(join(dir, rel)), { recursive: true });
+      writeFileSync(join(dir, rel), typeof v === 'string' ? v : JSON.stringify(v));
+    };
+    const rows = ['########', '#S....G#', '#......#', '#......#', '#......#', '########'];
+    write('content/levels/L01-l01.json', { version: 1, id: 'l01', name: 'L', tileSize: 8, width: 8, height: 6, legend: { '.': 'air', '#': 'solid', S: 'spawn', G: 'goal' }, rows, spawn: { x: 1, y: 1 }, goal: { x: 6, y: 1 } });
+    const bot = { when: 'levels_wait' } as const;
+    expect(stageWanted({}, dir)).toEqual({ run: true, why: '' });
+    expect(stageWanted(bot, dir)).toMatchObject({ run: false, why: expect.stringMatching(/genre solver/) });
+    write('design/systems.json', LANTERN.systems);
+    expect(stageWanted(bot, dir)).toMatchObject({ run: false, why: expect.stringMatching(/catalog/) });
+    write('src/systems/owl.ts', '// a system of its own\n');
+    expect(stageWanted(bot, dir)).toEqual({ run: true, why: 'waiting for a winning run: l01' });
+    write('content/proofs/l01.json', { version: 1, level: 'l01', seed: 1, ticks: 60, by: 'bot', script: [{ from: 0, to: 60, input: { right: true } }] });
+    expect(stageWanted(bot, dir)).toEqual({ run: false, why: 'not needed: every level has a winning run' });
   });
 });

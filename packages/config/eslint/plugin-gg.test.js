@@ -69,6 +69,18 @@ export const step = (id: number) => {
   assert.ok(msgs.some((m) => m.includes('`TABLE`')));
 });
 
+test("a game's own bots may use the platform's bot helpers; its systems may not", () => {
+  const code = `import { emptyInput } from '@gg/sdk';
+import { goToward, goalSpot } from '@gg/template-core';
+export const bot = (sim, tick, mem) => { const input = emptyInput(); goToward(sim, goalSpot(sim), input, tick, mem); return input; };`;
+  const as = (config) => new Linter({ configType: 'flat' }).verify(code, [{ files: ['**/*.ts'], languageOptions: { parser: tseslint.parser } }, config], 'src/x.ts').map((m) => m.ruleId);
+  assert.deepEqual(as(glueTsConfig(['**/*.ts'], { allowImports: ['@gg/template-core'] })), []);
+  assert.deepEqual(as(glueTsConfig(['**/*.ts'])), ['gg/no-engine-import']);
+  // The renderer stays out of reach either way.
+  const view = `import { createGame } from '@gg/sdk/render';\nexport const g = createGame;`;
+  assert.deepEqual(new Linter({ configType: 'flat' }).verify(view, [{ files: ['**/*.ts'], languageOptions: { parser: tseslint.parser } }, glueTsConfig(['**/*.ts'], { allowImports: ['@gg/template-core'] })], 'src/x.ts').map((m) => m.ruleId), ['gg/no-engine-import']);
+});
+
 test('allows module tables filled at load, reads from functions and writes to local state', () => {
   const code = `const BY_ID: Record<string, number> = {};
 for (const [i, id] of ['a', 'b'].entries()) BY_ID[id] = i;
