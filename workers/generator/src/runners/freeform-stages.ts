@@ -17,7 +17,7 @@ import { add, ok, readGdd, readSystems, sumUsage, writeJson, ZERO } from './stag
 const sameMovement = (base: CuratedGenre) => CURATED_GENRES.filter((g) => RUNTIMES[g].movementMode === RUNTIMES[base].movementMode);
 
 /** Hostile entities a freeform game on a base can have (none of them bosses). */
-const hostilesFor = (base: CuratedGenre) => Object.values(ARCHETYPES).filter((a) => sameMovement(base).includes(a.genre) && a.roles.includes('hostile') && !a.def.boss);
+const hostilesFor = (base: CuratedGenre) => Object.values(ARCHETYPES).filter((a) => a.genre !== null && sameMovement(base).includes(a.genre) && a.roles.includes('hostile') && !a.def.boss);
 
 /** The verbs games moving like a base offer: a freeform GDD's verbs come from these. */
 const verbsFor = (base: CuratedGenre) => [...new Set(sameMovement(base).flatMap((g) => BASE_MANIFESTS[g].gddDefaults.verbs))];
@@ -138,11 +138,14 @@ const COMPOSITION_SYSTEM = [
   'Names are short lowercase ids. Rules are clauses the objectives system checks; dying must always cost something.',
 ].join('\n');
 
-/** The archetypes a freeform game on a base can name, with what each is: its role, health, behaviour, boss flag. */
-function archetypeLines(base: CuratedGenre): string {
+/**
+ * The archetypes a freeform game on a base can name, with what each is: its role, health, behaviour, boss flag; those
+ * of genres moving like the base, and the entities its selected blocks bring (a courier's cargo and stations).
+ */
+function archetypeLines(base: CuratedGenre, systemIds: readonly string[]): string {
   return Object.values(ARCHETYPES)
-    .filter((a) => sameMovement(base).includes(a.genre))
-    .map((a) => `- ${a.id}: ${a.roles.join(', ') || 'prop'}; hp ${a.def.hp ?? 1}${a.def.fsm ? `; behaviour ${a.def.fsm}` : ''}${a.def.pickup ? '; pickup' : ''}${a.def.projectile ? '; projectile' : ''}${a.def.boss ? '; boss' : ''}${a.genre === base ? ' (placed by the base levels)' : ''}`)
+    .filter((a) => (a.genre === null ? systemIds.includes(a.block!) : sameMovement(base).includes(a.genre)))
+    .map((a) => `- ${a.id}: ${a.roles.join(', ') || 'prop'}; hp ${a.def.hp ?? 1}${a.def.fsm ? `; behaviour ${a.def.fsm}` : ''}${a.def.pickup ? '; pickup' : ''}${a.def.projectile ? '; projectile' : ''}${a.def.boss ? '; boss' : ''}${a.genre === base ? ' (placed by the base levels)' : a.genre === null ? ` (comes with the ${a.block} system, which places it on the levels)` : ''}`)
     .join('\n');
 }
 
@@ -170,7 +173,7 @@ export async function composition(ctx: StageContext): Promise<StageOutcome> {
   const rosterPrompt = [
     `Game: "${gdd.title}". Pillars: ${gdd.pillars.join(' / ')}. Verbs: ${gdd.verbs.join(', ')}. Scope: ${JSON.stringify(gdd.scope)}.`,
     `Base genre: ${base}. Systems: ${ids.join(', ')}.`,
-    `Shipped entities you can name (each at most once; the ones you leave out keep their own names):\n${archetypeLines(base)}`,
+    `Shipped entities you can name (each at most once; the ones you leave out keep their own names):\n${archetypeLines(base, ids)}`,
     'Write content/entities.json: version 1, a one-line designNotes, player { hp } only to change the player health, and types [{ type, archetype, hp }] with hp a health scale from 0.5 to 3.',
     example ? `Example of a freeform game on this base: ${JSON.stringify(example.roster)}` : '',
   ].join('\n\n');

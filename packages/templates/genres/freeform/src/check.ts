@@ -9,6 +9,7 @@ import { shmupCheck } from '@gg/template-shmup/check';
 import { survivorsCheck } from '@gg/template-survivors/check';
 import { topdownActionCheck } from '@gg/template-topdown-action/check';
 import { err, report, type Issue } from '@gg/validators';
+import { blockBots, blockLevelIssues, blockTypes } from './blocks.js';
 import { compose, IDENTITY_ROSTER, type Composed } from './compose.js';
 import { inverse, retypeLevel } from './retype.js';
 
@@ -32,8 +33,9 @@ export function proofBot(proofs: readonly LevelProof[]): BotPolicy & { has(level
 
 /**
  * The check kit of a freeform game, browser-safe like every genre's: its base genre's level validator on the level under
- * the base names, plus the roster's own problems and entities the game does not define; the bots replay the proofs
- * (the solver) and press keys at random (chaos, the base genre's).
+ * the base names (without its blocks' entities, which the base genre knows nothing of: a courier's stations), plus the
+ * roster's own problems, entities the game does not define and what its blocks find wrong with theirs; the bots replay
+ * the proofs (the solver), press keys at random (chaos, the base genre's) and play its blocks' jobs (the courier).
  */
 export function freeformCheck(file: FreeformSystemsJson, roster: EntityRoster = IDENTITY_ROSTER, proofs: readonly LevelProof[] = []): GenreCheck & { composed: Composed } {
   const composed = compose(file, roster);
@@ -45,10 +47,11 @@ export function freeformCheck(file: FreeformSystemsJson, roster: EntityRoster = 
     runtime: composed.runtime,
     validate: (level: LevelJson, feel) => {
       const unknown: Issue[] = [...new Set(level.entities.map((e) => e.type).filter((t) => !known.has(t)))].map((t) => err('unknown_entity', `the level places '${t}', which the game's roster does not define`, { path: t }));
-      const r = base.validate(retypeLevel(level, back), feel);
-      return report([...composed.issues, ...unknown, ...r.issues], r.metrics);
+      const own = blockTypes(file, composed);
+      const r = base.validate(retypeLevel({ ...level, entities: level.entities.filter((e) => !own.has(e.type)) }, back), feel);
+      return report([...composed.issues, ...unknown, ...r.issues, ...blockLevelIssues(level, file, composed, feel)], r.metrics);
     },
-    bots: { proof: proofBot(proofs), ...(base.bots['chaos'] ? { chaos: base.bots['chaos'] } : {}) },
+    bots: { proof: proofBot(proofs), ...(base.bots['chaos'] ? { chaos: base.bots['chaos'] } : {}), ...blockBots(file) },
     solverBot: 'proof',
   };
 }

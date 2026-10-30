@@ -1,7 +1,7 @@
 import type { EntityRoster, FreeformSystemsJson, ParamValue } from '@gg/schemas';
 import type { GenreRuntime, SystemModule } from '@gg/template-core';
 import { deathSwitches, err, type Issue } from '@gg/validators';
-import { RUNTIMES, SYSTEMS, vocabFor } from './registry.js';
+import { BLOCKS, RUNTIMES, SYSTEMS, vocabFor } from './registry.js';
 import { emitsOf } from './retype.js';
 import { compileRoster, type CompiledRoster } from './roster.js';
 
@@ -41,6 +41,8 @@ export function compose(file: FreeformSystemsJson, roster: EntityRoster = IDENTI
   const fired = new Set([...Object.values(systems).flatMap((m) => m.meta.emits), ...compiled.behaviours.flatMap(emitsOf)]);
   const feedbackExtras: NonNullable<GenreRuntime['feedbackExtras']> = [];
   for (const rt of Object.values(RUNTIMES)) for (const x of rt.feedbackExtras ?? []) if (fired.has(x.event) && !feedbackExtras.some((f) => f.event === x.event)) feedbackExtras.push(x);
+  // A block's own events come with their feedback (a courier's lift and delivery).
+  for (const id of ids) for (const x of BLOCKS[id]?.feedbackExtras ?? []) if (fired.has(x.event) && !feedbackExtras.some((f) => f.event === x.event)) feedbackExtras.push(x);
   // A shared system takes the base genre's defaults, else those of the genre it comes from.
   const paramDefaults: Record<string, Record<string, ParamValue>> = {};
   for (const id of ids) {

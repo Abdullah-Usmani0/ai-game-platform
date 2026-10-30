@@ -130,9 +130,17 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return 'sigh';
     case 'custom:season_over':
       return 'wilt';
+    case 'custom:lift':
+      return 'pickup';
+    case 'custom:deliver':
+      return 'coins';
+    case 'custom:drop':
+      return 'thunk';
     case 'custom:no_seeds':
     case 'custom:too_tired':
     case 'custom:bin_empty':
+    case 'custom:no_order':
+    case 'custom:not_ready':
       return 'bump';
     default:
       return SFX_PRESETS[event] ? event : null;

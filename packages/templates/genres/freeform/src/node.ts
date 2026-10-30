@@ -8,6 +8,7 @@ import { puzzle } from '@gg/template-puzzle/node';
 import { shmup } from '@gg/template-shmup/node';
 import { survivors } from '@gg/template-survivors/node';
 import { topdownAction } from '@gg/template-topdown-action/node';
+import { dressLevel } from './blocks.js';
 import { freeformCheck } from './check.js';
 import { compose, IDENTITY_ROSTER } from './compose.js';
 import { SYSTEMS, usableSystems } from './registry.js';
@@ -43,10 +44,12 @@ export function freeformManifest(file: FreeformSystemsJson, roster: EntityRoster
     for (const p of m.panels) if (kit.runtime.systems[p.systemId] && !panels.some((q) => q.systemId === p.systemId && q.param === p.param)) panels.push(p);
   }
   const extra = base.extraContent;
+  const feel = kit.runtime.feelPresets[file.feelPreset] ?? kit.runtime.feelPresets[kit.runtime.defaultFeel]!;
   return {
     ...base,
     ...kit.runtime,
-    levelGrammar: { kind: base.levelGrammar.kind, generate: (params) => retypeLevel(base.levelGrammar.generate(params), rename), validate: kit.validate },
+    // The base genre's level under the game's names, with what its blocks place on it (a courier's stations).
+    levelGrammar: { kind: base.levelGrammar.kind, generate: (params) => dressLevel(retypeLevel(base.levelGrammar.generate(params), rename), params.seed, file, kit.composed, feel), validate: kit.validate },
     extraContent: extra ? (params) => retypeContent(extra(params), rename) : undefined,
     designContent: designContentFor(file.systems.map((s) => s.id)),
     bots: kit.bots,

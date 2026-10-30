@@ -7,6 +7,10 @@ export { movementTopdown, meta as movementTopdownMeta } from './systems/movement
 export { spawner, meta as spawnerMeta } from './systems/spawner.js';
 export { survival, meta as survivalMeta } from './systems/survival.js';
 export { objectives, meta as objectivesMeta } from './systems/objectives.js';
+export { carry, meta as carryMeta, boxGap, carryTarget, carryTypes, deliveriesWanted, ordersOn, CARRY_KEYS, CARRYING, ORDER_LEFT, READY_AT, type CarryKey, type CarryTarget } from './systems/carry.js';
+export { courier } from './courier.js';
+export { carryBlock } from './blocks.js';
+export { checkStations, dressStations, SERVICE_WINDOW, SIDE_REACH, type StationsCtx } from './level/stations.js';
 export { validateArena, validateWaves } from './level/arena.js';
 export * from './sim-options.js';
 export * from './check.js';

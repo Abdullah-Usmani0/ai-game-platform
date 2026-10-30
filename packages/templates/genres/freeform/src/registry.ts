@@ -7,7 +7,7 @@ import { lifesimRuntime } from '@gg/template-lifesim';
 import { shmupRuntime } from '@gg/template-shmup';
 import { survivorsRuntime } from '@gg/template-survivors';
 import { topdownActionRuntime } from '@gg/template-topdown-action';
-import { objectives, objectivesMeta, rolesOf, type GenreRuntime, type SystemModule } from '@gg/template-core';
+import { carryBlock, objectives, objectivesMeta, rolesOf, type BlockModule, type GenreRuntime, type SystemModule } from '@gg/template-core';
 import type { EntityRole, MovementKind, SystemsCatalog } from '@gg/validators';
 
 /** The curated genres' runtimes: every system, entity and behaviour a freeform game can be made of. */
@@ -23,8 +23,17 @@ export const RUNTIMES: Readonly<Record<CuratedGenre, GenreRuntime>> = {
 export const CURATED_IDS = Object.keys(RUNTIMES) as CuratedGenre[];
 
 /**
+ * The blocks only freeform games compose: systems that belong to no genre, some with what they bring beyond the system
+ * (a courier's job brings its own entities, the stations it places on every level and the bot that plays it).
+ */
+export const BLOCKS: Readonly<Record<string, BlockModule>> = {
+  [autoRunMeta.id]: { meta: autoRunMeta, create: () => autoRun },
+  [carryBlock.meta.id]: carryBlock,
+};
+
+/**
  * Every system by id, with the genres that ship it (the first is its home); the shared objectives belong to none, and
- * neither does the runner, which only freeform games compose.
+ * neither do the blocks only freeform games compose.
  */
 export const SYSTEMS: Readonly<Record<string, SystemModule & { genres: CuratedGenre[] }>> = (() => {
   const out: Record<string, SystemModule & { genres: CuratedGenre[] }> = {};
@@ -36,7 +45,7 @@ export const SYSTEMS: Readonly<Record<string, SystemModule & { genres: CuratedGe
     }
   }
   out[objectivesMeta.id] = { meta: objectivesMeta, create: () => objectives, genres: [] };
-  out[autoRunMeta.id] = { meta: autoRunMeta, create: () => autoRun, genres: [] };
+  for (const [id, b] of Object.entries(BLOCKS)) out[id] = { meta: b.meta, create: b.create, genres: [] };
   return out;
 })();
 
@@ -61,10 +70,16 @@ export function usableSystems(base: CuratedGenre): string[] {
     .map(([id]) => id);
 }
 
-/** A shipped entity of a curated genre, as a freeform game's roster names it: '<genre>:<type>'. */
+/**
+ * A shipped entity, as a freeform game's roster names it: a curated genre's ('<genre>:<type>'), or a block's own
+ * ('<block>:<type>', a courier's cargo), which works whatever way the player moves and comes with its block.
+ */
 export interface Archetype {
   id: string;
-  genre: CuratedGenre;
+  /** The genre that ships it; null for a block's own. */
+  genre: CuratedGenre | null;
+  /** The block that brings it. */
+  block?: string;
   def: EntityDef;
   /** The behaviour it runs in its genre (null for items and projectiles without one). */
   behaviour: BehaviourFsm | null;
@@ -81,11 +96,19 @@ export const ARCHETYPES: Readonly<Record<string, Archetype>> = (() => {
       out[id] = { id, genre, def, behaviour: def.fsm ? (rt.defaultBehaviours.find((b) => b.id === def.fsm) ?? null) : null, roles: [...(roles.get(def.type) ?? [])] };
     }
   }
+  for (const [block, b] of Object.entries(BLOCKS)) {
+    for (const a of b.archetypes ?? []) out[`${block}:${a.def.type}`] = { id: `${block}:${a.def.type}`, genre: null, block, def: a.def, behaviour: null, roles: [...a.roles] };
+  }
   return out;
 })();
 
-/** The archetype a system's entity parameter names by default: its type in a genre that ships the system with it. */
+/**
+ * The archetype a system's entity parameter names by default: the block's own entity of that name (a courier's cargo),
+ * else its type in a genre that ships the system with it.
+ */
 export function paramArchetype(systemId: string, type: string): string | null {
+  // A block's own entity first: the courier's cargo is its own, whatever genre ships something of that name.
+  if (ARCHETYPES[`${systemId}:${type}`]?.block === systemId) return `${systemId}:${type}`;
   for (const genre of SYSTEMS[systemId]?.genres ?? []) if (ARCHETYPES[`${genre}:${type}`]) return `${genre}:${type}`;
   return null;
 }

@@ -1,6 +1,7 @@
 import type { BehaviourFsm, EcaRule, EntityRoster, FreeformSystemsJson, LevelJson, LevelProof, Mechanic } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding, type Sim, type SystemDef } from '@gg/sdk';
 import { afkWins, explore, explorerOptionsFor, levelTicksOf, runBot, scriptFromLog, simOptionsFor, type BotPolicy } from '@gg/template-core';
+import { blockBots } from './blocks.js';
 import { compose, type Composed } from './compose.js';
 import { inverse, retypeContent, retypeFsm, retypeLevel, retypeRule, type Rename } from './retype.js';
 
@@ -95,6 +96,18 @@ export function proveLevel(level: LevelJson, index: number, inputs: ProveInputs,
         tried.push(`solver: the game under the base names stopped (${(e as Error).message})`);
       }
     }
+  }
+  // The bots the game's blocks bring play their jobs on the game as it is, under its own names (the courier).
+  for (const [name, bot] of Object.entries(blockBots(inputs.file))) {
+    const sim = fresh();
+    const r = runBot(sim, bot, levelTicksOf(sim.options));
+    if (!r.completed) {
+      tried.push(`${name}: no win in ${r.ticks} ticks (${r.deaths} deaths)`);
+      continue;
+    }
+    const script = scriptFromLog(sim, sim.tick);
+    if (wins(script, sim.tick)) return { proof: { version: 1, level: level.id, seed, ticks: sim.tick, by: 'bot', script }, tried: [...tried, `${name}: wins in ${sim.tick} ticks`] };
+    tried.push(`${name}: won, but the run does not replay`);
   }
   const ex = explore(fresh, { budget: inputs.budget, ...explorerOptionsFor([...Object.values(game.runtime.systems).map((m) => m.meta), ...(inputs.mechanics ?? [])]) });
   if (ex.completed && ex.script) return { proof: { version: 1, level: level.id, seed, ticks: ex.ticks, by: 'explorer', script: ex.script }, tried: [...tried, `explorer: wins in ${ex.ticks} ticks (${ex.explored} explored)`] };

@@ -39,10 +39,18 @@ export function compileRoster(base: CuratedGenre, roster: EntityRoster, systemId
       issues.push(err('unknown_archetype', `${e.type}: no shipped entity '${e.archetype}'`, { path: e.type }));
       continue;
     }
-    const mode = RUNTIMES[a.genre].movementMode;
-    if (mode !== baseRt.movementMode) {
-      issues.push(err('archetype_movement', `${e.type}: ${e.archetype} belongs to a ${mode} game, and this one moves ${baseRt.movementMode}`, { path: e.type }));
-      continue;
+    if (a.genre === null) {
+      // A block's own entity works whatever way the player moves, and only in a game that runs the block.
+      if (!systemIds.includes(a.block!)) {
+        issues.push(err('archetype_block', `${e.type}: ${e.archetype} comes with the ${a.block} system, which the game does not run`, { path: e.type }));
+        continue;
+      }
+    } else {
+      const mode = RUNTIMES[a.genre].movementMode;
+      if (mode !== baseRt.movementMode) {
+        issues.push(err('archetype_movement', `${e.type}: ${e.archetype} belongs to a ${mode} game, and this one moves ${baseRt.movementMode}`, { path: e.type }));
+        continue;
+      }
     }
     named.set(a.id, { type: e.type, hp: e.hp });
     taken.add(e.type);
@@ -71,16 +79,16 @@ export function compileRoster(base: CuratedGenre, roster: EntityRoster, systemId
     taken.add(type);
     typeOf.set(a.id, type);
     used.push(a);
-    // A behaviour's projectiles come along (an archer brings its arrows).
-    for (const p of projectilesOf(a.behaviour)) queue.push(`${a.genre}:${p}`);
+    // A behaviour's projectiles come along (an archer brings its arrows); a block's entities run no behaviour.
+    if (a.genre !== null) for (const p of projectilesOf(a.behaviour)) queue.push(`${a.genre}:${p}`);
   }
 
   const nameIn = (genre: CuratedGenre) => new Map(used.filter((a) => a.genre === genre).map((a) => [a.def.type, typeOf.get(a.id)!]));
   // Behaviour ids are shared where two genres ship the same behaviour (platformer and metroidvania walkers), and
   // made apart where they differ.
-  const fsmOwner = new Map<string, { genre: CuratedGenre; json: string }>();
+  const fsmOwner = new Map<string, { genre: CuratedGenre | null; json: string }>();
   const fsmId = (a: Archetype): string | undefined => {
-    if (!a.behaviour) return a.def.fsm;
+    if (!a.behaviour || a.genre === null) return a.def.fsm;
     const json = JSON.stringify(a.behaviour);
     const owner = fsmOwner.get(a.behaviour.id);
     if (!owner) fsmOwner.set(a.behaviour.id, { genre: a.genre, json });
@@ -98,7 +106,7 @@ export function compileRoster(base: CuratedGenre, roster: EntityRoster, systemId
     if (scale !== 1) def.hp = Math.max(1, Math.round((a.def.hp ?? 1) * scale));
     const fsm = fsmId(a);
     if (fsm !== undefined) def.fsm = fsm;
-    if (a.behaviour && fsm && !behaviours.some((b) => b.id === fsm)) behaviours.push(retypeFsm({ ...a.behaviour, id: fsm }, nameIn(a.genre)));
+    if (a.behaviour && a.genre !== null && fsm && !behaviours.some((b) => b.id === fsm)) behaviours.push(retypeFsm({ ...a.behaviour, id: fsm }, nameIn(a.genre)));
     defs.push(def);
     roles[type] = a.roles;
   }

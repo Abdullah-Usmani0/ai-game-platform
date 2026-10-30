@@ -36,10 +36,16 @@ and no key has two uses, with the parameters you give each system (a key a param
 (`hud_at_least`) counts a number one of the selected systems keeps on the HUD (each catalog entry lists its `hud`
 numbers: coins, kills, wave...) or the score; the HUD shows it against its goal ('3/12').
 
-Two blocks only freeform games compose:
+Blocks only freeform games compose:
 - `auto-run` (side view) makes a runner: the player runs right on their own at `pace` of the feel's top speed, rising by
   `rampPerMin`; left and right do nothing, so the play page and the explorer leave them out, and the levels are generated
   as long as the GDD's level time at that pace. It cannot go with `movement-metroidvania`, whose maps are won by going back.
+- `carry` (top-down or side view) makes a courier's job: it brings its own entities (`carry:cargo`, `carry:source`,
+  `carry:dropoff`, named in the roster like any archetype) and places a source and `dropoffs` dropoffs on every level.
+  The `key` (action; or jump top-down, down in a side view, to leave action to a weapon) picks up what is in `reach`:
+  cargo lying about, or a source's next item (one every `makeS` seconds); at a dropoff it delivers, one at a time, and
+  every delivery counts on the HUD: the goal is `hud_at_least delivered N`. A hit knocks the load to the floor. Its
+  courier bot plays the job, so its levels are proven without the explorer.
 - `player-shooter` `aim`: `up` (a vertical shooter), `facing` (top-down where the arrows last pointed; side view forward,
   or up with up held), `nearest` (the closest hostile within `range`: a twin-stick arena on one fire key). A side view
   takes `facing` or `nearest`. In an arena, a `defeat` clause beside `survive` makes the shots needed: a good kiter

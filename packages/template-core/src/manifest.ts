@@ -9,6 +9,35 @@ export interface SystemModule {
   create(): SystemDef<any>;
 }
 
+/** What a block's level hooks know of the game: its movement and feel, and its names and parameters for the block. */
+export interface BlockLevelCtx {
+  movementMode: 'platformer' | 'topdown';
+  feel: FeelPreset;
+  /** The game's name for each of the block's own entity types ('cargo' -> 'teapot'). */
+  typeOf(blockType: string): string;
+  /** The definition of one of the game's entity types (sizes for placing it). */
+  defOf(type: string): EntityDef | undefined;
+  /** The block's parameters as the game sets them, over the catalog's defaults. */
+  params: Readonly<Record<string, ParamValue>>;
+}
+
+/**
+ * A block: a catalog system only freeform games compose (a runner, a courier's job), with what it brings beyond the
+ * system. Its own entity types, under its own names (a courier's cargo and stations: '<block>:<type>' to a roster),
+ * which work whatever way the player moves; feedback for its own events; a bot that plays its job, which proves a
+ * level before the explorer tries; and hooks that place its entities on the levels the base genre generates and check
+ * them there.
+ */
+export interface BlockModule extends SystemModule {
+  archetypes?: ReadonlyArray<{ def: EntityDef; roles: readonly EntityRole[] }>;
+  feedbackExtras?: Array<{ event: string; channels: FeedbackChannel[] }>;
+  bot?: BotPolicy;
+  /** The level with the block's entities placed: deterministic from the generator's seed. */
+  dress?(level: LevelJson, seed: number, ctx: BlockLevelCtx): LevelJson;
+  /** What is wrong with the block's entities on a level (placed by dress, or by hand in the editor). */
+  checkLevel?(level: LevelJson, ctx: BlockLevelCtx): Issue[];
+}
+
 export interface BotResult {
   completed: boolean;
   ticks: number;

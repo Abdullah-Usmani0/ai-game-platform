@@ -4,3 +4,4 @@ export * from './roster.js';
 export * from './compose.js';
 export * from './examples.js';
 export * from './levels.js';
+export * from './blocks.js';
