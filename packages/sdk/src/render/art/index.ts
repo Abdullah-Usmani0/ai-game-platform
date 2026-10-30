@@ -7,3 +7,4 @@ export * from './pixels.js';
 export * from './scenery.js';
 export * from './sprites.js';
 export * from './terrain.js';
+export * from './designs.js';

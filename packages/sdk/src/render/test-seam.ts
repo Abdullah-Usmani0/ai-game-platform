@@ -1,7 +1,7 @@
 import type { StateSnapshot } from '@gg/schemas';
 import type { InputSegment, InputState } from '../sim/input.js';
 import { replay } from '../sim/sim.js';
-import type { GameBuild, GameController, SceneKey } from './controller.js';
+import type { DrawStats, GameBuild, GameController, SceneKey } from './controller.js';
 import type { RunMode } from './driver.js';
 
 export interface TestSeam {
@@ -24,6 +24,8 @@ export interface TestSeam {
   metrics(): { fps: number; frameMsP95: number; frameMsAvg: number; heapMB: number; samples: number };
   screenshot(): Promise<string>;
   levels(): string[];
+  /** What the view could not draw as the game asked: designs it fell back from, types drawn as placeholders. */
+  draws(): DrawStats;
 }
 
 export interface TestFlag {
@@ -78,6 +80,7 @@ export function installTestSeam(
     metrics: () => controller.metrics.snapshot(),
     screenshot,
     levels: () => controller.options.levels.map((l) => l.id),
+    draws: () => controller.drawStats,
   };
   window.__game = seam;
   window.__TEST__ = flag;

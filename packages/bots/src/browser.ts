@@ -44,6 +44,8 @@ export function seam(page: Page): {
   screenshotPng(): Promise<Buffer>;
   /** Start a level fresh (no carried props), as the Node-side bots and proofs play it. */
   gotoLevel(index: number): Promise<void>;
+  /** What the view could not draw as the game asked (null from a game built before the seam had it). */
+  draws(): Promise<ReturnType<TestSeam['draws']> | null>;
 } {
   return {
     state: () => page.evaluate(() => window.__game!.state()),
@@ -57,5 +59,6 @@ export function seam(page: Page): {
     mode: () => page.evaluate(() => window.__game!.mode),
     screenshotPng: () => page.screenshot({ type: 'png' }),
     gotoLevel: (index) => page.evaluate((i) => window.__game!.goto('play', { level: i }), index),
+    draws: () => page.evaluate(() => window.__game!.draws?.() ?? null),
   };
 }

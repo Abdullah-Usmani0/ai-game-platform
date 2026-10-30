@@ -21,6 +21,7 @@ from `stage.json`. Do not guess them; read the injected summary.
 | gdd | worker (structured) or you | validate:gdd, validate:style | gdd-author |
 | systems | worker (structured), with a farm's crops | validate:systems | systems-select |
 | composition | worker (structured), freeform games only | validate:systems | systems-select |
+| sprites | worker (structured) | validate:sprites | - |
 | scaffold | worker | typecheck, lint, prove, test, build, smoke | - |
 | behaviour | worker (structured) or you | validate:behaviour, prove, solver | behaviour-author |
 | implement | you | validate:systems, typecheck, lint, test, build, smoke | mechanic-author, verify |
@@ -52,8 +53,10 @@ unlisted. `pnpm catalog freeform <base>` lists the systems a freeform game on th
 - `game/design/` concept.md, gdd.md, systems.json, style.json, mechanics.json (the contracts of the game's own systems,
   which its test holds them to), deviations.md (the spec; machine-read front matter)
 - `game/content/` levels/*.json, behaviour/*.fsm.json, rules/*.eca.json, waves.json, dialogue.json (data, validated on write);
-  a farm has crops.json (written from the idea after the systems and held to their rules by validate:systems); a
-  freeform game also has entities.json, objectives.json and proofs/*.json (recorded winning runs, written by the worker)
+  a farm has crops.json (written from the idea after the systems and held to their rules by validate:systems); every
+  game may have sprites.json (its cast's own look: per type a shipped sprite of its build, ramp colours and overlays,
+  held to the art rules by validate:sprites; a type without one draws as it ships); a freeform game also has
+  entities.json, objectives.json and proofs/*.json (recorded winning runs, written by the worker)
 - `game/src/systems/` bespoke simulation systems in GlueTS (see rules), each with its contract in design/mechanics.json;
   a freeform game records its runs with them (`pnpm -C game prove`); `game/src/main.ts` is scaffolded, do not edit
 - `game/assets/` requests.json and manifest.json; binary assets are produced by the asset pipeline, never by hand

@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { mergeReports, replayProofs, runSmoke } from '@gg/bots';
 import { LevelJson, parseAnyGdd, StyleCard, type AnyGddFrontmatter, type GateReport, type PlaytestReport } from '@gg/schemas';
-import { checkGameSystems, checkProofs, manifestFor, readGameFiles, readGameLevels } from '@gg/templates/node';
+import { checkGameSprites, checkGameSystems, checkProofs, manifestFor, readGameFiles, readGameLevels } from '@gg/templates/node';
 import { sfxPresetFor } from '@gg/sdk/art';
 import { checkGdd, juiceLintRuns, parseFrontmatter, silentSfx, validateRamp, type FeedbackTable } from '@gg/validators';
 
@@ -118,6 +118,11 @@ async function check(name: string): Promise<Check> {
     }
     case 'validate:systems': {
       const r = checkGameSystems(gameDir);
+      return { name, passed: r.ok, detail: r.issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
+    }
+    case 'validate:sprites': {
+      // The game's own look for its cast (content/sprites.json; none: it draws as it ships), held to the art rules.
+      const r = checkGameSprites(gameDir);
       return { name, passed: r.ok, detail: r.issues.map((i) => `${i.severity} ${i.code}: ${i.message}`).join('\n') };
     }
     case 'validate:ramp': {

@@ -122,6 +122,15 @@ export class FakeProvider implements Provider {
         data = JSON.parse(example) as unknown;
         break;
       }
+      case 'SpriteSheet': {
+        // The prompt ends with an example game's designs: a dry run of that very game (its cast is the prompt's) gets
+        // them back, any other game draws as it ships.
+        const example = /^Example \(another game's designs[^\n]*\n(\{.*\})$/m.exec(req.prompt)?.[1];
+        const cast = new Set([...req.prompt.matchAll(/^- (\S+) \(/gm)].map((m) => m[1]!));
+        const designs = example ? (JSON.parse(example) as { sprites: Array<{ type: string }> }) : null;
+        data = designs && designs.sprites.length > 0 && designs.sprites.every((d) => cast.has(d.type)) ? designs : { version: 1, sprites: [] };
+        break;
+      }
       case 'EditRoute': {
         // The router's prompt lists the game's behaviours ("Behaviours: grunt, brute.").
         const listed = (marker(/^Genre: .*Behaviours: ([^.]*)\./m) ?? '').split(', ').filter((b) => b && b !== '(none)');

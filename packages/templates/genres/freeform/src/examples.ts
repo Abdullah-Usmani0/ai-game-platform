@@ -57,6 +57,45 @@ export const HIVE: FreeformExample = {
   // Kiting alone does not last the minute on two lives: the swarm has to be thinned (measured: attack is needed,
   // random mashing and standing still never win).
   objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'survive', seconds: 60 }] }, lose: [{ kind: 'lives', count: 2 }] },
+  content: {
+    // A yellow bee with feelers, a striped body and pale wings; orange wasps with clear wings and a dark band, and
+    // rust hornets: the foes stay off the bee's yellow.
+    sprites: {
+      version: 1,
+      sprites: [
+        {
+          type: '@player',
+          base: 'hero-topdown',
+          recolor: { hero: '#ffc93c', accent: '#f2a93b', garment: '#2e2118', rim: '#e6f3ff' },
+          overlays: [
+            { x: 0, y: 0, rows: ['_k____k_'] },
+            { x: 1, y: 5, rows: ['444444', '......', '344443'] },
+            { x: 0, y: 4, rows: ['Y......Y', 'V......V'], under: true },
+            { anims: ['up-idle', 'up-run', 'up-attack', 'up-hurt'], x: 2, y: 5, rows: ['yYYy', 'vyyv'] },
+          ],
+        },
+        {
+          type: 'wasp',
+          base: 'bat',
+          recolor: { danger: '#ef7d22', rim: '#dff1ff' },
+          overlays: [
+            { x: 0, y: 0, rows: ['Y......Y', 'yY....Yy', 'vyY..Yyv'] },
+            { x: 2, y: 5, rows: ['kkkk'] },
+          ],
+        },
+        {
+          type: 'hornet',
+          base: 'brute',
+          recolor: { danger: '#c8501e', rim: '#dff1ff' },
+          overlays: [
+            { x: 3, y: 0, rows: ['k....k'] },
+            { x: 1, y: 8, rows: ['kkkkkkkkkk'] },
+            { x: 0, y: 2, rows: ['yY........Yy', 'vy........yv'], under: true },
+          ],
+        },
+      ],
+    },
+  },
 };
 
 /** Top-down action rooms cleared by a survivors auto-attack: the gun aims itself, the room-clear rule still holds. */
@@ -105,6 +144,33 @@ export const HEIST: FreeformExample = {
       { type: 'cell', archetype: 'topdown-action:gem', hp: 1 },
       { type: 'shard', archetype: 'survivors:xp', hp: 1 },
     ],
+  },
+  content: {
+    // A steel robot in a teal shell with a lit visor, a chest lamp and a turret on its shoulder (teal, so it never reads
+    // as the grey stone sentries); guards in blue with flat caps, a gold vault keeper, cyan cells and green data shards.
+    sprites: {
+      version: 1,
+      sprites: [
+        {
+          type: '@player',
+          base: 'hero-topdown',
+          recolor: { hero: '#d3dce1', accent: '#1f8f7e', garment: '#27a892', rim: '#5ee0ff' },
+          overlays: [
+            { anims: ['down-idle', 'down-run', 'down-attack', 'down-hurt'], x: 1, y: 3, rows: ['kYkkYk'] },
+            { anims: ['side-idle', 'side-run', 'side-attack', 'side-hurt'], x: 3, y: 3, rows: ['kkYkY'] },
+            { x: 3, y: 6, rows: ['YY'] },
+            { x: 5, y: 4, rows: ['.kk', 'kk.'] },
+          ],
+        },
+        { type: 'guard', base: 'grunt', recolor: { secondary: '#3d5a9e' }, overlays: [{ x: 1, y: 0, rows: ['kkkkkk'] }] },
+        { type: 'sentry', base: 'archer', recolor: { danger: '#ff3b3b', wood: '#3a3f58' } },
+        { type: 'dart', base: 'arrow', recolor: { wood: '#ff6b6b' } },
+        { type: 'enforcer', base: 'brute', recolor: { danger: '#a8432c' } },
+        { type: 'keeper', base: 'warden', recolor: { danger: '#c9a227', accent: '#5ee0ff' } },
+        { type: 'cell', base: 'gem', recolor: { accent: '#5ee0ff' } },
+        { type: 'shard', base: 'crystal', recolor: { secondary: '#7bd389' } },
+      ],
+    },
   },
 };
 
@@ -156,6 +222,36 @@ export const LANTERN: FreeformExample = {
     ],
   },
   objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'collect', type: 'lantern', count: 2 }, { kind: 'reach_goal' }] }, lose: [{ kind: 'lives', count: 3 }] },
+  content: {
+    // A pale moth with lilac fuzz, feelers and a wing at its back; warm lanterns with a dark cap and base, teal beetles,
+    // green frogs and pale green spores.
+    sprites: {
+      version: 1,
+      sprites: [
+        {
+          type: '@player',
+          base: 'hero-side',
+          recolor: { hero: '#eadfc8', accent: '#c9b2e6', garment: '#7a68a6', rim: '#f3e9ff' },
+          overlays: [
+            { x: 3, y: 0, rows: ['_k_k_'] },
+            { x: 0, y: 5, rows: ['Yy', 'yV', 'V.'], under: true },
+          ],
+        },
+        {
+          type: 'lantern',
+          base: 'coin',
+          recolor: { accent: '#ffb347' },
+          overlays: [
+            { x: 1, y: 0, rows: ['_kk_'] },
+            { x: 1, y: 5, rows: ['kkkk'] },
+          ],
+        },
+        { type: 'beetle', base: 'walker', recolor: { danger: '#2f7f6a' }, overlays: [{ x: 6, y: 0, rows: ['k.', '.k'] }] },
+        { type: 'frog', base: 'hopper', recolor: { secondary: '#5dbb63' } },
+        { type: 'spore', base: 'orb', recolor: { danger: '#b8f26b' } },
+      ],
+    },
+  },
 };
 
 /** The cozy farm's systems under another sky: a moth's moon garden, every farm thing renamed, the season won by the purse. */
@@ -214,6 +310,28 @@ export const MOON: FreeformExample = {
         { id: 'dewleaf', name: 'Dewleaf', seedPrice: 20, sellPrice: 65, growDays: 3, look: { shape: 'leafy', color: '#7fe0b8' } },
         { id: 'starberry', name: 'Starberry', seedPrice: 45, sellPrice: 35, growDays: 4, regrowDays: 1, look: { shape: 'bush', color: '#ffd75e' } },
         { id: 'nightlily', name: 'Nightlily', seedPrice: 50, sellPrice: 175, growDays: 5, look: { shape: 'tall', color: '#c59bff' } },
+      ],
+    },
+    // The moth keeper in lilac with feelers for a hat and pale wings; blue-grey moonbeds, a moonwood offering chest
+    // with a glowing latch, the beetle's stall under a violet awning, the hollow in dark bark.
+    sprites: {
+      version: 1,
+      sprites: [
+        {
+          type: '@player',
+          base: 'farmer',
+          recolor: { hero: '#eadfc8', accent: '#c9b2e6', garment: '#7a68a6', rim: '#f3e9ff' },
+          overlays: [
+            { x: 0, y: 0, rows: ['_k____k_', '__k__k__'] },
+            { anims: ['down-idle', 'down-run', 'down-attack', 'down-hurt'], x: 0, y: 4, rows: ['Y......Y', 'V......V'], under: true },
+            { anims: ['up-idle', 'up-run', 'up-attack', 'up-hurt'], x: 1, y: 5, rows: ['yYYYYy', 'VyVVyV'] },
+            { anims: ['side-idle', 'side-run', 'side-attack', 'side-hurt'], x: 0, y: 4, rows: ['Y', 'yY', 'V'], under: true },
+          ],
+        },
+        { type: 'moonbed', base: 'plot', recolor: { wood: '#4b4a6b' } },
+        { type: 'offering', base: 'bin', recolor: { wood: '#6d5a8f', accent: '#a9dcff' } },
+        { type: 'beetle_stall', base: 'stall', recolor: { accent: '#7c5cbf' } },
+        { type: 'hollow', base: 'door-front', recolor: { wood: '#5b4636' } },
       ],
     },
   },

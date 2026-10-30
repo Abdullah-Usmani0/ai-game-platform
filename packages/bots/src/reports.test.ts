@@ -35,6 +35,16 @@ describe('mergeReports', () => {
     expect(m.consoleErrors).toEqual(['boom']);
   });
 
+  it('joins what each run could not draw: every design that fell back, every placeholder type', () => {
+    const m = mergeReports([
+      run(1, { draws: { designs: 3, designFallbacks: ['wasp'], blobFallbacks: [] } }),
+      run(2, { draws: { designs: 3, designFallbacks: ['wasp'], blobFallbacks: ['spark'] } }),
+      run(3),
+    ]);
+    expect(m.draws).toEqual({ designs: 3, designFallbacks: ['wasp'], blobFallbacks: ['spark'] });
+    expect(mergeReports([run(1), run(2)]).draws).toBeUndefined();
+  });
+
   it('a single report is returned as it is', () => {
     const one = run(1);
     expect(mergeReports([one])).toBe(one);

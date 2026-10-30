@@ -41,8 +41,8 @@ interface GameView {
   jobs: Array<{ id: string; kind: string; status: string; stage: string | null; costUsd: number; createdAt: string; error: { reason?: string } | null }>;
 }
 
-const CREATE_STAGES = ['gdd', 'systems', 'scaffold', 'behaviour', 'implement', 'levels', 'integrate', 'playtest', 'juice', 'review', 'budget', 'publish'];
-const STAGE_LABELS: Record<string, string> = { gdd: 'Design', systems: 'Systems', scaffold: 'Scaffold', behaviour: 'Behaviour', implement: 'Code', levels: 'Levels', integrate: 'Integrate', playtest: 'Playtest', juice: 'Juice', review: 'Review', budget: 'Budget', publish: 'Publish' };
+const CREATE_STAGES = ['gdd', 'systems', 'sprites', 'scaffold', 'behaviour', 'implement', 'levels', 'integrate', 'playtest', 'juice', 'review', 'budget', 'publish'];
+const STAGE_LABELS: Record<string, string> = { gdd: 'Design', systems: 'Systems', sprites: 'Sprites', scaffold: 'Scaffold', behaviour: 'Behaviour', implement: 'Code', levels: 'Levels', integrate: 'Integrate', playtest: 'Playtest', juice: 'Juice', review: 'Review', budget: 'Budget', publish: 'Publish' };
 const JOB_TONE: Record<string, string> = { queued: 'info', running: 'brand', succeeded: 'ok', failed: 'err', needs_human: 'warn', cancelled: 'neutral' };
 const JOB_TITLE: Record<string, string> = { create: 'Building the game', edit: 'Applying an edit', edit_content: 'Applying a level edit' };
 const EDIT_EXAMPLES = ['make the walker chase more aggressively', 'make jumps a little floatier', 'a warmer, sunset palette', 'add a third level that is harder'];

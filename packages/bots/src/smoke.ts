@@ -35,6 +35,7 @@ interface ManualRun {
   inPageReplay: StateSnapshot;
   readyMs: number;
   metrics: ReturnType<TestSeam['metrics']>;
+  draws: ReturnType<TestSeam['draws']> | null;
   errors: string[];
   failures: string[];
   screenshotPath?: string;
@@ -55,6 +56,9 @@ async function runManual(url: string, script: InputSegment[], ticks: number, see
     if (inPageReplay.hash !== manual.hash) failures.push(`in-page replay hash ${inPageReplay.hash} != live ${manual.hash}`);
     await session.page.waitForTimeout(100);
     const metrics = await s.metrics();
+    // A design the gate passed that the browser could not draw is a fault, not a look: it fell back to the shipped sprite.
+    const draws = await s.draws();
+    if (draws && draws.designFallbacks.length > 0) failures.push(`${draws.designFallbacks.length} sprite design(s) fell back to the shipped sprite: ${draws.designFallbacks.join(', ')}`);
     let screenshotPath: string | undefined;
     if (outDir) {
       mkdirSync(outDir, { recursive: true });
@@ -69,7 +73,7 @@ async function runManual(url: string, script: InputSegment[], ticks: number, see
       }
       writeFileSync(screenshotPath, await s.screenshotPng());
     }
-    return { manual, events, inPageReplay, readyMs, metrics, errors: [...session.consoleErrors, ...session.pageErrors], failures, screenshotPath };
+    return { manual, events, inPageReplay, readyMs, metrics, draws, errors: [...session.consoleErrors, ...session.pageErrors], failures, screenshotPath };
   } finally {
     await session.close();
   }
@@ -148,7 +152,7 @@ export async function runSmoke(opts: SmokeOptions): Promise<SmokeResult> {
     await server.close();
   }
   if (consoleErrors.length > 0) failures.push(`${consoleErrors.length} console/page error(s): ${consoleErrors[0]}`);
-  const { manual, events, inPageReplay, readyMs, metrics, screenshotPath } = run;
+  const { manual, events, inPageReplay, readyMs, metrics, draws, screenshotPath } = run;
   const report: PlaytestReport = {
     version: 1,
     createdAt: new Date().toISOString(),
@@ -170,6 +174,7 @@ export async function runSmoke(opts: SmokeOptions): Promise<SmokeResult> {
     events,
     readyMs,
     replayHashMatch: realtime ? realtime.hash === manual.hash : inPageReplay.hash === manual.hash,
+    ...(draws ? { draws: { designs: draws.designs, designFallbacks: [...draws.designFallbacks], blobFallbacks: [...draws.blobFallbacks] } } : {}),
     passed: failures.length === 0,
     failures,
   };

@@ -36,6 +36,18 @@
     "skills": ["systems-select"],
     "task": "A freeform game only: name the game's entities (content/entities.json) from the shipped ones, write its win and lose rules (content/objectives.json) when the objectives system is selected, and the content its systems read that the idea decides (a farm's crops, content/crops.json)."
   },
+  "sprites": {
+    "runner": "worker",
+    "gate": ["validate:sprites"],
+    "allowedWrite": ["game/content/sprites.json"],
+    "caps": {
+      "turns": 0,
+      "usd": 0.5,
+      "wallMin": 5
+    },
+    "skills": [],
+    "task": "Design the game's own look for its cast in game/content/sprites.json: for each type a shipped sprite of its build to start from, its own colours and a few overlays, held to the art rules in the game's palette; a type left out draws as it ships."
+  },
   "scaffold": {
     "runner": "worker",
     "gate": ["typecheck", "lint", "prove", "test", "build", "smoke"],

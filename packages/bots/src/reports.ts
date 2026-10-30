@@ -12,6 +12,7 @@ export function mergeReports(reports: readonly PlaytestReport[]): PlaytestReport
   if (reports.length === 1) return first;
   const ready = reports.map((r) => r.readyMs).filter((v): v is number => v !== undefined);
   const matches = reports.map((r) => r.replayHashMatch).filter((v): v is boolean => v !== undefined);
+  const draws = reports.flatMap((r) => (r.draws ? [r.draws] : []));
   return {
     version: 1,
     createdAt: reports.map((r) => r.createdAt).sort().at(-1)!,
@@ -21,6 +22,7 @@ export function mergeReports(reports: readonly PlaytestReport[]): PlaytestReport
     events: first.events,
     ...(ready.length ? { readyMs: Math.max(...ready) } : {}),
     ...(matches.length ? { replayHashMatch: matches.every(Boolean) } : {}),
+    ...(draws.length ? { draws: { designs: Math.max(...draws.map((d) => d.designs)), designFallbacks: [...new Set(draws.flatMap((d) => d.designFallbacks))], blobFallbacks: [...new Set(draws.flatMap((d) => d.blobFallbacks))] } } : {}),
     passed: reports.every((r) => r.passed),
     failures: reports.flatMap((r) => r.failures.map((f) => `seed ${r.seeds.join('+')}: ${f}`)),
   };

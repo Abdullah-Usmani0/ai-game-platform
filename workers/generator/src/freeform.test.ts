@@ -4,9 +4,9 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Store } from '@gg/db';
 import { registerProvider } from '@gg/llm';
-import { ARTIFACT_SCHEMAS, CreateRequest, CURATED_GENRES, Objectives, type BehaviourFsm, type LevelJson } from '@gg/schemas';
+import { ARTIFACT_SCHEMAS, CreateRequest, CURATED_GENRES, Objectives, SpriteSheet, type BehaviourFsm, type LevelJson } from '@gg/schemas';
 import { BASE_MANIFESTS, EXAMPLES, freeformManifest, HEIST, LANTERN, type FreeformExample } from '@gg/template-freeform/node';
-import { checkProofs, readGameFiles, readGameLevels } from '@gg/templates/node';
+import { checkGameSprites, checkProofs, readGameFiles, readGameLevels } from '@gg/templates/node';
 import { validateBehaviour } from '@gg/validators';
 import { afterAll, describe, expect, it } from 'vitest';
 import { FakeProvider } from './fake-provider.js';
@@ -68,7 +68,9 @@ describe('freeform plans', () => {
     const freeform = createPlan(presets, { freeform: true }).map((s) => s.stage);
     expect(curated).not.toContain('composition');
     expect(curated).not.toContain('prove');
-    expect(freeform.slice(0, 4)).toEqual(['gdd', 'systems', 'composition', 'scaffold']);
+    // Every game's cast gets its look once its entities are known: a curated game's after its systems, a freeform one's after its composition.
+    expect(curated.slice(0, 4)).toEqual(['gdd', 'systems', 'sprites', 'scaffold']);
+    expect(freeform.slice(0, 5)).toEqual(['gdd', 'systems', 'composition', 'sprites', 'scaffold']);
     expect(freeform[freeform.indexOf('implement') + 1]).toBe('prove');
     expect(freeform.filter((s) => s !== 'composition' && s !== 'prove')).toEqual(curated);
     expect(editPlan('code', presets, false, { freeform: true }).map((s) => s.stage).slice(0, 2)).toEqual(['implement', 'prove']);
@@ -140,7 +142,7 @@ async function build(ex: FreeformExample): Promise<string> {
   registerProvider('fake', new FakeProvider({ genre: BASE_MANIFESTS[guessBase(request.prompt)], request }));
   const gameDir = mkdtempSync(join(tmpdir(), `gg-freeform-stages-${ex.id}-`));
   dirs.push(gameDir);
-  for (const stage of ['gdd', 'systems', 'composition', 'scaffold', 'behaviour', 'levels', 'prove']) {
+  for (const stage of ['gdd', 'systems', 'composition', 'sprites', 'scaffold', 'behaviour', 'levels', 'prove']) {
     const out = await new WorkerRunner().run({ ...ctxFor(gameDir, { request }), spec: { stage, gate: [] } });
     expect(out.ok, `${stage}: ${out.summary}`).toBe(true);
   }
@@ -156,8 +158,9 @@ describe('freeform stages, end to end with the dry-run provider', () => {
       expect(files.systems).toEqual(ex.systems);
       expect(files.roster).toEqual(ex.roster);
       if (ex.objectives) expect(JSON.parse(readFileSync(join(gameDir, 'content', 'objectives.json'), 'utf8'))).toEqual(ex.objectives);
-      // The content its idea decides (the moon garden's crops), as the example has it.
-      for (const [key, value] of Object.entries(ex.content ?? {})) expect(JSON.parse(readFileSync(join(gameDir, 'content', `${key}.json`), 'utf8')), key).toEqual(value);
+      // The content its idea decides (the moon garden's crops) and its cast's look, as the example has them.
+      for (const [key, value] of Object.entries(ex.content ?? {})) expect(JSON.parse(readFileSync(join(gameDir, 'content', `${key}.json`), 'utf8')), key).toEqual(key === 'sprites' ? SpriteSheet.parse(value) : value);
+      expect(checkGameSprites(gameDir).issues).toEqual([]);
       expect(readFileSync(join(gameDir, 'design', 'concept.md'), 'utf8')).toMatch(/- Genre: freeform, built on /);
       // Every behaviour the game runs fires only the entities it has (a renamed projectile under its new name).
       const m = freeformManifest(ex.systems, ex.roster);

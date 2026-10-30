@@ -4,6 +4,7 @@ export const STAGES = [
   'gdd',
   'systems',
   'composition',
+  'sprites',
   'behaviour',
   'implement',
   'levels',

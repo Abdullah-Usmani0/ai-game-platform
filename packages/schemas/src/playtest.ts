@@ -24,6 +24,8 @@ export const PlaytestReport = z.object({
   events: z.array(GameEventRecord).default([]),
   readyMs: z.number().nonnegative().optional(),
   replayHashMatch: z.boolean().optional(),
+  /** What the view could not draw as the game asked: its own designs that fell back to the shipped sprite, types drawn as placeholder shapes. */
+  draws: z.object({ designs: z.int().min(0), designFallbacks: z.array(z.string()), blobFallbacks: z.array(z.string()) }).optional(),
   passed: z.boolean(),
   failures: z.array(z.string()).default([]),
 });

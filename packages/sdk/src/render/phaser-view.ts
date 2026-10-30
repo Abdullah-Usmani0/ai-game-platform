@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { SpriteSheet } from '@gg/schemas';
 import type { Entity, Menu } from '../sim/world.js';
 import { sfxFor } from './art/audio.js';
 import { mix, parseHex, toInt, type RGB } from './art/color.js';
@@ -6,7 +7,8 @@ import { fitRow, textImage, wrapText } from './art/font.js';
 import { artPalette, type ArtPalette, type OutlineMode } from './art/palette.js';
 import { PixelCanvas, hash2 } from './art/pixels.js';
 import { FLAG, PARTICLES, TORCH, paintClouds, paintGlow, paintNebula, paintParticle, paintPlanet, paintRidge, paintScanlines, paintShadow, paintSky, paintSkyOrb, paintStars, paintVignette, paintVoid } from './art/scenery.js';
-import { RECIPES, cropRecipe, cropTune, frameSize, legendFor, paintFrames, recipeForType, type Anchor, type Recipe } from './art/sprites.js';
+import { compileSheet, playerRecipe, spriteFor } from './art/designs.js';
+import { RECIPES, cropRecipe, cropTune, frameSize, legendFor, paintFrames, type Anchor, type Recipe } from './art/sprites.js';
 import { paintRegion, prepareLevelArt, settingFor, torchSpots, type Setting } from './art/terrain.js';
 import { toCanvas } from './canvas.js';
 import type { GameController } from './controller.js';
@@ -134,6 +136,8 @@ export class MainScene extends Phaser.Scene {
   private bossTypes = new Set<string>();
   /** Types drawn as a shipped type (a renamed type keeps its archetype's art, shadow and rotation). */
   private drawAs = new Map<string, string>();
+  /** The game's own designs for its types and its player ('@player'), from content/sprites.json. */
+  private designs = new Map<string, Recipe>();
   private bossTex: Phaser.Textures.CanvasTexture | null = null;
   private bossImg!: Phaser.GameObjects.Image;
   private bossSig = '';
@@ -159,6 +163,7 @@ export class MainScene extends Phaser.Scene {
     this.fx = { ...this.fx, ...(this.style.postFx ?? {}) };
     this.fps = { ...this.fps, ...(this.style.animationFps ?? {}) };
     this.setting = settingFor(this.style.genre, this.controller.sim.options.movementMode);
+    this.readDesigns();
     const { w, h } = this.style.canvas;
     const cam = this.cameras.main;
     cam.setBackgroundColor(this.setting === 'side' ? this.style.palette.background : toInt(this.pal.ink));
@@ -240,8 +245,35 @@ export class MainScene extends Phaser.Scene {
     return sheet;
   }
 
+  /**
+   * The game's designs (content/sprites.json), each compiled on its own: one that cannot be read or drawn is left out
+   * and its type draws as it ships. Never a crash, never the placeholder shape.
+   */
+  private readDesigns(): void {
+    const raw = this.controller.options.simOptions.content?.['sprites'];
+    if (raw === undefined) return;
+    const stats = this.controller.drawStats;
+    const parsed = SpriteSheet.safeParse(raw);
+    if (!parsed.success) {
+      stats.designFallbacks.push('content/sprites.json');
+      return;
+    }
+    const { recipes, failed } = compileSheet(parsed.data);
+    stats.designFallbacks.push(...failed);
+    for (const [type, recipe] of recipes) {
+      try {
+        paintFrames(recipe, this.pal);
+        this.designs.set(type, recipe);
+      } catch {
+        stats.designFallbacks.push(type);
+      }
+    }
+    stats.designs = this.designs.size;
+  }
+
   private buildSheets(): void {
     for (const [name, recipe] of Object.entries(RECIPES)) this.sheetFromRecipe(name, recipe);
+    for (const [type, recipe] of this.designs) this.sheetFromRecipe(`game:${type}`, recipe);
     this.sheetFromRecipe('flag', FLAG);
     this.sheetFromRecipe('torch', TORCH);
   }
@@ -251,6 +283,7 @@ export class MainScene extends Phaser.Scene {
     const name = `fallback-${e.type}`;
     const known = this.sheets.get(name);
     if (known) return known;
+    this.controller.drawStats.blobFallbacks.push(e.type);
     const w = Math.max(3, Math.round(e.w));
     const h = Math.max(3, Math.round(e.h));
     const hostile = e.contactDamage > 0 || e.fsm !== null;
@@ -543,14 +576,10 @@ export class MainScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- entities
 
+  /** The sheet an entity draws with: the game's design for its type (or the player's), else its shipped sprite. */
   private recipeName(e: Entity): string | null {
-    if (e.isPlayer) {
-      if (this.setting === 'side') return 'hero-side';
-      if (this.setting === 'space') return 'ship';
-      if (this.setting === 'farm') return 'farmer';
-      return e.w >= 12 ? 'keeper' : 'hero-topdown';
-    }
-    return recipeForType(e.type, this.drawAs.get(e.type)) ?? (e.isProjectile ? 'orb' : null);
+    if (e.isPlayer) return this.designs.has('@player') ? 'game:@player' : playerRecipe(this.setting, e.w);
+    return spriteFor(e.type, { drawAs: this.drawAs.get(e.type), designs: this.designs })?.name ?? (e.isProjectile ? 'orb' : null);
   }
 
   private sheetFor(e: Entity): Sheet {

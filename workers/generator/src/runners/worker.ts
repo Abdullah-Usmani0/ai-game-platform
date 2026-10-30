@@ -14,6 +14,7 @@ import { checkGdd, checkSystems, impact, silentSfx, validateBehaviour, type Vali
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
 import { designContentOf, writeDesignContent } from './design-content.js';
 import { composition, compositionOf, freeformFrontmatter, freeformSystems, reproveLevels } from './freeform-stages.js';
+import { sprites } from './sprites.js';
 import type { PairDraft, Runner, StageContext, StageOutcome } from './types.js';
 import { add, fail, listJson, ok, readGdd, readJson, readSystems, sumUsage, writeJson, ZERO, type StageFn } from './stage-kit.js';
 
@@ -675,7 +676,7 @@ const applyContent: StageFn = async (ctx) => {
 /** Stages the worker implements itself: structured data stages, the scaffold, model-free level search, publishing, edit patches. */
 export class WorkerRunner implements Runner {
   readonly kind = 'worker' as const;
-  private readonly stages: Record<string, StageFn> = { gdd, systems, composition, scaffold: scaffoldStage, behaviour, prove, levels, publish, 'apply-params': applyParams, 'apply-style': applyStyle, 'apply-content': applyContent };
+  private readonly stages: Record<string, StageFn> = { gdd, systems, composition, sprites, scaffold: scaffoldStage, behaviour, prove, levels, publish, 'apply-params': applyParams, 'apply-style': applyStyle, 'apply-content': applyContent };
 
   async run(ctx: StageContext): Promise<StageOutcome> {
     const fn = this.stages[ctx.spec.stage];

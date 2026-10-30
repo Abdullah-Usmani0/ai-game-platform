@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { Heatmap, HeatCell } from '@gg/db';
-import { EntityRoster, type BehaviourFsm, type LevelJson, type SystemsFile, type TileKind } from '@gg/schemas';
+import { EntityRoster, SpriteSheet, type BehaviourFsm, type LevelJson, type SystemsFile, type TileKind } from '@gg/schemas';
 import { DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import type { GenreCheck, LevelCheck } from '@gg/template-core';
-import { FLAG, PixelCanvas, RECIPES, artPalette, paintFrames, paintRegion, prepareLevelArt, recipeForType, settingFor, type Anchor, type ArtPalette, type OutlineMode, type PaletteRoles, type Recipe, type Setting } from '@gg/sdk/art';
+import { FLAG, PixelCanvas, RECIPES, artPalette, compileSheet, paintFrames, paintRegion, playerRecipe, prepareLevelArt, settingFor, spriteFor, type Anchor, type ArtPalette, type OutlineMode, type PaletteRoles, type Recipe, type Setting } from '@gg/sdk/art';
 
 /** content/index.json of a published bundle (written by the publisher). */
 interface ContentIndex {
@@ -322,14 +322,16 @@ export function LevelEditor({
       const frame = recipe ? paintFrames(recipe, art.pal)[0] : undefined;
       if (recipe && frame) map.set(key, { image: canvasOf(frame.pc), anchor: recipe.anchor });
     };
-    // A renamed type (a freeform game's) is drawn as the shipped type it is.
+    // The game's own designs first (content/sprites.json), as the game draws them; a renamed type (a freeform game's)
+    // is drawn as the shipped type it is.
+    const sheet = SpriteSheet.safeParse(loaded?.content['sprites']);
+    const designs = compileSheet(sheet.success ? sheet.data : null).recipes;
     const drawAs = new Map((kit?.runtime.entityDefs ?? []).flatMap((d) => (d.drawAs ? [[d.type, d.drawAs] as const] : [])));
-    for (const t of entityTypes) add(t, RECIPES[recipeForType(t, drawAs.get(t)) ?? '']);
-    const playerW = kit?.runtime.player.w ?? 8;
-    add('@player', RECIPES[art.setting === 'side' ? 'hero-side' : art.setting === 'space' ? 'ship' : playerW >= 12 ? 'keeper' : 'hero-topdown']);
+    for (const t of entityTypes) add(t, spriteFor(t, { drawAs: drawAs.get(t), designs })?.recipe);
+    add('@player', designs.get('@player') ?? RECIPES[playerRecipe(art.setting, kit?.runtime.player.w ?? 8)]);
     if (art.setting === 'side') add('@goal', FLAG);
     return map;
-  }, [art, entityTypes, kit]);
+  }, [art, entityTypes, kit, loaded]);
 
   // Other players' heat on this version, counted per tile (the heatmap's cell is the level's tile size).
   const tileSize = draft?.tileSize ?? null;

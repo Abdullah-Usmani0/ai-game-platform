@@ -1,10 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { EntityRoster, LevelJson, LevelProof, MechanicsFile, Objectives, parseAnyGdd, parseSystemsFile, type AnyGddFrontmatter, type BehaviourFsm, type EcaRule, type Mechanic, type SystemsFile } from '@gg/schemas';
+import { EntityRoster, LevelJson, LevelProof, MechanicsFile, Objectives, parseAnyGdd, parseSystemsFile, SpriteSheet, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type EcaRule, type Mechanic, type SystemsFile } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding } from '@gg/sdk';
+import { artPalette, settingFor, type Setting } from '@gg/sdk/art';
 import { rolesPresent, simOptionsFor, type GenreManifest } from '@gg/template-core';
 import { checkFreeformObjectives, FREEFORM_CATALOG, freeformDesignManifest, freeformManifest, IDENTITY_ROSTER } from '@gg/template-freeform/node';
-import { checkComposition, checkSystems, err, mechanicMeta, parseFrontmatter, report, type Issue, type SystemsCatalog, type ValidationReport } from '@gg/validators';
+import { checkComposition, checkSpriteSheet, checkSystems, err, mechanicMeta, parseFrontmatter, report, spriteCast, type CastMember, type Issue, type SystemsCatalog, type ValidationReport } from '@gg/validators';
 import { CATALOG, genre, GENRES } from './genres.js';
 
 /** What a game's design files say about it; a file that is missing or invalid is null (proofs: left out). */
@@ -195,4 +196,31 @@ export function checkGameSystems(gameDir: string): ValidationReport {
     if (existsSync(path)) issues.push(...d.check(readJson(path), parsed.data));
   }
   return report(issues);
+}
+
+/** The setting a game is drawn in: its genre's, a freeform game's base genre's. */
+export function settingOf(files: Partial<GameFiles>, g: GenreManifest): Setting {
+  const base = files.systems?.genre === 'freeform' ? files.systems.composition.base : files.gdd?.genre === 'freeform' ? files.gdd.base : g.id;
+  return settingFor(base, g.movementMode);
+}
+
+/** The types a game draws, the player first, each with what it is for and the shipped sprite it draws with. */
+export function castOf(files: Partial<GameFiles>, requestGenre?: string): CastMember[] {
+  const g = manifestFor(files, requestGenre);
+  return spriteCast(g.entityDefs, { setting: settingOf(files, g), w: g.player.w });
+}
+
+/**
+ * content/sprites.json, the game's own look for its cast, held to the art rules in the game's palette: a design for
+ * each type it draws at most, on a sprite of that type's build, readable, no foe in the player's colours. A game
+ * without the file draws as it ships and passes.
+ */
+export function checkGameSprites(gameDir: string): ValidationReport {
+  const path = join(gameDir, 'content', 'sprites.json');
+  if (!existsSync(path)) return report([], { designs: 0 });
+  const sheet = SpriteSheet.safeParse(readJson(path));
+  if (!sheet.success) return report(sheet.error.issues.map((i) => err('sprites_schema', `content/sprites.json ${i.path.join('.')}: ${i.message}`)));
+  const style = StyleCard.safeParse(readJson(join(gameDir, 'design', 'style.json')));
+  if (!style.success) return report([err('style_missing', "design/style.json is missing or invalid: sprites are judged in the game's palette")]);
+  return checkSpriteSheet(sheet.data, { pal: artPalette(style.data.palette, style.data.outline), types: castOf(readGameFiles(gameDir)) });
 }

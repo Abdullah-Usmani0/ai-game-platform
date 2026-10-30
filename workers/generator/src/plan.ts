@@ -3,7 +3,7 @@ import { applyPreset, type StagePresets } from './presets.js';
 import type { StageSpec } from './runners/types.js';
 
 /** The create pipeline, in order. Assets run in parallel in phase 2; phase 1 games are code-drawn. */
-export const CREATE_STAGES = ['gdd', 'systems', 'scaffold', 'behaviour', 'implement', 'levels', 'integrate', 'playtest', 'juice', 'review', 'budget', 'publish'] as const;
+export const CREATE_STAGES = ['gdd', 'systems', 'sprites', 'scaffold', 'behaviour', 'implement', 'levels', 'integrate', 'playtest', 'juice', 'review', 'budget', 'publish'] as const;
 
 /** Edit routes: no full regeneration; each route runs the smallest set of stages that re-verifies the game. */
 export const EDIT_PLANS: Record<EditRouteName, string[]> = {

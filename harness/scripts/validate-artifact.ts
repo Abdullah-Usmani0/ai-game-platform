@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { ARTIFACT_SCHEMAS, parseAnyGdd, parseSystemsFile, type AnyGddFrontmatter, type ArtifactName, type BehaviourFsm, type LevelJson, type SystemsFile } from '@gg/schemas';
 import { CELESTE_CLASS } from '@gg/sdk';
-import { manifestFor, resolveGame } from '@gg/templates/node';
+import { checkGameSprites, manifestFor, resolveGame } from '@gg/templates/node';
 import type { GenreManifest } from '@gg/template-core';
 import { checkGdd, parseFrontmatter, report, validateBehaviour, validateLevel, type ValidationReport } from '@gg/validators';
 
@@ -20,6 +20,7 @@ function schemaFor(file: string): ArtifactName | null {
   if (name === 'objectives.json') return 'Objectives';
   if (/\/content\/entities\.json$/.test(f)) return 'EntityRoster';
   if (/\/content\/crops\.json$/.test(f)) return 'CropTable';
+  if (/\/content\/sprites\.json$/.test(f)) return 'SpriteSheet';
   if (/\/content\/proofs\/[^/]+\.json$/.test(f)) return 'LevelProof';
   if (name === 'systems.json') return 'SystemsFile';
   if (name === 'mechanics.json') return 'MechanicsFile';
@@ -119,6 +120,9 @@ for (const file of files) {
     if (!printReport(file, `level (${g?.id ?? 'generic'})`, r)) failed++;
   } else if (name === 'BehaviourFsm') {
     if (!printReport(file, 'behaviour', validateBehaviour(result.data as BehaviourFsm, g?.behaviourVocab, g?.entityDefs.map((e) => e.type)))) failed++;
+  } else if (name === 'SpriteSheet') {
+    // The cast's look, held to the art rules in the game's palette (design/style.json).
+    if (!printReport(file, 'sprites', checkGameSprites(gameRoot))) failed++;
   } else if (g?.designContent?.some((d) => d.artifact === name)) {
     // Content the design stage writes from the idea (a farm's crops), held to the rules the game's systems set.
     const d = g.designContent.find((x) => x.artifact === name)!;

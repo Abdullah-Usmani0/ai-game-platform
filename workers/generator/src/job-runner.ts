@@ -48,8 +48,11 @@ interface Resolved {
   provider: string;
 }
 
-/** Stages a policy may leave out, and the stage whose entry they run on then: a freeform game's composition is part of choosing its systems. */
-const POLICY_FALLBACK: Readonly<Record<string, Stage>> = { composition: 'systems' };
+/**
+ * Stages a policy may leave out, and the stage whose entry they run on then: a freeform game's composition and the
+ * cast's look are structured calls of the design phase, as choosing the systems is.
+ */
+const POLICY_FALLBACK: Readonly<Record<string, Stage>> = { composition: 'systems', sprites: 'systems' };
 
 export function resolveStage(policy: ModelPolicy | null, spec: StageSpec, dryRun: boolean): Resolved {
   if (spec.runner === 'none') return { runnerKind: 'none', sp: null, model: 'none', provider: 'none' };

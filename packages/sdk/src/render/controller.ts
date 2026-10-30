@@ -27,11 +27,22 @@ type Listener = () => void;
  * Engine-agnostic game controller: owns the sim, level sequencing, input routing,
  * the test seam state and metrics. The Phaser adapter is a thin view over this.
  */
+/** What the view could not draw as the game asked, filled in as it draws (the test seam reads it). */
+export interface DrawStats {
+  /** The game's own sprite designs the view drew with. */
+  designs: number;
+  /** Types whose design could not be read or drawn: they drew as their shipped sprite. */
+  designFallbacks: string[];
+  /** Types no sprite draws: they drew as a placeholder shape. */
+  blobFallbacks: string[];
+}
+
 export class GameController {
   sim: Sim;
   driver: Driver;
   readonly keyboard = new Keyboard();
   readonly metrics = new Metrics();
+  readonly drawStats: DrawStats = { designs: 0, designFallbacks: [], blobFallbacks: [] };
   scene: SceneKey = 'boot';
   levelIndex = 0;
   seed: number;
