@@ -13,6 +13,8 @@ export { courier } from './courier.js';
 export { goalSpot, goToward, type Spot } from './navigate.js';
 export { carryBlock, ordersBlock, vehicleBlock } from './blocks.js';
 export { vehicle, meta as vehicleMeta, vehicleKind, HANDLING, HEADING, VEHICLE_KINDS, type Handling, type VehicleKind } from './systems/vehicle.js';
+export { rooms, meta as roomsMeta, roomAt, MAP_PREFIX } from './systems/rooms.js';
+export { rest, meta as restMeta, progressSaveOf } from './systems/rest.js';
 export { checkStations, dressStations, SERVICE_WINDOW, SIDE_REACH, type StationsCtx } from './level/stations.js';
 export { suggestHints } from './level/hints.js';
 export { validateArena, validateWaves } from './level/arena.js';

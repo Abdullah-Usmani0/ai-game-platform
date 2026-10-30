@@ -34,7 +34,7 @@ export type WinKind = 'reach_goal' | 'survive' | 'clear_room' | 'place_crates' |
  * plots, seed shop, shipping bin and bed are roles too, and so are what a courier carries, where it is made and where
  * it goes (cargo, source, dropoff).
  */
-export type EntityRole = 'hostile' | 'collectible' | 'relic' | 'key' | 'door' | 'crate' | 'target' | 'plot' | 'shop' | 'bin' | 'bed' | 'cargo' | 'source' | 'dropoff';
+export type EntityRole = 'hostile' | 'collectible' | 'relic' | 'key' | 'door' | 'crate' | 'target' | 'plot' | 'shop' | 'bin' | 'bed' | 'cargo' | 'source' | 'dropoff' | 'altar';
 
 /** What a system owns in a game. The composition rules allow one movement, one win and one death owner per game. */
 export interface SystemProvides {

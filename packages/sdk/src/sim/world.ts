@@ -31,6 +31,8 @@ export interface Entity extends Body {
    * absent means awake.
    */
   dormant?: boolean;
+  /** Its place in the level's entity list, for one the level placed: a save names the ones gone for good by it. */
+  levelIndex?: number;
   /** Visual-only squash/stretch scale, written by systems, read by the renderer. */
   scaleX: number;
   scaleY: number;
@@ -103,6 +105,19 @@ export interface World {
   checkpoint: { x: number; y: number };
   /** The open menu, if any (opened by a system through ctx.openMenu). */
   menu: Menu | null;
+  /**
+   * The entities the level placed that are gone for good, by levelIndex (picked up, opened, a boss beaten: see staysGone).
+   * Kept after the sim drops them, and given back by a resume, so every save names them all.
+   */
+  gone?: number[];
+}
+
+/**
+ * Whether a dead entity the level placed stays gone when the level loads again from a save: everything but the enemies
+ * that come back (an entity with a behaviour or contact damage), and a beaten boss stays beaten.
+ */
+export function staysGone(e: Pick<Entity, 'flags' | 'fsm' | 'contactDamage'>): boolean {
+  return e.flags['boss'] === true || (e.fsm === null && e.contactDamage <= 0);
 }
 
 /**

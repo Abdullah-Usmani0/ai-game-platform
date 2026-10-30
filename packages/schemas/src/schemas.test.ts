@@ -24,6 +24,16 @@ describe('LevelJson', () => {
     const bad2 = { ...base, rows: [...base.rows.slice(0, 5), '#####?##'] };
     expect(() => LevelJson.parse(bad2)).toThrow(/missing from legend/);
   });
+  it('takes rooms that lie inside the level, apart, under ids of their own', () => {
+    const rooms = [
+      { id: 'gate', x: 0, y: 0, w: 4, h: 6 },
+      { id: 'altar', x: 4, y: 0, w: 4, h: 6, kind: 'save' },
+    ];
+    expect(LevelJson.parse({ ...base, rooms }).rooms?.map((r) => r.kind)).toEqual(['room', 'save']);
+    expect(() => LevelJson.parse({ ...base, rooms: [rooms[0], { ...rooms[1], x: 2 }] })).toThrow(/overlap/);
+    expect(() => LevelJson.parse({ ...base, rooms: [rooms[0], { ...rooms[1], x: 6 }] })).toThrow(/past the level/);
+    expect(() => LevelJson.parse({ ...base, rooms: [rooms[0], { ...rooms[1], id: 'gate' }] })).toThrow(/twice/);
+  });
 });
 
 describe('BehaviourFsm', () => {

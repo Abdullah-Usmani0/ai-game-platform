@@ -8,7 +8,7 @@ export const MechanicEvent = z.union([z.enum(GAME_EVENTS), z.string().regex(/^cu
 /** The keys a system may read: the eight every game has, then guard and item, which only a game that declares them binds. */
 export const INPUT_KEYS = ['left', 'right', 'up', 'down', 'jump', 'dash', 'action', 'pause', 'guard', 'item'] as const;
 const MOVEMENT = z.enum(['platformer', 'topdown', 'grid']);
-const ROLES = z.enum(['hostile', 'collectible', 'relic', 'key', 'door', 'crate', 'target', 'plot', 'shop', 'bin', 'bed', 'cargo', 'source', 'dropoff']);
+const ROLES = z.enum(['hostile', 'collectible', 'relic', 'key', 'door', 'crate', 'target', 'plot', 'shop', 'bin', 'bed', 'cargo', 'source', 'dropoff', 'altar']);
 
 /**
  * What a bespoke system (game/src/systems/<id>.ts) does, in the terms the composition rules and the conformance check

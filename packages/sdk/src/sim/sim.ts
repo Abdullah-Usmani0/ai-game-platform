@@ -8,7 +8,7 @@ import { moveBody, overlaps } from './physics.js';
 import { Rng } from './rng.js';
 import type { MenuSpec, SimCtx, SystemDef } from './system.js';
 import { Tilemap } from './tilemap.js';
-import { makeEntity, type Entity, type EntityDef, type Menu, type World } from './world.js';
+import { makeEntity, staysGone, type Entity, type EntityDef, type Menu, type World } from './world.js';
 
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
@@ -150,11 +150,13 @@ class SimImpl implements Sim {
       deaths: 0,
       checkpoint: { x: player.x, y: player.y },
       menu: null,
+      ...(resume ? { gone: [...resume.removed] } : {}),
     };
     for (const [i, le] of lvl.entities.entries()) {
       const def = this.defs.get(le.type);
       if (!def || resume?.removed.includes(i)) continue;
       const e = this.spawn(le.type, le.x * ts, le.y * ts + (ts - def.h));
+      e.levelIndex = i;
       Object.assign(e.props, le.props);
     }
     this.states.clear();
@@ -394,7 +396,8 @@ class SimImpl implements Sim {
         }
       }
     }
-    // Compact dead non-player entities.
+    // Compact dead non-player entities, remembering the ones the level placed that are gone for good.
+    for (const e of this.world.entities) if (!e.alive && !e.isPlayer && e.levelIndex !== undefined && staysGone(e)) (this.world.gone ??= []).push(e.levelIndex);
     this.world.entities = this.world.entities.filter((e) => e.alive || e.isPlayer);
   }
 
