@@ -261,6 +261,7 @@ const prove: StageFn = async (ctx) => {
 const BEHAVIOUR_SYSTEM = [
   'You author enemy behaviour as data: a BehaviourFsm with two to five states, a one-line designNotes first, and transitions that use only the genre vocabulary.',
   'Every state must be reachable and (unless terminal by design) have a way out. Keep the id you are given. Prefer readable, fair behaviour over complexity.',
+  "A hit that lands at once (damage_player) follows a wind-up the player can read: a state that plays 'windup' and leaves on timer_elapsed of 150 ms or more; never hit as the entity appears.",
 ].join('\n');
 
 const behaviour: StageFn = async (ctx) => {

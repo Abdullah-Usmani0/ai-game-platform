@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { ARTIFACT_SCHEMAS, CURATED_GENRES, PLAYABLE_GENRES } from '@gg/schemas';
 import { createSim } from '@gg/sdk';
 import { SETTING_BY_GENRE, TYPE_RECIPES } from '@gg/sdk/art';
-import { checkSystems } from '@gg/validators';
+import { checkSystems, validateBehaviour } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
 import { levelTicksOf, runBot } from '@gg/template-core';
 import { CHECKS, checkKit, checkLevel } from './check.js';
@@ -33,6 +33,10 @@ describe('genre manifests', () => {
       it('has a setting to be drawn in and hand-made art for every entity type', () => {
         expect(SETTING_BY_GENRE[id], 'add the genre to SETTING_BY_GENRE in the SDK art kit').toBeDefined();
         for (const d of g.entityDefs) expect(TYPE_RECIPES[d.type], `no sprite recipe for entity type '${d.type}'`).toBeDefined();
+      });
+      it('its behaviours pass the behaviour checks: every hit that lands at once follows a wind-up the player can read', () => {
+        const types = g.entityDefs.map((d) => d.type);
+        for (const b of g.defaultBehaviours) expect(validateBehaviour(b, g.behaviourVocab, types).issues.filter((i) => i.severity === 'error'), b.id).toEqual([]);
       });
       it('exemplars validate against their schemas and the catalog', () => {
         for (const ex of g.exemplars) {

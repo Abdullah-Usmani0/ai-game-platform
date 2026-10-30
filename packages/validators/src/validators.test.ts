@@ -1,7 +1,7 @@
 import type { BehaviourFsm, FreeformSystemsJson, GameEventRecord, LevelJson, SystemsJson } from '@gg/schemas';
 import { CELESTE_CLASS } from '@gg/sdk';
 import { describe, expect, it } from 'vitest';
-import { validateBehaviour } from './behaviour.js';
+import { MIN_WINDUP_MS, validateBehaviour } from './behaviour.js';
 import { checkGdd } from './gdd.js';
 import { juiceLint, juiceLintRuns, silentSfx } from './juice.js';
 import { jumpEnvelope } from './jump-envelope.js';
@@ -108,6 +108,32 @@ describe('validateBehaviour', () => {
     // A shot of a type the game has not got: a game that renamed its bolts calls them something else.
     expect(validateBehaviour(fsm, undefined, ['walker', 'spore']).issues.map((i) => i.code)).toContain('unknown_projectile');
     expect(validateBehaviour(fsm, undefined, ['walker', 'bolt']).issues.map((i) => i.code)).not.toContain('unknown_projectile');
+  });
+});
+
+describe('a hit that lands at once', () => {
+  const bite = (states: BehaviourFsm['states'], initial = 'chase'): BehaviourFsm => ({ version: 1, id: 'biter', designNotes: '', initial, states });
+  const chase = { onEnter: [{ kind: 'play_anim' as const, anim: 'run' }], update: [{ kind: 'move_toward_player' as const, speed: 40 }], transitions: [{ to: 'windup', when: { kind: 'player_within' as const, px: 12 } }] };
+  const windup = (ms: number) => ({ onEnter: [{ kind: 'play_anim' as const, anim: 'windup' }], update: [], transitions: [{ to: 'bite', when: { kind: 'timer_elapsed' as const, ms } }] });
+  const hit = { onEnter: [{ kind: 'play_anim' as const, anim: 'bite' }, { kind: 'damage_player' as const, amount: 1 }], update: [], transitions: [{ to: 'chase', when: { kind: 'timer_elapsed' as const, ms: 400 } }] };
+  const codes = (fsm: BehaviourFsm) => validateBehaviour(fsm).issues.filter((i) => i.severity === 'error').map((i) => i.code);
+
+  it('passes after a wind-up the player can read', () => {
+    expect(codes(bite({ chase, windup: windup(300), bite: hit }))).toEqual([]);
+    expect(codes(bite({ chase, windup: windup(MIN_WINDUP_MS), bite: hit }))).toEqual([]);
+  });
+
+  it('fails with no wind-up, too short a one, one cut short by another condition, or at spawn', () => {
+    expect(codes(bite({ chase: { ...chase, transitions: [{ to: 'bite', when: { kind: 'player_within', px: 12 } }] }, bite: hit }))).toEqual(['hit_unannounced']);
+    expect(codes(bite({ chase, windup: windup(100), bite: hit }))).toEqual(['hit_unannounced']);
+    const cut = { ...windup(300), transitions: [{ to: 'bite', when: { kind: 'any' as const, of: [{ kind: 'timer_elapsed' as const, ms: 300 }, { kind: 'player_within' as const, px: 6 }] } }] };
+    expect(codes(bite({ chase, windup: cut, bite: hit }))).toEqual(['hit_unannounced']);
+    const quiet = { onEnter: [{ kind: 'play_anim' as const, anim: 'idle' }], update: [], transitions: [{ to: 'bite', when: { kind: 'timer_elapsed' as const, ms: 500 } }] };
+    expect(codes(bite({ chase, windup: quiet, bite: hit }))).toEqual(['hit_unannounced']);
+    expect(codes(bite({ chase, windup: windup(300), bite: hit }, 'bite'))).toEqual(['hit_unannounced']);
+    // A shot is dodged in flight: it needs no wind-up.
+    const fire = { onEnter: [], update: [{ kind: 'shoot' as const, projectile: 'bolt', speed: 90, cooldownMs: 1000 }], transitions: [] };
+    expect(codes(bite({ fire }, 'fire'))).toEqual([]);
   });
 });
 
