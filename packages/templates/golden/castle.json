@@ -30,10 +30,10 @@
     ],
     "feedbackExtras": "9719eb13ca81e1c1",
     "paramDefaults": "7db828b2435479a8",
-    "systemsMeta": "82b49c4cb56f7f83",
+    "systemsMeta": "4050e1cdba42ae2a",
     "scopeBudget": "1a9f04d4a4b9f05a",
     "gddDefaults": "cf6e6172c995473c",
-    "gddFragment": "cf6e2bab33d7d1de",
+    "gddFragment": "58da51d01dd22d6e",
     "interviewFragment": "b96990cd0ad1ef88",
     "panels": "32e1ed30b8387347",
     "exemplars": "84ae5db18bf20faf",
@@ -81,9 +81,9 @@
     },
     "seed1-difficulty0.2:route": {
       "completed": true,
-      "ticks": 3397,
+      "ticks": 3400,
       "deaths": 0,
-      "finalHash": "57c693f77397d5f3",
+      "finalHash": "d4c36e44b2ccf7ae",
       "events": {
         "jump": 14,
         "land": 16,
@@ -142,9 +142,9 @@
     },
     "seed2-difficulty0.2:route": {
       "completed": true,
-      "ticks": 3382,
+      "ticks": 3386,
       "deaths": 0,
-      "finalHash": "2483d43a3febb295",
+      "finalHash": "cb324c3bf7a24f09",
       "events": {
         "jump": 12,
         "land": 14,
@@ -203,9 +203,9 @@
     },
     "seed1-difficulty0.5:route": {
       "completed": true,
-      "ticks": 3705,
+      "ticks": 3708,
       "deaths": 0,
-      "finalHash": "dfc4a03fb8fe50e5",
+      "finalHash": "8986d6c99ac3a2d7",
       "events": {
         "jump": 21,
         "land": 26,
@@ -224,17 +224,17 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "96e8582757f6e5d9",
+      "finalHash": "3a75377e8f94f036",
       "events": {
-        "jump": 48,
-        "land": 49,
+        "jump": 46,
+        "land": 44,
         "hit": 11,
-        "death": 3,
+        "death": 2,
         "pickup": 2,
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 25,
+        "spawn": 23,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -264,9 +264,9 @@
     },
     "seed2-difficulty0.5:route": {
       "completed": true,
-      "ticks": 3662,
+      "ticks": 3666,
       "deaths": 0,
-      "finalHash": "07c470f4941df4e6",
+      "finalHash": "e658c362dad7729b",
       "events": {
         "jump": 20,
         "land": 24,
@@ -285,17 +285,17 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "2b80d9efa6db850f",
+      "finalHash": "f8d632d09464ad95",
       "events": {
-        "jump": 48,
-        "land": 49,
+        "jump": 46,
+        "land": 44,
         "hit": 11,
-        "death": 3,
+        "death": 2,
         "pickup": 2,
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 28,
+        "spawn": 26,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -325,9 +325,9 @@
     },
     "seed1-difficulty0.75:route": {
       "completed": true,
-      "ticks": 3689,
+      "ticks": 3692,
       "deaths": 0,
-      "finalHash": "85f98e58c69c5c1e",
+      "finalHash": "641bacbea6cfb1b0",
       "events": {
         "jump": 22,
         "land": 27,
@@ -346,17 +346,17 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "80ba69c0e0cc8eca",
+      "finalHash": "e84e4d53403bdd97",
       "events": {
-        "jump": 48,
-        "land": 49,
+        "jump": 46,
+        "land": 44,
         "hit": 11,
-        "death": 3,
+        "death": 2,
         "pickup": 2,
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 26,
+        "spawn": 24,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -386,9 +386,9 @@
     },
     "seed2-difficulty0.75:route": {
       "completed": true,
-      "ticks": 3666,
+      "ticks": 3670,
       "deaths": 0,
-      "finalHash": "1a3c76d31f051a23",
+      "finalHash": "3a06fd16174dcdee",
       "events": {
         "jump": 18,
         "land": 22,
@@ -407,17 +407,17 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "bee6684bb60b44fc",
+      "finalHash": "58c226679db40781",
       "events": {
-        "jump": 48,
-        "land": 49,
+        "jump": 46,
+        "land": 44,
         "hit": 11,
-        "death": 3,
+        "death": 2,
         "pickup": 2,
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 29,
+        "spawn": 27,
         "menu_open": 0,
         "menu_choose": 0
       }

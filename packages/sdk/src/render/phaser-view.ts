@@ -38,6 +38,14 @@ const TINT_LETTERS: Record<string, [string, string, string]> = { accent: ['b', '
 const CHUNK_TILES = 64;
 /** A move between two rooms slides the view across in this many ticks. */
 const ROOM_SLIDE_TICKS = 20;
+/**
+ * A fall in a game of rests: the view starts to darken FALL_DARK_FROM ticks after the blow, is black FALL_DARK_TICKS
+ * later (before the region loads again, a second after the fall), and comes up from black at the last rest over
+ * WAKE_TICKS.
+ */
+const FALL_DARK_FROM = 20;
+const FALL_DARK_TICKS = 30;
+const WAKE_TICKS = 30;
 /** Backdrop layers are painted this much wider and blended across it, so they wrap without a seam. */
 const WRAP_BAND = 24;
 const HUD_H = 14;
@@ -157,7 +165,9 @@ export class MainScene extends Phaser.Scene {
   private bannerImg: Phaser.GameObjects.Image | null = null;
   private followTarget = { x: 0, y: 0 };
   /** A level of rooms holds the view to the room the player is in; a new room slides it across from where it was. */
-  private room = { index: -1, fromX: 0, fromY: 0, at: 0, seen: -1 };
+  private room = { index: -1, fromX: 0, fromY: 0, at: 0, seen: -1, reload: -1 };
+  /** The game runs the rest system: a fall darkens the view and the region loads again at the last rest. */
+  private rests = false;
   private unsubs: Array<() => void> = [];
   private drawnVersion = -1;
   private drawnExitLocked = false;
@@ -216,6 +226,7 @@ export class MainScene extends Phaser.Scene {
     this.hudTex = this.textures.createCanvas('gg-hud', w, HUD_H);
     this.hudImg = this.add.image(0, 0, 'gg-hud').setOrigin(0).setScrollFactor(0).setDepth(10_000).setVisible(false);
     this.bossTypes = new Set(this.controller.options.simOptions.entityDefs.filter((d) => d.boss).map((d) => d.type));
+    this.rests = this.controller.options.simOptions.systems.some((s) => s.id === 'rest');
     this.drawAs = new Map(this.controller.options.simOptions.entityDefs.flatMap((d) => (d.drawAs ? [[d.type, d.drawAs] as const] : [])));
     this.bossTex = this.textures.createCanvas('gg-boss', w, BOSS_H);
     this.bossImg = this.add.image(0, h - BOSS_H, 'gg-boss').setOrigin(0).setScrollFactor(0).setDepth(10_000).setVisible(false);
@@ -533,7 +544,7 @@ export class MainScene extends Phaser.Scene {
     const by = -(spare >= HUD_H ? spare + HUD_H : spare) / 2;
     cam.setBounds(-(bw - map.pixelWidth) / 2, by, bw, bh);
     this.horizonY = by + bh - viewH;
-    this.room = { index: -1, fromX: 0, fromY: 0, at: 0, seen: -1 };
+    this.room = { index: -1, fromX: 0, fromY: 0, at: 0, seen: -1, reload: -1 };
     if ((map.level.rooms ?? []).length > 0) {
       // A level of rooms: the view is held to the room the player is in (roomCamera), not followed.
       cam.stopFollow();
@@ -912,8 +923,8 @@ export class MainScene extends Phaser.Scene {
   /**
    * The view over a level of rooms: centred on the player and held inside the room they are in (a room no wider than
    * the view stands still in it). Entering another room slides the view there from where it was, as the game plays; a
-   * jump in time (a frame stepped to a tick, a restart) shows the room as it settles, so such a frame always shows the
-   * same thing.
+   * jump in time (a frame stepped to a tick, a restart, the region loading again at a rest) shows the room as it
+   * settles, so such a frame always shows the same thing.
    */
   private roomCamera(tick: number): void {
     const sim = this.controller.sim;
@@ -931,8 +942,9 @@ export class MainScene extends Phaser.Scene {
     const hold = (c: number, from: number, size: number, view: number) => (size <= view ? from + (size - view) / 2 : Math.min(Math.max(c - view / 2, from), from + size - view));
     const tx = hold(cx, room.x * ts, room.w * ts, vw);
     const ty = hold(cy, room.y * ts, room.h * ts, vh);
-    const playing = this.room.index >= 0 && tick >= this.room.seen && tick - this.room.seen <= 2;
-    if (index !== this.room.index) this.room = { index, fromX: playing ? cam.scrollX : tx, fromY: playing ? cam.scrollY : ty, at: tick, seen: tick };
+    const reload = sim.world.reloaded?.tick ?? -1;
+    const playing = this.room.index >= 0 && tick >= this.room.seen && tick - this.room.seen <= 2 && reload === this.room.reload;
+    if (index !== this.room.index || reload !== this.room.reload) this.room = { index, fromX: playing ? cam.scrollX : tx, fromY: playing ? cam.scrollY : ty, at: tick, seen: tick, reload };
     this.room.seen = tick;
     const t = Math.min(1, Math.max(0, (tick - this.room.at) / ROOM_SLIDE_TICKS));
     const ease = t * t * (3 - 2 * t);
@@ -1462,13 +1474,25 @@ export class MainScene extends Phaser.Scene {
     this.bannerImg = this.add.image(Math.round((this.style.canvas.w - pc.w) / 2), 20, 'gg-banner').setOrigin(0).setScrollFactor(0).setDepth(10_500).setAlpha(0);
   }
 
-  /** Banner and fade-in follow the level's ticks, so a screenshot at a given tick always looks the same. */
+  /** Banner and fades follow the level's ticks, so a screenshot at a given tick always looks the same. */
   private updateIntro(tick: number): void {
-    this.fadeImg.setAlpha(this.controller.scene === 'play' ? Math.max(0, 1 - tick / 16) : 0);
+    this.fadeImg.setAlpha(this.controller.scene === 'play' ? Math.max(0, 1 - tick / 16, this.fallFade(tick)) : 0);
     if (!this.bannerImg) return;
     const shown = this.controller.scene === 'play' && tick < BANNER_TICKS;
     const a = !shown ? 0 : tick < 15 ? tick / 15 : tick > BANNER_TICKS - 20 ? (BANNER_TICKS - tick) / 20 : 1;
     this.bannerImg.setAlpha(a).setY(Math.round(16 + 4 * (1 - Math.min(1, tick / 15))));
+  }
+
+  /**
+   * In a game of rests, a fall darkens the view while the player lies fallen (from the tick of the blow that felled
+   * them), and the view comes up from black at the last rest when the region has loaded again.
+   */
+  private fallFade(tick: number): number {
+    if (!this.rests) return 0;
+    const w = this.controller.sim.world;
+    const p = w.player;
+    if (!p.alive) return Math.min(1, Math.max(0, (tick - p.tookDamageTick - FALL_DARK_FROM) / FALL_DARK_TICKS));
+    return w.reloaded?.fromDeath ? Math.max(0, 1 - (tick - w.reloaded.tick) / WAKE_TICKS) : 0;
   }
 
   private drawOverlay(): void {

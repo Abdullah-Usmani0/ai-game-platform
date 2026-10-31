@@ -1,6 +1,7 @@
 import { LevelJson, SystemsJson } from '@gg/schemas';
 import { createSim, emptyInput, type InputState, type ProgressSave, type Sim, type SimOptions } from '@gg/sdk';
 import { levelTicksOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
+import { deathRule, deathSwitches } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
 import { AB_PREFIX, castle, CHASM_TILES, envelopeFor, LEDGE_TILES, MAX_REGION_TILES, MAX_STRETCH, SCREEN_TILES, world } from './node.js';
 
@@ -162,5 +163,51 @@ describe('castle template', () => {
     expect(enemies.every((e) => e.dormant === true)).toBe(true);
     expect(sim.world.hud['_room']).toBe('start');
     expect(levelTicksOf(options)).toBeGreaterThan(90 * 60);
+  });
+
+  it('a rest loads the region again and a fall returns to the last rest: the enemies back, everything found kept', () => {
+    const level = castle.levelGrammar.generate({ seed: 2, difficulty: 0.5 });
+    const options = optionsFor();
+    const sim = createSim({ ...options, level, seed: 1 });
+    const route = castle.bots['route']!;
+    let rests = 0;
+    sim.events.on('custom:rest', () => rests++);
+    const foes = (l: { entities: ReadonlyArray<{ type: string }> }) => l.entities.filter((e) => ['ghoul', 'hound', 'gargoyle'].includes(e.type)).length;
+    const mem: Record<string, number> = {};
+    let t = 0;
+    for (; t < levelTicksOf(options) && rests < 2; t++) sim.step(route(sim, t, mem));
+    expect(rests).toBe(2);
+    // The region loaded again at the second rest: every enemy back, the relics taken still taken.
+    expect(sim.world.reloaded).toEqual({ tick: sim.tick - 1, fromDeath: false });
+    expect(foes(sim.world)).toBe(foes(level));
+    expect(sim.world.entities.some((e) => e.type === 'wings' || e.type === 'boots')).toBe(false);
+    // The HUD still shows what was found: the relics, and the souls taken.
+    const coins = sim.world.hud['coins'];
+    step(sim, {});
+    expect(sim.world.hud['relics']).toBe('wings+boots');
+    expect(sim.world.hud['coins']).toBe(coins);
+    const altar = { ...sim.world.checkpoint };
+    // A fall further on: a second later the player wakes at that altar, with the enemies back and the abilities kept.
+    for (let i = 0; i < 120; i++, t++) sim.step(route(sim, t, mem));
+    sim.world.player.alive = false;
+    for (let i = 0; i < 61; i++, t++) sim.step(emptyInput());
+    const p = sim.world.player;
+    expect(p.alive).toBe(true);
+    expect([p.x, p.y]).toEqual([altar.x, altar.y]);
+    expect(sim.world.reloaded?.fromDeath).toBe(true);
+    expect(foes(sim.world)).toBe(foes(level));
+    step(sim, {});
+    expect(sim.world.player.flags['double-jump']).toBe(true);
+    expect(sim.world.player.flags['dash']).toBe(true);
+    // And the route goes on from there to the end, with no rest at an altar already rested at.
+    for (; t < levelTicksOf(options) && !sim.world.flags.won; t++) sim.step(route(sim, t, mem));
+    expect(sim.world.flags.won).toBe(true);
+    expect(rests).toBe(2);
+  });
+
+  it('lets the rest decide what a fall does, and switches the hazards respawn off as the composition rules would', () => {
+    const metas = Object.values(castle.systems).map((m) => m.meta);
+    expect(deathRule(metas).owner?.id).toBe('rest');
+    expect(castle.composedParams).toEqual(deathSwitches(metas));
   });
 });

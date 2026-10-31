@@ -82,4 +82,56 @@ describe('rest', () => {
     play(b, [[40, { left: true }]]);
     expect(a.hash()).toBe(b.hash());
   });
+
+  it('loads the region again from the save it makes: its enemies back, what was found kept, the player at the altar', () => {
+    const sim = createSim(options);
+    play(sim, [[77, { right: true }], [1, {}], [1, { up: true }]]);
+    const w = sim.world;
+    expect(w.reloaded).toEqual({ tick: 78, fromDeath: false });
+    // The relic and the gate stay gone; the ghoul is back; the hole stays open.
+    expect(w.entities.map((e) => e.type).sort()).toEqual(['altar', 'ghoul', 'player']);
+    expect(sim.map.kindAt(10, 5)).toBe('air');
+    expect(w.player.props).toMatchObject({ 'ab:wings': true });
+    expect(w.player.hp).toBe(5);
+    // Up still held as the region loads is no second rest.
+    let rests = 0;
+    sim.events.on('custom:rest', () => rests++);
+    play(sim, [[5, { up: true }]]);
+    expect(rests).toBe(0);
+    // The relic taken before still counts.
+    expect(sim.world.hud['coins']).toBe(1);
+    play(sim, [[1, {}], [1, { up: true }]]);
+    expect(rests).toBe(1);
+  });
+
+  it('returns a fallen player to their last rest after a beat, keeping what they found since', () => {
+    const level = corridor();
+    const sim = createSim({ ...options, level: { ...level, entities: [...level.entities, { type: 'relic', x: 19, y: 4, props: {} }] } });
+    play(sim, [[77, { right: true }], [1, {}], [1, { up: true }]]);
+    const altarAt = { ...sim.world.checkpoint };
+    play(sim, [[30, { right: true }]]);
+    expect(sim.world.entities.some((e) => e.type === 'relic')).toBe(false);
+    sim.world.player.hp = 0;
+    sim.world.player.alive = false;
+    play(sim, [[60, {}]]);
+    expect(sim.world.player.alive).toBe(false);
+    play(sim, [[1, {}]]);
+    const w = sim.world;
+    expect(w.player.alive).toBe(true);
+    expect([w.player.x, w.player.y]).toEqual([altarAt.x, altarAt.y]);
+    expect(w.reloaded).toMatchObject({ fromDeath: true });
+    // The relic found after the rest stays found; the ghoul is back.
+    expect(w.entities.map((e) => e.type).sort()).toEqual(['altar', 'ghoul', 'player']);
+    expect(w.player.props).toMatchObject({ 'ab:wings': true });
+  });
+
+  it('returns a player who falls before any rest to where the region starts', () => {
+    const sim = createSim(options);
+    const start = { x: sim.world.player.x, y: sim.world.player.y };
+    play(sim, [[20, { right: true }]]);
+    sim.world.player.alive = false;
+    play(sim, [[61, {}]]);
+    expect([sim.world.player.x, sim.world.player.y]).toEqual([start.x, start.y]);
+    expect(sim.world.reloaded).toMatchObject({ fromDeath: true });
+  });
 });

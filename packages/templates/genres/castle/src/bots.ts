@@ -119,11 +119,13 @@ export const route: BotPolicy = (sim, tick, mem) => {
   if (dir > 0) input.right = true;
   else if (dir < 0) input.left = true;
 
-  // Rest at an altar within reach, once each.
+  // Rest at an altar within reach, once each: known by its place in the level, as a rest reloads the region and the
+  // altar comes back with a new id.
   for (const e of sim.world.entities) {
-    if (!e.alive || e.type !== ALTAR_TYPE || mem[`rest${e.id}`] === 1) continue;
+    const rested = `rest${e.levelIndex ?? -e.id}`;
+    if (!e.alive || e.type !== ALTAR_TYPE || mem[rested] === 1) continue;
     if (Math.abs(centerX(e) - cx) <= e.w / 2 + 4 && Math.abs(centerY(e) - centerY(p)) <= e.h / 2 + 4) {
-      mem[`rest${e.id}`] = 1;
+      mem[rested] = 1;
       input.up = true;
     }
   }

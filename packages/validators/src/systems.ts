@@ -43,10 +43,10 @@ export interface SystemProvides {
   /** How the level is won (the system sets the won flag). */
   win?: WinKind;
   /**
-   * What the player's death does: respawn at the checkpoint, end the run (the system sets the game-over flag), or
-   * respawn until the lives run out, then end it.
+   * What the player's death does: respawn at the checkpoint, end the run (the system sets the game-over flag), respawn
+   * until the lives run out and then end it, or load the level again from the last rest (its enemies back).
    */
-  death?: 'respawn' | 'game_over' | 'lives';
+  death?: 'respawn' | 'game_over' | 'lives' | 'reload';
   /**
    * The boolean parameter that turns the death rule off while the system goes on hurting (hazards' respawn): such a rule
    * yields to another system's, and the composition switches it off.

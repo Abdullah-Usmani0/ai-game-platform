@@ -110,6 +110,11 @@ export interface World {
    * Kept after the sim drops them, and given back by a resume, so every save names them all.
    */
   gone?: number[];
+  /**
+   * When the level last loaded again from a save (ctx.reloadFrom), and whether the player had fallen then (a death that
+   * returns them to their last rest) or not (a rest). Absent until it first does. The view settles on it.
+   */
+  reloaded?: { tick: number; fromDeath: boolean };
 }
 
 /**

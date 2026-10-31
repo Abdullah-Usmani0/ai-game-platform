@@ -48,5 +48,7 @@ export const castleRuntime: GenreRuntime = {
   feedbackExtras: [{ event: 'custom:rest', channels: ['sfx', 'flash'] }],
   // The platformer's stomp bounce at the castle's scale.
   paramDefaults: { 'combat-stomp': { bounceVy: -140 } },
+  // A fall returns the player to their last rest (the rest system's death rule): hazards only hurt.
+  composedParams: { hazards: { respawn: false } },
   entityRoles: { ...Object.fromEntries(Object.keys(RELIC_ABILITY).map((t) => [t, ['relic' as const]])), [ALTAR_TYPE]: ['altar'] },
 };

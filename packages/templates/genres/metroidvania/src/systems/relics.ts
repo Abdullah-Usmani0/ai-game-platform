@@ -35,7 +35,13 @@ export const relics = defineSystem<RelicsState>({
   id: 'relics',
   init: (ctx) => {
     const t = typesOf(ctx.params);
-    return { total: ctx.world.entities.filter((e) => t.ability[e.type] !== undefined || e.type === t.key || e.type === t.door).length, done: 0, keys: 0, checkpointPending: false, found: [] };
+    const counted = (type: string | undefined): type is string => type !== undefined && ctx.defOf(type) !== undefined && (t.ability[type] !== undefined || type === t.key || type === t.door);
+    const placed = ctx.map.level.entities;
+    // A level picked up where a save left it (a rest, a Continue) counts what was found and opened before: the relics
+    // taken, and the keys taken that no door has used yet.
+    const before = (ctx.world.gone ?? []).map((i) => placed[i]?.type).filter(counted);
+    const keys = before.filter((type) => type === t.key).length - before.filter((type) => type === t.door).length;
+    return { total: placed.filter((e) => counted(e.type)).length, done: before.length, keys: Math.max(0, keys), checkpointPending: false, found: before.filter((type) => t.ability[type] !== undefined) };
   },
   fixedUpdate(s, _input, ctx) {
     const p = ctx.world.player;

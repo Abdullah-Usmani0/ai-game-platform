@@ -8,8 +8,9 @@ between them. The wings lie in a room behind the start (the player goes back for
 a 4-tile ledge only a double jump climbs; past more halls the boots, a second altar, a descent and a 10-tile spike
 chasm only the double jump with the dash crosses; then the way out. Halls use one-way ledges, low walls, spike trenches
 and enemies. No stretch between altars runs past four rooms.
-Resting at an altar (up) refills health and moves the checkpoint there; the region can load again from that rest, its
-enemies back, what the player found kept. Enemies sleep until the player enters their room.
+Resting at an altar (up) refills health, moves the checkpoint there and loads the region again from that rest: its
+enemies back, what the player found and opened kept. A fall returns the player to their last rest a second later the
+same way, keeping what they found since. Enemies sleep until the player enters their room and keep to it.
 Enemies: ghoul (shambles, lurches within 96 px), hound (crouches, bounds), gargoyle (spits embers within 192 px).
 Feel presets: castle-agile (default), castle-weighty. Every gate is sized to hold under both.
 Feedback table must bind: jump, land, dash, hit, death, pickup, checkpoint, level_complete.

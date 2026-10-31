@@ -119,7 +119,7 @@ export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = {
   player: runtime.player,
   behaviours: BEHAVIOURS,
   rules: RULES,
-  params: Object.fromEntries(SYSTEMS.systems.map((s) => [s.id, s.params])),
+  params: Object.fromEntries(SYSTEMS.systems.map((s) => [s.id, { ...s.params, ...runtime.composedParams?.[s.id] }])),
   content: CONTENT,
   movementMode: runtime.movementMode,
 };

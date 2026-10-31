@@ -1,7 +1,7 @@
 import type { BehaviourFsm, LevelJson } from '@gg/schemas';
 import { describe, expect, it } from 'vitest';
 import { CELESTE_CLASS } from './feel.js';
-import { compactScript, emptyInput, inputAtTick, inputEquals } from './input.js';
+import { compactScript, emptyInput, inputAtTick, inputEquals, logToScript } from './input.js';
 import { moveBody } from './physics.js';
 import { Rng } from './rng.js';
 import { createSim, goalCloseness, replay, type SimOptions } from './sim.js';
@@ -569,5 +569,124 @@ describe('keys only some games have', () => {
       { from: 0, to: 9, input: { right: true } },
       { from: 9, to: 12, input: { right: true, guard: true } },
     ]);
+  });
+});
+
+describe('loading a level again from a save', () => {
+  /** Up asks for a reload from a save made now (what is gone stays gone); action fells the walker; jump hits the player for 99. */
+  const reloader = defineSystem<{ prev: boolean; draws: number }>({
+    id: 'reloader',
+    init: () => ({ prev: true, draws: 0 }),
+    fixedUpdate(s, input, ctx) {
+      // The rng goes on through a reload: a draw every step.
+      s.draws += ctx.rng.int(10);
+      const press = input.up && !s.prev;
+      s.prev = input.up;
+      const p = ctx.world.player;
+      if (input.action) for (const e of ctx.world.entities) if (e.type === 'walker') e.alive = false;
+      if (input.jump && p.alive) ctx.damage(p, 99, null);
+      if (input.down) ctx.map.setKind(3, 6, 'air');
+      if (press) ctx.reloadFrom({ at: { x: 40, y: 29 }, props: { ...p.props, rested: true }, removed: [...(ctx.world.gone ?? [])], tiles: [[14, 4, 'air']] });
+    },
+  });
+  const opts: SimOptions = { ...options, systems: [reloader] };
+  const play = (sim: ReturnType<typeof createSim>, script: Array<[number, Partial<ReturnType<typeof emptyInput>>]>) => {
+    for (const [ticks, keys] of script) for (let i = 0; i < ticks; i++) sim.step({ ...emptyInput(), ...keys });
+  };
+
+  it('rebuilds the world from the save as the step ends, and the run goes on', () => {
+    const sim = createSim(opts);
+    const walkerId = sim.world.entities.find((e) => e.type === 'walker')!.id;
+    play(sim, [[10, {}], [1, { action: true }], [5, {}]]);
+    sim.world.score = 7;
+    sim.world.hud['shown'] = 3;
+    const calls = sim.rng.calls;
+    const spawns = sim.events.count('spawn');
+    play(sim, [[1, { up: true }]]);
+    const w = sim.world;
+    expect(sim.tick).toBe(17);
+    expect(w.reloaded).toEqual({ tick: 16, fromDeath: false });
+    expect([w.player.x, w.player.y]).toEqual([40, 29]);
+    expect(w.player.props).toMatchObject({ rested: true });
+    expect(w.checkpoint).toEqual({ x: 40, y: 29 });
+    expect(sim.map.kindAt(14, 4)).toBe('air');
+    // The walker, felled but an enemy, is back with a new id; the score, the rng and the events went on, unannounced.
+    const walker = w.entities.find((e) => e.type === 'walker')!;
+    expect(walker.id).toBeGreaterThan(walkerId);
+    expect(walker.levelIndex).toBe(0);
+    expect(w.score).toBe(7);
+    // The HUD stays up until the systems write it again.
+    expect(w.hud).toEqual({ shown: 3 });
+    expect(sim.rng.calls).toBe(calls + 1);
+    expect(sim.events.count('spawn')).toBe(spawns);
+    expect(sim.inputLog().map((f) => f.tick)).toEqual([0, 10, 11, 16]);
+  });
+
+  it('says when the player had fallen, and wakes them whole', () => {
+    const sim = createSim(opts);
+    play(sim, [[3, {}], [1, { jump: true }], [2, {}]]);
+    expect(sim.world.player.alive).toBe(false);
+    expect(sim.world.deaths).toBe(1);
+    play(sim, [[1, { up: true }]]);
+    expect(sim.world.reloaded).toEqual({ tick: 6, fromDeath: true });
+    expect(sim.world.player.alive).toBe(true);
+    expect(sim.world.player.hp).toBe(3);
+    expect(sim.world.deaths).toBe(1);
+  });
+
+  it('stands the player where the save puts them, facing its way: on the ground there, with no landing to come', () => {
+    const stand = defineSystem<null>({
+      id: 'stand',
+      init: () => null,
+      fixedUpdate(_s, input, ctx) {
+        if (input.up) ctx.reloadFrom({ at: { x: 40, y: 37 }, facing: -1, props: {}, removed: [], tiles: [] });
+      },
+    });
+    const sim = createSim({ ...options, systems: [stand] });
+    sim.step({ ...emptyInput(), up: true });
+    expect(sim.world.player.grounded).toBe(true);
+    expect(sim.world.player.facing).toBe(-1);
+  });
+
+  it('puts every tile back as the level made it but those the save changed, redrawing only what changed', () => {
+    const sim = createSim(opts);
+    play(sim, [[1, { down: true }], [1, {}]]);
+    expect(sim.map.kindAt(3, 6)).toBe('air');
+    const v = sim.map.version;
+    play(sim, [[1, { up: true }]]);
+    expect(sim.map.kindAt(3, 6)).toBe('solid');
+    expect(sim.map.kindAt(14, 4)).toBe('air');
+    expect(sim.map.version).toBe(v + 2);
+    // Again: nothing differs, nothing redraws.
+    play(sim, [[1, {}], [1, { up: true }]]);
+    expect(sim.map.version).toBe(v + 2);
+  });
+
+  it('replays: one script from the level start plays the reloads again, and save and load hold across one', () => {
+    const script: Array<[number, Partial<ReturnType<typeof emptyInput>>]> = [[20, { right: true }], [1, { action: true }], [9, { right: true }], [1, { up: true, right: true }], [30, { right: true }], [1, { jump: true }], [12, {}], [1, { up: true }], [40, { left: true }]];
+    const a = createSim(opts);
+    play(a, script);
+    const b = createSim(opts);
+    b.run(logToScript(a.inputLog(), a.tick), a.tick);
+    expect(b.hash()).toBe(a.hash());
+    expect(b.world.reloaded).toEqual(a.world.reloaded);
+    // A save before a reload, loaded after it: the same steps again give the same game.
+    const c = createSim(opts);
+    play(c, script.slice(0, 2));
+    const save = c.save();
+    play(c, script.slice(2));
+    c.load(save);
+    play(c, script.slice(2));
+    expect(c.hash()).toBe(a.hash());
+  });
+
+  it('starts over at a reset, and a progress hook cannot reload', () => {
+    const sim = createSim(opts);
+    play(sim, [[5, {}], [1, { up: true }]]);
+    sim.reset();
+    expect(sim.tick).toBe(0);
+    expect(sim.world.reloaded).toBeUndefined();
+    const peeker = defineSystem<null>({ id: 'peeker', init: () => null, fixedUpdate() {}, progress: (_s, ctx) => (ctx.reloadFrom({ at: { x: 0, y: 0 }, props: {}, removed: [], tiles: [] }), 0) });
+    expect(() => createSim({ ...options, systems: [peeker] }).progress()).toThrow(/reload/);
   });
 });

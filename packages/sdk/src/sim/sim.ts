@@ -41,12 +41,15 @@ export interface SimOptions {
 }
 
 /**
- * Where a player left a level, as little as picks it up again: where they stood, their props (abilities, flags,
- * inventory, the map), the level's entities gone for good (picked up, beaten) by their place in its list, and the tiles
- * changed for good ([x, y, kind]: a door opened, a wall broken). Enemies come back, as they do after a rest.
+ * Where a player left a level, as little as picks it up again: where they stood and which way they faced, their props
+ * (abilities, flags, inventory, the map), the level's entities gone for good (picked up, beaten) by their place in its
+ * list, and the tiles changed for good ([x, y, kind]: a door opened, a wall broken). Enemies come back, as they do after
+ * a rest.
  */
 export interface ProgressSave {
   at: { x: number; y: number };
+  /** 1 facing right, -1 left (right when absent). */
+  facing?: number;
   props: Readonly<Record<string, ParamValue>>;
   removed: readonly number[];
   tiles: ReadonlyArray<readonly [number, number, TileKind]>;
@@ -114,6 +117,8 @@ class SimImpl implements Sim {
   private defs = new Map<string, EntityDef>();
   private unsubs: Array<() => void> = [];
   private pendingEvents: GameEventRecord[] = [];
+  /** A save to load the level again from as the step ends (ctx.reloadFrom), or null. */
+  private reloadTo: ProgressSave | null = null;
 
   constructor(public readonly options: SimOptions) {
     for (const b of options.behaviours ?? []) this.behaviours.set(b.id, b);
@@ -130,38 +135,15 @@ class SimImpl implements Sim {
     this.log = [];
     this.lastInput = emptyInput();
     this.prevInput = emptyInput();
+    this.reloadTo = null;
     this.map = new Tilemap(this.options.level);
     const lvl = this.options.level;
-    const ts = lvl.tileSize;
-    const playerDef: EntityDef = { type: 'player', w: this.options.player.w, h: this.options.player.h, hp: this.options.player.hp };
     const resume = this.options.resume;
-    const player = makeEntity(1, playerDef, resume ? resume.at.x : lvl.spawn.x * ts, resume ? resume.at.y : lvl.spawn.y * ts + (ts - playerDef.h));
-    player.isPlayer = true;
-    Object.assign(player.props, this.options.carry ?? {}, resume?.props ?? {});
     for (const [tx, ty, kind] of resume?.tiles ?? []) this.map.setKind(tx, ty, kind);
-    this.world = {
-      levelId: lvl.id,
-      entities: [player],
-      player,
-      nextId: 2,
-      hud: {},
-      flags: { paused: false, gameOver: false, won: false },
-      score: 0,
-      deaths: 0,
-      checkpoint: { x: player.x, y: player.y },
-      menu: null,
-      ...(resume ? { gone: [...resume.removed] } : {}),
-    };
-    for (const [i, le] of lvl.entities.entries()) {
-      const def = this.defs.get(le.type);
-      if (!def || resume?.removed.includes(i)) continue;
-      const e = this.spawn(le.type, le.x * ts, le.y * ts + (ts - def.h));
-      e.levelIndex = i;
-      Object.assign(e.props, le.props);
-    }
-    this.states.clear();
+    this.world = this.freshWorld(resume, { ...this.options.carry, ...resume?.props }, { nextId: 2, score: 0, deaths: 0 });
+    this.placeEntities(resume, true);
     const ctx = this.ctx('');
-    for (const s of this.options.systems) this.states.set(s.id, s.init(this.ctx(s.id)));
+    this.startSystems();
     for (const s of this.options.systems) {
       if (!s.onEvent) continue;
       this.unsubs.push(this.events.on('*', (ev) => this.pendingEvents.push(ev)));
@@ -171,6 +153,73 @@ class SimImpl implements Sim {
       this.unsubs.push(this.events.on(rule.on, () => fireRule(rule, ctx)));
     }
     this.events.emit(0, 'level_start', { level: lvl.id });
+  }
+
+  /** The world as the level begins, with the player alone in it: at the spawn, or where a save left them. */
+  private freshWorld(resume: ProgressSave | undefined, props: Readonly<Record<string, ParamValue>>, from: Pick<World, 'nextId' | 'score' | 'deaths'>): World {
+    const lvl = this.options.level;
+    const ts = lvl.tileSize;
+    const playerDef: EntityDef = { type: 'player', w: this.options.player.w, h: this.options.player.h, hp: this.options.player.hp };
+    const player = makeEntity(1, playerDef, resume ? resume.at.x : lvl.spawn.x * ts, resume ? resume.at.y : lvl.spawn.y * ts + (ts - playerDef.h));
+    player.isPlayer = true;
+    if (resume?.facing === -1) player.facing = -1;
+    Object.assign(player.props, props);
+    return {
+      levelId: lvl.id,
+      entities: [player],
+      player,
+      nextId: from.nextId,
+      hud: {},
+      flags: { paused: false, gameOver: false, won: false },
+      score: from.score,
+      deaths: from.deaths,
+      checkpoint: { x: player.x, y: player.y },
+      menu: null,
+      ...(resume ? { gone: [...resume.removed] } : {}),
+    };
+  }
+
+  /** The entities the level places, but those a save names gone for good. A reload brings them back unannounced. */
+  private placeEntities(resume: ProgressSave | undefined, announce: boolean): void {
+    const lvl = this.options.level;
+    const ts = lvl.tileSize;
+    for (const [i, le] of lvl.entities.entries()) {
+      const def = this.defs.get(le.type);
+      if (!def || resume?.removed.includes(i)) continue;
+      const x = le.x * ts;
+      const y = le.y * ts + (ts - def.h);
+      const e = announce ? this.spawn(le.type, x, y) : this.place(def, x, y);
+      e.levelIndex = i;
+      Object.assign(e.props, le.props);
+    }
+  }
+
+  /** Every system from its start, over the world as it stands. */
+  private startSystems(): void {
+    this.states.clear();
+    for (const s of this.options.systems) this.states.set(s.id, s.init(this.ctx(s.id)));
+  }
+
+  /**
+   * The level again from a save, as the step that asked for it ends (ctx.reloadFrom): the world rebuilt as the level
+   * begins and picked up where the save left it, every system started over. What makes it one run goes on: the tick, the
+   * input log, the rng, the event bus with its listeners and counts, the score, the deaths, and the entity ids (the
+   * entities brought back get new ones, so nothing that tracked the old ones mistakes them).
+   */
+  private reload(save: ProgressSave): void {
+    const old = this.world;
+    // The tiles as the level made them, but those the save changed; only the tiles that differ change (and redraw).
+    const authored = new Tilemap(this.options.level);
+    const changed = new Map(save.tiles.map(([tx, ty, kind]) => [ty * authored.width + tx, kind] as const));
+    for (let ty = 0; ty < authored.height; ty++) for (let tx = 0; tx < authored.width; tx++) this.map.setKind(tx, ty, changed.get(ty * authored.width + tx) ?? authored.kindAt(tx, ty));
+    this.world = this.freshWorld(save, save.props, old);
+    this.world.reloaded = { tick: this.tick, fromDeath: !old.player.alive };
+    // The HUD stays as it was until the systems write it again on the next step, so it does not blink.
+    this.world.hud = { ...old.hud };
+    // Standing where the save left them: on the ground there, if there is ground, so there is no landing to announce.
+    moveBody(this.map, this.world.player, 0, 0);
+    this.placeEntities(save, false);
+    this.startSystems();
   }
 
   private ctx(systemId: string): SimCtx {
@@ -205,6 +254,9 @@ class SimImpl implements Sim {
       respawnPlayer: () => this.respawnPlayer(),
       move: (e, dx, dy) => moveBody(this.map, e, dx, dy),
       openMenu: (menu) => this.openMenu(menu),
+      reloadFrom: (save) => {
+        this.reloadTo = save;
+      },
     };
   }
 
@@ -244,6 +296,7 @@ class SimImpl implements Sim {
       respawnPlayer: deny('respawn the player'),
       move: deny('move bodies'),
       openMenu: deny('open menus'),
+      reloadFrom: deny('reload the level'),
     };
   }
 
@@ -297,9 +350,14 @@ class SimImpl implements Sim {
   spawn(type: string, x: number, y: number): Entity {
     const def = this.defs.get(type);
     if (!def) throw new Error(`unknown entity type '${type}'`);
+    const e = this.place(def, x, y);
+    this.events.emit(this.tick, 'spawn', { entity: e.id, type });
+    return e;
+  }
+
+  private place(def: EntityDef, x: number, y: number): Entity {
     const e = makeEntity(this.world.nextId++, def, x, y);
     this.world.entities.push(e);
-    this.events.emit(this.tick, 'spawn', { entity: e.id, type });
     return e;
   }
 
@@ -348,7 +406,7 @@ class SimImpl implements Sim {
       this.stepMenu(w.menu, input, prev);
       this.dispatchEvents();
       this.holdTimers();
-      this.tick++;
+      this.endStep();
       return;
     }
     if (w.flags.won || w.flags.gameOver) {
@@ -365,6 +423,16 @@ class SimImpl implements Sim {
     this.stepEntities();
     this.dispatchEvents();
     for (const e of w.entities) if (e.invulnTicks > 0) e.invulnTicks--;
+    this.endStep();
+  }
+
+  /** A reload asked for during the step happens as it ends; then the clock moves on. */
+  private endStep(): void {
+    const save = this.reloadTo;
+    if (save) {
+      this.reloadTo = null;
+      this.reload(save);
+    }
     this.tick++;
   }
 

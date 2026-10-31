@@ -2,7 +2,8 @@ import { defineSystem, overlaps } from '@gg/sdk';
 
 export const pickups = defineSystem<{ collected: number }>({
   id: 'pickups',
-  init: () => ({ collected: 0 }),
+  // A level picked up where a save left it (a rest, a Continue) counts the pickups it placed that were taken before.
+  init: (ctx) => ({ collected: (ctx.world.gone ?? []).filter((i) => ctx.defOf(ctx.map.level.entities[i]?.type ?? '')?.pickup === true).length }),
   fixedUpdate(s, _input, ctx) {
     const p = ctx.world.player;
     if (!p.alive) return;

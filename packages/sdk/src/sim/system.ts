@@ -3,6 +3,7 @@ import type { EventBus } from './events.js';
 import type { FeelPreset } from './feel.js';
 import type { InputState } from './input.js';
 import type { Rng } from './rng.js';
+import type { ProgressSave } from './sim.js';
 import type { Tilemap } from './tilemap.js';
 import type { Entity, EntityDef, MenuOption, World } from './world.js';
 
@@ -54,6 +55,14 @@ export interface SimCtx {
    * for MENU_GRACE_TICKS after opening, so a held or mashed key never chooses unread. Replaces an open menu.
    */
   openMenu(menu: MenuSpec): void;
+  /**
+   * Load the level again from a save as this step ends: the world as the level begins, picked up where the save left it
+   * (the player where it says with its props, what it names gone for good gone, the tiles it changed), and every system
+   * started over. The run goes on: the tick, the input log, the rng, the events and their listeners, the score and the
+   * deaths carry on, so one script from the level's start replays it all. A rest at an altar reloads the region, its
+   * enemies back; so does a death in a game that returns the player to their last rest.
+   */
+  reloadFrom(save: ProgressSave): void;
 }
 
 export interface SystemDef<S> {
