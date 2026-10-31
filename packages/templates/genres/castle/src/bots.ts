@@ -1,7 +1,7 @@
 import { centerX, centerY, emptyInput, type Entity, type InputState, type Sim } from '@gg/sdk';
 import type { BotPolicy } from '@gg/template-core';
 import { ABILITY_DASH, ABILITY_DOUBLE_JUMP, ALTAR_TYPE, RELIC_ABILITY } from './entities.js';
-import { envelopeFor, pathTo, tallTiles } from './level/progress.js';
+import { envelopeFor, pathTo, roomOf, tallTiles } from './level/progress.js';
 
 /** Tiles of hazard ahead (columns whose first floor down is spikes or the void) that need the air abilities. */
 const WIDE_PIT = 4;
@@ -31,17 +31,28 @@ function tileOf(sim: Sim, e: { x: number; y: number; w: number; h: number }): { 
   return { x: Math.floor(centerX(e) / ts), y: Math.floor((e.y + e.h - 0.5) / ts) };
 }
 
-/** What the bot heads for changes when an ability or a relic does: a number that says which. */
-function signature(sim: Sim): number {
+/** What the bot heads for changes when an ability, a relic, a rest or the room does: a number that says which. */
+function signature(sim: Sim, mem: Record<string, number>): number {
   const p = sim.world.player;
   let live = 0;
-  for (const e of sim.world.entities) if (e.alive && RELIC_ABILITY[e.type] !== undefined) live++;
-  return (p.flags[ABILITY_DOUBLE_JUMP] === true ? 1 : 0) + (p.flags[ABILITY_DASH] === true ? 2 : 0) + 4 * live;
+  let rested = 0;
+  for (const e of sim.world.entities) {
+    if (e.alive && RELIC_ABILITY[e.type] !== undefined) live++;
+    if (e.type === ALTAR_TYPE && mem[restKey(e)] === 1) rested++;
+  }
+  // The room too: entering one plans again, so an altar in it is not passed by.
+  const t = tileOf(sim, p);
+  const room = roomOf(sim.map.level.rooms ?? [], t.x, t.y);
+  return (p.flags[ABILITY_DOUBLE_JUMP] === true ? 1 : 0) + (p.flags[ABILITY_DASH] === true ? 2 : 0) + 4 * live + 64 * rested + 4096 * (room + 1);
 }
 
+/** An altar is known by its place in the level: a rest reloads the region, and the altar comes back with a new id. */
+const restKey = (e: Entity) => `rest${e.levelIndex ?? -e.id}`;
+
 /**
- * Plans the way to the nearest relic the player can reach now (a standing tile it can be touched from: under it, within a
- * jump), else to the goal: a shortest walk over the jump graph from the tile the player stands on, kept in memory.
+ * Plans the way to an altar in the player's room not rested at yet (a rest is not to be flown past), else to the nearest
+ * relic the player can reach now (a standing tile it can be touched from: under it, within a jump), else to the goal: a
+ * shortest walk over the jump graph from the tile the player stands on, kept in memory.
  */
 function plan(sim: Sim, mem: Record<string, number>): void {
   const p = sim.world.player;
@@ -53,12 +64,18 @@ function plan(sim: Sim, mem: Record<string, number>): void {
   const from = tileOf(sim, p);
   // A way with a tile of reach to spare on every jump where there is one (the envelope's farthest needs a perfect run-up).
   const way = (isTarget: (x: number, y: number) => boolean) => pathTo(sim.map, from, isTarget, env, tallTiles(ts), SPARE_TILES) ?? pathTo(sim.map, from, isTarget, env, tallTiles(ts));
-  const toRelic = relics.length > 0 ? way((x, y) => touches(x, y) !== undefined) : null;
-  const path = toRelic ?? way((x, y) => x === goal.x && (y === goal.y || y === goal.y - 1)) ?? [from];
+  const rooms = sim.map.level.rooms ?? [];
+  const room = roomOf(rooms, from.x, from.y);
+  const altar = sim.world.entities.find((e) => e.alive && e.type === ALTAR_TYPE && mem[restKey(e)] !== 1 && room >= 0 && roomOf(rooms, tileOf(sim, e).x, tileOf(sim, e).y) === room);
+  const at = altar ? tileOf(sim, altar) : null;
+  const toAltar = at ? way((x, y) => y === at.y && Math.abs(x - at.x) <= 1) : null;
+  const toRelic = !toAltar && relics.length > 0 ? way((x, y) => touches(x, y) !== undefined) : null;
+  const path = toAltar ?? toRelic ?? way((x, y) => x === goal.x && (y === goal.y || y === goal.y - 1)) ?? [from];
   const end = path[path.length - 1]!;
   const relic = toRelic ? touches(end.x, end.y)! : null;
-  mem[PLAN_X] = relic ? relic.x : goal.x;
-  mem[PLAN_Y] = relic ? relic.y : goal.y;
+  const target = toAltar && at ? at : (relic ?? goal);
+  mem[PLAN_X] = target.x;
+  mem[PLAN_Y] = target.y;
   mem[PATH_N] = path.length;
   for (const [i, t] of path.entries()) {
     mem[`px${i}`] = t.x;
@@ -74,7 +91,8 @@ function plan(sim: Sim, mem: Record<string, number>): void {
 function placeOnPath(mem: Record<string, number>, t: { x: number; y: number }): number {
   const n = mem[PATH_N] ?? 0;
   const at = mem[AT] ?? 0;
-  for (let i = at; i < n && i <= at + 16; i++) if (mem[`py${i}`] === t.y && Math.abs((mem[`px${i}`] ?? -99) - t.x) <= 1) return i;
+  // The tile itself first, then one beside it.
+  for (const near of [0, 1]) for (let i = at; i < n && i <= at + 16; i++) if (mem[`py${i}`] === t.y && Math.abs((mem[`px${i}`] ?? -99) - t.x) <= near) return i;
   const ax = mem[`px${at}`] ?? -99;
   const bx = mem[`px${at + 1}`] ?? ax;
   if (mem[`py${at}`] === t.y && t.x >= Math.min(ax, bx) && t.x <= Math.max(ax, bx)) return at;
@@ -137,7 +155,7 @@ export const route: BotPolicy = (sim, tick, mem) => {
   }
   const ts = sim.map.tileSize;
   const k = ts / 8;
-  const sig = signature(sim);
+  const sig = signature(sim, mem);
   if (p.grounded) {
     // On the ground: where on the way the player stands; a new plan when an ability or a relic changed, or when they
     // stand off the way (a jump that landed short, a knock back, the region loaded again at an altar).
@@ -178,7 +196,7 @@ export const route: BotPolicy = (sim, tick, mem) => {
   // Rest at an altar within reach, once each: known by its place in the level, as a rest reloads the region and the
   // altar comes back with a new id.
   for (const e of sim.world.entities) {
-    const rested = `rest${e.levelIndex ?? -e.id}`;
+    const rested = restKey(e);
     if (!e.alive || e.type !== ALTAR_TYPE || mem[rested] === 1) continue;
     if (Math.abs(centerX(e) - cx) <= e.w / 2 + 4 && Math.abs(centerY(e) - centerY(p)) <= e.h / 2 + 4) {
       mem[rested] = 1;

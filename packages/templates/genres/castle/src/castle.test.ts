@@ -1,6 +1,6 @@
 import { LevelJson, SystemsJson } from '@gg/schemas';
 import { createSim, emptyInput, type InputState, type ProgressSave, type Sim, type SimOptions } from '@gg/sdk';
-import { levelTicksOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
+import { levelTicksOf, progressSaveOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { deathRule, deathSwitches } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
 import { AB_PREFIX, castle, CHASM_TILES, envelopeFor, LEDGE_TILES, MAX_REGION_TILES, MAX_STRETCH, REGION_ROWS, SCREEN_TILES, world } from './node.js';
@@ -217,5 +217,72 @@ describe('castle template', () => {
     const metas = Object.values(castle.systems).map((m) => m.meta);
     expect(deathRule(metas).owner?.id).toBe('rest');
     expect(castle.composedParams).toEqual(deathSwitches(metas));
+  });
+
+  it('closes a shortcut under the first altar with a gate that opens from below, for good, and joins both ways', () => {
+    const level = castle.levelGrammar.generate({ seed: 1, difficulty: 0.5 });
+    const gate = level.entities.find((e) => e.type === 'gate')!;
+    const at = (id: string) => level.rooms!.find((r) => r.id === id)!;
+    // The top row of the first altar's floor, over a shaft that climbs from the way out on the row below.
+    expect(gate.x).toBeGreaterThanOrEqual(at('altar-1').x);
+    expect(gate.x + 4).toBeLessThanOrEqual(at('altar-1').x + SCREEN_TILES);
+    expect([level.rows[gate.y - 1]![gate.x], level.rows[gate.y]![gate.x], level.rows[gate.y + 1]![gate.x]]).toEqual(['.', '#', '.']);
+    for (const feel of Object.values(castle.feelPresets)) {
+      const report = castle.levelGrammar.validate(level, feel);
+      expect(report.ok).toBe(true);
+      expect(report.metrics['shortcutLoops']).toBe(1);
+    }
+    // A player on the shaft's top ledge, with the wings, under each feel.
+    const ledge = { x: gate.x + 2, y: gate.y + 3 };
+    expect(level.rows[ledge.y + 1]!.slice(ledge.x, ledge.x + 2)).toBe('--');
+    const floorTop = gate.y * 16;
+    for (const feel of Object.keys(castle.feelPresets)) {
+      const options = optionsFor(feel);
+      const sim = createSim({ ...options, level, seed: 1, resume: { at: { x: ledge.x * 16, y: (ledge.y + 1) * 16 - 42 }, props: { [`${AB_PREFIX}double-jump`]: true }, removed: [], tiles: [] } });
+      let opened = 0;
+      sim.events.on('custom:door_open', () => opened++);
+      step(sim, {}, 2);
+      expect(sim.world.player.grounded).toBe(true);
+      // A jump: the head meets the grate, which opens for good; the player comes down on the ledge again.
+      step(sim, { jump: true }, 20);
+      step(sim, {}, 60);
+      expect(opened).toBe(1);
+      expect(sim.world.entities.some((e) => e.type === 'gate')).toBe(false);
+      for (let x = gate.x; x < gate.x + 4; x++) expect(sim.map.kindAt(x, gate.y)).toBe('air');
+      expect([sim.world.player.grounded, Math.round(sim.world.player.y + sim.world.player.h)]).toEqual([true, (ledge.y + 1) * 16]);
+      // The climb back to the rest: hugging the shaft's wall, a jump, the air jump at the top of it, and onto the altar
+      // room's floor as the feet clear it (the rise of the wings gate's ledge, four tiles).
+      let phase = 0;
+      for (let t = 0; t < 180 && !(phase === 3 && sim.world.player.grounded); t++) {
+        const p = sim.world.player;
+        if (phase === 0 && t > 2 && p.vy >= 0) phase = 1;
+        else if (phase === 1) phase = 2;
+        else if (phase === 2 && p.y + p.h < floorTop) phase = 3;
+        step(sim, { jump: phase !== 1, right: true });
+      }
+      const p = sim.world.player;
+      expect([p.grounded, Math.round(p.y + p.h), sim.world.hud['_room']]).toEqual([true, floorTop, 'altar-1']);
+      // And down again: off the edge into the hole, and down the shaft to the way out.
+      step(sim, { left: true }, 40);
+      step(sim, {}, 120);
+      expect(sim.world.hud['_room']).toBe('exit');
+      const save = progressSaveOf({ world: sim.world, map: sim.map } as never);
+      const resumed = createSim({ ...options, level, seed: 1, resume: save });
+      expect(resumed.world.entities.some((e) => e.type === 'gate')).toBe(false);
+      expect(resumed.map.kindAt(gate.x, gate.y)).toBe('air');
+    }
+  });
+
+  it('counts no loop for a gate the wings cannot climb back through', () => {
+    const level = castle.levelGrammar.generate({ seed: 1, difficulty: 0.5 });
+    const gate = level.entities.find((e) => e.type === 'gate')!;
+    // Without the shaft's top ledge the climb out is six tiles: the agile air jump makes it, the weighty one does not.
+    const rows = level.rows.map((r, y) => (y === gate.y + 4 ? r.slice(0, gate.x) + '....' + r.slice(gate.x + 4) : r));
+    const cut = { ...level, rows };
+    const agile = castle.levelGrammar.validate(cut, castle.feelPresets['castle-agile']!);
+    expect([agile.ok, agile.metrics['shortcutLoops']]).toEqual([true, 1]);
+    const weighty = castle.levelGrammar.validate(cut, castle.feelPresets['castle-weighty']!);
+    expect([weighty.ok, weighty.metrics['shortcutLoops']]).toEqual([true, 0]);
+    expect(weighty.issues.map((i) => i.code)).toContain('gate_one_way');
   });
 });

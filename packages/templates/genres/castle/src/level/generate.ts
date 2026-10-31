@@ -1,7 +1,7 @@
 import type { LevelJson, LevelRoom } from '@gg/schemas';
 import { Rng } from '@gg/sdk';
 import type { LevelGenParams } from '@gg/template-core';
-import { ALTAR_TYPE, BOOTS_TYPE, GARGOYLE_TYPE, GHOUL_TYPE, HOUND_TYPE, SOUL_TYPE, WINGS_TYPE } from '../entities.js';
+import { ALTAR_TYPE, BOOTS_TYPE, ENTITY_DEFS, GARGOYLE_TYPE, GATE_TYPE, GHOUL_TYPE, HOUND_TYPE, PLAYER, SOUL_TYPE, WINGS_TYPE } from '../entities.js';
 
 /** One screen of the castle view (480x270 at 16 px tiles): no room is narrower, so the camera never shows two. */
 export const SCREEN_TILES = 30;
@@ -26,6 +26,9 @@ export const MAX_REGION_TILES = 400;
 export const SHAFT_TILES = 6;
 /** One-way ledges up the shaft, this many rows apart (the weighty feel's plain jump climbs them), on alternate sides. */
 const SHAFT_STEP = 2;
+/** The shortcut's shaft and its gate: as wide as the gate, at this column of the first altar's room (clear of the altar). */
+const GATE_TILES = Math.round((ENTITY_DEFS.find((d) => d.type === GATE_TYPE)?.w ?? 64) / 16);
+const SHORTCUT_COLUMN = 20;
 
 type Grid = string[][];
 
@@ -292,6 +295,26 @@ export function generateRegion(params: LevelGenParams): LevelJson {
       shafts.push({ x: gx(plan.w - 2 - SHAFT_TILES), top: y0 + walk, bottom: next.row * REGION_ROWS + BASE_WALK });
     }
     rooms.push({ id: plan.id, x: x0, y: y0, w: plan.w, h: REGION_ROWS, kind: plan.kind });
+  }
+  // The shortcut: from 0.2 the way out lies under the first altar's room. A shaft climbs from its floor to the altar room's
+  // floor, whose top row a gate closes until a head meets it from below: once open, the end of the way joins the first
+  // rest, both ways (a fall down the shaft, the wings up it). The gate is the floor's top row only, so the top ledge sits
+  // a row higher and the climb out of the shaft is the rise of an air jump under the heaviest feel (four tiles).
+  const exitRoom = rooms.find((r) => r.kind === 'exit');
+  const firstAltar = rooms.find((r) => r.kind === 'save');
+  if (exitRoom && firstAltar && exitRoom.x === firstAltar.x && exitRoom.y === firstAltar.y + REGION_ROWS) {
+    const sx = firstAltar.x + SHORTCUT_COLUMN;
+    const gateRow = firstAltar.y + BASE_WALK + 1;
+    const floor = exitRoom.y + BASE_WALK;
+    const tall = Math.ceil(PLAYER.h / 16);
+    for (let x = sx; x < sx + GATE_TILES; x++) for (let y = gateRow + 1; y <= floor; y++) set(x, y, '.');
+    // Ledges down from the highest row a body stands on with its head under the gate, every SHAFT_STEP rows, to the
+    // last one above the floor; on alternate halves, the top one away from the altar.
+    for (let k = 0, y = gateRow + tall + 1; y <= floor - SHAFT_STEP + 1; k++, y += SHAFT_STEP) {
+      const from = k % 2 === 0 ? sx + GATE_TILES / 2 : sx;
+      for (let x = from; x < from + GATE_TILES / 2; x++) set(x, y, '-');
+    }
+    entities.push({ type: GATE_TYPE, x: sx, y: gateRow, props: {} });
   }
   // Each shaft: the floor between the two walking rows taken away, and one-way ledges on alternate halves every
   // SHAFT_STEP rows from the floor below up to the one above, so a fall goes down past them and a jump climbs them.

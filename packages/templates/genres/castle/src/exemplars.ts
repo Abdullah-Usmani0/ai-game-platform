@@ -7,7 +7,7 @@ export const EXEMPLARS: Exemplar[] = [
   { kind: 'behaviour', prompt: 'A crypt hound that crouches, then bounds at the player in low leaps.', artifact: HOUND },
   { kind: 'behaviour', prompt: 'A stone watcher that wakes when the player comes near and spits embers.', artifact: GARGOYLE },
   { kind: 'level', prompt: 'A first wing: the wings behind the start, a hall, an altar, and a ledge only a double jump climbs.', artifact: generateRegion({ seed: 11, difficulty: 0.15 }) },
-  { kind: 'level', prompt: 'A full region on two floors: wings, an altar, the ledge, halls and the boots above; a shaft down to a second altar, then back below past a chasm only the dash crosses to the way out.', artifact: generateRegion({ seed: 23, difficulty: 0.55 }) },
+  { kind: 'level', prompt: 'A full region on two floors: wings, an altar, the ledge, halls and the boots above; a shaft down to a second altar, then back below past a chasm only the dash crosses to the way out, where a gate in the ceiling opens a shortcut up to the first altar.', artifact: generateRegion({ seed: 23, difficulty: 0.55 }) },
   {
     kind: 'systems',
     prompt: 'A castle explorer where relics unlock the double jump and the dash, altars save the way, with souls and stomping.',
@@ -21,6 +21,7 @@ export const EXEMPLARS: Exemplar[] = [
         { id: 'abilities', params: {} },
         { id: 'rooms', params: {} },
         { id: 'rest', params: { reach: 8 } },
+        { id: 'shortcuts', params: {} },
         { id: 'hazards', params: { respawnDelayTicks: 30 } },
         { id: 'combat-stomp', params: { bounceVy: -140 } },
         { id: 'pickups', params: { value: 1 } },

@@ -194,13 +194,35 @@ export function soul(t: number): Part[] {
   ];
 }
 
+// ---------------------------------------------------------------- gate: an iron grate set in a floor (64 x 16)
+
+export const GATE_W = 64, GATE_H = 16;
+/** A grate over the dark of a shaft, flush with the floor: a riveted iron frame and eight uprights, the dark between them. */
+export function gate(): Part[] {
+  const iron = R('kktTT'), rivet = R('aaAbB'), dark = R('kkkkk');
+  const parts: Part[] = [
+    poly('dark', [v(2, 2), v(62, 2), v(62, 14), v(2, 14)], 0, dark, 0),
+    cap('top', v(2.5, 2.5), v(61.5, 2.5), 2, 2, iron, 1),
+    cap('bottom', v(2.5, 13), v(61.5, 13), 1.6, 1.6, iron, 1),
+    cap('left', v(2.5, 2.5), v(2.5, 13), 2, 2, iron, 1.1),
+    cap('right', v(61.5, 2.5), v(61.5, 13), 2, 2, iron, 1.1),
+  ];
+  for (let x = 9.5; x <= 55; x += 6.5) parts.push(cap(`bar${x}`, v(x, 3.5), v(x, 12.5), 1.2, 1.2, iron, 1.3));
+  for (const [x, y] of [
+    [2.5, 2.5],
+    [61.5, 2.5],
+  ] as const)
+    parts.push(cap(`rivet${x}-${y}`, v(x, y), v(x, y), 1.2, 1.2, rivet, 2));
+  return parts;
+}
+
 // ---------------------------------------------------------------- the recipes
 
 const frames = (n: number, draw: (t: number) => Part[], w: number, h: number): string[][] => Array.from({ length: n }, (_, i) => bake(draw(i / n), w, h));
 
 /**
  * The castle's cast as recipes: a ghoul that shambles and lurches, a hound that crouches, runs and leaps, a gargoyle
- * that wakes to spit, an altar's flame and a soul's flicker. Baked once, when the art kit loads.
+ * that wakes to spit, an altar's flame, a soul's flicker and the grate of a shortcut. Baked once, when the art kit loads.
  */
 export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
   ghoul: {
@@ -230,4 +252,5 @@ export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
   },
   altar: { anchor: 'feet', anims: { idle: frames(3, altar, ALTAR_W, ALTAR_H) } },
   soul: { anchor: 'center', anims: { idle: frames(3, soul, SOUL_W, SOUL_H) } },
+  gate: { anchor: 'center', noShadow: true, anims: { idle: [bake(gate(), GATE_W, GATE_H)] } },
 };

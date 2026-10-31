@@ -1,7 +1,7 @@
 import type { LevelEntity, LevelJson, LevelRoom } from '@gg/schemas';
 import { Tilemap, type FeelPreset } from '@gg/sdk';
-import { jumpEnvelope, jumpNeighbours, reachableTiles, type Envelope } from '@gg/validators';
-import { ABILITY_DASH, ABILITY_DOUBLE_JUMP, ALTAR_TYPE, PLAYER, RELIC_ABILITY } from '../entities.js';
+import { jumpEnvelope, jumpNeighbours, type Envelope } from '@gg/validators';
+import { ABILITY_DASH, ABILITY_DOUBLE_JUMP, ALTAR_TYPE, ENTITY_DEFS, GATE_TYPE, PLAYER, RELIC_ABILITY } from '../entities.js';
 
 export interface Abilities {
   doubleJump: boolean;
@@ -133,6 +133,52 @@ export interface World {
   longestStretch: string[];
   /** Altars the player never reaches (a standing tile beside them). */
   unreachableAltars: LevelEntity[];
+  /**
+   * Gates the player opens (a head meets them from below) that, once open, join the rooms either side of them both
+   * ways, one of them a rest: the shortcut loops the region has.
+   */
+  shortcuts: LevelEntity[];
+  /** Gates the player opens that join their rooms one way only (a drop with no climb back, or the other way round). */
+  oneWayGates: LevelEntity[];
+  /** Gates the player never gets under. */
+  closedGates: LevelEntity[];
+}
+
+/**
+ * Standing tiles reachable from a tile over the moves a body can make (moves: the jump graph less the arcs that come
+ * down through a floor), by BFS distance. The castle's solver searches this, not the graph's generous superset: a
+ * region's rooms stack, and a floor between them must hold.
+ */
+export function reachOver(map: Tilemap, start: { x: number; y: number }, env: Envelope, tall: number): Map<string, number> {
+  const dist = new Map<string, number>([[key(start.x, start.y), 0]]);
+  const queue = [start];
+  for (let i = 0; i < queue.length; i++) {
+    const n = queue[i]!;
+    const d = dist.get(key(n.x, n.y))!;
+    for (const m of moves(map, n, env, tall)) {
+      const k = key(m.x, m.y);
+      if (dist.has(k)) continue;
+      dist.set(k, d + 1);
+      queue.push(m);
+    }
+  }
+  return dist;
+}
+
+/** A gate's tiles: it stands on its bottom row. */
+function gateTiles(g: LevelEntity, ts: number): Array<{ x: number; y: number }> {
+  const def = ENTITY_DEFS.find((d) => d.type === GATE_TYPE)!;
+  const w = Math.round(def.w / ts);
+  const h = Math.round(def.h / ts);
+  return Array.from({ length: w * h }, (_, i) => ({ x: g.x + (i % w), y: g.y - Math.floor(i / w) }));
+}
+
+/** The standing tiles under a gate from which a jump puts a head against its underside. */
+function gateTouch(g: LevelEntity, ts: number, env: Envelope, tall: number): Array<{ x: number; y: number }> {
+  const w = Math.round(ENTITY_DEFS.find((d) => d.type === GATE_TYPE)!.w / ts);
+  const out: Array<{ x: number; y: number }> = [];
+  for (let x = g.x; x < g.x + w; x++) for (let y = g.y + tall; y <= g.y + tall + Math.floor(env.jumpUpTiles); y++) out.push({ x, y });
+  return out;
 }
 
 /**
@@ -143,7 +189,7 @@ function trapIn(map: Tilemap, reach: Map<string, number>, env: Envelope, tall: n
   const into = new Map<string, string[]>();
   for (const k of reach.keys()) {
     const [x, y] = k.split(',').map(Number) as [number, number];
-    for (const m of jumpNeighbours(map, { x, y }, env, tall)) {
+    for (const m of moves(map, { x, y }, env, tall)) {
       const mk = key(m.x, m.y);
       const list = into.get(mk);
       if (list) list.push(k);
@@ -174,6 +220,24 @@ function trapIn(map: Tilemap, reach: Map<string, number>, env: Envelope, tall: n
   return trap;
 }
 
+/** Whether a move takes a body from a standing tile it reaches in room `a` into room `b`. */
+function joins(map: Tilemap, rooms: readonly LevelRoom[], reach: Map<string, number>, a: number, b: number, env: Envelope, tall: number): boolean {
+  for (const k of reach.keys()) {
+    const [x, y] = k.split(',').map(Number) as [number, number];
+    if (roomOf(rooms, x, y) !== a) continue;
+    if (moves(map, { x, y }, env, tall).some((m) => roomOf(rooms, m.x, m.y) === b)) return true;
+  }
+  return false;
+}
+
+/** The rooms a gate stands between: the one its tiles are in, and the first other room down its columns. */
+function gateRooms(map: Tilemap, rooms: readonly LevelRoom[], g: LevelEntity): [number, number] {
+  const above = roomOf(rooms, g.x, g.y);
+  let y = g.y + 1;
+  while (y < map.height && roomOf(rooms, g.x, y) === above) y++;
+  return [above, roomOf(rooms, g.x, y)];
+}
+
 /** Rooms joined by a move from one into the other, with everything the region gives. */
 function roomLinks(map: Tilemap, rooms: readonly LevelRoom[], reach: Map<string, number>, env: Envelope, tall: number): Array<Set<number>> {
   const links = rooms.map(() => new Set<number>());
@@ -181,7 +245,7 @@ function roomLinks(map: Tilemap, rooms: readonly LevelRoom[], reach: Map<string,
     const [x, y] = k.split(',').map(Number) as [number, number];
     const a = roomOf(rooms, x, y);
     if (a < 0) continue;
-    for (const m of jumpNeighbours(map, { x, y }, env, tall)) {
+    for (const m of moves(map, { x, y }, env, tall)) {
       const b = roomOf(rooms, m.x, m.y);
       if (b < 0 || b === a) continue;
       links[a]!.add(b);
@@ -206,24 +270,35 @@ export function world(level: LevelJson, feel: FeelPreset): World {
   const abilities: Abilities = { ...NO_ABILITIES };
   const relics = level.entities.filter((e) => RELIC_ABILITY[e.type] !== undefined);
   const taken = new Set<LevelEntity>();
+  const gates = level.entities.filter((e) => e.type === GATE_TYPE);
+  const opened: LevelEntity[] = [];
   const steps: WorldStep[] = [];
   const spawn = key(level.spawn.x, level.spawn.y);
   const goal = goalTiles(level.goal);
   let env = envelopeFor(feel, ts, abilities);
-  let reach = reachableTiles(map, level.spawn, env, tall);
+  let reach = reachOver(map, level.spawn, env, tall);
   const gated = !goal.some((g) => reach.has(g));
   let trap: { x: number; y: number } | null = null;
   for (let guard = 0; guard < 16; guard++) {
     env = envelopeFor(feel, ts, abilities);
-    reach = reachableTiles(map, level.spawn, env, tall);
+    reach = reachOver(map, level.spawn, env, tall);
     const lying = relics.filter((r) => !taken.has(r));
     const relicTiles = lying.flatMap((r) => Array.from({ length: env.jumpUpTiles + 2 }, (_, dy) => key(r.x, r.y + dy)));
-    trap ??= trapIn(map, reach, env, tall, [spawn, ...goal, ...relicTiles]);
+    // A gate still shut is somewhere to go, like a relic: under it, a head reaches it.
+    const shut = gates.filter((g) => !opened.includes(g));
+    const touchTiles = shut.flatMap((g) => gateTouch(g, ts, env, tall).map((t) => key(t.x, t.y)));
+    trap ??= trapIn(map, reach, env, tall, [spawn, ...goal, ...relicTiles, ...touchTiles]);
     const found = lying
       .map((r) => ({ r, d: relicReach(reach, r.x, r.y, env) }))
       .filter((c): c is { r: LevelEntity; d: number } => c.d !== null)
       .sort((a, b) => a.d - b.d || a.r.x - b.r.x || a.r.y - b.r.y);
-    if (found.length === 0) break;
+    const openable = shut.filter((g) => gateTouch(g, ts, env, tall).some((t) => reach.has(key(t.x, t.y))));
+    if (found.length === 0 && openable.length === 0) break;
+    // A gate the player gets under opens for good: its tiles turn to air.
+    for (const g of openable) {
+      opened.push(g);
+      for (const t of gateTiles(g, ts)) map.setKind(t.x, t.y, 'air');
+    }
     for (const { r } of found) {
       taken.add(r);
       const ability = RELIC_ABILITY[r.type];
@@ -239,8 +314,11 @@ export function world(level: LevelJson, feel: FeelPreset): World {
     const r = roomOf(rooms, x, y);
     if (r >= 0) reachedRooms.add(r);
   }
-  // Stretches: the rooms left once those with an altar or the spawn are taken out, in connected runs.
-  const links = roomLinks(map, rooms, reach, env, tall);
+  // Stretches: the rooms left once those with an altar or the spawn are taken out, in connected runs. Measured with the
+  // gates shut, as the region is built: a gate only adds a way back to a rest, and a jump out of its shaft would seem to
+  // join the rooms either side of the rest it passes through.
+  const built = new Tilemap(level);
+  const links = roomLinks(built, rooms, reachOver(built, level.spawn, env, tall), env, tall);
   const altars = level.entities.filter((e) => e.type === ALTAR_TYPE);
   const rests = new Set<number>([roomOf(rooms, level.spawn.x, level.spawn.y), ...altars.map((a) => roomOf(rooms, a.x, a.y))]);
   let longest: number[] = [];
@@ -258,6 +336,13 @@ export function world(level: LevelJson, feel: FeelPreset): World {
     }
     if (run.length > longest.length) longest = run.sort((a, b) => a - b);
   }
+  // A gate the player opened is a loop when the rooms either side of it are joined both ways, on the region as opened,
+  // with everything the player has, and one of them is a rest.
+  const loops = opened.filter((g) => {
+    const [above, below] = gateRooms(map, rooms, g);
+    if (above < 0 || below < 0 || above === below || !(rests.has(above) || rests.has(below))) return false;
+    return joins(map, rooms, reach, above, below, env, tall) && joins(map, rooms, reach, below, above, env, tall);
+  });
   return {
     steps,
     goalReachable: goal.some((g) => reach.has(g)),
@@ -269,5 +354,8 @@ export function world(level: LevelJson, feel: FeelPreset): World {
     unreachableRooms: rooms.filter((_, i) => !reachedRooms.has(i)),
     longestStretch: longest.map((i) => rooms[i]!.id),
     unreachableAltars: altars.filter((a) => relicReach(reach, a.x, a.y, env) === null),
+    shortcuts: loops,
+    oneWayGates: opened.filter((g) => !loops.includes(g)),
+    closedGates: gates.filter((g) => !opened.includes(g)),
   };
 }

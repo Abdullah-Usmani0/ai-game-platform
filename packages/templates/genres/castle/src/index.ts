@@ -6,11 +6,12 @@ import { ALTAR_TYPE, COLLECTIBLE_TYPES, ENTITY_DEFS, PLAYER, RELIC_ABILITY } fro
 import { DEFAULT_FEEL, FEEL } from './feel.js';
 import { meta as movementMeta, movement } from './movement.js';
 import { abilities, meta as abilitiesMeta } from './systems/abilities.js';
+import { meta as shortcutsMeta, shortcuts } from './systems/shortcuts.js';
 
 export * from './feel.js';
 export * from './entities.js';
 export * from './behaviours.js';
-export { movement, abilities };
+export { movement, abilities, shortcuts };
 
 /** A shared system as the castle offers it: the same code, listed for the castle. */
 const forCastle = (mod: SystemModule | undefined): SystemModule => ({ meta: { ...mod!.meta, genres: ['castle'] }, create: mod!.create });
@@ -28,6 +29,7 @@ export const castleRuntime: GenreRuntime = {
     [movementMeta.id]: { meta: movementMeta, create: () => movement },
     relics: forCastle(metroidvaniaRuntime.systems['relics']),
     [abilitiesMeta.id]: { meta: abilitiesMeta, create: () => abilities },
+    [shortcutsMeta.id]: { meta: shortcutsMeta, create: () => shortcuts },
     [roomsMeta.id]: { meta: roomsMeta, create: () => rooms },
     [restMeta.id]: { meta: restMeta, create: () => rest },
     hazards: forCastle(platformerRuntime.systems['hazards']),
@@ -35,7 +37,7 @@ export const castleRuntime: GenreRuntime = {
     'combat-stomp': forCastle(platformerRuntime.systems['combat-stomp']),
     [pickupsMeta.id]: forCastle({ meta: pickupsMeta, create: () => pickups }),
   },
-  requiredSystems: ['movement-castle', 'relics', 'abilities', 'rooms', 'rest', 'hazards', 'goal'],
+  requiredSystems: ['movement-castle', 'relics', 'abilities', 'rooms', 'rest', 'shortcuts', 'hazards', 'goal'],
   optionalSystems: ['combat-stomp', 'pickups'],
   feelPresets: FEEL,
   defaultFeel: DEFAULT_FEEL,
@@ -45,7 +47,10 @@ export const castleRuntime: GenreRuntime = {
   defaultBehaviours: DEFAULT_BEHAVIOURS,
   defaultRules: [],
   collectibleTypes: COLLECTIBLE_TYPES,
-  feedbackExtras: [{ event: 'custom:rest', channels: ['sfx', 'flash'] }],
+  feedbackExtras: [
+    { event: 'custom:rest', channels: ['sfx', 'flash'] },
+    { event: 'custom:door_open', channels: ['sfx', 'shake'] },
+  ],
   // The platformer's stomp bounce at the castle's scale.
   paramDefaults: { 'combat-stomp': { bounceVy: -140 } },
   // A fall returns the player to their last rest (the rest system's death rule): hazards only hurt.

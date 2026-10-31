@@ -1,7 +1,7 @@
 import type { LevelJson } from '@gg/schemas';
 import { Tilemap, type FeelPreset } from '@gg/sdk';
 import { err, report, warn, type Issue, type ValidationReport } from '@gg/validators';
-import { ALTAR_TYPE, COLLECTIBLE_TYPES, ENEMY_TYPES, RELIC_TYPES } from '../entities.js';
+import { ALTAR_TYPE, COLLECTIBLE_TYPES, ENEMY_TYPES, GATE_TYPE, RELIC_TYPES } from '../entities.js';
 import { MAX_STRETCH, roomOf, world } from './progress.js';
 
 /** The castle tier's tiles. */
@@ -31,7 +31,8 @@ export function validateRegion(level: LevelJson, feel: FeelPreset): ValidationRe
   if (!standable(map, spawn.x, spawn.y)) issues.push(err('spawn_not_standable', 'spawn is not on a walkable surface', { x: spawn.x, y: spawn.y }));
   if (map.kindAt(spawn.x, spawn.y) === 'hazard' || map.kindAt(spawn.x, spawn.y + 1) === 'hazard') issues.push(err('spawn_on_hazard', 'spawn touches a hazard', { x: spawn.x, y: spawn.y }));
   if (map.kindAt(goal.x, goal.y) !== 'goal') issues.push(err('goal_tile_missing', 'goal coordinates do not point at a goal tile', { x: goal.x, y: goal.y }));
-  for (const e of level.entities) if (map.kindAt(e.x, e.y) === 'solid') issues.push(err('entity_in_solid', `${e.type} at (${e.x},${e.y}) is inside a solid tile`, { x: e.x, y: e.y }));
+  // A gate stands in the floor it closes; nothing else stands in rock.
+  for (const e of level.entities) if (e.type !== GATE_TYPE && map.kindAt(e.x, e.y) === 'solid') issues.push(err('entity_in_solid', `${e.type} at (${e.x},${e.y}) is inside a solid tile`, { x: e.x, y: e.y }));
   let nearHazard: { x: number; y: number } | null = null;
   for (let y = spawn.y - 3; y <= spawn.y + 3 && !nearHazard; y++) {
     for (let x = spawn.x - SAFE_START_TILES; x <= spawn.x + SAFE_START_TILES && !nearHazard; x++) if (map.kindAt(x, y) === 'hazard') nearHazard = { x, y };
@@ -66,6 +67,8 @@ export function validateRegion(level: LevelJson, feel: FeelPreset): ValidationRe
   if (w.trap) issues.push(err('softlock', `a player who gets to (${w.trap.x},${w.trap.y}) can never leave it`, w.trap));
   for (const r of w.unreachableRelics) issues.push(warn('relic_unreachable', `${r.type} at (${r.x},${r.y}) is never reachable`, { x: r.x, y: r.y }));
   for (const a of w.unreachableAltars) issues.push(warn('altar_unreachable', `the altar at (${a.x},${a.y}) is never reachable`, { x: a.x, y: a.y }));
+  for (const g of w.closedGates) issues.push(warn('gate_unreachable', `the gate at (${g.x},${g.y}) is never reached from below`, { x: g.x, y: g.y }));
+  for (const g of w.oneWayGates) issues.push(warn('gate_one_way', `the gate at (${g.x},${g.y}) opens, but its shaft joins its rooms one way only`, { x: g.x, y: g.y }));
   for (const r of w.unreachableRooms) issues.push(err('room_unreachable', `room ${r.id} is never reached`, { path: r.id }));
   if (w.longestStretch.length > MAX_STRETCH) issues.push(err('altars_far_apart', `${w.longestStretch.length} rooms in a row with no altar: ${w.longestStretch.join(', ')} (at most ${MAX_STRETCH})`));
   if (!w.gated) issues.push(warn('not_gated', 'the goal is reachable without any relic'));
@@ -78,6 +81,8 @@ export function validateRegion(level: LevelJson, feel: FeelPreset): ValidationRe
     gated: w.gated,
     // The relics the way out needs, one gate each (none when the goal is reachable without them).
     abilityGates: w.gated ? w.steps.length : 0,
+    // Gates the player opens from below that join a late room to a rest both ways: a loop through the region.
+    shortcutLoops: w.shortcuts.length,
     goalReachable: w.goalReachable,
     rooms: rooms.length,
     saves: rooms.filter((r) => r.kind === 'save').length,

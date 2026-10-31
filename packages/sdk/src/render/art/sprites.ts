@@ -671,6 +671,7 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   gargoyle: 'gargoyle',
   soul: 'soul',
   altar: 'altar',
+  gate: 'gate',
 };
 
 /** The recipe an entity type draws with: its own, or that of the shipped type it is drawn as (a renamed type). */

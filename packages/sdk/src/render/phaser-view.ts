@@ -39,6 +39,12 @@ const CHUNK_TILES = 64;
 /** A move between two rooms slides the view across in this many ticks. */
 const ROOM_SLIDE_TICKS = 20;
 /**
+ * Pixels above the head and below the feet a room's view keeps in sight: up or down a shaft it leans over the room's
+ * edge (what is overhead shows sooner; below, no more than a floor's depth, so a walk along a floor never moves it).
+ */
+const ROOM_HEAD_ROOM = 64;
+const ROOM_FOOT_ROOM = 32;
+/**
  * A fall in a game of rests: the view starts to darken FALL_DARK_FROM ticks after the blow, is black FALL_DARK_TICKS
  * later (before the region loads again, a second after the fall), and comes up from black at the last rest over
  * WAKE_TICKS.
@@ -922,9 +928,11 @@ export class MainScene extends Phaser.Scene {
 
   /**
    * The view over a level of rooms: centred on the player and held inside the room they are in (a room no wider than
-   * the view stands still in it). Entering another room slides the view there from where it was, as the game plays; a
-   * jump in time (a frame stepped to a tick, a restart, the region loading again at a rest) shows the room as it
-   * settles, so such a frame always shows the same thing.
+   * the view stands still in it), but never closer than ROOM_HEAD_ROOM to their head or ROOM_FOOT_ROOM to their feet,
+   * so up or down a shaft the view leans over the room's edge with them and shows what is above or below. Entering
+   * another room slides the view there from where it was, as the game plays; a jump in time (a frame stepped to a tick,
+   * a restart, the region loading again at a rest) shows the room as it settles, so such a frame always shows the same
+   * thing.
    */
   private roomCamera(tick: number): void {
     const sim = this.controller.sim;
@@ -941,7 +949,8 @@ export class MainScene extends Phaser.Scene {
     const vh = cam.height / cam.zoom;
     const hold = (c: number, from: number, size: number, view: number) => (size <= view ? from + (size - view) / 2 : Math.min(Math.max(c - view / 2, from), from + size - view));
     const tx = hold(cx, room.x * ts, room.w * ts, vw);
-    const ty = hold(cy, room.y * ts, room.h * ts, vh);
+    const lean = Math.min(Math.max(hold(cy, room.y * ts, room.h * ts, vh), p.y + p.h + ROOM_FOOT_ROOM - vh), p.y - ROOM_HEAD_ROOM);
+    const ty = Math.min(Math.max(lean, 0), Math.max(0, sim.map.height * ts - vh));
     const reload = sim.world.reloaded?.tick ?? -1;
     const playing = this.room.index >= 0 && tick >= this.room.seen && tick - this.room.seen <= 2 && reload === this.room.reload;
     if (index !== this.room.index || reload !== this.room.reload) this.room = { index, fromX: playing ? cam.scrollX : tx, fromY: playing ? cam.scrollY : ty, at: tick, seen: tick, reload };

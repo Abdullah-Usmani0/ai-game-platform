@@ -7,6 +7,8 @@ export const SOUL_TYPE = 'soul';
 export const GHOUL_TYPE = 'ghoul';
 export const HOUND_TYPE = 'hound';
 export const GARGOYLE_TYPE = 'gargoyle';
+/** A grate in a floor that opens from below (the shortcuts system): four tiles wide, two deep. */
+export const GATE_TYPE = 'gate';
 
 /**
  * The castle tier's hero: a 14x42 body (2.6 tiles of 16 px), drawn by the rig in larger frames around it. Five hearts:
@@ -27,6 +29,7 @@ export const ENTITY_DEFS: EntityDef[] = [
   { type: WINGS_TYPE, w: 12, h: 12, gravity: false, tint: 'accent' },
   { type: BOOTS_TYPE, w: 12, h: 12, gravity: false, tint: 'accent' },
   { type: ALTAR_TYPE, w: 16, h: 32, gravity: false, tint: 'ui' },
+  { type: GATE_TYPE, w: 64, h: 16, gravity: false, tint: 'mid' },
 ];
 
 export const COLLECTIBLE_TYPES = [SOUL_TYPE];

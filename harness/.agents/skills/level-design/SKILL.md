@@ -31,7 +31,11 @@ a row and a shaft of one-way ledges between rows, listed in `rooms` with their k
 for the last). Its world solver checks the relics in
 order reach the way out, nothing the player can get to strands them, every room is reached, every save room has its
 altar and no stretch between altars runs past four rooms; its route bot, which rests at each altar it passes, proves it.
-Regenerate rather than move rooms: a gate (the wings' ledge, the boots' chasm) is sized to hold under both castle feels.
+A grate (`gate`) in a floor closes a shaft up from a later room: a head that meets it from below opens it for good, and
+the solver counts it as a shortcut loop only when the opened shaft joins its rooms both ways (the air jump climbs out of
+it under both feels) with an altar on one side.
+Regenerate rather than move rooms: a gate (the wings' ledge, the boots' chasm, the grate) is sized to hold under both
+castle feels.
 A game with `carry` has its stations placed on every level as it is generated (a source and its dropoffs): top-down
 they stand on solid tiles of their own, on open floor away from the spawn and the goal, all within a screen of the spawn,
 with no one-tile squeezes between them; side view they stand on the main path, the source near the start and the dropoffs

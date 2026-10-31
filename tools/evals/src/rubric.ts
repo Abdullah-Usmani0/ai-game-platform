@@ -72,7 +72,7 @@ export function measure(g: RubricInputs): Record<string, number | null> {
   const phases = bossFsms.length ? Math.max(...bossFsms.map((f) => 1 + new Set(Object.values(f.states).flatMap((s) => s.transitions.flatMap((t) => hpThresholds(t.when)))).size)) : 0;
   const rooms = g.levels.reduce((n, l) => n + ((l as { rooms?: unknown[] }).rooms?.length ?? 1), 0);
   // The world lines from the genre's own validator where it measures them (the castle's world solver), over every region:
-  // the relics that gate the way out, and the longest stretch of rooms with no altar.
+  // the relics that gate the way out, the shortcuts that loop back to a rest, and the longest stretch with no altar.
   const manifest = GENRES[g.genre];
   const feel = manifest?.feelPresets[manifest.defaultFeel];
   const regions = g.levels.filter((l) => (l.rooms?.length ?? 0) > 0 && LevelJson.safeParse(l).success);
@@ -88,7 +88,7 @@ export function measure(g: RubricInputs): Record<string, number | null> {
     boss_phases: phases,
     rooms,
     ability_gates: most('abilityGates'),
-    shortcut_loops: null,
+    shortcut_loops: most('shortcutLoops'),
     altar_spacing: most('longestStretch'),
     parallax_layers: PARALLAX[setting] + g.assets.filter((a) => a.kind === 'backdrop').length,
     npcs: g.entityDefs.filter((d) => (d as { npc?: boolean }).npc).length,

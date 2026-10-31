@@ -1673,7 +1673,7 @@
     },
     {
       "from": 2593,
-      "to": 2600,
+      "to": 2606,
       "input": {
         "left": true,
         "right": false,
@@ -1686,35 +1686,7 @@
       }
     },
     {
-      "from": 2600,
-      "to": 2601,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 2601,
-      "to": 2608,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": true,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 2608,
+      "from": 2606,
       "to": 2651,
       "input": {
         "left": true,

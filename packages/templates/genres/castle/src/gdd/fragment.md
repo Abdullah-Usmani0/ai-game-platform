@@ -8,7 +8,9 @@ and a shaft of one-way ledges joins the rows. The wings lie in a room behind the
 along the top row halls lead to a save altar and a 4-tile ledge only a double jump climbs, then more halls and the
 boots; from difficulty 0.2 a shaft at the far end drops to the second altar on the row below, and the way runs back
 left past a hall and a 10-tile spike chasm only the double jump with the dash crosses, to the way out under the first
-altar. Halls use one-way ledges, low walls, spike trenches and enemies. No stretch between altars runs past four rooms.
+altar. There a shaft of ledges climbs to an iron grate in the first altar's floor: a head that meets it from below opens
+it for good, a shortcut loop (the wings climb back to the rest, a fall drops to the way out). Halls use one-way ledges,
+low walls, spike trenches and enemies. No stretch between altars runs past four rooms.
 Resting at an altar (up) refills health, moves the checkpoint there and loads the region again from that rest: its
 enemies back, what the player found and opened kept. A fall returns the player to their last rest a second later the
 same way, keeping what they found since. Enemies sleep until the player enters their room and keep to it.
