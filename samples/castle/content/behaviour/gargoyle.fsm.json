@@ -1,13 +1,14 @@
 {
   "version": 1,
   "id": "gargoyle",
-  "designNotes": "A stone watcher; wakes when the player comes into range and spits an ember at them every second and a half.",
+  "designNotes": "A stone watcher; wakes when the player comes into range, its eyes and maw blazing, and spits an ember at them; rests a beat between spits.",
   "initial": "stone",
   "states": {
     "stone": {
       "onEnter": [
         {
-          "kind": "idle"
+          "kind": "play_anim",
+          "anim": "idle"
         }
       ],
       "update": [],
@@ -22,20 +23,57 @@
       ]
     },
     "spit": {
-      "onEnter": [],
-      "update": [
+      "onEnter": [
         {
           "kind": "move_toward_player",
           "speed": 0
         },
         {
-          "kind": "shoot",
-          "projectile": "ember",
-          "speed": 150,
-          "cooldownMs": 1500
+          "kind": "play_anim",
+          "anim": "aim"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "watch",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 1200
+          }
+        }
+      ]
+    },
+    "watch": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
         }
       ],
       "transitions": [
+        {
+          "to": "spit",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 500
+              },
+              {
+                "kind": "player_within",
+                "px": 192
+              }
+            ]
+          }
+        },
         {
           "to": "stone",
           "when": {

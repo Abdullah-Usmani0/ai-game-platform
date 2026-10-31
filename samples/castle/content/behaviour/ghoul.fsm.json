@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "ghoul",
-  "designNotes": "Shambles along its floor; lurches at the player who comes close and loses interest when they get away.",
+  "designNotes": "Shambles along its floor; lurches at the player who comes close, and within reach raises its claws over its skull, then rakes, lunging; loses interest when they get away.",
   "initial": "shamble",
   "states": {
     "shamble": {
@@ -42,10 +42,39 @@
       ],
       "transitions": [
         {
+          "to": "claw",
+          "when": {
+            "kind": "player_within",
+            "px": 30
+          }
+        },
+        {
           "to": "shamble",
           "when": {
             "kind": "player_beyond",
             "px": 192
+          }
+        }
+      ]
+    },
+    "claw": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "claw"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "lurch",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 740
           }
         }
       ]

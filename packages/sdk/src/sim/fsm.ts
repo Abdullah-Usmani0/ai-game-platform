@@ -174,6 +174,7 @@ export function stepFsm(fsm: BehaviourFsm, e: Entity, ctx: SimCtx): void {
   if (rt.state === '') {
     rt.state = fsm.initial;
     rt.enteredTick = ctx.tick;
+    rt.entries = (rt.entries ?? 0) + 1;
     for (const a of fsm.states[rt.state]?.onEnter ?? []) applyAction(a, e, ctx);
   }
   const current = fsm.states[rt.state];
@@ -182,6 +183,7 @@ export function stepFsm(fsm: BehaviourFsm, e: Entity, ctx: SimCtx): void {
     if (evalCondition(t.when, e, ctx)) {
       rt.state = t.to;
       rt.enteredTick = ctx.tick;
+      rt.entries = (rt.entries ?? 0) + 1;
       for (const a of fsm.states[t.to]?.onEnter ?? []) applyAction(a, e, ctx);
       break;
     }

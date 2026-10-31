@@ -5,7 +5,7 @@ import { CELESTE_CLASS } from '@gg/sdk';
 import { RIGS } from '@gg/sdk/art';
 import { checkGameSprites, manifestFor, resolveGame } from '@gg/templates/node';
 import type { GenreManifest } from '@gg/template-core';
-import { checkGdd, parseFrontmatter, report, validateBehaviour, validateLevel, validateMoves, type ValidationReport } from '@gg/validators';
+import { checkGdd, movesOfBehaviour, parseFrontmatter, report, validateBehaviour, validateLevel, validateMoves, type ValidationReport } from '@gg/validators';
 
 /**
  * Picks the schema for a design/content artifact by its path, validates it, then runs the semantic
@@ -122,7 +122,11 @@ for (const file of files) {
     const r = g ? g.levelGrammar.validate(level, feel) : validateLevel(level, { feel });
     if (!printReport(file, `level (${g?.id ?? 'generic'})`, r)) failed++;
   } else if (name === 'BehaviourFsm') {
-    if (!printReport(file, 'behaviour', validateBehaviour(result.data as BehaviourFsm, g?.behaviourVocab, g?.entityDefs.map((e) => e.type)))) failed++;
+    // Held to the game's moves too: a state that plays a move's clip makes the move.
+    const fsm = result.data as BehaviourFsm;
+    const movesPath = join(gameRoot, 'content', 'moves.json');
+    const moves = ARTIFACT_SCHEMAS.MoveSet.safeParse(existsSync(movesPath) ? JSON.parse(readFileSync(movesPath, 'utf8')) : g?.shippedContent?.['moves']).data;
+    if (!printReport(file, 'behaviour', validateBehaviour(fsm, g?.behaviourVocab, g?.entityDefs.map((e) => e.type), movesOfBehaviour(moves, g?.entityDefs ?? [], fsm.id)))) failed++;
   } else if (name === 'MoveSet') {
     // Frame data, held to the moves' rules: every foe's blow telegraphs, the castle hero's cuts are the knight's clips.
     const clips = g?.tier === 'castle' ? { player: RIGS['knight']!.clips.map((c) => c.name) } : undefined;

@@ -1,19 +1,20 @@
 {
   "version": 1,
   "id": "hound",
-  "designNotes": "Crouches, then bounds at the player in low leaps.",
+  "designNotes": "Crouches, then coils and pounces at the player in a low leap, jaws first.",
   "initial": "crouch",
   "states": {
     "crouch": {
       "onEnter": [
         {
-          "kind": "idle"
+          "kind": "play_anim",
+          "anim": "idle"
         }
       ],
       "update": [],
       "transitions": [
         {
-          "to": "bound",
+          "to": "pounce",
           "when": {
             "kind": "all",
             "of": [
@@ -33,15 +34,15 @@
         }
       ]
     },
-    "bound": {
+    "pounce": {
       "onEnter": [
         {
           "kind": "move_toward_player",
-          "speed": 120
+          "speed": 0
         },
         {
-          "kind": "jump",
-          "vy": -200
+          "kind": "play_anim",
+          "anim": "pounce"
         }
       ],
       "update": [],
@@ -53,7 +54,7 @@
             "of": [
               {
                 "kind": "timer_elapsed",
-                "ms": 300
+                "ms": 820
               },
               {
                 "kind": "grounded"

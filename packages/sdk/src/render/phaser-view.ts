@@ -313,6 +313,7 @@ export class MainScene extends Phaser.Scene {
       noShadow: recipe.noShadow === true || recipe.floor === true,
       fixture: recipe.fixture === true,
       tops,
+      ...(recipe.active ? { actives: new Map(Object.entries(recipe.active)) } : {}),
     };
     this.sheets.set(name, sheet);
     return sheet;
@@ -849,8 +850,10 @@ export class MainScene extends Phaser.Scene {
       // Invulnerable after a hit: blink. Not while dashing (the dash's own frames are its afterimages).
       const blink = e.isPlayer && e.invulnTicks > 0 && !e.flags['dashing'] && Math.floor(e.invulnTicks / 4) % 2 === 0;
       s.img.setAlpha(blink ? 0.35 : 1);
-      // A wind-up or an aim flashes the attacker hot red: every attack is read before it lands.
-      const telegraph = !e.isPlayer && (e.anim === 'windup' || e.anim === 'aim') && tick % 8 < 3;
+      // A wind-up or an aim flashes the attacker hot red: every attack is read before it lands. A foe's move flashes over
+      // its startup, by its own clock.
+      const windingUp = move ? moveTick < move.startup : e.anim === 'windup' || e.anim === 'aim';
+      const telegraph = !e.isPlayer && windingUp && tick % 8 < 3;
       if (e.tookDamageTick >= 0 && tick - e.tookDamageTick < 4) s.img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
       else if (telegraph) s.img.setTint(toInt(this.pal.danger[3])).setTintMode(Phaser.TintModes.FILL);
       else s.img.clearTint();

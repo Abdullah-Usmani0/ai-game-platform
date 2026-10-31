@@ -1,5 +1,5 @@
 import { MoveSet, type Move } from '@gg/schemas';
-import { approach, cancelInto, cancelOpensWithin, centerX, defineSystem, endMove, isHostile, moveOf, moveTick, startMove, stepMove, type Entity } from '@gg/sdk';
+import { approach, cancelInto, cancelOpensWithin, centerX, defineSystem, endMove, isHostile, moveOf, moveTick, startMove, stepMove, type Entity, type SimCtx } from '@gg/sdk';
 import { DEFAULT_MOVES } from '../moves.js';
 
 /**
@@ -20,10 +20,14 @@ export const PLUNGE_BOUNCE = -300;
 /** How a blow throws the hero (px/s) and how fast that slides out (px/s²). */
 const HURT_KNOCK = { x: 150, y: -170 };
 const HURT_FRICTION = 700;
+/** The behaviour state entry a foe last started a move on (FsmRuntime.entries): one entry makes one move. */
+const MOVE_ENTRY = '_moveEntry';
 
 interface CombatState {
   /** The game's moves by id (content/moves.json, else the castle's own). */
   moves: Map<string, Move>;
+  /** The cast's moves by their owner and clip (`ghoul/claw`): a behaviour that plays one makes it. */
+  byClip: Map<string, Move>;
   prevAction: boolean;
   /** Ticks a press is still held for a chain's window to open. */
   buffered: number;
@@ -41,13 +45,37 @@ function opener(p: Entity, down: boolean, moves: ReadonlyMap<string, Move>): Mov
   return (down ? hero.find((m) => m.input === 'plunge') : undefined) ?? hero.find((m) => m.input === 'air') ?? null;
 }
 
+/**
+ * The cast's moves, a tick of each: a foe whose behaviour enters a state playing one of its moves' clips makes that move
+ * (once an entry, and not while staggered), on its own clock, against the hero. Over or broken off, its body stops.
+ */
+function stepCast(s: CombatState, ctx: SimCtx): void {
+  const p = ctx.world.player;
+  for (const e of ctx.world.entities) {
+    if (!e.alive || e.isPlayer || e.dormant === true || !e.fsm) continue;
+    let m = moveOf(e, s.moves);
+    const entry = e.fsm.entries ?? 0;
+    if (!m && e.props[MOVE_ENTRY] !== entry && (e.stunTicks ?? 0) === 0) {
+      const named = s.byClip.get(`${e.type}/${e.anim}`);
+      if (named) {
+        startMove(e, named);
+        e.props[MOVE_ENTRY] = entry;
+        m = named;
+      }
+    }
+    if (!m) continue;
+    stepMove(ctx, e, m, p.alive ? [p] : []);
+    if (!moveOf(e, s.moves) && e.grounded && (e.stunTicks ?? 0) === 0) e.vx = 0;
+  }
+}
+
 /** The last cut of a chain (one a chain leads into and that leads nowhere): its swing sounds heavier. */
 function finisher(m: Move, moves: ReadonlyMap<string, Move>): boolean {
   return m.cancels.length === 0 && [...moves.values()].some((o) => o.cancels.some((c) => c.into.includes(m.id)));
 }
 
 /**
- * The castle's sword, on the action key, from the game's moves (content/moves.json, a MoveSet).
+ * The castle's sword, on the action key, from the game's moves (content/moves.json, a MoveSet), and its cast's moves.
  * - On the ground the key starts the chain, and a press in a cut's window (or up to BUFFER_TICKS before it opens) goes
  *   on to the next. In the air it is the air cut, or with down held the plunge, which bounces the hero off what it
  *   strikes.
@@ -59,10 +87,17 @@ function finisher(m: Move, moves: ReadonlyMap<string, Move>): boolean {
 export const combat = defineSystem<CombatState>({
   id: 'combat',
   init: (ctx) => {
-    const set = MoveSet.safeParse(ctx.content['moves']);
-    return { moves: new Map((set.success ? set.data : DEFAULT_MOVES).moves.map((m) => [m.id, m])), prevAction: false, buffered: 0, hurt: 0 };
+    const set = (MoveSet.safeParse(ctx.content['moves']).data ?? DEFAULT_MOVES).moves;
+    return {
+      moves: new Map(set.map((m) => [m.id, m])),
+      byClip: new Map(set.filter((m) => m.owner !== 'player').map((m) => [`${m.owner}/${m.anim}`, m])),
+      prevAction: false,
+      buffered: 0,
+      hurt: 0,
+    };
   },
   fixedUpdate(s, input, ctx) {
+    stepCast(s, ctx);
     const p = ctx.world.player;
     // The keys the sword reads, every tick: the attack, down for the plunge, and the arrows a cut faces by.
     const pressed = input.action && !s.prevAction;
@@ -104,6 +139,8 @@ export const combat = defineSystem<CombatState>({
     const t = moveTick(p);
     if (t === m.startup) ctx.emit(finisher(m, s.moves) ? 'custom:finisher' : 'custom:swing', { entity: p.id, move: m.id });
     const strikes = stepMove(ctx, p, m, ctx.world.entities.filter((e) => isHostile(e) && e.dormant !== true));
+    // A foe staggered out of its own move reels rather than going on drawing it.
+    for (const x of strikes) if (x.staggered && !x.target.isPlayer && s.byClip.has(`${x.target.type}/${x.target.anim}`)) x.target.anim = 'hurt';
     // Rooted on the ground but for the cut's own step, which stops where the floor does (no cut carries the hero off a ledge).
     if (m.input === 'attack' || m.input === 'riposte') {
       const stepping = m.motion.some((x) => t >= x.from && t <= x.to);
@@ -138,11 +175,13 @@ export const meta = {
   genres: ['castle'],
   required: true,
   summary:
-    "Sword combat on the action key from the game's moves (content/moves.json): a chain of cuts on the ground, a cut in the air and, with down, a plunge that bounces off what it strikes. Each cut roots the hero but for its own step, strikes each foe once, throws it back and staggers it; a blow throws the hero back, reeling.",
+    "Sword combat on the action key from the game's moves (content/moves.json): a chain of cuts on the ground, a cut in the air and, with down, a plunge that bounces off what it strikes. Each cut roots the hero but for its own step, strikes each foe once, throws it back and staggers it; a blow throws the hero back, reeling. The cast's attacks are moves too, each made by a behaviour state that plays its clip, each winding up long enough to read.",
   params: {},
-  emits: ['hit', 'damage', 'death', 'custom:swing', 'custom:finisher'],
+  // A foe's move that looses a shot (the gargoyle's spit) spawns it.
+  emits: ['hit', 'damage', 'death', 'spawn', 'custom:swing', 'custom:finisher'],
   feedbackFor: ['hit', 'custom:swing', 'custom:finisher'],
   controls: { action: 'attack', down: 'plunge (in the air)', left: 'face', right: 'face' },
-  provides: { combat: 'melee' },
+  // The shots the castle's moves loose: the gargoyle's embers.
+  provides: { combat: 'melee', spawns: ['ember'] },
   requires: { movement: ['platformer'], roles: ['hostile'] },
 } as const;

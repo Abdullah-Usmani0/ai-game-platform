@@ -22,20 +22,23 @@ describe('the castle cast', () => {
     }
   });
 
-  it('stands every frame on the ground on its last row, the leap aside', () => {
+  it('stands every frame on the ground on its last row, the leap and the pounce in flight aside', () => {
     for (const [name, recipe] of Object.entries(CAST_RECIPES)) {
       if (recipe.anchor !== 'feet') continue;
       for (const [anim, frames] of Object.entries(recipe.anims)) {
         if (anim === 'jump') continue;
-        for (const t of frames) expect(/[^.]/.test(t.at(-1)!), `${name} ${anim} floats`).toBe(true);
+        const flight = anim === 'pounce' ? (recipe.active?.[anim] ?? []) : [];
+        frames.forEach((t, i) => flight.includes(i) || expect(/[^.]/.test(t.at(-1)!), `${name} ${anim} ${i} floats`).toBe(true));
       }
     }
   });
 
   it('has the animations its behaviours play, and paints the same pixels every time', () => {
-    expect(Object.keys(CAST_RECIPES.ghoul!.anims)).toEqual(['walk', 'run', 'hurt']);
-    expect(Object.keys(CAST_RECIPES.hound!.anims)).toEqual(['idle', 'run', 'jump', 'hurt']);
+    expect(Object.keys(CAST_RECIPES.ghoul!.anims)).toEqual(['walk', 'run', 'hurt', 'claw']);
+    expect(Object.keys(CAST_RECIPES.hound!.anims)).toEqual(['idle', 'run', 'jump', 'hurt', 'pounce']);
     expect(Object.keys(CAST_RECIPES.gargoyle!.anims)).toEqual(['idle', 'aim', 'hurt']);
+    // Each attack names the frames that hit, so a move draws its wind-up over its startup.
+    expect([CAST_RECIPES.ghoul!.active, CAST_RECIPES.hound!.active, CAST_RECIPES.gargoyle!.active]).toEqual([{ claw: [2, 3] }, { pounce: [2, 3] }, { aim: [1] }]);
     for (const recipe of Object.values(CAST_RECIPES)) {
       const a = paintFrames(recipe, pal);
       const b = paintFrames(recipe, pal);

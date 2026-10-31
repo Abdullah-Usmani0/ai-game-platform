@@ -43,18 +43,31 @@ function stand(parts: Part[], feet: Vec[], floor: number): Part[] {
   return parts.map((p) => ({ ...p, shape: p.shape.kind === 'capsule' ? { ...p.shape, a: mv(p.shape.a), b: mv(p.shape.b) } : { ...p.shape, pts: p.shape.pts.map(mv) }, ...(p.mark ? { mark: (x: number, y: number) => p.mark!(x, y - Math.round(dy)) } : {}) }));
 }
 
-// ---------------------------------------------------------------- ghoul: a gaunt, hunched shambler (26 x 32)
+// ---------------------------------------------------------------- ghoul: a gaunt, hunched shambler (38 x 36)
 
-export const GHOUL_W = 26, GHOUL_H = 32;
-export function ghoul(t: number, mode: 'walk' | 'lurch' | 'hurt'): Part[] {
+// Room round the body for the arms: raised over the skull to claw, raked or reached out ahead.
+export const GHOUL_W = 38, GHOUL_H = 36;
+/**
+ * The claw by frame: the arms swing up and back over the skull (the wind-up a player reads), rake forward and down as
+ * the body lunges (the blow), then drop and settle. Lean, arm angle (-90 up, 0 ahead, 90 down) and the pelvis's step.
+ */
+const CLAW = [
+  { lean: 2, a: 20, dx: 0 },
+  { lean: -10, a: -125, dx: -1 },
+  { lean: 26, a: 25, dx: 3 },
+  { lean: 22, a: 75, dx: 3 },
+  { lean: 10, a: 70, dx: 1 },
+] as const;
+export function ghoul(t: number, mode: 'walk' | 'lurch' | 'hurt' | 'claw'): Part[] {
   const [s, c] = sinCosDeg(t * 360);
   // Dried-blood flesh, dark-weighted; a pale skull face; rags; bone claws; one ember eye.
   const flesh = R('xxdDe'), skull = R('33445'), rags = R('ppqQQ'), claw = R('33445'), eyeR = R('EEEEE');
   const lurch = mode === 'lurch';
   const hurt = mode === 'hurt';
-  const lean = hurt ? -20 : lurch ? 14 : 4;
-  const swing = lurch ? 28 : 16;
-  const pelvis = v(10, 18 - Math.abs(c) * (lurch ? 1 : 0.6));
+  const k = mode === 'claw' ? CLAW[Math.min(CLAW.length - 1, Math.round(t * CLAW.length))]! : null;
+  const lean = k ? k.lean : hurt ? -20 : lurch ? 14 : 4;
+  const swing = lurch ? 28 : k ? 8 : 16;
+  const pelvis = v(16 + (k ? k.dx : 0), 22 - (k ? 0 : Math.abs(c) * (lurch ? 1 : 0.6)));
   const chest = plus(pelvis, polar(-58 + lean, 7.5));
   const hump = plus(chest, polar(-150 + lean, 2.2));
   const neck = plus(chest, polar(-15 + lean, 2.6));
@@ -66,13 +79,15 @@ export function ghoul(t: number, mode: 'walk' | 'lurch' | 'hurt'): Part[] {
     const ankle = plus(knee, polar(a + 22 + 18 * Math.max(0, -phase), 6.5));
     return { hip, knee, ankle, toe: plus(ankle, v(2.2, 0.4)) };
   };
-  const nl = leg(s, 1), fl = leg(-s, -1);
+  // Clawing, the feet are planted wide: the near one forward, the far one back.
+  const nl = leg(k ? -0.9 : s, 1), fl = leg(k ? 0.9 : -s, -1);
   const arm = (phase: number, side: number) => {
     const sh = plus(chest, v(side * 0.8, 1.2));
-    const a = hurt ? 160 : lurch ? 12 + 12 * phase : 70 - 16 * phase;
+    const a = k ? k.a + side * 10 : hurt ? 160 : lurch ? 12 + 12 * phase : 70 - 16 * phase;
     const el = plus(sh, polar(a, 6));
-    const hand = plus(el, polar(a + (lurch ? 6 : 16), 6));
-    return { sh, el, hand, tip: plus(hand, polar(a + (lurch ? 30 : 50), 2.2)) };
+    // A claw's forearm hooks down from the elbow, the bone claws curling under it.
+    const hand = plus(el, polar(a + (k ? 32 : lurch ? 6 : 16), 6));
+    return { sh, el, hand, tip: plus(hand, polar(a + (k ? 64 : lurch ? 30 : 50), k ? 2.6 : 2.2)) };
   };
   const na = arm(-s, 1), fa = arm(s, -1);
   const eyeAt = plus(head, polar(-25 + lean * 0.4, 1.3));
@@ -81,7 +96,8 @@ export function ghoul(t: number, mode: 'walk' | 'lurch' | 'hurt'): Part[] {
     cap('thighF', fl.hip, fl.knee, 1.4, 1.1, flesh, 1.5, -1), cap('shinF', fl.knee, fl.ankle, 1.1, 0.9, flesh, 1.51, -1), cap('footF', fl.ankle, fl.toe, 0.9, 0.7, flesh, 1.52, -1),
     cap('torso', pelvis, chest, 2.6, 3.4, flesh, 3), cap('hump', chest, hump, 2.6, 2, flesh, 3.05),
     poly('rags', [plus(pelvis, v(-3, -1.5)), plus(pelvis, v(3, -1)), plus(pelvis, v(3.5, 3.5)), plus(pelvis, v(1.5, 5.5)), plus(pelvis, v(-0.5, 4)), plus(pelvis, v(-2, 6)), plus(pelvis, v(-3.5, 3))], 0.6, rags, 3.2),
-    cap('neck', chest, neck, 1.6, 1.3, flesh, 3.5), cap('skull', neck, head, 1.7, 2.1, skull, 4), cap('maw', head, plus(head, polar(55 + lean * 0.4, 1.6)), 1.1, 0.8, skull, 4.05, -2),
+    // The wind-up throws the skull back, its maw agape.
+    cap('neck', chest, neck, 1.6, 1.3, flesh, 3.5), cap('skull', neck, head, 1.7, 2.1, skull, 4), cap('maw', head, plus(head, polar(55 + lean * 0.4 + (k && k.a < 0 ? -25 : 0), k && k.a < 0 ? 2.2 : 1.6)), 1.1, 0.8, skull, 4.05, -2),
     cap('eye', eyeAt, eyeAt, 0.55, 0.55, eyeR, 4.2),
     cap('thighN', nl.hip, nl.knee, 1.5, 1.2, flesh, 5), cap('shinN', nl.knee, nl.ankle, 1.2, 0.95, flesh, 5.01), cap('footN', nl.ankle, nl.toe, 0.95, 0.7, flesh, 5.02),
     cap('upperN', na.sh, na.el, 1.3, 1.05, flesh, 6), cap('foreN', na.el, na.hand, 1.05, 0.85, flesh, 6.01), cap('clawN', na.hand, na.tip, 0.75, 0.35, claw, 6.02),
@@ -92,17 +108,26 @@ export function ghoul(t: number, mode: 'walk' | 'lurch' | 'hurt'): Part[] {
 // ---------------------------------------------------------------- hound: a lean crypt hound (30 x 20)
 
 export const HOUND_W = 30, HOUND_H = 20;
-export function hound(t: number, mode: 'crouch' | 'run' | 'leap' | 'hurt'): Part[] {
+/**
+ * The pounce by frame: settled low, then coiled lower with its haunches up (the wind-up a player reads), then launched
+ * jaws first, in flight, and down again.
+ */
+const POUNCE = ['crouch', 'coil', 'bite', 'leap', 'crouch'] as const;
+export function hound(t: number, mode: 'crouch' | 'run' | 'leap' | 'hurt' | 'pounce'): Part[] {
   const [s, c] = sinCosDeg(t * 360);
   const fur = R('kxxdD'), belly = R('kkxxd'), eyeR = R('EEEEE'), fang = R('33445');
-  const crouch = mode === 'crouch', leap = mode === 'leap', hurt = mode === 'hurt';
-  const low = crouch ? 2 + c * 0.4 : 0;
-  const pitch = leap ? -10 : hurt ? 8 : mode === 'run' ? s * 4 : 0;
+  const step = mode === 'pounce' ? POUNCE[Math.min(POUNCE.length - 1, Math.round(t * POUNCE.length))]! : null;
+  const coil = step === 'coil', bite = step === 'bite';
+  const crouch = mode === 'crouch' || step === 'crouch' || coil, leap = mode === 'leap' || step === 'leap' || bite, hurt = mode === 'hurt';
+  const low = coil ? 3.6 : crouch ? 2 + (step ? 0.4 : c * 0.4) : 0;
+  const pitch = coil ? 7 : leap ? -10 : hurt ? 8 : mode === 'run' ? s * 4 : 0;
   const hip = v(9, 11 + low);
   const shoulder = plus(hip, polar(-4 + pitch, 10));
   const neck = plus(shoulder, polar(crouch ? -10 : -38, 4));
   const head = plus(neck, polar(crouch ? 10 : 0, 2.2));
-  const snout = plus(head, polar(crouch ? 22 : 14, 3.6));
+  const snout = plus(head, polar(crouch ? 22 : bite ? 2 : 14, 3.6));
+  // Launched to bite, the jaw drops open under the snout.
+  const jaw = plus(head, polar(48, 3));
   const ear = plus(head, polar(-140, 2.6));
   const tailA = plus(hip, polar(-160 + (mode === 'run' ? c * 12 : 0), 4));
   const tailB = plus(tailA, polar(-200 + (mode === 'run' ? c * 20 : 10), 3.5));
@@ -129,6 +154,7 @@ export function hound(t: number, mode: 'crouch' | 'run' | 'leap' | 'hurt'): Part
     cap('body', hip, shoulder, 2.6, 3.4, fur, 3), cap('belly', plus(hip, v(2, 1.5)), plus(shoulder, v(-1.5, 1.8)), 1.4, 1.8, belly, 2.9),
     cap('neck', shoulder, neck, 2.4, 1.8, fur, 3.5), cap('head', neck, head, 1.8, 2, fur, 4), cap('snout', head, snout, 1.4, 0.9, fur, 4.05),
     cap('ear', head, ear, 0.9, 0.5, fur, 3.9, -1), cap('fang', plus(snout, v(-1.2, 1)), plus(snout, v(-1, 1.8)), 0.4, 0.3, fang, 4.1),
+    ...(bite ? [cap('jaw', head, jaw, 1.1, 0.7, fur, 4.02), cap('fangLow', plus(jaw, v(-0.6, -1)), plus(jaw, v(-0.4, -1.8)), 0.4, 0.3, fang, 4.1)] : []),
     cap('eye', eyeAt, eyeAt, 0.5, 0.5, eyeR, 4.2),
     cap('fN1', frontN.root, frontN.mid, 1.2, 0.95, fur, 5), cap('fN2', frontN.mid, frontN.foot, 0.95, 0.75, fur, 5.01), cap('fN3', frontN.foot, frontN.toe, 0.75, 0.6, fur, 5.02),
     cap('hN1', hindN.root, hindN.mid, 1.6, 1.05, fur, 5), cap('hN2', hindN.mid, hindN.foot, 0.95, 0.75, fur, 5.01), cap('hN3', hindN.foot, hindN.toe, 0.75, 0.6, fur, 5.02),
@@ -231,7 +257,10 @@ export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
       walk: frames(4, (t) => ghoul(t, 'walk'), GHOUL_W, GHOUL_H),
       run: frames(4, (t) => ghoul(t, 'lurch'), GHOUL_W, GHOUL_H),
       hurt: [bake(ghoul(0, 'hurt'), GHOUL_W, GHOUL_H)],
+      claw: frames(5, (t) => ghoul(t, 'claw'), GHOUL_W, GHOUL_H),
     },
+    // The rake and its follow-through: the claws raised over the skull before them are the wind-up.
+    active: { claw: [2, 3] },
   },
   hound: {
     anchor: 'feet',
@@ -240,7 +269,10 @@ export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
       run: frames(4, (t) => hound(t, 'run'), HOUND_W, HOUND_H),
       jump: [bake(hound(0, 'leap'), HOUND_W, HOUND_H)],
       hurt: [bake(hound(0, 'hurt'), HOUND_W, HOUND_H)],
+      pounce: frames(5, (t) => hound(t, 'pounce'), HOUND_W, HOUND_H),
     },
+    // Launched and in flight: the coil before is the wind-up.
+    active: { pounce: [2, 3] },
   },
   gargoyle: {
     anchor: 'feet',
@@ -249,6 +281,8 @@ export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
       aim: frames(2, (t) => gargoyle(t, 'aim'), GARGOYLE_W, GARGOYLE_H),
       hurt: [bake(gargoyle(0, 'hurt'), GARGOYLE_W, GARGOYLE_H)],
     },
+    // The spit: its eyes and maw blaze over the wind-up before it.
+    active: { aim: [1] },
   },
   altar: { anchor: 'feet', anims: { idle: frames(3, altar, ALTAR_W, ALTAR_H) } },
   soul: { anchor: 'center', anims: { idle: frames(3, soul, SOUL_W, SOUL_H) } },

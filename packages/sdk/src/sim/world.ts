@@ -6,6 +6,11 @@ export interface FsmRuntime {
   state: string;
   enteredTick: number;
   cooldowns: Record<string, number>;
+  /**
+   * How many times the behaviour has entered a state, its first included: a new count is a new entry (enteredTick moves
+   * on while timers hold, a hitstop or a menu, so it cannot tell). Absent until the first.
+   */
+  entries?: number;
 }
 
 export interface Entity extends Body {

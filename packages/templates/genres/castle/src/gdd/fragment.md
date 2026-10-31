@@ -19,7 +19,10 @@ low walls, spike trenches and enemies. No stretch between altars runs past four 
 Resting at an altar (up) refills health, moves the checkpoint there and loads the region again from that rest: its
 enemies back, what the player found and opened kept. A fall returns the player to their last rest a second later the
 same way, keeping what they found since. Enemies sleep until the player enters their room and keep to it.
-Enemies: ghoul (shambles, lurches within 96 px), hound (crouches, bounds), gargoyle (spits embers within 192 px).
+Enemies attack with moves of their own, each winding up long enough to read and to answer with a cut: the ghoul
+(shambles, lurches within 96 px, and in reach raises its claws over its skull, then rakes, lunging), the hound
+(crouches, coils, then pounces jaws first), the gargoyle (its eyes and maw blaze for half a second, then it spits an
+ember). A cut in a foe's wind-up breaks the attack off.
 Feel presets: castle-agile (default), castle-weighty. Every gate is sized to hold under both.
 Feedback table must bind: jump, land, dash, hit, death, pickup, checkpoint, level_complete, custom:swing,
 custom:finisher.

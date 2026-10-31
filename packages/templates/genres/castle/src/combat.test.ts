@@ -178,6 +178,54 @@ describe('the castle sword', () => {
     expect(HURT_AIR_TICKS).toBeLessThan(HURT_TICKS);
   });
 
+  it('lets a ghoul in reach raise its claws for 18 ticks, then rake: a hero who stands still is struck', () => {
+    const sim = arena([{ type: 'ghoul', x: 7, y: 14, props: {} }], { behaviours: castle.defaultBehaviours });
+    const g = ghouls(sim)[0]!;
+    // Through the whole wind-up, by the claw's own clock, the hero is untouched; the next tick the rake lands.
+    for (let i = 0; i < 240 && !(moveOf(g, MOVES)?.id === 'claw' && moveTick(g) === move('claw').startup); i++) step(sim, {});
+    expect([moveOf(g, MOVES)?.id, hero(sim).hp]).toEqual(['claw', 5]);
+    step(sim, {});
+    expect(hero(sim).hp).toBe(4);
+  });
+
+  it("breaks a claw off with a cut in its wind-up: the ghoul staggers, its rake never comes", () => {
+    const sim = arena([{ type: 'ghoul', x: 7, y: 14, props: {} }], { behaviours: castle.defaultBehaviours });
+    const g = ghouls(sim)[0]!;
+    for (let i = 0; i < 240 && moveOf(g, MOVES)?.id !== 'claw'; i++) step(sim, {});
+    expect(moveOf(g, MOVES)?.id).toBe('claw');
+    tap(sim, { action: true, right: true });
+    step(sim, {}, 8);
+    expect([moveOf(g, MOVES), (g.stunTicks ?? 0) > 0, g.anim]).toEqual([null, true, 'hurt']);
+    step(sim, {}, 40);
+    expect(hero(sim).hp).toBe(5);
+  });
+
+  it('lets a hound coil, then pounce at the hero jaws first', () => {
+    const sim = arena([{ type: 'hound', x: 9, y: 14, props: {} }], { behaviours: castle.defaultBehaviours });
+    const h = sim.world.entities.find((e) => e.type === 'hound')!;
+    let started = -1;
+    for (let i = 0; i < 180 && started < 0; i++) {
+      step(sim, {});
+      if (moveOf(h, MOVES)?.id === 'pounce') started = sim.tick;
+    }
+    expect(started).toBeGreaterThan(0);
+    // Coiled through its wind-up, then in the air, coming at the hero.
+    step(sim, {}, move('pounce').startup - 2);
+    expect(h.grounded).toBe(true);
+    step(sim, {}, 4);
+    expect([h.grounded, h.vx < 0]).toEqual([false, true]);
+  });
+
+  it("lets a gargoyle's eyes blaze for half a second before it spits an ember", () => {
+    const sim = arena([{ type: 'gargoyle', x: 12, y: 14, props: {} }], { behaviours: castle.defaultBehaviours });
+    const gar = sim.world.entities.find((e) => e.type === 'gargoyle')!;
+    const embers = () => sim.world.entities.filter((e) => e.type === 'ember');
+    for (let i = 0; i < 240 && !(moveOf(gar, MOVES)?.id === 'spit' && moveTick(gar) === move('spit').startup); i++) step(sim, {});
+    expect([moveOf(gar, MOVES)?.id, embers().length]).toEqual(['spit', 0]);
+    step(sim, {});
+    expect(embers().map((e) => e.vx < 0)).toEqual([true]);
+  });
+
   it('fells the foes on the way: the route bot wins a region cutting its foes down', () => {
     const level = castle.levelGrammar.generate({ seed: 1, difficulty: 0.5 });
     const options = simOptionsFor(castle, SystemsJson.parse(systemsJsonFor(castle)), { behaviours: castle.defaultBehaviours });

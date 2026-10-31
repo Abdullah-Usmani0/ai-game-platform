@@ -1,10 +1,10 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ARTIFACT_SCHEMAS, CURATED_GENRES, PLAYABLE_GENRES } from '@gg/schemas';
+import { ARTIFACT_SCHEMAS, CURATED_GENRES, MoveSet, PLAYABLE_GENRES } from '@gg/schemas';
 import { createSim } from '@gg/sdk';
 import { SETTING_BY_GENRE, TYPE_RECIPES } from '@gg/sdk/art';
-import { checkSystems, validateBehaviour } from '@gg/validators';
+import { checkSystems, movesOfBehaviour, validateBehaviour } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
 import { levelTicksOf, runBot } from '@gg/template-core';
 import { CHECKS, checkKit, checkLevel } from './check.js';
@@ -36,7 +36,9 @@ describe('genre manifests', () => {
       });
       it('its behaviours pass the behaviour checks: every hit that lands at once follows a wind-up the player can read', () => {
         const types = g.entityDefs.map((d) => d.type);
-        for (const b of g.defaultBehaviours) expect(validateBehaviour(b, g.behaviourVocab, types).issues.filter((i) => i.severity === 'error'), b.id).toEqual([]);
+        // Held to the genre's own moves too, where it ships them (the castle's claws and pounces).
+        const moves = MoveSet.safeParse(g.shippedContent?.['moves']).data;
+        for (const b of g.defaultBehaviours) expect(validateBehaviour(b, g.behaviourVocab, types, movesOfBehaviour(moves, g.entityDefs, b.id)).issues.filter((i) => i.severity === 'error'), b.id).toEqual([]);
       });
       it('exemplars validate against their schemas and the catalog', () => {
         for (const ex of g.exemplars) {

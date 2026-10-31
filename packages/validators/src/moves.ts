@@ -1,4 +1,4 @@
-import type { MoveSet } from '@gg/schemas';
+import type { Move, MoveSet } from '@gg/schemas';
 import { MIN_WINDUP_MS } from './behaviour.js';
 import { err, report, warn, type Issue, type ValidationReport } from './report.js';
 
@@ -45,4 +45,10 @@ export function validateMoves(set: MoveSet, owners: MoveOwners = {}): Validation
   if (hero.length > 0 && !hero.some((m) => m.input === 'attack')) issues.push(warn('no_attack', 'the hero has moves but none on the attack key'));
   const telegraphs = set.moves.filter((m) => m.owner !== 'player' && harmful(m)).map((m) => m.startup);
   return report(issues, { moves: set.moves.length, heroMoves: hero.length, shortestTelegraph: telegraphs.length > 0 ? Math.min(...telegraphs) : 0 });
+}
+
+/** The moves of the entity types that run a behaviour: what validateBehaviour holds its move states to. */
+export function movesOfBehaviour(set: MoveSet | null | undefined, defs: ReadonlyArray<{ type: string; fsm?: string }>, fsmId: string): Move[] {
+  const owners = new Set(defs.filter((d) => d.fsm === fsmId).map((d) => d.type));
+  return (set?.moves ?? []).filter((m) => owners.has(m.owner));
 }

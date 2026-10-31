@@ -3,14 +3,14 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { join } from 'node:path';
 import { blockedTermsFor, commonTermsFor, mentions, referencesForRequest, sanitize, styleFromReferences } from '@gg/catalog';
 import { costUsd, generateArtifact, providerFor, type GenerateResult, type Usage } from '@gg/llm';
-import { BundleManifest, LevelJson, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type CreateRequest, type GddFrontmatter, type LevelHints, type LevelProof, type SystemsJson } from '@gg/schemas';
+import { BundleManifest, LevelJson, MoveSet, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type CreateRequest, type GddFrontmatter, type LevelHints, type LevelProof, type SystemsJson } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import { DEFAULT_STYLE, defaultSystems, scaffold } from '@gg/scaffold';
 import { checkLevel, EXPERT_SHARE, levelPlan, levelTicksOf, plannedLevelCount, runBot, simOptionsFor, suggestHints, type GenreManifest, type LevelGenParams } from '@gg/template-core';
 import { BASE_MANIFESTS, generatorParams, IDENTITY_ROSTER, idleWins, proveLevel } from '@gg/template-freeform/node';
 import { CATALOG, catalogFor, genre as genreOf, readGameFiles, readGameInputs, readGameLevels, readMechanics, resolveGame } from '@gg/templates/node';
 import { sfxPresetFor } from '@gg/sdk/art';
-import { checkGdd, checkSystems, controlsLegend, impact, mechanicMeta, silentSfx, validateBehaviour, type ValidationReport } from '@gg/validators';
+import { checkGdd, checkSystems, controlsLegend, impact, mechanicMeta, movesOfBehaviour, silentSfx, validateBehaviour, type ValidationReport } from '@gg/validators';
 import { draftBody, draftFrontmatter, renderGdd, slugify } from '../gdd-draft.js';
 import { designContentOf, writeDesignContent } from './design-content.js';
 import { composition, compositionOf, freeformFrontmatter, freeformSystems, hintLevels, hintsFor, reproveLevels } from './freeform-stages.js';
@@ -288,6 +288,9 @@ const behaviour: StageFn = async (ctx) => {
   const notes: string[] = [];
   let promptHash: string | undefined;
   const pairs: PairDraft[] = [];
+  // The game's moves (a castle's claws and pounces): a behaviour state that makes one is held to it.
+  const movesPath = join(ctx.gameDir, 'content', 'moves.json');
+  const gameMoves = MoveSet.safeParse(existsSync(movesPath) ? readJson(movesPath) : g.shippedContent?.['moves']).data;
   for (const id of ids) {
     const entities = g.entityDefs.filter((e) => e.fsm === id);
     const exemplar = g.defaultBehaviours.find((b) => b.id === id) ?? (g.exemplars.find((e) => e.kind === 'behaviour')?.artifact as BehaviourFsm | undefined);
@@ -309,7 +312,7 @@ const behaviour: StageFn = async (ctx) => {
       verify: (v) => {
         const issues: string[] = [];
         if (v.id !== id) issues.push(`id must be '${id}'`);
-        issues.push(...validateBehaviour(v, g.behaviourVocab, g.entityDefs.map((e) => e.type)).issues.filter((i) => i.severity === 'error').map((i) => i.message));
+        issues.push(...validateBehaviour(v, g.behaviourVocab, g.entityDefs.map((e) => e.type), movesOfBehaviour(gameMoves, g.entityDefs, id)).issues.filter((i) => i.severity === 'error').map((i) => i.message));
         return issues;
       },
       score: (v) => {

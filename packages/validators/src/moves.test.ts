@@ -1,6 +1,7 @@
-import { MoveSet } from '@gg/schemas';
+import { MoveSet, type BehaviourFsm } from '@gg/schemas';
 import { describe, expect, it } from 'vitest';
-import { MIN_TELEGRAPH_TICKS, validateMoves, type MoveOwners } from './moves.js';
+import { validateBehaviour } from './behaviour.js';
+import { MIN_TELEGRAPH_TICKS, movesOfBehaviour, validateMoves, type MoveOwners } from './moves.js';
 
 const cut = { id: 'cut', owner: 'player', anim: 'attack1', input: 'attack', startup: 6, active: 3, recovery: 10, hitboxes: [{ from: 0, to: 2, x: 4, y: -36, w: 30, h: 28 }], damage: 1, knockback: { x: 140, y: -60 }, hitstun: 12, hitstop: 3, cancels: [{ into: ['cut2'], from: 7, to: 16 }] };
 const cut2 = { ...cut, id: 'cut2', anim: 'attack2', cancels: [] };
@@ -41,5 +42,48 @@ describe('validateMoves', () => {
   it('warns of a blow with nothing to land it, and of a hero with no move on the attack key', () => {
     expect(codes([cut, cut2, { ...claw, hitboxes: [] }])).toEqual(['move_harmless']);
     expect(codes([{ ...cut, input: 'air', cancels: [] }])).toEqual(['no_attack']);
+  });
+});
+
+describe('a behaviour that makes moves', () => {
+  // Lurches at the player and, in reach, claws: the claw (18 + 4 + 16 ticks) is over 650 ms after the state is entered.
+  const ghoul = (claw: BehaviourFsm['states'][string]): BehaviourFsm => ({
+    version: 1,
+    id: 'ghoul',
+    designNotes: '',
+    initial: 'lurch',
+    states: {
+      lurch: { onEnter: [{ kind: 'play_anim', anim: 'run' }], update: [{ kind: 'move_toward_player', speed: 76 }], transitions: [{ to: 'claw', when: { kind: 'player_within', px: 30 } }] },
+      claw,
+    },
+  });
+  const set = MoveSet.parse({ version: 1, moves: [cut, cut2, claw] });
+  const own = movesOfBehaviour(set, [{ type: 'ghoul', fsm: 'ghoul' }, { type: 'hound', fsm: 'hound' }], 'ghoul');
+  const codes = (fsm: BehaviourFsm) => validateBehaviour(fsm, undefined, undefined, own).issues.map((i) => i.code);
+  const enter = [{ kind: 'move_toward_player' as const, speed: 0 }, { kind: 'play_anim' as const, anim: 'claw' }];
+
+  it('knows the moves of the types that run it', () => {
+    expect(own.map((m) => m.id)).toEqual(['claw']);
+    expect(movesOfBehaviour(set, [{ type: 'ghoul', fsm: 'ghoul' }], 'hound')).toEqual([]);
+  });
+
+  it('lets a state that plays a move\'s clip turn to face the player, and holds it still while the move carries it', () => {
+    expect(codes(ghoul({ onEnter: enter, update: [], transitions: [{ to: 'lurch', when: { kind: 'timer_elapsed', ms: 700 } }] }))).toEqual([]);
+    expect(codes(ghoul({ onEnter: enter, update: [{ kind: 'move_toward_player', speed: 76 }], transitions: [{ to: 'lurch', when: { kind: 'timer_elapsed', ms: 700 } }] }))).toEqual(['move_state_moves']);
+    expect(codes(ghoul({ onEnter: enter, update: [{ kind: 'move_toward_player', speed: 0 }], transitions: [{ to: 'lurch', when: { kind: 'timer_elapsed', ms: 700 } }] }))).toEqual([]);
+  });
+
+  it('waits the move out before it leaves, but for a hit that breaks it off', () => {
+    const leaving = (when: BehaviourFsm['states'][string]['transitions'][number]['when']) => codes(ghoul({ onEnter: enter, update: [], transitions: [{ to: 'lurch', when }] }));
+    expect(leaving({ kind: 'timer_elapsed', ms: 300 })).toEqual(['move_cut_short']);
+    expect(leaving({ kind: 'player_beyond', px: 100 })).toEqual(['move_cut_short']);
+    expect(leaving({ kind: 'took_damage' })).toEqual([]);
+    expect(leaving({ kind: 'any', of: [{ kind: 'took_damage' }, { kind: 'timer_elapsed', ms: 300 }] })).toEqual(['move_cut_short']);
+    expect(leaving({ kind: 'any', of: [{ kind: 'took_damage' }, { kind: 'timer_elapsed', ms: 700 }] })).toEqual([]);
+    expect(leaving({ kind: 'all', of: [{ kind: 'grounded' }, { kind: 'timer_elapsed', ms: 700 }] })).toEqual([]);
+  });
+
+  it('has nothing to say of a behaviour whose types make no moves', () => {
+    expect(validateBehaviour(ghoul({ onEnter: enter, update: [{ kind: 'patrol', speed: 30 }], transitions: [{ to: 'lurch', when: { kind: 'timer_elapsed', ms: 100 } }] })).issues.map((i) => i.code)).toEqual([]);
   });
 });

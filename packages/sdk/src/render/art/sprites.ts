@@ -32,6 +32,11 @@ export interface Recipe {
    * it: the ground is painted under it, not the wall those tiles would be.
    */
   fixture?: boolean;
+  /**
+   * An attack's frames that hit, by animation (a ghoul's claw raking): a move drawn with the animation shows its frames
+   * before these over its startup, these over its active ticks and the rest over its recovery.
+   */
+  active?: Readonly<Record<string, readonly number[]>>;
 }
 
 export function legendFor(pal: ArtPalette, tune?: Partial<Record<string, RGB | null>>): Legend {

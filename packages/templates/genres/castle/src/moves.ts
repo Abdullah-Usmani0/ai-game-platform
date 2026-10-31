@@ -1,13 +1,18 @@
 import { MoveSet } from '@gg/schemas';
 
 /**
- * The hero's moves at the castle's scale, frame data in ticks of a 60 Hz step. The knight's body is 14x42; its blade
- * reaches about 38 px ahead of its middle, so the boxes stand there, from the knees to over the helm.
+ * The castle's moves, frame data in ticks of a 60 Hz step.
+ * The hero's: the knight's body is 14x42 and its blade reaches about 38 px ahead of its middle, so the boxes stand there,
+ * from the knees to over the helm.
  * - The chain on the attack key: a rising cut, a low sweep back, then a lunging thrust that throws a foe away. Each
  *   cut opens the next from its last active tick to its end, and a dash cuts a swing short partway through recovery.
  * - In the air the attack is an overhead cut; with down held it is the plunge, which falls blade first and bounces the
  *   hero off what it strikes.
  * Every cut roots the hero where it stands, but for its own step forward.
+ * The cast's, each started by its behaviour playing the move's clip, each winding up long enough to read and answer:
+ * - the ghoul's claw: the claws raised over its skull for 18 ticks, then a lunging rake;
+ * - the hound's pounce: coiled for 18 ticks, then a leap jaws first;
+ * - the gargoyle's spit: its eyes and maw blazing for half a second, then an ember.
  */
 export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
   version: 1,
@@ -96,6 +101,48 @@ export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
       poise: 25,
       motion: [{ from: 6, to: 6, vx: 0, vy: 420 }],
       endsOnLanding: true,
+    },
+    {
+      id: 'claw',
+      owner: 'ghoul',
+      anim: 'claw',
+      startup: 18,
+      active: 4,
+      recovery: 20,
+      hitboxes: [{ from: 0, to: 3, x: 2, y: -26, w: 22, h: 22 }],
+      damage: 1,
+      knockback: { x: 160, y: -120 },
+      hitstun: 0,
+      hitstop: 4,
+      motion: [{ from: 18, to: 21, vx: 90 }],
+    },
+    {
+      id: 'pounce',
+      owner: 'hound',
+      anim: 'pounce',
+      startup: 18,
+      active: 16,
+      recovery: 14,
+      hitboxes: [{ from: 0, to: 15, x: 6, y: -16, w: 12, h: 14 }],
+      damage: 1,
+      knockback: { x: 140, y: -100 },
+      hitstun: 0,
+      hitstop: 3,
+      motion: [{ from: 18, to: 33, vx: 150, vy: -230 }],
+    },
+    {
+      id: 'spit',
+      owner: 'gargoyle',
+      anim: 'aim',
+      startup: 30,
+      active: 1,
+      recovery: 40,
+      hitboxes: [],
+      damage: 1,
+      knockback: { x: 0, y: 0 },
+      hitstun: 0,
+      hitstop: 0,
+      projectile: { type: 'ember', at: 30, speed: 150 },
     },
   ],
 });
