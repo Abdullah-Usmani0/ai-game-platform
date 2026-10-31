@@ -306,6 +306,43 @@
         "at": 30,
         "speed": 150
       }
+    },
+    {
+      "id": "lunge",
+      "owner": "sentinel",
+      "anim": "thrust",
+      "startup": 24,
+      "active": 4,
+      "recovery": 28,
+      "hitboxes": [
+        {
+          "from": 0,
+          "to": 3,
+          "x": 22,
+          "y": -34,
+          "w": 26,
+          "h": 10
+        }
+      ],
+      "damage": 1,
+      "knockback": {
+        "x": 200,
+        "y": -120
+      },
+      "hitstun": 0,
+      "hitstop": 4,
+      "poise": 0,
+      "motion": [
+        {
+          "from": 24,
+          "to": 27,
+          "vx": 120
+        }
+      ],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": true,
+      "mp": 0
     }
   ]
 }

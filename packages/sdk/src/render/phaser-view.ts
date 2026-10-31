@@ -185,6 +185,8 @@ export class MainScene extends Phaser.Scene {
   private hitstopUntil = 0;
   private dashUntilTick = -1;
   private swingTick = -100;
+  /** When each shield last turned a blow aside (custom:block): its bearer braces behind it for a moment. */
+  private blockedAt = new Map<number, number>();
   private lastGhostTick = -1;
   /** Entity types the game marks as bosses (their bar, their death). */
   private bossTypes = new Set<string>();
@@ -547,6 +549,7 @@ export class MainScene extends Phaser.Scene {
     this.particles = [];
     for (const t of this.telegraphs) t.img.destroy();
     this.telegraphs = [];
+    this.blockedAt.clear();
     for (const b of this.bubbles.values()) for (const img of [b.back, b.ring, b.icon, b.pointer]) img.destroy();
     this.bubbles.clear();
     this.liftedTick = -100;
@@ -781,8 +784,10 @@ export class MainScene extends Phaser.Scene {
       const base = hurt ? 'hurt' : attacking ? 'attack' : moving ? 'run' : 'idle';
       return has(`${s.dir}-${base}`) ? `${s.dir}-${base}` : `${s.dir}-idle`;
     }
-    if (hurt && has('hurt')) return 'hurt';
+    // Struck, or reeling from a blow (a staggered foe, its guard broken).
+    if ((hurt || (e.stunTicks ?? 0) > 0) && has('hurt')) return 'hurt';
     if (this.moveOn(e) && has(e.anim)) return e.anim;
+    if (tick - (this.blockedAt.get(e.id) ?? -100) < 10 && has('block')) return 'block';
     if (e.isPlayer && sideView(this.setting)) {
       if (tick <= this.dashUntilTick && has('dash')) return 'dash';
       if (!e.grounded) return e.vy < 0 ? 'jump' : 'fall';
@@ -1054,6 +1059,24 @@ export class MainScene extends Phaser.Scene {
         this.burst('ring', feet.x, feet.y - 4, [this.pal.accent[4]], 1, { speed: 0, life: 14, add: true });
         this.burst('star', feet.x, feet.y - 4, [this.pal.accent[4], this.pal.white], 5, { speed: 1, angle: -Math.PI / 2, spread: 2.4, life: 18, add: true });
         break;
+      case 'custom:block': {
+        // Steel on steel: sparks off the shield's face, flung back toward the blow.
+        const e = sim.world.entities.find((x) => x.id === Number(payload['entity']));
+        if (!e) break;
+        this.blockedAt.set(e.id, sim.tick);
+        const fx = e.facing < 0 ? e.x - 3 : e.x + e.w + 3;
+        const fy = e.y + e.h * 0.4;
+        this.burst('spark', fx, fy, [this.pal.white, this.pal.accent[4], this.pal.terrain[4]], 9, { speed: 1.9, angle: e.facing < 0 ? Math.PI : 0, spread: 1.7, life: 12, add: true });
+        this.burst('ring', fx, fy, [this.pal.white], 1, { speed: 0, life: 8, add: true });
+        break;
+      }
+      case 'custom:guard_break': {
+        // The shield knocked aside: splinters and a burst of sparks.
+        const at = this.where(payload);
+        this.burst('chunk', at.x, at.y - 4, [this.pal.wood[2], this.pal.wood[3], this.pal.accent[3], this.pal.terrain[3]], 12, { speed: 1.7, ay: 0.07, life: 28 });
+        this.burst('spark', at.x, at.y - 4, [this.pal.white, this.pal.accent[4]], 10, { speed: 2.2, life: 14, add: true });
+        break;
+      }
       case 'custom:door_open': {
         const at = this.where(payload);
         this.burst('chunk', at.x, at.y, [this.pal.wood[2], this.pal.wood[3], this.pal.terrain[3]], 14, { speed: 1.4, ay: 0.07, life: 30 });

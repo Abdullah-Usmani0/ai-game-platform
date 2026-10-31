@@ -190,6 +190,94 @@ export function gargoyle(t: number, mode: 'stone' | 'aim' | 'hurt'): Part[] {
   return parts;
 }
 
+// ---------------------------------------------------------------- sentinel: a shield-bearer in lacquered plate (72 x 52)
+
+export const SENTINEL_W = 72, SENTINEL_H = 52;
+/**
+ * The thrust by frame: the spear drawn back over the shoulder, its point raised, the body coiled behind the shield (the
+ * wind-up a player reads); then driven out over the shield's rim with a step, held, and drawn back. Lean, the grip's
+ * reach ahead of the shoulder, the spear's angle (0 ahead, 90 down) and the pelvis's step.
+ */
+const THRUST = [
+  { lean: -5, reach: -2, a: -6, dx: 0 },
+  { lean: -10, reach: -8, a: -14, dx: -1 },
+  { lean: 12, reach: 15, a: 8, dx: 3 },
+  { lean: 14, reach: 16, a: 9, dx: 4 },
+  { lean: 4, reach: 6, a: 6, dx: 1 },
+] as const;
+export type SentinelMode = 'guard' | 'walk' | 'thrust' | 'block' | 'hurt';
+export function sentinel(t: number, mode: SentinelMode): Part[] {
+  const [s, c] = sinCosDeg(t * 360);
+  // Crimson-lacquered plate over dark iron joints and mail, a gold-bossed tower shield of dark wood rimmed in iron, a
+  // steel spear point, an ember slit in the great helm.
+  const plate = R('kxxdD'), plateDark = R('kkxxd'), iron = R('kktTu'), mail = R('kkktT'), wood = R('kpqQr'), rim = R('kktTu'), gold = R('aaAbB'), steel = R('tTuUw'), ember = R('EEEEE');
+  const k = mode === 'thrust' ? THRUST[Math.min(THRUST.length - 1, Math.round(t * THRUST.length))]! : null;
+  const walk = mode === 'walk', hurt = mode === 'hurt', block = mode === 'block';
+  const lean = k ? k.lean : hurt ? -16 : block ? 8 : walk ? 4 : 2;
+  const breathe = mode === 'guard' ? s * 0.6 : 0;
+  const pelvis = v(34 + (k ? k.dx : 0) + (block ? -1 : 0), 30 - (walk ? Math.abs(c) * 0.9 : 0));
+  const chest = plus(pelvis, polar(-90 + lean, 12 + breathe * 0.4));
+  const neck = plus(chest, polar(-90 + lean * 0.6, 3));
+  const head = plus(neck, polar(-90 + lean * 0.3 + (block ? 10 : 0), 3.6));
+  // Legs: a wide planted stance; walking, a slow heavy tread.
+  const leg = (phase: number, dx: number) => {
+    const hip = plus(pelvis, v(dx, 1));
+    const a = 90 + (walk ? 18 * phase : dx * 2.4);
+    const knee = plus(hip, polar(a - 12, 9));
+    const ankle = plus(knee, polar(a + 12 + (walk ? 14 * Math.max(0, -phase) : 0), 9.5));
+    return { hip, knee, ankle, toe: plus(ankle, v(3.4, 0.6)) };
+  };
+  const stride = k ? 0.95 : block ? 0.9 : 0.6;
+  const nl = leg(walk ? s : stride, 3), fl = leg(walk ? -s : -stride, -3);
+  // The far arm holds the spear overhand, over the shield's rim; the near arm holds the shield before the body.
+  const shF = plus(chest, v(-2, 1)), shN = plus(chest, v(2.5, 2));
+  const spearA = hurt ? -50 : block ? 4 : k ? k.a : -4 + (walk ? s * 2 : 0);
+  const reach = hurt ? -6 : block ? -4 : k ? k.reach : 3;
+  const grip = plus(shF, v(5 + reach, -3 + Math.abs(reach) * 0.08));
+  const elbowF = plus(shF, v(-3 + reach * 0.5, 4 - Math.max(0, reach) * 0.1));
+  const butt = plus(grip, polar(spearA + 180, 13));
+  const point = plus(grip, polar(spearA, 17));
+  const tip = plus(point, polar(spearA, 6.5));
+  // The shield: from the knees to the chin before the body; pushed out when it blocks, swung aside when struck.
+  // Thrusting, the shield arm swings back to drive the spear: the shield lowers and tips open, baring the chest, through
+  // the thrust and its recovery (the opening).
+  const open = k !== null && k.reach > 5;
+  const sc = plus(pelvis, v(hurt ? 4 : block ? 9.5 : open ? 5 : 8, hurt ? -3 : open ? 1 : -2));
+  const tilt = hurt ? -34 : block ? 4 : open ? 16 : 0;
+  const corner = (dx: number, dy: number) => plus(sc, polar(tilt + Math.atan2(dy, dx) * (180 / Math.PI), Math.hypot(dx, dy)));
+  const shield = [corner(-3, -13.5), corner(3.2, -12.5), corner(4.6, -4), corner(4.6, 7), corner(1.2, 12.5), corner(-2.6, 12), corner(-3, -4)];
+  const elbowN = plus(shN, v(3, 6));
+  const parts: Part[] = [
+    // The far side: the spear's leg and arm, darker, and the spear itself, over the shield's rim.
+    cap('thighF', fl.hip, fl.knee, 2.8, 2.3, plateDark, 1, -1), cap('kneeF', fl.knee, fl.knee, 1.8, 1.8, iron, 1.005, -1), cap('shinF', fl.knee, fl.ankle, 2.3, 2, plateDark, 1.01, -1), cap('footF', fl.ankle, fl.toe, 1.7, 1.3, iron, 1.02, -1),
+    cap('upperF', shF, elbowF, 2.3, 1.9, plateDark, 1.2, -1), cap('foreF', elbowF, grip, 1.9, 1.6, iron, 1.21, -1),
+    // The body: plate over a skirt of mail.
+    poly('mail', [plus(pelvis, v(-5.5, -2)), plus(pelvis, v(5.5, -2)), plus(pelvis, v(6, 7 + (walk ? s * 0.6 : 0))), plus(pelvis, v(-6, 7 - (walk ? s * 0.6 : 0)))], 0.8, mail, 2),
+    cap('torso', pelvis, chest, 5.4, 6.6, plate, 3),
+    cap('belt', plus(pelvis, v(-5, -1)), plus(pelvis, v(5, -1)), 1, 1, iron, 3.1),
+    cap('neck', chest, neck, 2.8, 2.6, iron, 3.4),
+    // The great helm: tall, a ridge crest, the ember slit across its face.
+    cap('helm', neck, head, 4.2, 4.4, plate, 4),
+    cap('crown', plus(head, polar(-90 + lean * 0.3, 2.5)), plus(head, polar(-100 + lean * 0.3, 5.5)), 3.4, 1.6, plate, 4.02),
+    cap('crest', plus(head, polar(-60 + lean * 0.3, 5)), plus(head, polar(-150 + lean * 0.3, 6.5)), 1.1, 0.8, plateDark, 4.05),
+    cap('faceplate', plus(head, polar(-15 + lean * 0.3, 2.2)), plus(head, polar(30 + lean * 0.3, 3)), 1.6, 1.4, iron, 4.1),
+    cap('slit', plus(head, polar(-12 + lean * 0.3, 2.6)), plus(head, polar(-12 + lean * 0.3, 4.2)), 0.5, 0.5, ember, 4.2),
+    cap('pauldron', plus(chest, v(0, 0)), plus(chest, v(3.5, 2.5)), 3.8, 3, plate, 4.3),
+    cap('spike', plus(chest, v(0.5, -2.5)), plus(chest, v(-1.5, -6)), 1.1, 0.4, iron, 4.31),
+    // The near side: the leg, the shield before everything, and the spear over its rim.
+    cap('thighN', nl.hip, nl.knee, 3, 2.5, plate, 5), cap('kneeN', nl.knee, nl.knee, 1.9, 1.9, iron, 5.005), cap('shinN', nl.knee, nl.ankle, 2.5, 2.1, plate, 5.01), cap('footN', nl.ankle, nl.toe, 1.8, 1.4, iron, 5.02),
+    cap('upperN', shN, elbowN, 2.4, 2.1, plate, 5.5),
+    poly('shield', shield, 1.2, wood, 6),
+    cap('rimTop', shield[0]!, shield[1]!, 0.9, 0.9, rim, 6.1), cap('rimFront', shield[2]!, shield[3]!, 0.9, 0.9, rim, 6.1), cap('rimFoot', shield[4]!, shield[5]!, 0.9, 0.9, rim, 6.1),
+    cap('boss', plus(sc, v(1.6, -2.5)), plus(sc, v(1.6, -2.5)), 1.9, 1.9, gold, 6.2),
+    cap('band', plus(sc, v(1.4, 3.5)), plus(sc, v(1.4, 8.5)), 0.6, 0.6, gold, 6.15),
+    cap('shaft', butt, point, 0.75, 0.75, wood, 6.5),
+    poly('point', [plus(point, polar(spearA - 90, 1.7)), tip, plus(point, polar(spearA + 90, 1.7)), plus(point, polar(spearA + 180, 1.3))], 0.3, steel, 6.51),
+    cap('fist', grip, grip, 1.7, 1.7, iron, 6.6),
+  ];
+  return stand(parts, [nl.ankle, fl.ankle, nl.toe, fl.toe], SENTINEL_H - 1);
+}
+
 // ---------------------------------------------------------------- altar: a stone font with a flame (20 x 34)
 
 export const ALTAR_W = 20, ALTAR_H = 34;
@@ -248,7 +336,8 @@ const frames = (n: number, draw: (t: number) => Part[], w: number, h: number): s
 
 /**
  * The castle's cast as recipes: a ghoul that shambles and lurches, a hound that crouches, runs and leaps, a gargoyle
- * that wakes to spit, an altar's flame, a soul's flicker and the grate of a shortcut. Baked once, when the art kit loads.
+ * that wakes to spit, a sentinel behind its shield, an altar's flame, a soul's flicker and the grate of a shortcut. Baked
+ * once, when the art kit loads.
  */
 export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
   ghoul: {
@@ -283,6 +372,18 @@ export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
     },
     // The spit: its eyes and maw blaze over the wind-up before it.
     active: { aim: [1] },
+  },
+  sentinel: {
+    anchor: 'feet',
+    anims: {
+      idle: frames(2, (t) => sentinel(t, 'guard'), SENTINEL_W, SENTINEL_H),
+      walk: frames(4, (t) => sentinel(t, 'walk'), SENTINEL_W, SENTINEL_H),
+      hurt: [bake(sentinel(0, 'hurt'), SENTINEL_W, SENTINEL_H)],
+      block: [bake(sentinel(0, 'block'), SENTINEL_W, SENTINEL_H)],
+      thrust: frames(5, (t) => sentinel(t, 'thrust'), SENTINEL_W, SENTINEL_H),
+    },
+    // Driven out and held: the spear drawn back over the shoulder before them is the wind-up.
+    active: { thrust: [2, 3] },
   },
   altar: { anchor: 'feet', anims: { idle: frames(3, altar, ALTAR_W, ALTAR_H) } },
   soul: { anchor: 'center', anims: { idle: frames(3, soul, SOUL_W, SOUL_H) } },

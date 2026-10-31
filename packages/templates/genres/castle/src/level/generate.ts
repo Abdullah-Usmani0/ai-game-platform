@@ -1,7 +1,7 @@
 import type { LevelJson, LevelRoom } from '@gg/schemas';
 import { Rng } from '@gg/sdk';
 import type { LevelGenParams } from '@gg/template-core';
-import { ALTAR_TYPE, BOOTS_TYPE, ENTITY_DEFS, GARGOYLE_TYPE, GATE_TYPE, GHOUL_TYPE, HOUND_TYPE, PLAYER, SOUL_TYPE, WINGS_TYPE } from '../entities.js';
+import { ALTAR_TYPE, BOOTS_TYPE, ENTITY_DEFS, GARGOYLE_TYPE, GATE_TYPE, GHOUL_TYPE, HOUND_TYPE, PLAYER, SENTINEL_TYPE, SOUL_TYPE, WINGS_TYPE } from '../entities.js';
 
 /** One screen of the castle view (480x270 at 16 px tiles): no room is narrower, so the camera never shows two. */
 export const SCREEN_TILES = 30;
@@ -105,7 +105,7 @@ function altarRoom(n: number): RoomPlan {
 /**
  * A hall: the platformer's chunks at the castle's scale between a safe first and last few columns. One-way ledges
  * with souls over them, low walls (one tile, two from the middle difficulties), spike trenches two wide, and enemies:
- * ghouls, hounds from 0.4, gargoyles from 0.6.
+ * ghouls, hounds from 0.4, a sentinel from 0.5 (one a hall: it holds the hall behind its shield), gargoyles from 0.6.
  */
 function hall(n: number, w: number): RoomPlan {
   return {
@@ -116,6 +116,7 @@ function hall(n: number, w: number): RoomPlan {
       r.floor(0, r.w - 2, walk);
       const d = r.d;
       let enemies = 0;
+      let sentinel = false;
       const budget = 1 + Math.round(d * 2);
       let x = 4;
       while (x < r.w - 8) {
@@ -133,10 +134,11 @@ function hall(n: number, w: number): RoomPlan {
           r.fill(x, walk - h + 1, x + 1, walk, '#');
           x += 2 + 5;
         } else if (enemies < budget && d >= 0.15) {
-          const type = d >= 0.6 && r.rng.chance(0.3) ? GARGOYLE_TYPE : d >= 0.4 && r.rng.chance(0.4) ? HOUND_TYPE : GHOUL_TYPE;
+          const type: string = d >= 0.5 && !sentinel && r.rng.chance(0.3) ? SENTINEL_TYPE : d >= 0.6 && r.rng.chance(0.3) ? GARGOYLE_TYPE : d >= 0.4 && r.rng.chance(0.4) ? HOUND_TYPE : GHOUL_TYPE;
           r.put(type, x + 2, walk);
           enemies++;
-          x += 7;
+          sentinel ||= type === SENTINEL_TYPE;
+          x += type === SENTINEL_TYPE ? 9 : 7;
         } else {
           r.put(SOUL_TYPE, x + 1, walk - 1);
           x += 4;

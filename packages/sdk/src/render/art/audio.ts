@@ -92,6 +92,19 @@ export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
     { wave: 'sine', from: 330, to: 330, dur: 0.8, vol: 0.06, delay: 0.04 },
     { wave: 'triangle', from: 880, to: 880, dur: 0.5, vol: 0.03, delay: 0.12 },
   ],
+  // A blade turned aside by a shield: a bright ring of steel on steel over a dull knock.
+  clang: [
+    { wave: 'square', from: 1480, to: 1400, dur: 0.07, vol: 0.06 },
+    { wave: 'triangle', from: 2960, to: 2800, dur: 0.22, vol: 0.05 },
+    { wave: 'noise', from: 5200, to: 1800, dur: 0.05, vol: 0.09 },
+    { wave: 'triangle', from: 160, to: 110, dur: 0.07, vol: 0.12 },
+  ],
+  // A guard broken: the ring cut short by a crack of splitting wood and a heavy knock.
+  guardbreak: [
+    { wave: 'square', from: 1180, to: 620, dur: 0.09, vol: 0.06 },
+    { wave: 'noise', from: 2400, to: 300, dur: 0.2, vol: 0.15 },
+    { wave: 'triangle', from: 130, to: 50, dur: 0.24, vol: 0.2 },
+  ],
   bell: [
     { wave: 'sine', from: 1568, to: 1568, dur: 0.5, vol: 0.09 },
     { wave: 'sine', from: 3951, to: 3951, dur: 0.22, vol: 0.025 },
@@ -127,6 +140,10 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return 'rest';
     case 'custom:finisher':
       return 'finisher';
+    case 'custom:block':
+      return 'clang';
+    case 'custom:guard_break':
+      return 'guardbreak';
     case 'custom:slam':
       return 'slam';
     case 'custom:enrage':

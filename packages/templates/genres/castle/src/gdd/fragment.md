@@ -7,7 +7,7 @@ The sword follows the game's frame data (content/moves.json): on the ground a ch
 sweep, a lunging thrust), each pressed in the last one's window; in the air an overhead cut; with down in the air a
 plunge that bounces off what it strikes. A cut roots the hero but for its own step, strikes each foe once, throws it
 back, staggers it and holds the world a moment; a dash cuts a cut short late in it. A blow throws the hero back,
-reeling. Foes take cuts to fell: a ghoul three, a hound two, a gargoyle four.
+reeling. Foes take cuts to fell: a ghoul three, a hound two, a gargoyle four, a sentinel five.
 Level grammar: a level is a region of rooms, each a screen (30x17 tiles), on a grid: doorways join neighbours on a row,
 and a shaft of one-way ledges joins the rows. The wings lie in a room behind the start (the player goes back for them);
 along the top row halls lead to a save altar and a 4-tile ledge only a double jump climbs, then more halls and the
@@ -22,8 +22,12 @@ same way, keeping what they found since. Enemies sleep until the player enters t
 Enemies attack with moves of their own, each winding up long enough to read and to answer with a cut: the ghoul
 (shambles, lurches within 96 px, and in reach raises its claws over its skull, then rakes, lunging), the hound
 (crouches, coils, then pounces jaws first), the gargoyle (its eyes and maw blaze for half a second, then it spits an
-ember). A cut in a foe's wind-up breaks the attack off.
+ember), and from difficulty 0.5 the sentinel (advances behind a tower shield, and in reach draws its spear back over
+its shoulder, then drives it out over the rim with a step, the longest reach of the cast). A cut in a foe's wind-up
+breaks the attack off. The sentinel's shield turns aside blows from the front, the hero thrown back unhurt, until its
+guard breaks (three cuts; then it reels); over its head (the plunge), at its back, or once its thrust has swung the
+shield open, blows land: bait the thrust, step back from it, and cut as it recovers.
 Feel presets: castle-agile (default), castle-weighty. Every gate is sized to hold under both.
 Feedback table must bind: jump, land, dash, hit, death, pickup, checkpoint, level_complete, custom:swing,
-custom:finisher.
+custom:finisher, custom:block, custom:guard_break.
 Scope tiers: small = 1 region, 1-2 enemy types; medium = 1 region, 2-3 enemy types; large = 1 region, 3 enemy types + 1 boss.

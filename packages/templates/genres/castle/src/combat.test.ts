@@ -1,13 +1,21 @@
 import { MoveSet, SystemsJson, type BehaviourFsm, type LevelJson } from '@gg/schemas';
-import { createSim, emptyInput, moveOf, moveTick, type InputState, type Sim } from '@gg/sdk';
+import { createSim, emptyInput, moveOf, moveTick, startMove, type InputState, type Sim } from '@gg/sdk';
 import { KNIGHT_CLIPS } from '@gg/sdk/art';
 import { levelTicksOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { validateMoves } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
-import { AB_PREFIX, BUFFER_TICKS, castle, DEFAULT_MOVES, HURT_AIR_TICKS, HURT_TICKS, LOCK, PLUNGE_BOUNCE } from './node.js';
+import { AB_PREFIX, BLOCK_TICKS, BUFFER_TICKS, castle, DEFAULT_MOVES, GUARD, GUARD_BREAK_TICKS, GUARD_REFILL_TICKS, GUARDS, HURT_AIR_TICKS, HURT_TICKS, LOCK, PLUNGE_BOUNCE } from './node.js';
 
 /** A ghoul that stands where it is put: a target that keeps still. */
 const STILL: BehaviourFsm = { version: 1, id: 'ghoul', designNotes: '', initial: 'stand', states: { stand: { onEnter: [{ kind: 'idle' }], update: [], transitions: [] } } };
+/** A sentinel that stands where it is put: turned to face the hero as it starts, or left facing right (its back to a hero on its left). */
+const sentinelStands = (facingHero: boolean): BehaviourFsm => ({
+  version: 1,
+  id: 'sentinel',
+  designNotes: '',
+  initial: 'stand',
+  states: { stand: { onEnter: [facingHero ? { kind: 'move_toward_player', speed: 0 } : { kind: 'idle' }], update: [], transitions: [] } },
+});
 const MOVES = new Map(DEFAULT_MOVES.moves.map((m) => [m.id, m]));
 const move = (id: string) => MOVES.get(id)!;
 
@@ -40,6 +48,12 @@ const tap = (sim: Sim, input: Partial<InputState>) => {
 const hero = (sim: Sim) => sim.world.player;
 const making = (sim: Sim) => moveOf(hero(sim), MOVES)?.id ?? null;
 const ghouls = (sim: Sim) => sim.world.entities.filter((e) => e.type === 'ghoul');
+const sentinel = (sim: Sim) => sim.world.entities.find((e) => e.type === 'sentinel')!;
+/** Walks the hero right until a cut reaches the sentinel. */
+const closeIn = (sim: Sim) => {
+  for (let i = 0; i < 60 && sentinel(sim).x - (hero(sim).x + hero(sim).w) > 16; i++) step(sim, { right: true });
+  step(sim, {}, 2);
+};
 
 describe('the castle sword', () => {
   it("ships moves that keep the rules: every foe's blow telegraphs, each cut drawn with a clip of the knight's", () => {
@@ -236,5 +250,100 @@ describe('the castle sword', () => {
     const r = runBot(sim, castle.bots['route']!, levelTicksOf(options));
     expect(r.completed).toBe(true);
     expect(felled).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("the sentinel's shield", () => {
+  it('turns aside a cut from the front: the bearer unhurt, the cut over, the hero thrown back unhurt for a moment', () => {
+    const sim = arena([{ type: 'sentinel', x: 5, y: 14, props: {} }], { behaviours: [sentinelStands(true)] });
+    const s = sentinel(sim);
+    expect([s.facing, s.flags['guarding']]).toEqual([-1, true]);
+    const blocks: number[] = [];
+    sim.events.on('custom:block', () => blocks.push(sim.tick));
+    tap(sim, { action: true, right: true });
+    while (blocks.length === 0 && making(sim)) step(sim, {});
+    expect(blocks).toHaveLength(1);
+    expect([s.hp, making(sim), hero(sim).hp, hero(sim).vx < 0, hero(sim).props[LOCK], sim.world.hitstop! > 0]).toEqual([5, null, 5, true, 1, true]);
+    step(sim, {}, BLOCK_TICKS + 4);
+    expect(hero(sim).props[LOCK]).toBe(0);
+  });
+
+  it('does not cover its back, nor a plunge from over its head', () => {
+    const back = arena([{ type: 'sentinel', x: 5, y: 14, props: {} }], { behaviours: [sentinelStands(false)] });
+    expect(sentinel(back).facing).toBe(1);
+    tap(back, { action: true, right: true });
+    while (making(back)) step(back, {});
+    expect(sentinel(back).hp).toBe(4);
+
+    const sim = arena([{ type: 'sentinel', x: 7, y: 14, props: {} }], { props: { [`${AB_PREFIX}double-jump`]: true }, behaviours: [sentinelStands(true)] });
+    const s = sentinel(sim);
+    // Up over it: a jump and the air jump, drifting right until above it, then the plunge.
+    for (let i = 0; i < 50 && Math.abs(hero(sim).x + 7 - (s.x + 10)) > 3; i++) step(sim, { right: true, jump: i < 12 || (i > 13 && i < 24) });
+    step(sim, { down: true, action: true });
+    expect(making(sim)).toBe('plunge');
+    for (let i = 0; i < 60 && s.hp === 5; i++) step(sim, { down: true });
+    expect(s.hp).toBe(5 - move('plunge').damage);
+  });
+
+  it(`gives by each blow it turns aside, and breaks at the third cut: the blow lands and the bearer reels ${GUARD_BREAK_TICKS} ticks`, () => {
+    const sim = arena([{ type: 'sentinel', x: 7, y: 14, props: {} }], { behaviours: [sentinelStands(true)] });
+    const s = sentinel(sim);
+    const events: string[] = [];
+    for (const name of ['custom:block', 'custom:guard_break']) sim.events.on(name, () => events.push(name));
+    for (let n = 0; n < 3; n++) {
+      closeIn(sim);
+      tap(sim, { action: true, right: true });
+      while (making(sim)) step(sim, {});
+      step(sim, {}, BLOCK_TICKS + 4);
+    }
+    expect(events).toEqual(['custom:block', 'custom:block', 'custom:guard_break']);
+    expect([s.hp, s.props[GUARD], s.flags['guarding']]).toEqual([4, GUARDS['sentinel'], false]);
+    expect(s.stunTicks).toBeGreaterThan(GUARD_BREAK_TICKS - 40);
+  });
+
+  it(`is whole again ${GUARD_REFILL_TICKS} ticks after its last block`, () => {
+    const sim = arena([{ type: 'sentinel', x: 5, y: 14, props: {} }], { behaviours: [sentinelStands(true)] });
+    const s = sentinel(sim);
+    tap(sim, { action: true, right: true });
+    while (making(sim)) step(sim, {});
+    expect(s.props[GUARD]).toBe(GUARDS['sentinel']! - move('cut').poise);
+    step(sim, {}, GUARD_REFILL_TICKS);
+    expect(s.props[GUARD]).toBe(GUARDS['sentinel']);
+  });
+
+  it('swings open as the bearer thrusts: raised through the wind-up, open from the first blow through the recovery', () => {
+    const sim = arena([{ type: 'sentinel', x: 14, y: 14, props: {} }], { behaviours: [sentinelStands(true)] });
+    const s = sentinel(sim);
+    const lunge = move('lunge');
+    startMove(s, lunge);
+    const raised: boolean[] = [];
+    for (let i = 0; i < lunge.startup + lunge.active + lunge.recovery + 2; i++) {
+      step(sim, {});
+      raised.push(s.flags['guarding'] === true);
+    }
+    // Stepped from tick 0: raised while its clock is in the startup, open after, raised again once the thrust is over.
+    expect(raised.slice(0, lunge.startup - 1).every(Boolean)).toBe(true);
+    expect(raised.slice(lunge.startup, lunge.startup + lunge.active + lunge.recovery - 1).some(Boolean)).toBe(false);
+    expect(raised.at(-1)).toBe(true);
+    // A cut in the recovery lands: the hero, out of the thrust's reach, steps in as it ends.
+    const again = arena([{ type: 'sentinel', x: 9, y: 14, props: {} }], { behaviours: [sentinelStands(true)] });
+    const t = sentinel(again);
+    startMove(t, lunge);
+    while (moveTick(t) < lunge.startup + lunge.active + 2) step(again, {});
+    expect(t.flags['guarding']).toBe(false);
+    hero(again).x = t.x - hero(again).w - 14;
+    tap(again, { action: true, right: true });
+    while (making(again)) step(again, {});
+    expect([t.hp, hero(again).hp]).toEqual([4, 5]);
+  });
+
+  it('is beaten by the route bot unhurt, under both feels: in to its reach, out as it winds up, in to cut as it recovers', () => {
+    for (const feelId of Object.keys(castle.feelPresets)) {
+      const options = simOptionsFor(castle, SystemsJson.parse({ ...systemsJsonFor(castle), feelPreset: feelId }), { behaviours: castle.defaultBehaviours });
+      const sim = createSim({ ...options, level: room([{ type: 'sentinel', x: 16, y: 14, props: {} }]), seed: 1 });
+      const r = runBot(sim, castle.bots['route']!, 60 * 30);
+      expect([feelId, r.completed, sim.world.player.hp, r.deaths]).toEqual([feelId, true, 5, 0]);
+      expect(sim.world.entities.some((e) => e.type === 'sentinel')).toBe(false);
+    }
   });
 });

@@ -80,5 +80,18 @@
       "sfx",
       "shake"
     ]
+  },
+  {
+    "event": "custom:block",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:guard_break",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
   }
 ]

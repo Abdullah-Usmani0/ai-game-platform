@@ -5,12 +5,13 @@ import { simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import gargoyleJson from '../content/behaviour/gargoyle.fsm.json';
 import ghoulJson from '../content/behaviour/ghoul.fsm.json';
 import houndJson from '../content/behaviour/hound.fsm.json';
+import sentinelJson from '../content/behaviour/sentinel.fsm.json';
 import levelJson from '../content/levels/R01-salt-chapel.json';
 import movesJson from '../content/moves.json';
 import feedbackJson from '../design/feedback.json';
 
 export const LEVELS: LevelJson[] = [levelJson as unknown as LevelJson];
-export const BEHAVIOURS: BehaviourFsm[] = [ghoulJson, houndJson, gargoyleJson] as unknown as BehaviourFsm[];
+export const BEHAVIOURS: BehaviourFsm[] = [ghoulJson, houndJson, gargoyleJson, sentinelJson] as unknown as BehaviourFsm[];
 export const FEEDBACK = feedbackJson as FeedbackBinding[];
 
 /**

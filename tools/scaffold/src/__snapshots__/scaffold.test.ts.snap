@@ -247,6 +247,90 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
   }
 }
 ",
+  "content/behaviour/sentinel.fsm.json": "{
+  "version": 1,
+  "id": "sentinel",
+  "designNotes": "Holds its ground behind a tower shield, facing the player; advances on them shield first, and within reach draws its spear back and drives it out over the rim, baring its chest as it recovers.",
+  "initial": "hold",
+  "states": {
+    "hold": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        }
+      ],
+      "transitions": [
+        {
+          "to": "advance",
+          "when": {
+            "kind": "player_within",
+            "px": 160
+          }
+        }
+      ]
+    },
+    "advance": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "walk"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 28
+        }
+      ],
+      "transitions": [
+        {
+          "to": "lunge",
+          "when": {
+            "kind": "player_within",
+            "px": 44
+          }
+        },
+        {
+          "to": "hold",
+          "when": {
+            "kind": "player_beyond",
+            "px": 224
+          }
+        }
+      ]
+    },
+    "lunge": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "thrust"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "advance",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 950
+          }
+        }
+      ]
+    }
+  }
+}
+",
   "content/levels/L01-l01.json": "{
   "version": 1,
   "id": "l01",
@@ -1024,6 +1108,43 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
         "at": 30,
         "speed": 150
       }
+    },
+    {
+      "id": "lunge",
+      "owner": "sentinel",
+      "anim": "thrust",
+      "startup": 24,
+      "active": 4,
+      "recovery": 28,
+      "hitboxes": [
+        {
+          "from": 0,
+          "to": 3,
+          "x": 22,
+          "y": -34,
+          "w": 26,
+          "h": 10
+        }
+      ],
+      "damage": 1,
+      "knockback": {
+        "x": 200,
+        "y": -120
+      },
+      "hitstun": 0,
+      "hitstop": 4,
+      "poise": 0,
+      "motion": [
+        {
+          "from": 24,
+          "to": 27,
+          "vx": 120
+        }
+      ],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": true,
+      "mp": 0
     }
   ]
 }
@@ -1110,6 +1231,19 @@ Append-only. One entry per deviation: what, why, date.
   },
   {
     "event": "custom:finisher",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
+  },
+  {
+    "event": "custom:block",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:guard_break",
     "channels": [
       "sfx",
       "shake"

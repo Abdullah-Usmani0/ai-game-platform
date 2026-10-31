@@ -1,6 +1,6 @@
-import { centerX, centerY, emptyInput, isHostile, type Entity, type InputState, type Sim } from '@gg/sdk';
+import { centerX, centerY, emptyInput, isHostile, MOVE, type Entity, type InputState, type Sim } from '@gg/sdk';
 import type { BotPolicy } from '@gg/template-core';
-import { ABILITY_DASH, ABILITY_DOUBLE_JUMP, ALTAR_TYPE, RELIC_ABILITY } from './entities.js';
+import { ABILITY_DASH, ABILITY_DOUBLE_JUMP, ALTAR_TYPE, GUARDS, RELIC_ABILITY } from './entities.js';
 import { envelopeFor, pathTo, roomOf, tallTiles } from './level/progress.js';
 
 /** Tiles of hazard ahead (columns whose first floor down is spikes or the void) that need the air abilities. */
@@ -168,6 +168,32 @@ function foeInReach(sim: Sim, p: Entity): Entity | null {
   return best;
 }
 
+/** How near (centre to centre) a shield-bearer ahead on the hero's floor is fought as below rather than run at. */
+const SHIELD_WATCH = 120;
+/**
+ * A raised shield is baited, never cut (it only throws the cut back): the bot comes within BAIT_NEAR (just outside the
+ * thrust's trigger), backs off past its reach to BAIT_SAFE while it winds up, and steps in to cut once the thrust has
+ * swung the shield open.
+ */
+const BAIT_NEAR = 46;
+const BAIT_SAFE = 70;
+
+/** The nearest awake shield-bearer ahead (`way`) on the hero's floor within SHIELD_WATCH, with no pit between (null: none). */
+function shieldAhead(sim: Sim, p: Entity, way: number): Entity | null {
+  const cx = centerX(p);
+  const feet = p.y + p.h;
+  let best: Entity | null = null;
+  for (const e of sim.world.entities) {
+    if (!e.alive || e.dormant === true || GUARDS[e.type] === undefined || Math.abs(e.y + e.h - feet) > 16) continue;
+    const dx = centerX(e) - cx;
+    if (dx * way <= 0 || Math.abs(dx) > SHIELD_WATCH || (best && Math.abs(dx) >= Math.abs(centerX(best) - cx))) continue;
+    let pit = false;
+    for (let x = cx; (centerX(e) - x) * way > 0 && !pit; x += way * 8) pit = pitColumn(sim, x, feet);
+    if (!pit) best = e;
+  }
+  return best;
+}
+
 function hostileAhead(sim: Sim, p: Entity, facing: number, k: number): boolean {
   const cx = centerX(p);
   return sim.world.entities.some((e) => {
@@ -220,9 +246,13 @@ export const route: BotPolicy = (sim, tick, mem) => {
 
   // A foe within a cut's reach, met on the ground: the hero stands and cuts it down (below), which is no stall.
   const near = p.grounded ? foeInReach(sim, p) : null;
+  // A shield-bearer ahead on the hero's floor: fought as below (baited while its shield is raised toward the hero), which
+  // is no stall either.
+  const shield = p.grounded ? shieldAhead(sim, p, dxPx === 0 ? p.facing : Math.sign(dxPx)) : null;
+  const shut = shield !== null && shield.flags['guarding'] === true && (cx - centerX(shield)) * shield.facing > 0;
   // Stall breaker: standing still on the ground for 90 ticks (longer than any wait for a foe) turns back for 24 ticks
   // with a jump.
-  if (p.grounded && !near && Math.abs(p.x - (mem['lastX'] ?? -1)) < 0.5) mem['still'] = (mem['still'] ?? 0) + 1;
+  if (p.grounded && !near && !shield && Math.abs(p.x - (mem['lastX'] ?? -1)) < 0.5) mem['still'] = (mem['still'] ?? 0) + 1;
   else mem['still'] = 0;
   mem['lastX'] = p.x;
   if ((mem['still'] ?? 0) > 90) {
@@ -247,13 +277,24 @@ export const route: BotPolicy = (sim, tick, mem) => {
     }
   }
 
-  // Cut it down: the chain, a fresh press every other tick, turned toward it, rather than running into it or leaping it.
-  const foe = escaping ? null : near;
+  // Cut it down: the chain, a fresh press every other tick, turned toward it, rather than running into it or leaping it;
+  // but never a raised shield.
+  const foe = escaping || (shut && near === shield) ? null : near;
   if (foe) {
     const toward = centerX(foe) < cx ? -1 : 1;
     input.left = toward < 0;
     input.right = toward > 0;
     input.action = tick % 2 === 0;
+  }
+  // Bait a raised shield: in to just outside its thrust's trigger, then out of its reach as the thrust winds up; once the
+  // thrust swings the shield open (or the bearer turns or reels) it is cut down as above.
+  if (shut && shield && !escaping && !foe) {
+    const d = Math.abs(centerX(shield) - cx);
+    const toward = centerX(shield) < cx ? -1 : 1;
+    const winding = typeof shield.props[MOVE] === 'string' && shield.props[MOVE] !== '';
+    const step = winding ? (d < BAIT_SAFE ? -toward : 0) : d > BAIT_NEAR ? toward : 0;
+    input.left = step < 0;
+    input.right = step > 0;
   }
 
   const facing = dir !== 0 ? dir : p.facing;
@@ -315,7 +356,7 @@ export const route: BotPolicy = (sim, tick, mem) => {
   const released = mem['jumpPrev'] !== 1;
   if (phase === 0) {
     // Over a pit, the last step (the longest jump); off any other edge the way jumps from, at the edge.
-    if (released && !foe && !waiting && (escaping || wallAhead || (pitNext && lastStep) || targetAbove || threat || (jumpMove && edgeAhead && !pitNext))) {
+    if (released && !foe && !shield && !waiting && (escaping || wallAhead || (pitNext && lastStep) || targetAbove || threat || (jumpMove && edgeAhead && !pitNext))) {
       input.jump = true;
       mem[PHASE] = 1;
       const needAir = jumpMove && hasDouble && !reaches({ doubleJump: false, dash: false });

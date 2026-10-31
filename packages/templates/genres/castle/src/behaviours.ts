@@ -56,5 +56,24 @@ export const GARGOYLE: BehaviourFsm = {
   },
 };
 
-export const DEFAULT_BEHAVIOURS: BehaviourFsm[] = [GHOUL, HOUND, GARGOYLE];
+export const SENTINEL: BehaviourFsm = {
+  version: 1,
+  id: 'sentinel',
+  designNotes: 'Holds its ground behind a tower shield, facing the player; advances on them shield first, and within reach draws its spear back and drives it out over the rim, baring its chest as it recovers.',
+  initial: 'hold',
+  states: {
+    hold: { onEnter: [{ kind: 'play_anim', anim: 'idle' }], update: [{ kind: 'move_toward_player', speed: 0 }], transitions: [{ to: 'advance', when: { kind: 'player_within', px: 160 } }] },
+    advance: {
+      onEnter: [{ kind: 'play_anim', anim: 'walk' }],
+      update: [{ kind: 'move_toward_player', speed: 28 }],
+      transitions: [
+        { to: 'lunge', when: { kind: 'player_within', px: 44 } },
+        { to: 'hold', when: { kind: 'player_beyond', px: 224 } },
+      ],
+    },
+    lunge: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'thrust' }], update: [], transitions: [{ to: 'advance', when: { kind: 'timer_elapsed', ms: 950 } }] },
+  },
+};
+
+export const DEFAULT_BEHAVIOURS: BehaviourFsm[] = [GHOUL, HOUND, GARGOYLE, SENTINEL];
 export const VOCAB = PLATFORMER_VOCAB;

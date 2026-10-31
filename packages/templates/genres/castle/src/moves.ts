@@ -12,7 +12,9 @@ import { MoveSet } from '@gg/schemas';
  * The cast's, each started by its behaviour playing the move's clip, each winding up long enough to read and answer:
  * - the ghoul's claw: the claws raised over its skull for 18 ticks, then a lunging rake;
  * - the hound's pounce: coiled for 18 ticks, then a leap jaws first;
- * - the gargoyle's spit: its eyes and maw blazing for half a second, then an ember.
+ * - the gargoyle's spit: its eyes and maw blazing for half a second, then an ember;
+ * - the sentinel's lunge: the spear drawn back over its shoulder for 24 ticks, then driven out over the shield's rim
+ *   with a step, the longest reach of the cast; the shield swings open as it does, and stays open as it recovers.
  */
 export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
   version: 1,
@@ -143,6 +145,22 @@ export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
       hitstun: 0,
       hitstop: 0,
       projectile: { type: 'ember', at: 30, speed: 150 },
+    },
+    {
+      id: 'lunge',
+      owner: 'sentinel',
+      anim: 'thrust',
+      startup: 24,
+      active: 4,
+      recovery: 28,
+      // The spear's point and the front of its shaft, as drawn: 22 to 48 px ahead of the sentinel's middle, chest high.
+      hitboxes: [{ from: 0, to: 3, x: 22, y: -34, w: 26, h: 10 }],
+      damage: 1,
+      knockback: { x: 200, y: -120 },
+      hitstun: 0,
+      hitstop: 4,
+      motion: [{ from: 24, to: 27, vx: 120 }],
+      parryable: true,
     },
   ],
 });

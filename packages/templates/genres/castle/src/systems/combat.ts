@@ -1,5 +1,6 @@
 import { MoveSet, type Move } from '@gg/schemas';
 import { approach, cancelInto, cancelOpensWithin, centerX, defineSystem, endMove, isHostile, moveOf, moveTick, startMove, stepMove, type Entity, type SimCtx } from '@gg/sdk';
+import { GUARDS } from '../entities.js';
 import { DEFAULT_MOVES } from '../moves.js';
 
 /**
@@ -22,6 +23,19 @@ const HURT_KNOCK = { x: 150, y: -170 };
 const HURT_FRICTION = 700;
 /** The behaviour state entry a foe last started a move on (FsmRuntime.entries): one entry makes one move. */
 const MOVE_ENTRY = '_moveEntry';
+/**
+ * A blow a shield turns aside: the hero is thrown back (px/s) and cannot act for BLOCK_TICKS, unhurt, and the world
+ * holds a moment as steel rings on steel.
+ */
+export const BLOCK_TICKS = 12;
+const BLOCK_KNOCK = 170;
+const BLOCK_HITSTOP = 3;
+/** Ticks a foe reels once its guard breaks; ticks without a block after which its guard is whole again. */
+export const GUARD_BREAK_TICKS = 50;
+export const GUARD_REFILL_TICKS = 120;
+/** A shield's guard left (in poise), and the tick it last turned a blow aside. */
+export const GUARD = '_guard';
+export const GUARD_AT = '_guardAt';
 
 interface CombatState {
   /** The game's moves by id (content/moves.json, else the castle's own). */
@@ -33,6 +47,16 @@ interface CombatState {
   buffered: number;
   /** Ticks the hero still reels from a blow. */
   hurt: number;
+}
+
+/**
+ * Whether a foe's shield is up: it carries one (GUARDS), is not reeling, and is not past the startup of a move of its own
+ * (a thrust swings the shield open, and it stays open as the foe recovers).
+ */
+export function guardUp(e: Entity, moves: ReadonlyMap<string, Move>): boolean {
+  if (GUARDS[e.type] === undefined || !e.alive || (e.stunTicks ?? 0) > 0) return false;
+  const m = moveOf(e, moves);
+  return !m || moveTick(e) < m.startup;
 }
 
 /** The move the attack key starts from nothing: the chain's first on the ground; in the air the plunge with down held, else the air cut. */
@@ -47,7 +71,8 @@ function opener(p: Entity, down: boolean, moves: ReadonlyMap<string, Move>): Mov
 
 /**
  * The cast's moves, a tick of each: a foe whose behaviour enters a state playing one of its moves' clips makes that move
- * (once an entry, and not while staggered), on its own clock, against the hero. Over or broken off, its body stops.
+ * (once an entry, and not while staggered), on its own clock, against the hero. On the ground the move moves the body
+ * only through its motion; over or broken off, the body stops.
  */
 function stepCast(s: CombatState, ctx: SimCtx): void {
   const p = ctx.world.player;
@@ -63,9 +88,20 @@ function stepCast(s: CombatState, ctx: SimCtx): void {
         m = named;
       }
     }
-    if (!m) continue;
-    stepMove(ctx, e, m, p.alive ? [p] : []);
-    if (!moveOf(e, s.moves) && e.grounded && (e.stunTicks ?? 0) === 0) e.vx = 0;
+    if (m) {
+      // On the ground a move carries the body only through its motion: the rest of it, the body stands.
+      const t = moveTick(e);
+      if (e.grounded && !m.motion.some((x) => t >= x.from && t <= x.to)) e.vx = 0;
+      stepMove(ctx, e, m, p.alive ? [p] : []);
+      if (!moveOf(e, s.moves) && e.grounded && (e.stunTicks ?? 0) === 0) e.vx = 0;
+    }
+    // A shield: whole again a while after its last block; whether it is up, for the view and the bots.
+    const full = GUARDS[e.type];
+    if (full !== undefined) {
+      const at = e.props[GUARD_AT];
+      if (typeof at === 'number' && ctx.tick - at >= GUARD_REFILL_TICKS) e.props[GUARD] = full;
+      e.flags['guarding'] = guardUp(e, s.moves);
+    }
   }
 }
 
@@ -82,6 +118,10 @@ function finisher(m: Move, moves: ReadonlyMap<string, Move>): boolean {
  * - A cut faces the way the hero is pressing as it starts, and roots it on the ground but for the cut's own step, which
  *   stops at a ledge. A dash cuts it short from its dash-cancel tick.
  * - Each cut strikes each foe once: thrown back, staggered (its behaviour holds), the world held a moment as it lands.
+ * - A shield (GUARDS) turns aside a blow from the side its bearer faces while its guard is up: the cut ends, the hero
+ *   is thrown back unhurt, and the guard gives by the blow's poise; at nothing it breaks, the blow lands and the bearer
+ *   reels for GUARD_BREAK_TICKS. Over its head (the plunge) or at its back the shield does not cover it, nor once the
+ *   bearer's own thrust has swung it open.
  * - A blow on the hero throws it back, reeling for HURT_TICKS (HURT_AIR_TICKS in the air), its cut broken off.
  */
 export const combat = defineSystem<CombatState>({
@@ -139,6 +179,11 @@ export const combat = defineSystem<CombatState>({
     const t = moveTick(p);
     if (t === m.startup) ctx.emit(finisher(m, s.moves) ? 'custom:finisher' : 'custom:swing', { entity: p.id, move: m.id });
     const strikes = stepMove(ctx, p, m, ctx.world.entities.filter((e) => isHostile(e) && e.dormant !== true));
+    // Turned aside by a shield (onDamage): the cut is over and the hero is thrown back.
+    if (s.hurt > 0) {
+      p.props[LOCK] = 1;
+      return;
+    }
     // A foe staggered out of its own move reels rather than going on drawing it.
     for (const x of strikes) if (x.staggered && !x.target.isPlayer && s.byClip.has(`${x.target.type}/${x.target.anim}`)) x.target.anim = 'hurt';
     // Rooted on the ground but for the cut's own step, which stops where the floor does (no cut carries the hero off a ledge).
@@ -154,6 +199,37 @@ export const combat = defineSystem<CombatState>({
     }
     const now = moveOf(p, s.moves);
     p.props[LOCK] = !now || now.input === 'air' ? 0 : now.dashCancel !== undefined && moveTick(p) >= now.dashCancel ? 2 : 1;
+  },
+  onDamage(s, hit, ctx) {
+    const { target, source } = hit;
+    const full = GUARDS[target.type];
+    if (full === undefined || !source || !source.isPlayer || !guardUp(target, s.moves)) return hit.amount;
+    const blow = moveOf(source, s.moves);
+    if (!blow) return hit.amount;
+    // Over its head (the plunge) or at its back, the shield does not cover it.
+    if (source.y + source.h <= target.y + 6 || (centerX(source) - centerX(target)) * target.facing <= 0) return hit.amount;
+    const was = target.props[GUARD];
+    const left = (typeof was === 'number' ? was : full) - blow.poise;
+    target.props[GUARD_AT] = ctx.tick;
+    if (left <= 0) {
+      // The guard breaks: this blow lands, the shield knocked aside, and the bearer reels, its own move broken off.
+      target.props[GUARD] = full;
+      target.stunTicks = Math.max(target.stunTicks ?? 0, GUARD_BREAK_TICKS);
+      endMove(target);
+      target.flags['guarding'] = false;
+      ctx.emit('custom:guard_break', { entity: target.id });
+      return hit.amount;
+    }
+    target.props[GUARD] = left;
+    // Turned aside: the cut ends and the hero is thrown back, unhurt; the world holds as steel rings.
+    endMove(source);
+    s.hurt = BLOCK_TICKS;
+    s.buffered = 0;
+    source.vx = (centerX(source) >= centerX(target) ? 1 : -1) * BLOCK_KNOCK;
+    source.props[LOCK] = 1;
+    ctx.world.hitstop = Math.max(ctx.world.hitstop ?? 0, BLOCK_HITSTOP);
+    ctx.emit('custom:block', { entity: target.id });
+    return 0;
   },
   onEvent(s, ev, ctx) {
     const p = ctx.world.player;
@@ -175,11 +251,11 @@ export const meta = {
   genres: ['castle'],
   required: true,
   summary:
-    "Sword combat on the action key from the game's moves (content/moves.json): a chain of cuts on the ground, a cut in the air and, with down, a plunge that bounces off what it strikes. Each cut roots the hero but for its own step, strikes each foe once, throws it back and staggers it; a blow throws the hero back, reeling. The cast's attacks are moves too, each made by a behaviour state that plays its clip, each winding up long enough to read.",
+    "Sword combat on the action key from the game's moves (content/moves.json): a chain of cuts on the ground, a cut in the air and, with down, a plunge that bounces off what it strikes. Each cut roots the hero but for its own step, strikes each foe once, throws it back and staggers it; a blow throws the hero back, reeling. The cast's attacks are moves too, each made by a behaviour state that plays its clip, each winding up long enough to read. A shield-bearer turns aside blows from the front until its guard breaks; over its head, at its back, or once its own thrust swings the shield open, blows land.",
   params: {},
   // A foe's move that looses a shot (the gargoyle's spit) spawns it.
-  emits: ['hit', 'damage', 'death', 'spawn', 'custom:swing', 'custom:finisher'],
-  feedbackFor: ['hit', 'custom:swing', 'custom:finisher'],
+  emits: ['hit', 'damage', 'death', 'spawn', 'custom:swing', 'custom:finisher', 'custom:block', 'custom:guard_break'],
+  feedbackFor: ['hit', 'custom:swing', 'custom:finisher', 'custom:block', 'custom:guard_break'],
   controls: { action: 'attack', down: 'plunge (in the air)', left: 'face', right: 'face' },
   // The shots the castle's moves loose: the gargoyle's embers.
   provides: { combat: 'melee', spawns: ['ember'] },

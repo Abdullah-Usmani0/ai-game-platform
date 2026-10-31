@@ -16,7 +16,7 @@
     "optionalSystems": [
       "pickups"
     ],
-    "entityDefs": "e0886c1664124ec1",
+    "entityDefs": "f9c11024b4e05a65",
     "player": {
       "w": 14,
       "h": 42,
@@ -24,20 +24,20 @@
     },
     "feelPresets": "2df345a7bc49541c",
     "behaviourVocab": "6a8571b793646307",
-    "defaultBehaviours": "c87bb0eeb732c56b",
+    "defaultBehaviours": "0737ab66f0ed0e31",
     "defaultRules": "09612b07b5ecb5a5",
     "collectibleTypes": [
       "soul"
     ],
-    "feedbackExtras": "c7aed8925fa0c226",
+    "feedbackExtras": "e317a0cd58463118",
     "paramDefaults": "08f44b07b5901a25",
-    "systemsMeta": "9c6017b4ef68cb58",
+    "systemsMeta": "17ba1d56e74dc8a8",
     "scopeBudget": "1a9f04d4a4b9f05a",
     "gddDefaults": "4f4a0600b4ca2abd",
-    "gddFragment": "3db6d80e19ec67d3",
+    "gddFragment": "44b097f8b4d912ed",
     "interviewFragment": "b96990cd0ad1ef88",
     "panels": "53eb7e4bd0ef6a75",
-    "exemplars": "707b0b97fd9b4837",
+    "exemplars": "c2bb3bee3e8d855a",
     "levelGrammar": "graph",
     "tier": "castle",
     "styleDefaults": "d939dfa765822a4b",
@@ -51,10 +51,10 @@
   "levels": {
     "seed1-difficulty0.2": "4892b3a1be561e72",
     "seed2-difficulty0.2": "f7edd3ab642b9df5",
-    "seed1-difficulty0.5": "94ce33d876f6a704",
-    "seed2-difficulty0.5": "c59a927e696038ba",
-    "seed1-difficulty0.75": "f36ce7b0c537fafb",
-    "seed2-difficulty0.75": "ffe1eb3b472004f9"
+    "seed1-difficulty0.5": "f97e91b7246382fe",
+    "seed2-difficulty0.5": "c8fef8a1d221bc1c",
+    "seed1-difficulty0.75": "742ae57b1dfb90a4",
+    "seed2-difficulty0.75": "bca7d3272aeb8695"
   },
   "runs": {
     "seed1-difficulty0.2:validate": {
@@ -103,7 +103,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "df3b4660c4f510aa",
+      "finalHash": "3aec17e93bd83fda",
       "events": {
         "jump": 94,
         "land": 95,
@@ -164,7 +164,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "5585de5f99d9e5a3",
+      "finalHash": "d5e9e33729756cf4",
       "events": {
         "jump": 94,
         "land": 95,
@@ -187,7 +187,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "c8c2c6b955cfda06",
+      "finalHash": "df8ef46b422154b5",
       "events": {
         "jump": 96,
         "land": 82,
@@ -197,26 +197,26 @@
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 25,
+        "spawn": 27,
         "menu_open": 0,
         "menu_choose": 0
       }
     },
     "seed1-difficulty0.5:route": {
       "completed": true,
-      "ticks": 4070,
+      "ticks": 4509,
       "deaths": 0,
-      "finalHash": "e424bb71f07d1808",
+      "finalHash": "6058a3b0dc160cbc",
       "events": {
-        "jump": 31,
+        "jump": 26,
         "land": 24,
-        "hit": 18,
-        "death": 6,
+        "hit": 26,
+        "death": 9,
         "pickup": 11,
         "level_complete": 1,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 26,
+        "spawn": 28,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -225,9 +225,9 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "bf8a2e8b4d287f7e",
+      "finalHash": "1fecd31bdbde9223",
       "events": {
-        "jump": 45,
+        "jump": 44,
         "land": 46,
         "hit": 11,
         "death": 2,
@@ -235,7 +235,7 @@
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 25,
+        "spawn": 27,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -248,7 +248,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "3423dcd722578daf",
+      "finalHash": "95a4268d143573d6",
       "events": {
         "jump": 96,
         "land": 82,
@@ -258,26 +258,26 @@
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 29,
+        "spawn": 28,
         "menu_open": 0,
         "menu_choose": 0
       }
     },
     "seed2-difficulty0.5:route": {
       "completed": true,
-      "ticks": 4073,
+      "ticks": 4125,
       "deaths": 0,
-      "finalHash": "b3e5700851c29b09",
+      "finalHash": "466b310e497859d1",
       "events": {
-        "jump": 26,
-        "land": 23,
-        "hit": 19,
-        "death": 7,
+        "jump": 28,
+        "land": 25,
+        "hit": 16,
+        "death": 6,
         "pickup": 10,
         "level_complete": 1,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 30,
+        "spawn": 29,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -286,9 +286,9 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "c6c3f6d763d935c2",
+      "finalHash": "7a8c435a18066b3a",
       "events": {
-        "jump": 45,
+        "jump": 44,
         "land": 46,
         "hit": 11,
         "death": 2,
@@ -296,7 +296,7 @@
         "level_complete": 0,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 29,
+        "spawn": 28,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -309,7 +309,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "ad883744513315cd",
+      "finalHash": "7be3265bdd50b874",
       "events": {
         "jump": 96,
         "land": 82,
@@ -326,19 +326,19 @@
     },
     "seed1-difficulty0.75:route": {
       "completed": true,
-      "ticks": 4230,
+      "ticks": 4429,
       "deaths": 0,
-      "finalHash": "f81b408b053949dd",
+      "finalHash": "0a4dea0b9f74edf9",
       "events": {
-        "jump": 28,
-        "land": 27,
-        "hit": 22,
-        "death": 8,
-        "pickup": 11,
+        "jump": 29,
+        "land": 26,
+        "hit": 28,
+        "death": 9,
+        "pickup": 12,
         "level_complete": 1,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 32,
+        "spawn": 29,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -347,9 +347,9 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "983811b83aac8f2d",
+      "finalHash": "8b864b0e0fc4e914",
       "events": {
-        "jump": 45,
+        "jump": 44,
         "land": 46,
         "hit": 11,
         "death": 2,
@@ -370,7 +370,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "95a4268d143573d6",
+      "finalHash": "1d74075c6054bcc7",
       "events": {
         "jump": 96,
         "land": 82,
@@ -387,19 +387,19 @@
     },
     "seed2-difficulty0.75:route": {
       "completed": true,
-      "ticks": 4125,
+      "ticks": 4318,
       "deaths": 0,
-      "finalHash": "466b310e497859d1",
+      "finalHash": "9c6e8c744fbc9cab",
       "events": {
-        "jump": 28,
-        "land": 25,
-        "hit": 16,
-        "death": 6,
-        "pickup": 10,
+        "jump": 25,
+        "land": 26,
+        "hit": 22,
+        "death": 8,
+        "pickup": 11,
         "level_complete": 1,
         "feedback": 0,
         "audio_play": 0,
-        "spawn": 29,
+        "spawn": 31,
         "menu_open": 0,
         "menu_choose": 0
       }
@@ -408,9 +408,9 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "178f242c91c93f64",
+      "finalHash": "f00b22bef9ea2013",
       "events": {
-        "jump": 45,
+        "jump": 44,
         "land": 46,
         "hit": 11,
         "death": 2,

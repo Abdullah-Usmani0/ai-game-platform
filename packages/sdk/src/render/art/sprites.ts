@@ -674,6 +674,7 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   ghoul: 'ghoul',
   hound: 'hound',
   gargoyle: 'gargoyle',
+  sentinel: 'sentinel',
   soul: 'soul',
   altar: 'altar',
   gate: 'gate',
