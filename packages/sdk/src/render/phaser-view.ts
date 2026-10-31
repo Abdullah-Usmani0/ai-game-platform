@@ -59,6 +59,8 @@ const WRAP_BAND = 24;
 const HUD_H = 14;
 /** How long the level name stays up after a level loads, in ticks. */
 const BANNER_TICKS = 110;
+/** How long a boss's name stands across the view as it wakes, in ticks: through its rise, gone as its first blow winds up. */
+const BOSS_CARD_TICKS = 100;
 /** Feedback sources that hit harder than an ordinary hit: a longer hitstop and a bigger shake. */
 const HEAVY_SOURCES = new Set(['custom:finisher', 'custom:slam', 'custom:enrage']);
 /** Height of the boss health band at the bottom of the screen. */
@@ -173,6 +175,8 @@ export class MainScene extends Phaser.Scene {
   /** A bubble over each dropoff that asks for an order, by dropoff; a pointer at the screen's edge while it is off it. */
   private bubbles = new Map<number, { back: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Image; icon: Phaser.GameObjects.Image; pointer: Phaser.GameObjects.Image }>();
   private bannerImg: Phaser.GameObjects.Image | null = null;
+  /** A boss's name across the middle of the view as it wakes (custom:boss), from the tick it woke. */
+  private bossCard: { img: Phaser.GameObjects.Image; from: number } | null = null;
   private followTarget = { x: 0, y: 0 };
   /** A level of rooms holds the view to the room the player is in; a new room slides it across from where it was. */
   private room = { index: -1, fromX: 0, fromY: 0, at: 0, seen: -1, reload: -1 };
@@ -550,6 +554,8 @@ export class MainScene extends Phaser.Scene {
     for (const t of this.telegraphs) t.img.destroy();
     this.telegraphs = [];
     this.blockedAt.clear();
+    this.bossCard?.img.destroy();
+    this.bossCard = null;
     for (const b of this.bubbles.values()) for (const img of [b.back, b.ring, b.icon, b.pointer]) img.destroy();
     this.bubbles.clear();
     this.liftedTick = -100;
@@ -1070,6 +1076,32 @@ export class MainScene extends Phaser.Scene {
         this.burst('ring', fx, fy, [this.pal.white], 1, { speed: 0, life: 8, add: true });
         break;
       }
+      case 'custom:boss': {
+        // A boss wakes: its name across the middle of the view, large, between two rules; it fades as the fight begins.
+        const e = sim.world.entities.find((x) => x.id === Number(payload['entity']));
+        const name = String(e?.props['name'] ?? '').toUpperCase();
+        if (!name) break;
+        this.bossCard?.img.destroy();
+        const words = this.text(name, this.pal.danger[4], 2, mix(this.pal.danger[4], this.pal.danger[1], 0.5));
+        const pc = new PixelCanvas(words.w + 24, words.h + 10);
+        pc.blit(words, 12, 5);
+        for (let x = 0; x < pc.w; x++) {
+          const edge = Math.min(x, pc.w - 1 - x);
+          if (edge < 2 || (edge < 6 && (x & 1) === 1)) continue;
+          pc.set(x, 0, this.pal.accent[3]);
+          pc.set(x, pc.h - 1, this.pal.accent[3]);
+        }
+        this.addCanvasTexture('gg-boss-card', pc);
+        const img = this.add.image(Math.round(this.style.canvas.w / 2), Math.round(this.style.canvas.h * 0.36), 'gg-boss-card').setOrigin(0.5).setScrollFactor(0).setDepth(10_400).setAlpha(0);
+        this.bossCard = { img, from: sim.tick };
+        break;
+      }
+      case 'custom:arena_shut':
+      case 'custom:arena_open': {
+        // The doorways slam shut (or grind open): dust along the floor at the hero's feet, the room shuddering.
+        this.burst('dot', feet.x, feet.y, dust, 10, { speed: 1, angle: 0, spread: Math.PI * 2, life: 20 });
+        break;
+      }
       case 'custom:parry': {
         // A blade caught clean: a white ring at the clash, sparks flung back at the attacker, the screen blinking white.
         const e = sim.world.entities.find((x) => x.id === Number(payload['entity']));
@@ -1551,6 +1583,15 @@ export class MainScene extends Phaser.Scene {
 
   /** Banner and fades follow the level's ticks, so a screenshot at a given tick always looks the same. */
   private updateIntro(tick: number): void {
+    if (this.bossCard) {
+      const t = tick - this.bossCard.from;
+      const a = t < 0 || t >= BOSS_CARD_TICKS ? 0 : t < 20 ? t / 20 : t > BOSS_CARD_TICKS - 30 ? (BOSS_CARD_TICKS - t) / 30 : 1;
+      this.bossCard.img.setAlpha(this.controller.scene === 'play' ? a : 0);
+      if (t >= BOSS_CARD_TICKS) {
+        this.bossCard.img.destroy();
+        this.bossCard = null;
+      }
+    }
     this.fadeImg.setAlpha(this.controller.scene === 'play' ? Math.max(0, 1 - tick / 16, this.fallFade(tick)) : 0);
     if (!this.bannerImg) return;
     const shown = this.controller.scene === 'play' && tick < BANNER_TICKS;

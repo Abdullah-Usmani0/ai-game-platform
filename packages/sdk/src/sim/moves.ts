@@ -153,7 +153,8 @@ export function stepMove(ctx: SimCtx, e: Entity, m: Move, targets: readonly Enti
   if (m.projectile && t === m.projectile.at) {
     const def = ctx.defOf(m.projectile.type);
     if (def) {
-      const shot = ctx.spawn(m.projectile.type, dir < 0 ? e.x - def.w : e.x + e.w, e.y + e.h / 2 - def.h / 2);
+      const mid = m.projectile.y !== undefined ? e.y + e.h + m.projectile.y : e.y + e.h / 2;
+      const shot = ctx.spawn(m.projectile.type, dir < 0 ? e.x - def.w : e.x + e.w, mid - def.h / 2);
       shot.vx = dir * m.projectile.speed;
       shot.vy = m.projectile.vy ?? 0;
       shot.facing = dir;
@@ -174,7 +175,9 @@ export function stepMove(ctx: SimCtx, e: Entity, m: Move, targets: readonly Enti
     if (e.props[MOVE] === m.id) e.props[MOVE_HIT] = struck.join(',');
   }
   if (e.props[MOVE] !== m.id) return strikes;
-  const landingEnds = m.endsOnLanding && t > 0 && e.grounded && t < m.startup + m.active;
+  // A move that kicks its owner up (a leap) lands only after the kick: on the ground as it springs, it has not landed.
+  const takeoff = m.motion.find((x) => x.vy !== undefined && x.vy < 0)?.from ?? 0;
+  const landingEnds = m.endsOnLanding && t > takeoff && e.grounded && t < m.startup + m.active;
   const next = landingEnds ? m.startup + m.active : t + 1;
   if (next >= moveLength(m)) endMove(e);
   else e.props[MOVE_TICK] = next;

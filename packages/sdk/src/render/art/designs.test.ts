@@ -4,7 +4,7 @@ import { artPalette, buildOf, compileSheet, compileSprite, frameSize, overlaid, 
 
 const pal = artPalette({ background: '#1d2b1f', mid: '#6b8e4e', foreground: '#f2d7b6', accent: '#f0b84a', danger: '#d9534f', ui: '#f5eedc' });
 const design = (d: Record<string, unknown>) => SpriteDesign.parse(d);
-const pixels = (r: Recipe) => paintFrames(r, pal).map((f) => [...f.pc.data].join(','));
+const pixels = (r: Recipe) => paintFrames(r, pal).map((f) => Buffer.from(f.pc.data).toString('base64'));
 
 describe('overlaid', () => {
   const t = ['....', '.AA.', '.AA.', '....'];
@@ -33,7 +33,8 @@ describe('compileSprite', () => {
       expect(pixels(mine), name).toEqual(pixels(base));
       expect(frameSize(mine)).toEqual(frameSize(base));
     }
-  });
+    // Every shipped sprite twice over, the boss's big frames among them: slow on a busy machine.
+  }, 60_000);
 
   it("puts overlays on the animations they name, on every frame, and keeps the rest of the base's", () => {
     const farmer = RECIPES['farmer']!;

@@ -81,7 +81,7 @@ export const GENRES: GenreInfo[] = [
   {
     id: 'castle',
     label: 'Castle explorer',
-    hint: 'A gothic castle of rooms: relics reopen its halls, altars keep your place, and a fall returns you to the last one.',
+    hint: 'A gothic castle of rooms: relics reopen its halls, altars keep your place, and a boss guards the way out.',
     image: '/genres/castle.png',
     controls: [['← →', 'run'], ['Z / Space', 'jump'], ['E / Enter', 'cut (↓ in the air: plunge)'], ['Q / V', 'parry'], ['R / F', 'drink a flask'], ['X / Shift', 'dash (after the boots)'], ['↑', 'rest at an altar'], PAUSE],
     examples: [

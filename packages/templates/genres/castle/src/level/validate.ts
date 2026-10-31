@@ -1,7 +1,7 @@
 import type { LevelJson } from '@gg/schemas';
 import { Tilemap, type FeelPreset } from '@gg/sdk';
 import { err, report, warn, type Issue, type ValidationReport } from '@gg/validators';
-import { ALTAR_TYPE, COLLECTIBLE_TYPES, ENEMY_TYPES, GATE_TYPE, RELIC_TYPES } from '../entities.js';
+import { ALTAR_TYPE, BOSS_TYPES, COLLECTIBLE_TYPES, ENEMY_TYPES, GATE_TYPE, RELIC_TYPES } from '../entities.js';
 import { MAX_STRETCH, roomOf, world } from './progress.js';
 
 /** The castle tier's tiles. */
@@ -20,7 +20,8 @@ function standable(map: Tilemap, x: number, y: number): boolean {
  * Region check: 16 px tiles, spawn and goal sane, nothing inside walls, a hazard-free start, and rooms: every tile the
  * player stands on in one, the goal in an exit room, an altar in every save room. Then the world solver: the relics in
  * order reach the goal, nothing the player can get to strands them, every room is reached, and no stretch between
- * rests runs past MAX_STRETCH rooms. Warns when a relic or an altar is never reached or the region does not gate.
+ * rests runs past MAX_STRETCH rooms. Warns when a relic or an altar is never reached, the region does not gate, a boss
+ * stands outside a boss room (or a boss room has none), or the way out does not lie behind the boss.
  */
 export function validateRegion(level: LevelJson, feel: FeelPreset): ValidationReport {
   const issues: Issue[] = [];
@@ -50,6 +51,14 @@ export function validateRegion(level: LevelJson, feel: FeelPreset): ValidationRe
       const inside = level.entities.some((e) => e.type === ALTAR_TYPE && e.x >= r.x && e.x < r.x + r.w && e.y >= r.y && e.y < r.y + r.h);
       if (!inside) issues.push(err('save_without_altar', `save room ${r.id} has no altar`, { path: r.id }));
     }
+    // A boss fights in a boss room (the arena shuts it), and a boss room holds its boss.
+    const bosses = level.entities.filter((e) => BOSS_TYPES.includes(e.type));
+    for (const b of bosses) {
+      if (rooms[roomOf(rooms, b.x, b.y)]?.kind !== 'boss') issues.push(warn('boss_outside_arena', `the ${b.type} at (${b.x},${b.y}) is not in a boss room`, { x: b.x, y: b.y }));
+    }
+    for (const r of rooms) {
+      if (r.kind === 'boss' && !bosses.some((b) => roomOf(rooms, b.x, b.y) === rooms.indexOf(r))) issues.push(warn('arena_without_boss', `boss room ${r.id} has no boss`, { path: r.id }));
+    }
     for (const a of level.entities) {
       if (a.type !== ALTAR_TYPE) continue;
       const r = rooms[roomOf(rooms, a.x, a.y)];
@@ -72,6 +81,7 @@ export function validateRegion(level: LevelJson, feel: FeelPreset): ValidationRe
   for (const r of w.unreachableRooms) issues.push(err('room_unreachable', `room ${r.id} is never reached`, { path: r.id }));
   if (w.longestStretch.length > MAX_STRETCH) issues.push(err('altars_far_apart', `${w.longestStretch.length} rooms in a row with no altar: ${w.longestStretch.join(', ')} (at most ${MAX_STRETCH})`));
   if (!w.gated) issues.push(warn('not_gated', 'the goal is reachable without any relic'));
+  if (w.bossBypassed) issues.push(warn('boss_bypassed', "the way out is reached without crossing the boss's room"));
 
   const hazards = level.rows.join('').split('').filter((ch) => level.legend[ch] === 'hazard').length;
   const enemies = level.entities.filter((e) => ENEMY_TYPES.includes(e.type)).length;
@@ -88,6 +98,7 @@ export function validateRegion(level: LevelJson, feel: FeelPreset): ValidationRe
     saves: rooms.filter((r) => r.kind === 'save').length,
     longestStretch: w.longestStretch.length,
     relics: level.entities.filter((e) => RELIC_TYPES.includes(e.type)).length,
+    bosses: level.entities.filter((e) => BOSS_TYPES.includes(e.type)).length,
     collectibles: level.entities.filter((e) => COLLECTIBLE_TYPES.includes(e.type)).length,
     enemies,
     hazards,

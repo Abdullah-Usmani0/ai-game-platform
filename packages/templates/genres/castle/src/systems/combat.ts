@@ -1,5 +1,5 @@
 import { MoveSet, type Move } from '@gg/schemas';
-import { approach, cancelInto, cancelOpensWithin, centerX, defineSystem, endMove, isHostile, moveOf, moveTick, startMove, stepMove, type Entity, type SimCtx } from '@gg/sdk';
+import { approach, cancelInto, cancelOpensWithin, centerX, defineSystem, endMove, isHostile, moveOf, moveTick, POISE, POISE_MAX, startMove, stepMove, type Entity, type SimCtx } from '@gg/sdk';
 import { GUARDS } from '../entities.js';
 import { DEFAULT_MOVES } from '../moves.js';
 
@@ -47,6 +47,12 @@ const RIPOSTE_REACH = 40;
 export const FLASKS = 'flasks';
 /** Ticks between two dodge sounds: one dash slipping a blow over several ticks is one dodge. */
 const DODGE_GAP = 20;
+/** A boss's poise: the blows it shrugs off before it flinches (two chains of cuts, or a riposte). */
+export const BOSS_POISE = 60;
+/** How far a blow throws a boss, of what it throws anything else. */
+const BOSS_KNOCK = 0.3;
+/** A boss's bulk keeps the hero out: inside its body, the hero is eased out this far a tick, to the side it is on. */
+const BOSS_SHOVE = 2;
 
 interface CombatState {
   /** The game's moves by id (content/moves.json, else the castle's own). */
@@ -176,6 +182,12 @@ export const combat = defineSystem<CombatState>({
     const flasks = Number(ctx.params['flasks'] ?? 3);
     ctx.world.player.props[FLASKS] = flasks;
     ctx.world.hud[FLASKS] = flasks;
+    // A boss stands its ground: poise against flinching, whole again each time it breaks.
+    for (const e of ctx.world.entities) {
+      if (e.flags['boss'] !== true || typeof e.props[POISE] === 'number') continue;
+      e.props[POISE] = BOSS_POISE;
+      e.props[POISE_MAX] = BOSS_POISE;
+    }
     return {
       moves: new Map(set.map((m) => [m.id, m])),
       byClip: new Map(set.filter((m) => m.owner !== 'player').map((m) => [`${m.owner}/${m.anim}`, m])),
@@ -190,6 +202,12 @@ export const combat = defineSystem<CombatState>({
   fixedUpdate(s, input, ctx) {
     stepCast(s, ctx);
     const p = ctx.world.player;
+    // No standing inside a boss: its bulk eases the hero out to the side it is on.
+    for (const e of ctx.world.entities) {
+      if (!e.alive || e.flags['boss'] !== true || e.dormant === true || !p.alive) continue;
+      if (p.x + p.w <= e.x || p.x >= e.x + e.w || p.y + p.h <= e.y || p.y >= e.y + e.h) continue;
+      ctx.move(p, centerX(p) < centerX(e) ? -BOSS_SHOVE : BOSS_SHOVE, 0);
+    }
     // The keys the sword reads, every tick: the attack, down for the plunge, and the arrows a cut faces by.
     const pressed = input.action && !s.prevAction;
     const down = input.down;
@@ -260,6 +278,8 @@ export const combat = defineSystem<CombatState>({
     }
     // One riposte a parry: the blow closes the opening.
     if (m.input === 'riposte') for (const x of strikes) if (x.landed) x.target.props[OPEN_UNTIL] = -1;
+    // A boss is hardly moved by a blow.
+    for (const x of strikes) if (x.target.flags['boss'] === true) x.target.vx *= BOSS_KNOCK;
     // A foe staggered out of its own move reels rather than going on drawing it.
     for (const x of strikes) if (x.staggered && !x.target.isPlayer && s.byClip.has(`${x.target.type}/${x.target.anim}`)) x.target.anim = 'hurt';
     // Rooted on the ground but for the cut's own step, which stops where the floor does (no cut carries the hero off a ledge).
@@ -361,7 +381,7 @@ export const meta = {
   feedbackFor: ['hit', 'custom:swing', 'custom:finisher', 'custom:block', 'custom:guard_break', 'custom:parry', 'custom:drink', 'custom:heal', 'custom:dodge'],
   controls: { action: 'attack', down: 'plunge (in the air)', left: 'face', right: 'face', guard: 'parry', item: 'drink a flask' },
   hud: ['flasks'],
-  // The shots the castle's moves loose: the gargoyle's embers, the wraith's hexes, the bone archer's arrows.
-  provides: { combat: 'melee', spawns: ['ember', 'hex', 'shaft'] },
+  // The shots the castle's moves loose: the gargoyle's embers, the wraith's hexes, the bone archer's arrows, the boss's wave.
+  provides: { combat: 'melee', spawns: ['ember', 'hex', 'shaft', 'wave'] },
   requires: { movement: ['platformer'], roles: ['hostile'] },
 } as const;

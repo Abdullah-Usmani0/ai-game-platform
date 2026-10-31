@@ -94,17 +94,28 @@ export class PixelCanvas {
     for (let y = 0; y < this.h; y++) {
       for (let x = 0; x < this.w; x++) {
         if (opaque(x, y)) continue;
-        const n: Array<[number, number, 'lit' | 'dark']> = [
-          [x, y + 1, 'lit'],
-          [x + 1, y, 'lit'],
-          [x, y - 1, 'dark'],
-          [x - 1, y, 'dark'],
-        ];
-        const hit = n.find(([nx, ny]) => opaque(nx, ny));
-        if (!hit) continue;
+        // The first opaque neighbour of below and right (the lit side), then above and left (the dark side), checked in
+        // place: a big frame is mostly empty, and this runs for every empty pixel of it.
+        let hx = x;
+        let hy = y + 1;
+        let lit = true;
+        if (!opaque(hx, hy)) {
+          hx = x + 1;
+          hy = y;
+          if (!opaque(hx, hy)) {
+            lit = false;
+            hx = x;
+            hy = y - 1;
+            if (!opaque(hx, hy)) {
+              hx = x - 1;
+              hy = y;
+              if (!opaque(hx, hy)) continue;
+            }
+          }
+        }
         if (mode === 'dark') this.set(x, y, ink);
-        else if (mode === 'colored') this.set(x, y, shade(colorAt(hit[0], hit[1]), -0.62));
-        else this.set(x, y, hit[2] === 'lit' ? shade(colorAt(hit[0], hit[1]), -0.5) : ink);
+        else if (mode === 'colored') this.set(x, y, shade(colorAt(hx, hy), -0.62));
+        else this.set(x, y, lit ? shade(colorAt(hx, hy), -0.5) : ink);
       }
     }
   }

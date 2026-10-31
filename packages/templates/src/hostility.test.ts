@@ -54,8 +54,9 @@ describe('one rule for what is hostile', () => {
     it(`${c.system} defeats every ${home.movementMode} genre's hostiles (${foes.length})`, () => {
       const movement = home.requiredSystems.find((id) => home.systems[id]!.meta.provides?.movement)!;
       const platformer = home.movementMode === 'platformer';
-      const level = room(24, 14, platformer ? 3 : 0);
       for (const { genre, def } of foes) {
+        // A platformer foe is fallen on from two tiles over its head (a boss stands taller than most).
+        const level = room(24, platformer ? 20 : 14, platformer ? Math.max(3, Math.ceil((def.h ?? 8) / 8) + 2) : 0);
         // The foe stands still (no behaviour is loaded), so only the combat decides: a top-down foe two tiles up, a platformer foe under the spawn.
         const foe: EntityDef = { ...def, type: 'foe' };
         const at = platformer ? { x: level.spawn.x, y: level.height - 2 } : { x: level.spawn.x, y: level.spawn.y - 3 };

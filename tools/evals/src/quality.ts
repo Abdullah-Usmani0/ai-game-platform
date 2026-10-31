@@ -38,7 +38,7 @@ interface Measured {
 function buildGame(g: GenreManifest, tier: ScopeTier, game: number) {
   const budgetOf = g.scopeBudget[tier];
   const bosses = g.entityDefs.some((e) => e.boss) ? Math.min(1, budgetOf.bosses) : 0;
-  const plan = levelPlan(g.levelGrammar.kind, { levels: plannedLevelCount(g.levelGrammar.kind, budgetOf.levels), bosses, tier });
+  const plan = levelPlan(g.levelGrammar.kind, { levels: plannedLevelCount(g.levelGrammar.kind, budgetOf.levels), bosses, tier }, g.singleLevelDifficulty);
   const systems = systemsJsonFor(g);
   const feedback = [...g.gddDefaults.feedbackEvents, ...(g.feedbackExtras ?? [])] as FeedbackBinding[];
   const out: Array<{ id: string; make: () => Sim; proof: { script: ReturnType<typeof scriptFromLog>; ticks: number } }> = [];

@@ -293,6 +293,383 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
   }
 }
 ",
+  "content/behaviour/headsman.fsm.json": "{
+  "version": 1,
+  "id": "headsman",
+  "designNotes": "Kneels over its cleaver until the hero comes near, rises, and fights: chops at a hero in reach, leaps at one who keeps away, drags its cleaver to send a wave along the floor; at half health it roars and fights faster, a sweeping two-blow combo in place of the chop.",
+  "initial": "dormant",
+  "states": {
+    "dormant": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "kneel"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "rise",
+          "when": {
+            "kind": "player_within",
+            "px": 200
+          }
+        }
+      ]
+    },
+    "rise": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "rise"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:boss"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "watch",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 1020
+          }
+        }
+      ]
+    },
+    "watch": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "walk"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 34
+        }
+      ],
+      "transitions": [
+        {
+          "to": "roar",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "hp_below",
+                "fraction": 0.5
+              },
+              {
+                "kind": "flag",
+                "name": "enraged",
+                "is": false
+              }
+            ]
+          }
+        },
+        {
+          "to": "chop",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 500
+              },
+              {
+                "kind": "player_within",
+                "px": 76
+              }
+            ]
+          }
+        },
+        {
+          "to": "leap",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 700
+              },
+              {
+                "kind": "player_beyond",
+                "px": 150
+              }
+            ]
+          }
+        },
+        {
+          "to": "drag",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 900
+              },
+              {
+                "kind": "chance",
+                "p": 0.03
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "chop": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "chop"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "watch",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 1120
+          }
+        }
+      ]
+    },
+    "leap": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "leap"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "watch",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 1550
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "drag": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "drag"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "watch",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 1170
+          }
+        }
+      ]
+    },
+    "roar": {
+      "onEnter": [
+        {
+          "kind": "set_flag",
+          "name": "enraged",
+          "value": true
+        },
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "roar"
+        },
+        {
+          "kind": "emit",
+          "event": "custom:enrage"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "fury",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 1190
+          }
+        }
+      ]
+    },
+    "fury": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "walk"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 50
+        }
+      ],
+      "transitions": [
+        {
+          "to": "combo",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 300
+              },
+              {
+                "kind": "player_within",
+                "px": 84
+              }
+            ]
+          }
+        },
+        {
+          "to": "leap2",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 400
+              },
+              {
+                "kind": "player_beyond",
+                "px": 140
+              }
+            ]
+          }
+        },
+        {
+          "to": "drag2",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 500
+              },
+              {
+                "kind": "chance",
+                "p": 0.05
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "combo": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "combo"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "fury",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 1120
+          }
+        }
+      ]
+    },
+    "leap2": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "leap"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "fury",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 1550
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "drag2": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "drag"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "fury",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 1170
+          }
+        }
+      ]
+    }
+  }
+}
+",
   "content/behaviour/hound.fsm.json": "{
   "version": 1,
   "id": "hound",
@@ -875,22 +1252,12 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
       "props": {}
     },
     {
-      "type": "ghoul",
-      "x": 143,
-      "y": 31,
-      "props": {}
-    },
-    {
-      "type": "ghoul",
-      "x": 136,
-      "y": 31,
-      "props": {}
-    },
-    {
-      "type": "soul",
+      "type": "headsman",
       "x": 130,
-      "y": 30,
-      "props": {}
+      "y": 31,
+      "props": {
+        "name": "The Headsman"
+      }
     },
     {
       "type": "gate",
@@ -973,12 +1340,12 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
       "kind": "room"
     },
     {
-      "id": "hall-3",
+      "id": "boss",
       "x": 120,
       "y": 17,
       "w": 30,
       "h": 17,
-      "kind": "room"
+      "kind": "boss"
     },
     {
       "id": "exit",
@@ -1537,6 +1904,225 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
         "at": 40,
         "speed": 260
       }
+    },
+    {
+      "id": "rise",
+      "owner": "headsman",
+      "anim": "rise",
+      "startup": 20,
+      "active": 20,
+      "recovery": 20,
+      "hitboxes": [],
+      "damage": 0,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      },
+      "hitstun": 0,
+      "hitstop": 0,
+      "poise": 0,
+      "motion": [],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": false,
+      "iframes": {
+        "from": 0,
+        "to": 59
+      },
+      "mp": 0,
+      "heal": 0
+    },
+    {
+      "id": "chop",
+      "owner": "headsman",
+      "anim": "chop",
+      "startup": 30,
+      "active": 4,
+      "recovery": 32,
+      "hitboxes": [
+        {
+          "from": 0,
+          "to": 3,
+          "x": -8,
+          "y": -66,
+          "w": 80,
+          "h": 66
+        }
+      ],
+      "damage": 2,
+      "knockback": {
+        "x": 260,
+        "y": -220
+      },
+      "hitstun": 0,
+      "hitstop": 6,
+      "poise": 0,
+      "motion": [
+        {
+          "from": 28,
+          "to": 31,
+          "vx": 90
+        }
+      ],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": true,
+      "mp": 0,
+      "heal": 0
+    },
+    {
+      "id": "leap",
+      "owner": "headsman",
+      "anim": "leap",
+      "startup": 24,
+      "active": 40,
+      "recovery": 28,
+      "hitboxes": [
+        {
+          "from": 0,
+          "to": 19,
+          "x": -16,
+          "y": -62,
+          "w": 56,
+          "h": 66
+        },
+        {
+          "from": 20,
+          "to": 39,
+          "x": -8,
+          "y": -66,
+          "w": 80,
+          "h": 66
+        }
+      ],
+      "damage": 2,
+      "knockback": {
+        "x": 240,
+        "y": -260
+      },
+      "hitstun": 0,
+      "hitstop": 6,
+      "poise": 0,
+      "motion": [
+        {
+          "from": 24,
+          "to": 63,
+          "vx": 200,
+          "vy": -480
+        }
+      ],
+      "cancels": [],
+      "endsOnLanding": true,
+      "parryable": false,
+      "mp": 0,
+      "heal": 0
+    },
+    {
+      "id": "drag",
+      "owner": "headsman",
+      "anim": "drag",
+      "startup": 34,
+      "active": 1,
+      "recovery": 34,
+      "hitboxes": [],
+      "damage": 1,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      },
+      "hitstun": 0,
+      "hitstop": 0,
+      "poise": 0,
+      "motion": [],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": false,
+      "mp": 0,
+      "heal": 0,
+      "projectile": {
+        "type": "wave",
+        "at": 34,
+        "speed": 170,
+        "y": -6
+      }
+    },
+    {
+      "id": "roar",
+      "owner": "headsman",
+      "anim": "roar",
+      "startup": 20,
+      "active": 30,
+      "recovery": 20,
+      "hitboxes": [],
+      "damage": 0,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      },
+      "hitstun": 0,
+      "hitstop": 0,
+      "poise": 0,
+      "motion": [],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": false,
+      "iframes": {
+        "from": 0,
+        "to": 69
+      },
+      "mp": 0,
+      "heal": 0
+    },
+    {
+      "id": "combo",
+      "owner": "headsman",
+      "anim": "combo",
+      "startup": 22,
+      "active": 18,
+      "recovery": 26,
+      "hitboxes": [
+        {
+          "from": 0,
+          "to": 3,
+          "x": -8,
+          "y": -30,
+          "w": 82,
+          "h": 30
+        },
+        {
+          "from": 14,
+          "to": 17,
+          "x": -8,
+          "y": -66,
+          "w": 80,
+          "h": 66
+        }
+      ],
+      "damage": 2,
+      "knockback": {
+        "x": 240,
+        "y": -200
+      },
+      "hitstun": 0,
+      "hitstop": 5,
+      "poise": 0,
+      "motion": [
+        {
+          "from": 20,
+          "to": 23,
+          "vx": 120
+        },
+        {
+          "from": 34,
+          "to": 37,
+          "vx": 90
+        }
+      ],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": true,
+      "mp": 0,
+      "heal": 0
     }
   ]
 }
@@ -1666,14 +2252,41 @@ Append-only. One entry per deviation: what, why, date.
     "channels": [
       "sfx"
     ]
+  },
+  {
+    "event": "custom:boss",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
+  },
+  {
+    "event": "custom:enrage",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
+  },
+  {
+    "event": "custom:arena_shut",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
+  },
+  {
+    "event": "custom:arena_open",
+    "channels": [
+      "sfx"
+    ]
   }
 ]
 ",
   "design/gdd.md": "---
-{"title":"The Salt Chapel","genre":"castle","scopeTier":"medium","pillars":["every hall hides a way back","a relic reopens the castle","rest is earned at the altar"],"scope":{"levels":1,"enemies":3,"items":3,"bosses":0},"targets":{"sessionMin":10,"levelTimeS":240,"deathsPerLevel":4},"verbs":["run","jump","dash","cut","explore","rest"],"feedbackEvents":[{"event":"jump","channels":["sfx"]},{"event":"land","channels":["sfx"]},{"event":"dash","channels":["sfx","particle"]},{"event":"hit","channels":["shake","flash","sfx"]},{"event":"death","channels":["flash","sfx"]},{"event":"pickup","channels":["sfx","particle","flash"]},{"event":"checkpoint","channels":["sfx"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+{"title":"The Salt Chapel","genre":"castle","scopeTier":"medium","pillars":["every hall hides a way back","a relic reopens the castle","rest is earned at the altar"],"scope":{"levels":1,"enemies":6,"items":3,"bosses":1},"targets":{"sessionMin":10,"levelTimeS":240,"deathsPerLevel":4},"verbs":["run","jump","dash","cut","parry","drink","explore","rest"],"feedbackEvents":[{"event":"jump","channels":["sfx"]},{"event":"land","channels":["sfx"]},{"event":"dash","channels":["sfx","particle"]},{"event":"hit","channels":["shake","flash","sfx"]},{"event":"death","channels":["flash","sfx"]},{"event":"pickup","channels":["sfx","particle","flash"]},{"event":"checkpoint","channels":["sfx"]},{"event":"level_complete","channels":["sfx","particle"]}]}
 ---
 ## Concept
-A chapel cut into a sea cliff, its halls crusted white with salt and its dead restless. A pilgrim in dented armour wakes below the nave with nothing but a jump. The way up is a step of stone too tall to climb, so the pilgrim turns back into the dark behind the first hall and finds a pair of wings. With the double jump the step falls; past the cloister wait the boots, and a shaft at the chapel's far end drops to the crypt below. The way back runs under the halls above, across a chasm of spikes that only a double jump and a dash can cross, to the door out beneath the first altar.
+A chapel cut into a sea cliff, its halls crusted white with salt and its dead restless. A pilgrim in dented armour wakes below the nave with nothing but a jump. The way up is a step of stone too tall to climb, so the pilgrim turns back into the dark behind the first hall and finds a pair of wings. With the double jump the step falls; past the cloister wait the boots, and a shaft at the chapel's far end drops to the crypt below. The way back runs under the halls above, across a chasm of spikes that only a double jump and a dash can cross, and through the hall where the Headsman kneels over his cleaver, to the door out beneath the first altar.
 
 ## Pillars
 1. Every hall hides a way back: each wall the pilgrim cannot pass yet is seen before the relic that beats it, and the wings lie behind the start.
@@ -1681,13 +2294,13 @@ A chapel cut into a sea cliff, its halls crusted white with salt and its dead re
 3. Rest is earned at the altar: two altars refill the pilgrim and wake the dead again; a fall returns the pilgrim to the last one, with everything found kept.
 
 ## Core loop
-30 seconds: walk the first hall, meet the tall step, turn back for the wings. 5 minutes: climb, cut down the ghouls of the cloister, take the boots, drop down the shaft to the second altar, pass the hounds of the crypt and cross the chasm. Session: a few runs chasing a crossing with no falls.
+30 seconds: walk the first hall, meet the tall step, turn back for the wings. 5 minutes: climb, cut down the ghouls of the cloister, take the boots, drop down the shaft to the second altar, pass the hounds of the crypt, cross the chasm and face the Headsman, parrying his cleaver to riposte. Session: a few runs chasing a crossing with no falls.
 
 ## Progression
-The wings, then the first altar and the tall step, then the boots, the shaft down and the second altar, then the chasm on the way back. Abilities last through falls and rests; no stretch between altars runs past four rooms.
+The wings, then the first altar and the tall step, then the boots, the shaft down and the second altar, then the chasm and the Headsman's hall on the way back: its doorways shut behind the pilgrim until the Headsman falls. Abilities last through falls and rests; no stretch between altars runs past four rooms.
 
 ## Scope
-1 region of 13 rooms on two floors, 3 enemy types (ghoul, hound, gargoyle), 3 item types (wings, boots, souls), no bosses.
+1 region of 13 rooms on two floors, 6 enemy types (ghoul, hound, gargoyle, sentinel, wraith, bone archer), 3 item types (wings, boots, souls), 1 boss (the Headsman, in two phases).
 
 ## Feedback
 Jumps and landings sound, the dash trails particles, hits shake and flash, relic and soul pickups flash and sparkle, checkpoints chime, a rest rings a bell over a low fifth and flashes, reaching the way out celebrates. See the front-matter table.
@@ -1783,6 +2396,10 @@ Jumps and landings sound, the dash trails particles, hits shake and flash, relic
     },
     {
       "id": "shortcuts",
+      "params": {}
+    },
+    {
+      "id": "arena",
       "params": {}
     },
     {

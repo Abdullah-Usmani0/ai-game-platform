@@ -175,7 +175,7 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
     return { won, sound: won };
   };
   const arena = g.levelGrammar.kind === 'arena';
-  const plan = levelPlan(g.levelGrammar.kind, { levels: opts.levels ?? gdd.data.scope.levels, bosses: gdd.data.scope.bosses, tier: gdd.data.scopeTier });
+  const plan = levelPlan(g.levelGrammar.kind, { levels: opts.levels ?? gdd.data.scope.levels, bosses: gdd.data.scope.bosses, tier: gdd.data.scopeTier }, g.singleLevelDifficulty);
   // A runner's levels are as long as it runs in the target time, as the levels stage makes them.
   const extra = freeform ? generatorParams(freeform, gdd.data.targets.levelTimeS) : {};
   let s = seed;

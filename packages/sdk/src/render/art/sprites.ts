@@ -679,6 +679,8 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   'bone-archer': 'bone-archer',
   hex: 'hex',
   shaft: 'shaft',
+  headsman: 'headsman',
+  wave: 'wave',
   soul: 'soul',
   altar: 'altar',
   gate: 'gate',

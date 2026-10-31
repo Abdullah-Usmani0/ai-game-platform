@@ -1,7 +1,7 @@
 import type { LevelJson, LevelRoom } from '@gg/schemas';
 import { Rng } from '@gg/sdk';
 import type { LevelGenParams } from '@gg/template-core';
-import { ALTAR_TYPE, ARCHER_TYPE, BOOTS_TYPE, ENTITY_DEFS, GARGOYLE_TYPE, GATE_TYPE, GHOUL_TYPE, HOUND_TYPE, PLAYER, SENTINEL_TYPE, SOUL_TYPE, WINGS_TYPE, WRAITH_TYPE } from '../entities.js';
+import { ALTAR_TYPE, ARCHER_TYPE, BOOTS_TYPE, ENTITY_DEFS, GARGOYLE_TYPE, GATE_TYPE, GHOUL_TYPE, HEADSMAN_TYPE, HOUND_TYPE, PLAYER, SENTINEL_TYPE, SOUL_TYPE, WINGS_TYPE, WRAITH_TYPE } from '../entities.js';
 
 /** One screen of the castle view (480x270 at 16 px tiles): no room is narrower, so the camera never shows two. */
 export const SCREEN_TILES = 30;
@@ -43,7 +43,7 @@ interface Room {
   /** Ground under the walking row `walk` over columns lx0..lx1, and the air above it up to the ceiling. */
   floor(lx0: number, lx1: number, walk: number): void;
   fill(lx0: number, y0: number, lx1: number, y1: number, ch: string): void;
-  put(type: string, lx: number, y: number): void;
+  put(type: string, lx: number, y: number, props?: Record<string, string | number | boolean>): void;
   /** A spike trench: the ground taken out under columns lx0..lx1, spikes at the bottom of the room. */
   trench(lx0: number, lx1: number, walk: number): void;
   /** Open floor at (lx, walk): air with room for a body over it, ground under it. */
@@ -197,6 +197,18 @@ const CHASM: RoomPlan = {
   },
 };
 
+/** The boss's room before the way out: open floor, the headsman kneeling over its cleaver two thirds of the way across. */
+const BOSS: RoomPlan = {
+  id: 'boss',
+  kind: 'boss',
+  w: SCREEN_TILES,
+  build(r, walk) {
+    r.floor(0, r.w - 2, walk);
+    r.put(HEADSMAN_TYPE, 19, walk, { name: 'The Headsman' });
+    return walk;
+  },
+};
+
 /** The way out: the goal by the far wall, a gargoyle on guard from the middle difficulties. */
 const EXIT: RoomPlan = {
   id: 'exit',
@@ -223,8 +235,9 @@ interface Placed {
  * The region's rooms in order, laid out on a grid of screens. Along the top row, left to right: the wings behind the
  * start (the player goes back for them), a hall, an altar, the ledge only the wings climb, one or two halls and the
  * boots. From 0.2 the way turns down a shaft at the far end into the second altar's room, then runs back left along the
- * row below: a hall from 0.4, the chasm only the boots cross, a hall and the way out, which ends under the first
- * altar. Below 0.2 the boots room is the way out's neighbour on one row. No stretch between rests runs past four rooms.
+ * row below: a hall from 0.4, the chasm only the boots cross, the boss's room and the way out, which ends under the
+ * first altar. Below 0.2 the boots room is the way out's neighbour on one row, and there is no boss. No stretch between
+ * rests runs past four rooms.
  */
 function mission(d: number): Placed[] {
   let n = 0;
@@ -232,7 +245,7 @@ function mission(d: number): Placed[] {
   const top = [relicRoom(WINGS_TYPE), START, ...halls(1), altarRoom(1), LEDGE, ...halls(d >= 0.4 ? 2 : 1)];
   if (d < 0.2) return [...top, EXIT].map((plan, col) => ({ plan, row: 0, col, back: false }));
   top.push(relicRoom(BOOTS_TYPE));
-  const bottom = [altarRoom(2), ...halls(d >= 0.4 ? 1 : 0), CHASM, ...halls(1), EXIT];
+  const bottom = [altarRoom(2), ...halls(d >= 0.4 ? 1 : 0), CHASM, BOSS, EXIT];
   const turn = top.length - 1;
   return [...top.map((plan, col) => ({ plan, row: 0, col, back: false })), ...bottom.map((plan, i) => ({ plan, row: 1, col: turn - i, back: true }))];
 }
@@ -282,8 +295,8 @@ export function generateRegion(params: LevelGenParams): LevelJson {
       fill(lx0, ya, lx1, yb, ch) {
         for (let y = ya; y <= yb; y++) for (let lx = lx0; lx <= lx1; lx++) set(gx(lx), y0 + y, ch);
       },
-      put(type, lx, y) {
-        entities.push({ type, x: gx(lx), y: y0 + y, props: {} });
+      put(type, lx, y, props = {}) {
+        entities.push({ type, x: gx(lx), y: y0 + y, props });
       },
       trench(lx0, lx1, row) {
         for (let lx = lx0; lx <= lx1; lx++) {

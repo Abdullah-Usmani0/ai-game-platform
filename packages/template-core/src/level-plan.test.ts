@@ -27,6 +27,13 @@ describe('levelPlan', () => {
     }
   });
 
+  it("plays a single level at the genre's own difficulty for the tier, where it names one", () => {
+    const single = { small: 0.3, medium: 0.5, large: 0.75 };
+    expect((['small', 'medium', 'large'] as const).map((tier) => levelPlan('graph', { levels: 1, bosses: 1, tier }, single)[0]!.difficulty)).toEqual([0.3, 0.5, 0.75]);
+    // Two levels or more ramp as ever.
+    expect(levelPlan('graph', { levels: 2, bosses: 0, tier: 'small' }, single).map((l) => l.difficulty)).toEqual([0.15, 0.35]);
+  });
+
   it('puts a boss on the last of two or more levels, never on a single level', () => {
     expect(levelPlan('rooms', { levels: 3, bosses: 1, tier: 'medium' }).map((l) => l.boss)).toEqual([0, 0, 1]);
     expect(levelPlan('rooms', { levels: 3, bosses: 0, tier: 'medium' }).map((l) => l.boss)).toEqual([0, 0, 0]);

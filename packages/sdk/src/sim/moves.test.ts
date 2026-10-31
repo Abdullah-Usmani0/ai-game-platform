@@ -16,6 +16,10 @@ const SET = MoveSet.parse({
     { id: 'lunge', owner: 'player', anim: 'attack3', input: 'riposte', startup: 2, active: 4, recovery: 4, hitboxes: [], damage: 0, knockback: { x: 0, y: 0 }, hitstun: 0, hitstop: 0, motion: [{ from: 0, to: 5, vx: 240, vy: -120 }] },
     { id: 'dive', owner: 'player', anim: 'plunge', input: 'plunge', startup: 2, active: 30, recovery: 6, hitboxes: [{ from: 0, to: 29, x: -6, y: -4, w: 12, h: 8 }], damage: 1, knockback: { x: 40, y: -60 }, hitstun: 6, hitstop: 0, endsOnLanding: true, motion: [{ from: 2, to: 2, vx: 0, vy: 300 }] },
     { id: 'spit', owner: 'dummy', anim: 'aim', startup: 12, active: 1, recovery: 10, hitboxes: [], damage: 1, knockback: { x: 0, y: 0 }, hitstun: 0, hitstop: 0, projectile: { type: 'ember', at: 12, speed: 120 } },
+    // A shot scraped along the floor: its middle 3 px up from the feet, its lowest pixel just clear of the floor.
+    { id: 'scrape', owner: 'dummy', anim: 'drag', startup: 4, active: 1, recovery: 4, hitboxes: [], damage: 1, knockback: { x: 0, y: 0 }, hitstun: 0, hitstop: 0, projectile: { type: 'ember', at: 4, speed: 100, y: -3 } },
+    // A leap: six ticks crouched on the floor, a kick up at the sixth, and down to its recovery as it lands.
+    { id: 'hop', owner: 'player', anim: 'jump', input: 'air', startup: 6, active: 30, recovery: 4, hitboxes: [], damage: 0, knockback: { x: 0, y: 0 }, hitstun: 0, hitstop: 0, endsOnLanding: true, motion: [{ from: 6, to: 6, vx: 0, vy: -150 }] },
   ],
 });
 const MOVES = moveMap(SET);
@@ -224,6 +228,36 @@ describe('moves', () => {
     expect(moveOf(sim.world.player, MOVES)).not.toBeNull();
     run(sim, 1);
     expect(moveOf(sim.world.player, MOVES)).toBeNull();
+  });
+
+  it('looses a shot at the height its move names, measured up from the feet', () => {
+    const sim = arena([20], (_input, ctx) => {
+      const d = ctx.world.entities.find((e) => e.type === 'dummy')!;
+      if (ctx.tick === 0) startMove(d, move('scrape'));
+      const m = moveOf(d, MOVES);
+      if (m) stepMove(ctx, d, m, [ctx.world.player]);
+    });
+    run(sim, 5);
+    const d = dummies(sim)[0]!;
+    const shot = sim.world.entities.find((e) => e.type === 'ember')!;
+    expect(shot.y + shot.h / 2).toBe(d.y + d.h - 3);
+  });
+
+  it('lands a leap only once it has sprung: crouched on the floor through its wind-up, it goes on to the kick', () => {
+    const sim = arena([], swing('hop'));
+    const p = sim.world.player;
+    run(sim, 6);
+    expect([p.grounded, moveTick(p)]).toEqual([true, 6]);
+    run(sim, 1);
+    expect([p.grounded, p.vy < 0]).toEqual([false, true]);
+    let landed = -1;
+    for (let i = 0; i < 40 && landed < 0; i++) {
+      run(sim, 1);
+      if (p.grounded) landed = sim.tick;
+    }
+    expect(landed).toBeGreaterThan(0);
+    run(sim, 1);
+    expect(moveTick(p)).toBe(move('hop').startup + move('hop').active);
   });
 
   it('keeps its clock in the save: a sim loaded mid-move plays on exactly as before', () => {

@@ -8,18 +8,21 @@ const pal = artPalette({ background: '#0d0a12', mid: '#3b3346', foreground: '#e8
 describe('the castle cast', () => {
   it('bakes into templates of slot letters only, every frame of a recipe the same size', () => {
     const letters = new Set(Object.keys(legendFor(pal)));
+    // What is wrong, gathered and checked once: the boss alone is some 700k letters.
+    const wrong = new Set<string>();
     for (const [name, recipe] of Object.entries(CAST_RECIPES)) {
       const first = Object.values(recipe.anims)[0]![0]!;
       for (const [anim, frames] of Object.entries(recipe.anims)) {
         for (const t of frames) {
-          expect(t.length, `${name} ${anim}`).toBe(first.length);
+          if (t.length !== first.length) wrong.add(`${name} ${anim}: ${t.length} rows, not ${first.length}`);
           for (const row of t) {
-            expect(row.length, `${name} ${anim}`).toBe(first[0]!.length);
-            for (const ch of row) if (ch !== '.') expect(letters.has(ch), `${name} ${anim}: '${ch}'`).toBe(true);
+            if (row.length !== first[0]!.length) wrong.add(`${name} ${anim}: a row of ${row.length}, not ${first[0]!.length}`);
+            for (const ch of row) if (ch !== '.' && !letters.has(ch)) wrong.add(`${name} ${anim}: '${ch}'`);
           }
         }
       }
     }
+    expect([...wrong]).toEqual([]);
   });
 
   it('stands every frame on the ground on its last row, the leap and the pounce in flight aside', () => {
@@ -43,6 +46,12 @@ describe('the castle cast', () => {
     // Each attack names the frames that hit, so a move draws its wind-up over its startup.
     expect([CAST_RECIPES.ghoul!.active, CAST_RECIPES.hound!.active, CAST_RECIPES.gargoyle!.active, CAST_RECIPES.sentinel!.active]).toEqual([{ claw: [2, 3] }, { pounce: [2, 3] }, { aim: [1] }, { thrust: [2, 3] }]);
     expect([CAST_RECIPES.wraith!.active, CAST_RECIPES['bone-archer']!.active]).toEqual([{ cast: [2], fade: [3] }, { draw: [4] }]);
+    // The boss: a frame a pose, from its knee to its fury, and the wave its cleaver sends along the floor.
+    const boss = CAST_RECIPES.headsman!;
+    expect(Object.fromEntries(Object.entries(boss.anims).map(([k, v]) => [k, v.length]))).toEqual({ kneel: 1, walk: 4, rise: 6, chop: 5, leap: 5, drag: 5, roar: 3, combo: 6, hurt: 1 });
+    expect(boss.active).toEqual({ rise: [2, 3], chop: [2, 3], leap: [2, 3], drag: [2], roar: [1], combo: [1, 2, 3, 4] });
+    expect([boss.anims.kneel![0]![0]!.length, boss.anims.kneel![0]!.length]).toEqual([168, 112]);
+    expect([CAST_RECIPES.wave!.anchor, Object.keys(CAST_RECIPES.wave!.anims)]).toEqual(['center', ['run']]);
     for (const recipe of Object.values(CAST_RECIPES)) {
       const a = paintFrames(recipe, pal);
       const b = paintFrames(recipe, pal);

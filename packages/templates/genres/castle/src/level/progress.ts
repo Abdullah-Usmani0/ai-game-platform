@@ -142,6 +142,11 @@ export interface World {
   oneWayGates: LevelEntity[];
   /** Gates the player never gets under. */
   closedGates: LevelEntity[];
+  /**
+   * The goal is reached with every `boss` room walled up, with everything the region gives and its gates as built: the
+   * way out does not lie behind a boss (false when the region has no boss room).
+   */
+  bossBypassed: boolean;
 }
 
 /**
@@ -343,6 +348,15 @@ export function world(level: LevelJson, feel: FeelPreset): World {
     if (above < 0 || below < 0 || above === below || !(rests.has(above) || rests.has(below))) return false;
     return joins(map, rooms, reach, above, below, env, tall) && joins(map, rooms, reach, below, above, env, tall);
   });
+  // The way out behind each boss: walled up, its room leaves the goal out of reach.
+  const arenas = rooms.filter((r) => r.kind === 'boss');
+  let bossBypassed = false;
+  if (arenas.length > 0) {
+    const walled = new Tilemap(level);
+    for (const r of arenas) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) walled.setKind(x, y, 'solid');
+    const around = reachOver(walled, level.spawn, env, tall);
+    bossBypassed = goal.some((g) => around.has(g));
+  }
   return {
     steps,
     goalReachable: goal.some((g) => reach.has(g)),
@@ -357,5 +371,6 @@ export function world(level: LevelJson, feel: FeelPreset): World {
     shortcuts: loops,
     oneWayGates: opened.filter((g) => !loops.includes(g)),
     closedGates: gates.filter((g) => !opened.includes(g)),
+    bossBypassed,
   };
 }

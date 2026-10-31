@@ -119,5 +119,32 @@
     "channels": [
       "sfx"
     ]
+  },
+  {
+    "event": "custom:boss",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
+  },
+  {
+    "event": "custom:enrage",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
+  },
+  {
+    "event": "custom:arena_shut",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
+  },
+  {
+    "event": "custom:arena_open",
+    "channels": [
+      "sfx"
+    ]
   }
 ]

@@ -27,17 +27,18 @@ export const EXPERT_SHARE = 0.6;
 
 /**
  * The levels a game ships, from its GDD scope. Arena grammars build exactly one arena (their scope counts one level
- * whatever the tier). Other grammars ramp from 0.15 by at most 0.2 a level toward 0.75, a single level sits at 0.25,
- * and a scope with a boss puts it on the last of two or more levels. The scaffold's placeholders, the worker's levels
- * stage and the GDD all follow this plan, so what the design promises is what gets built.
+ * whatever the tier). Other grammars ramp from 0.15 by at most 0.2 a level toward 0.75, a single level sits at 0.25
+ * (or at the genre's `single` difficulty for the tier), and a scope with a boss puts it on the last of two or more
+ * levels. The scaffold's placeholders, the worker's levels stage and the GDD all follow this plan, so what the design
+ * promises is what gets built.
  */
-export function levelPlan(grammar: GenreManifest['levelGrammar']['kind'], scope: { levels: number; bosses: number; tier: ScopeTier }): PlannedLevel[] {
+export function levelPlan(grammar: GenreManifest['levelGrammar']['kind'], scope: { levels: number; bosses: number; tier: ScopeTier }, single?: GenreManifest['singleLevelDifficulty']): PlannedLevel[] {
   if (grammar === 'arena') return [{ index: 0, id: 'arena', difficulty: ARENA_DIFFICULTY[scope.tier], boss: 0, seed: levelSeed(DEFAULT_SEED, 0) }];
   const count = Math.max(1, Math.min(MAX_LEVELS, Math.round(scope.levels)));
   return Array.from({ length: count }, (_, i) => ({
     index: i,
     id: `l${String(i + 1).padStart(2, '0')}`,
-    difficulty: Math.round((count === 1 ? 0.25 : 0.15 + (0.6 * i) / Math.max(3, count - 1)) * 100) / 100,
+    difficulty: Math.round((count === 1 ? (single?.[scope.tier] ?? 0.25) : 0.15 + (0.6 * i) / Math.max(3, count - 1)) * 100) / 100,
     boss: scope.bosses > 0 && count > 1 && i === count - 1 ? 1 : 0,
     seed: levelSeed(DEFAULT_SEED, i),
   }));

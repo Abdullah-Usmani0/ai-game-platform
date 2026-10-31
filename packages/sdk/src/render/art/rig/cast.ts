@@ -431,6 +431,138 @@ export function hex(t: number): Part[] {
   ];
 }
 
+// ---------------------------------------------------------------- headsman: the region's boss, a giant executioner (168 x 112)
+
+/**
+ * The headsman's frames by clip: a pose each (the body's lean and crouch, the near arm that swings the cleaver, the
+ * cleaver's angle, the far arm, legs tucked in a leap or a knee on the floor), shaded by the cast's rasterizer.
+ */
+export const HEADSMAN_W = 168, HEADSMAN_H = 112;
+/** A pose: the body's lean and crouch, the near arm (shoulder angle, elbow bend) that swings the cleaver, the cleaver's angle. */
+interface HeadsmanPose { lean: number; crouch: number; dx: number; arm: number; bend: number; blade: number; head: number; legs: number; kneel?: boolean; tuck?: number; armF?: number }
+const HEADSMAN_STANCE: HeadsmanPose = { lean: 8, crouch: 0, dx: 0, arm: 70, bend: 60, blade: -60, head: 6, legs: 0.5 };
+const HEADSMAN_POSES: Record<string, HeadsmanPose> = {
+  idle: HEADSMAN_STANCE,
+  raise: { lean: -10, crouch: 1, dx: -2, arm: -120, bend: -40, blade: -170, head: -8, legs: 0.7 },
+  chop: { lean: 30, crouch: 6, dx: 8, arm: 40, bend: -10, blade: 60, head: 14, legs: 1 },
+  buried: { lean: 34, crouch: 8, dx: 10, arm: 60, bend: -5, blade: 88, head: 20, legs: 1 },
+  kneel: { lean: 26, crouch: 18, dx: 0, arm: 85, bend: 20, blade: 95, head: 36, legs: 1, kneel: true },
+};
+const blend = (a: HeadsmanPose, b: HeadsmanPose, t: number): HeadsmanPose => ({
+  lean: a.lean + (b.lean - a.lean) * t, crouch: a.crouch + (b.crouch - a.crouch) * t, dx: a.dx + (b.dx - a.dx) * t, arm: a.arm + (b.arm - a.arm) * t,
+  bend: a.bend + (b.bend - a.bend) * t, blade: a.blade + (b.blade - a.blade) * t, head: a.head + (b.head - a.head) * t, legs: a.legs + (b.legs - a.legs) * t,
+  kneel: t < 0.5 ? a.kneel : b.kneel, tuck: (a.tuck ?? 0) + ((b.tuck ?? 0) - (a.tuck ?? 0)) * t, armF: (a.armF ?? 110) + ((b.armF ?? 110) - (a.armF ?? 110)) * t,
+});
+/** Each clip, frame by frame. */
+const HEADSMAN_CLIPS: Record<string, HeadsmanPose[]> = {
+  kneel: [HEADSMAN_POSES.kneel!],
+  walk: [0, 1, 2, 3].map((i) => ({ ...HEADSMAN_STANCE, legs: 0.5 + 0.35 * Math.sin((i / 4) * Math.PI * 2), crouch: Math.abs(Math.cos((i / 4) * Math.PI * 2)) * 1.2, lean: 10 })),
+  rise: [HEADSMAN_POSES.kneel!, blend(HEADSMAN_POSES.kneel!, HEADSMAN_STANCE, 0.35), blend(HEADSMAN_POSES.kneel!, HEADSMAN_STANCE, 0.7), { ...HEADSMAN_STANCE, lean: -6, head: -14, arm: -40, bend: -30, blade: -120 }, { ...HEADSMAN_STANCE, lean: -4, head: -10, arm: -20, bend: -20, blade: -100 }, HEADSMAN_STANCE],
+  chop: [blend(HEADSMAN_STANCE, HEADSMAN_POSES.raise!, 0.5), HEADSMAN_POSES.raise!, HEADSMAN_POSES.chop!, HEADSMAN_POSES.buried!, blend(HEADSMAN_POSES.buried!, HEADSMAN_STANCE, 0.5)],
+  leap: [
+    { ...HEADSMAN_STANCE, crouch: 9, lean: 22, legs: 0.9, arm: 100, bend: 30, blade: 40 },
+    { ...HEADSMAN_STANCE, crouch: 0, lean: -6, legs: 0.3, arm: -110, bend: -40, blade: -160, tuck: 6 },
+    { ...HEADSMAN_POSES.raise!, tuck: 12, legs: 0.6 },
+    { ...HEADSMAN_POSES.chop!, tuck: 8, crouch: 0, blade: 80 },
+    { ...HEADSMAN_POSES.buried!, crouch: 12, legs: 1.2 },
+  ],
+  drag: [
+    { ...HEADSMAN_STANCE, lean: 16, arm: 150, bend: 20, blade: 170, crouch: 4, legs: 0.9 },
+    { ...HEADSMAN_STANCE, lean: 22, arm: 135, bend: 10, blade: 175, crouch: 7, legs: 1.1 },
+    { ...HEADSMAN_STANCE, lean: 28, arm: 50, bend: -10, blade: 15, crouch: 7, dx: 6, legs: 1.1 },
+    { ...HEADSMAN_STANCE, lean: 22, arm: 10, bend: -20, blade: -10, crouch: 5, dx: 8, legs: 1 },
+    blend({ ...HEADSMAN_STANCE, lean: 22, arm: 10, bend: -20, blade: -10, crouch: 5, dx: 8, legs: 1 }, HEADSMAN_STANCE, 0.5),
+  ],
+  roar: [
+    { ...HEADSMAN_STANCE, lean: -12, head: -30, arm: 30, bend: -40, blade: -30, armF: 200, legs: 0.9 },
+    { ...HEADSMAN_STANCE, lean: -18, head: -40, arm: 10, bend: -50, blade: -40, armF: 220, legs: 1 },
+    { ...HEADSMAN_STANCE, lean: -6, head: -16, arm: 40, bend: 0, blade: -40, armF: 160, legs: 0.8 },
+  ],
+  combo: [
+    { ...HEADSMAN_STANCE, lean: 0, arm: 170, bend: 30, blade: 190, crouch: 5, legs: 0.9 },
+    { ...HEADSMAN_STANCE, lean: 26, arm: 30, bend: -30, blade: 20, crouch: 6, dx: 8, legs: 1.1 },
+    { ...HEADSMAN_STANCE, lean: 18, arm: -10, bend: -40, blade: -30, crouch: 3, dx: 8, legs: 1 },
+    { ...HEADSMAN_POSES.raise!, dx: 6 },
+    { ...HEADSMAN_POSES.chop!, dx: 12 },
+    { ...HEADSMAN_POSES.buried!, dx: 13 },
+  ],
+  hurt: [{ ...HEADSMAN_STANCE, lean: -18, head: -20, arm: 120, bend: 70, blade: 30, crouch: 3, legs: 0.8 }],
+};
+export function headsman(p: HeadsmanPose): Part[] {
+  // Blackened iron, grey dead flesh, a leather apron, a tattered crimson tabard, rust-bitten cleaver steel with a bright
+  // edge, ember eyes in the grille.
+  const iron = R('kktTu'), ironDark = R('kkktT'), leather = R('kpqQr'), tabard = R('kxxdD'), steel = R('tTuUw'), rust = R('kxpqQ'), ember = R('EEEEE'), flesh = R('kpqQr');
+  const pelvis = v(80 + p.dx, 58 + p.crouch);
+  const chest = plus(pelvis, polar(-90 + p.lean, 22));
+  const neck = plus(chest, polar(-90 + p.lean * 0.7, 4));
+  const head = plus(neck, polar(-90 + p.lean * 0.5 + p.head, 7));
+  const leg = (dx: number, spread: number, down: boolean) => {
+    const hip = plus(pelvis, v(dx, 2));
+    if (down) {
+      // The knee on the floor, the shin back along it.
+      const knee = v(hip.x + 4, hip.y + 15);
+      const ankle = v(knee.x - 14, knee.y + 1);
+      return { hip, knee, ankle, toe: plus(ankle, v(-3, 2)) };
+    }
+    const s = Math.sign(dx || 1);
+    const tuck = p.tuck ?? 0;
+    const knee = plus(hip, polar(90 - spread * 22 * s + p.crouch * 1.6 * s - tuck * 4, 15));
+    const ankle = plus(knee, polar(90 + spread * 10 * s + tuck * 7, 16 - p.crouch * 0.3));
+    return { hip, knee, ankle, toe: plus(ankle, v(6, 1)) };
+  };
+  const nl = leg(5, p.legs, p.kneel === true), fl = leg(-5, p.legs, false);
+  const shN = plus(chest, v(4, 4)), shF = plus(chest, v(-6, 4));
+  const elbow = plus(shN, polar(p.arm, 16));
+  const hand = plus(elbow, polar(p.arm - p.bend, 15));
+  const haftEnd = plus(hand, polar(p.blade, 14));
+  const bladeBase = plus(hand, polar(p.blade, 10));
+  const bladeTip = plus(hand, polar(p.blade, 46));
+  const n = polar(p.blade + 90, 1);
+  const blade = [plus(bladeBase, v(n.x * -2, n.y * -2)), plus(bladeTip, v(n.x * -3, n.y * -3)), plus(bladeTip, v(n.x * 13, n.y * 13)), plus(bladeBase, v(n.x * 15, n.y * 15))];
+  const elbowF = plus(shF, polar((p.armF ?? 110) - p.lean * 0.5, 15));
+  const handF = plus(elbowF, polar(80, 13));
+  // The tabard hangs from the shoulders behind, ragged at the hem.
+  const back = plus(chest, v(-10, -2));
+  const hem = (dx: number, dy: number) => plus(pelvis, v(dx - p.lean * 0.25, dy));
+  const parts: Part[] = [
+    poly('tabard', [plus(back, v(-2, 0)), plus(back, v(10, -2)), hem(-2, 16), hem(-8, 22), hem(-12, 17), hem(-18, 23), hem(-20, 12)], 1.5, tabard, 0.5),
+    cap('thighF', fl.hip, fl.knee, 6, 5, ironDark, 1, -1), cap('shinF', fl.knee, fl.ankle, 5, 4.2, ironDark, 1.01, -1), cap('footF', fl.ankle, fl.toe, 3.6, 3, ironDark, 1.02, -1),
+    cap('upperF', shF, elbowF, 6.5, 5.5, flesh, 1.5, -1), cap('foreF', elbowF, handF, 5.5, 4.6, flesh, 1.51, -1),
+    cap('chainF', plus(elbowF, polar(80, 4)), plus(elbowF, polar(80, 10)), 5.6, 5, iron, 1.52, -1),
+    cap('torso', pelvis, chest, 14, 17, iron, 3),
+    poly('apron', [plus(pelvis, v(-12, -6)), plus(pelvis, v(12, -6)), plus(pelvis, v(14, 16)), plus(pelvis, v(-13, 18))], 2, leather, 3.2),
+    cap('belt', plus(pelvis, v(-13, -5)), plus(pelvis, v(13, -5)), 2.4, 2.4, ironDark, 3.3),
+    cap('neck', chest, neck, 7, 6, iron, 3.5),
+    // A tall bucket helm crowned with iron spikes, a black grille, two embers behind it.
+    cap('helm', plus(neck, polar(-90 + p.lean * 0.5 + p.head, 1)), head, 9, 8.5, iron, 4),
+    ...[-6, -2, 2, 6].map((dx, i) => cap(`spike${i}`, plus(head, v(dx * 0.9, -6.5)), plus(head, v(dx * 1.3, -12.5 + Math.abs(dx) * 0.5)), 1.8, 0.5, ironDark, 4.05)),
+    cap('grille', plus(head, v(5, -3)), plus(head, v(6.5, 4)), 2.8, 2.6, R('kkkkt'), 4.1),
+    cap('eyeN', plus(head, v(7, -0.5)), plus(head, v(7, -0.5)), 1.1, 1.1, ember, 4.2),
+    cap('eyeF', plus(head, v(4.5, -0.8)), plus(head, v(4.5, -0.8)), 0.9, 0.9, ember, 4.15),
+    cap('shoulder', plus(chest, v(0, 0)), plus(chest, v(7, 4)), 10, 8, iron, 4.5),
+    cap('thighN', nl.hip, nl.knee, 6.5, 5.5, iron, 5), cap('shinN', nl.knee, nl.ankle, 5.5, 4.5, iron, 5.01), cap('footN', nl.ankle, nl.toe, 3.8, 3.2, iron, 5.02),
+    cap('upperN', shN, elbow, 7, 6, flesh, 6), cap('foreN', elbow, hand, 6, 5, flesh, 6.01),
+    cap('bracer', plus(elbow, polar(p.arm - p.bend, 5)), plus(elbow, polar(p.arm - p.bend, 12)), 6.2, 5.4, iron, 6.02),
+    cap('haft', plus(hand, polar(p.blade + 180, 6)), haftEnd, 1.6, 1.6, leather, 6.5),
+    poly('cleaver', blade, 1, rust, 6.6),
+    cap('edge', blade[2]!, blade[3]!, 1.3, 1.3, steel, 6.65),
+    cap('fist', hand, hand, 4.6, 4.6, flesh, 6.7),
+  ];
+  return stand(parts, [nl.ankle, fl.ankle, nl.toe, fl.toe, ...(p.kneel ? [nl.knee] : [])], HEADSMAN_H - 1);
+}
+
+// ---------------------------------------------------------------- wave: the drag's run of sparks along the floor (18 x 12)
+
+export const WAVE_W = 18, WAVE_H = 12;
+export function wave(t: number): Part[] {
+  const [s, c] = sinCosDeg(t * 360);
+  return [
+    cap('trail', v(2, 10), v(9, 9 + s * 0.5), 1.2, 2.2, R('kxdDe'), 1),
+    cap('crest', v(8, 10), v(13 + c * 0.6, 4.5 + s), 2.6, 1.2, R('xdeEE'), 2),
+    cap('core', v(12, 9.5), v(14, 7 + c * 0.5), 1.4, 0.8, R('eEbBw'), 3),
+  ];
+}
+
 // ---------------------------------------------------------------- altar: a stone font with a flame (20 x 34)
 
 export const ALTAR_W = 20, ALTAR_H = 34;
@@ -562,6 +694,14 @@ export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
     active: { draw: [4] },
   },
   hex: { anchor: 'center', noShadow: true, anims: { run: frames(3, hex, 10, 10) } },
+  // The boss: every clip a pose a frame. Its moves' blows: the chop's fall and bite, the leap's flight down, the drag's
+  // sweep, the roar's height, the combo's sweep and chop; the rise's middle (no blow, but the move's middle).
+  headsman: {
+    anchor: 'feet',
+    anims: Object.fromEntries(Object.entries(HEADSMAN_CLIPS).map(([name, poses]) => [name, poses.map((pose) => bake(headsman(pose), HEADSMAN_W, HEADSMAN_H))])),
+    active: { rise: [2, 3], chop: [2, 3], leap: [2, 3], drag: [2], roar: [1], combo: [1, 2, 3, 4] },
+  },
+  wave: { anchor: 'center', noShadow: true, noOutline: false, anims: { run: frames(3, wave, WAVE_W, WAVE_H) } },
   // The bone archer's arrow: crimson fletching, a dark shaft, a steel head.
   shaft: { anchor: 'center', noShadow: true, anims: { run: [['.d..........U.', 'dDdqqqqqqqqqTw', '.d..........U.']] } },
   altar: { anchor: 'feet', anims: { idle: frames(3, altar, ALTAR_W, ALTAR_H) } },

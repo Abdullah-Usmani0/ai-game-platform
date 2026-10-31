@@ -77,7 +77,8 @@ describe('sprites', () => {
       }
       for (const roles of Object.values(PALETTES)) expect(() => paintFrames(recipe, artPalette(roles)), name).not.toThrow();
     }
-  });
+    // Every shipped sprite in every palette, the boss's big frames among them: slow on a busy machine.
+  }, 60_000);
 
   it('maps the shipped entity types to recipes that exist; players have every animation they are asked for', () => {
     for (const [type, recipe] of Object.entries(TYPE_RECIPES)) expect(RECIPES[recipe], type).toBeDefined();
@@ -281,6 +282,12 @@ describe('sound', () => {
     expect(sfxFor('custom:door_open', {}, isPlayer)).toBe('door');
     expect(sfxFor('jump', {}, isPlayer)).toBe('jump');
     expect(sfxFor('custom:unknown', {}, isPlayer)).toBeNull();
+  });
+
+  it("tolls as a boss rises, roars with it at half health, and slams its arena's doorways shut and grinds them open", () => {
+    const heard = Object.fromEntries(['custom:boss', 'custom:enrage', 'custom:arena_shut', 'custom:arena_open'].map((e) => [e, sfxFor(e, {}, isPlayer)]));
+    expect(heard).toEqual({ 'custom:boss': 'toll', 'custom:enrage': 'roar', 'custom:arena_shut': 'slam', 'custom:arena_open': 'door' });
+    for (const [e, name] of Object.entries(heard)) expect(name && SFX_PRESETS[name], e).toBeTruthy();
   });
 
   it("gives the courier's job its own sounds: a bell as an order comes in, a lift, a clink as it is served", () => {

@@ -204,6 +204,11 @@ export interface GenreManifest extends GenreRuntime {
    */
   styleDefaults?: Partial<Pick<StyleCard, 'canvas' | 'palette' | 'animationFps'>>;
   scopeBudget: Record<ScopeTier, ScopeBudget>;
+  /**
+   * The difficulty a game of one level plays it at, by tier (absent: 0.25 at every tier). A castle region grows with
+   * the tier: more halls, the later foes, the boss.
+   */
+  singleLevelDifficulty?: Readonly<Record<ScopeTier, number>>;
   gddDefaults: GddDefaults;
   panels: PanelSpec[];
   exemplars: Exemplar[];

@@ -1,6 +1,6 @@
 import { MoveSet, SystemsJson, type BehaviourFsm, type LevelJson } from '@gg/schemas';
 import { createSim, emptyInput, moveOf, moveTick, startMove, type InputState, type Sim } from '@gg/sdk';
-import { KNIGHT_CLIPS } from '@gg/sdk/art';
+import { KNIGHT_CLIPS, RECIPES, recipeForType } from '@gg/sdk/art';
 import { levelTicksOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { validateMoves } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
@@ -56,8 +56,11 @@ const closeIn = (sim: Sim) => {
 };
 
 describe('the castle sword', () => {
-  it("ships moves that keep the rules: every foe's blow telegraphs, each cut drawn with a clip of the knight's", () => {
-    const report = validateMoves(DEFAULT_MOVES, { types: castle.entityDefs.map((d) => d.type), clips: { player: KNIGHT_CLIPS.map((c) => c.name) } });
+  it("ships moves that keep the rules: every foe's blow telegraphs, each move drawn with a clip of its owner's", () => {
+    // The clips each of the cast is drawn with: the knight's rig for the hero, a recipe for the rest.
+    const drawn = Object.fromEntries(castle.entityDefs.flatMap((d) => (RECIPES[recipeForType(d.type) ?? ''] ? [[d.type, Object.keys(RECIPES[recipeForType(d.type)!]!.anims)]] : [])));
+    expect(DEFAULT_MOVES.moves.filter((m) => m.owner !== 'player' && drawn[m.owner] === undefined)).toEqual([]);
+    const report = validateMoves(DEFAULT_MOVES, { types: castle.entityDefs.map((d) => d.type), clips: { ...drawn, player: KNIGHT_CLIPS.map((c) => c.name) } });
     expect(report.issues).toEqual([]);
     expect(MoveSet.safeParse(DEFAULT_MOVES).success).toBe(true);
   });

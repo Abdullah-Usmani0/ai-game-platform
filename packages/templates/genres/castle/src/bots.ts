@@ -1,7 +1,10 @@
 import { centerX, centerY, emptyInput, isHostile, MOVE, MOVE_TICK, type Entity, type InputState, type Sim } from '@gg/sdk';
+import type { Move } from '@gg/schemas';
 import type { BotPolicy } from '@gg/template-core';
 import { ABILITY_DASH, ABILITY_DOUBLE_JUMP, ALTAR_TYPE, GUARDS, RELIC_ABILITY } from './entities.js';
 import { envelopeFor, pathTo, roomOf, tallTiles } from './level/progress.js';
+import { DEFAULT_MOVES } from './moves.js';
+import { LOCK as LOCK_PROP } from './systems/combat.js';
 
 /** Tiles of hazard ahead (columns whose first floor down is spikes or the void) that need the air abilities. */
 const WIDE_PIT = 4;
@@ -178,14 +181,96 @@ const SHIELD_WATCH = 120;
 const BAIT_NEAR = 46;
 const BAIT_SAFE = 70;
 /**
- * A thrust that will reach the hero is parried rather than run from: the guard pressed as the thrust's clock reaches
- * PARRY_AT (its window then covers the thrust's first blows) when the bearer is within PARRY_REACH; the riposte follows.
+ * A parryable blow that will reach the hero is parried rather than run from: no new cut while it winds up, and the guard
+ * up PARRY_LEAD ticks before it lands (the parry's window then covers it); the riposte follows.
  */
-const PARRY_AT = 19;
-const PARRY_REACH = 60;
+const PARRY_LEAD = 5;
+/** A foe winding up a shot within SHOT_WATCH: no new cut, so the hero is free to jump it. */
+const SHOT_WATCH = 200;
 /** A flask is drunk at this many hearts or fewer, standing, with no foe within CLEAR_REACH. */
 const DRINK_AT = 2;
 const CLEAR_REACH = 160;
+
+/** The game's moves (its content/moves.json, else the castle's own): what the cast's wind-ups will do. */
+function movesOf(sim: Sim): readonly Move[] {
+  const set = sim.options.content?.['moves'] as { moves?: Move[] } | undefined;
+  return set?.moves ?? DEFAULT_MOVES.moves;
+}
+
+/** A foe's move by its clock, if it is making one. */
+function makingOf(e: Entity, moves: readonly Move[]): Move | undefined {
+  const id = e.props[MOVE];
+  return typeof id === 'string' && id !== '' ? moves.find((m) => m.id === id) : undefined;
+}
+
+/** The ticks until the soonest parryable blow winding up that will reach the hero where it stands (null: none). */
+function parryable(sim: Sim, p: Entity, moves: readonly Move[]): number | null {
+  const cx = centerX(p);
+  let soonest: number | null = null;
+  for (const e of sim.world.entities) {
+    if (!e.alive || e.isPlayer || e.dormant === true || (e.stunTicks ?? 0) > 0) continue;
+    const m = makingOf(e, moves);
+    if (!m?.parryable) continue;
+    const t = Number(e.props[MOVE_TICK] ?? 0);
+    if (t >= m.startup) continue;
+    const step = m.motion.reduce((a, x) => a + (Math.abs(x.vx) * (x.to - x.from + 1)) / 60, 0);
+    const reach = Math.max(0, ...m.hitboxes.map((b) => b.x + b.w)) + step + p.w / 2 + 4;
+    const ahead = (cx - centerX(e)) * (e.facing < 0 ? -1 : 1);
+    if (ahead <= 0 || ahead > reach || Math.abs(centerY(e) - centerY(p)) > 48) continue;
+    if (soonest === null || m.startup - t < soonest) soonest = m.startup - t;
+  }
+  return soonest;
+}
+
+/** Which way the soonest parryable blow comes from: -1 a foe to the left, 1 to the right. */
+function blowFrom(sim: Sim, p: Entity, moves: readonly Move[]): number {
+  let best: Entity | null = null;
+  let left = Infinity;
+  for (const e of sim.world.entities) {
+    const m = e.alive && !e.isPlayer ? makingOf(e, moves) : undefined;
+    if (!m?.parryable) continue;
+    const t = m.startup - Number(e.props[MOVE_TICK] ?? 0);
+    if (t >= 0 && t < left) {
+      left = t;
+      best = e;
+    }
+  }
+  return best && centerX(best) < centerX(p) ? -1 : 1;
+}
+
+/** A foe winding up a shot within SHOT_WATCH, or a low shot already coming at the hero within `near` px. */
+function shotsComing(sim: Sim, p: Entity, moves: readonly Move[], near: number): { winding: boolean; low: boolean } {
+  const cx = centerX(p);
+  const feet = p.y + p.h;
+  let winding = false;
+  let low = false;
+  for (const e of sim.world.entities) {
+    if (!e.alive || e.isPlayer || e.dormant === true) continue;
+    if (e.isProjectile) {
+      const dx = centerX(e) - cx;
+      if (e.contactDamage > 0 && dx * e.vx < 0 && Math.abs(dx) < near && e.y + e.h > feet - 18 && e.y < feet) low = true;
+      continue;
+    }
+    const m = makingOf(e, moves);
+    if (m?.projectile && Number(e.props[MOVE_TICK] ?? 0) < m.projectile.at && Math.abs(centerX(e) - cx) < SHOT_WATCH && Math.abs(centerY(e) - centerY(p)) < 64) winding = true;
+  }
+  return { winding, low };
+}
+
+/**
+ * Whether a cut on a foe tells: any foe but a boss, and a boss only reeling or past its own blow (recovering). A boss
+ * shrugs off cuts with its poise as it waits or winds up, and its next blow comes through them.
+ */
+function opening(e: Entity, moves: readonly Move[]): boolean {
+  if (e.flags['boss'] !== true || (e.stunTicks ?? 0) > 0) return true;
+  const m = makingOf(e, moves);
+  return m !== undefined && !m.iframes && Number(e.props[MOVE_TICK] ?? 0) >= m.startup + m.active;
+}
+
+/** An awake boss (its behaviour past its first state) in reach of the hero's room: the arena is shut, so it is the way. */
+function bossAwake(sim: Sim, p: Entity): Entity | undefined {
+  return sim.world.entities.find((e) => e.alive && e.flags['boss'] === true && e.dormant !== true && (e.fsm?.entries ?? 0) > 1 && Math.abs(centerX(e) - centerX(p)) < 480 && Math.abs(centerY(e) - centerY(p)) < 120);
+}
 
 /** The nearest awake shield-bearer ahead (`way`) on the hero's floor within SHIELD_WATCH, with no pit between (null: none). */
 function shieldAhead(sim: Sim, p: Entity, way: number): Entity | null {
@@ -284,6 +369,9 @@ export const route: BotPolicy = (sim, tick, mem) => {
   }
   const escaping = (mem['escapeUntil'] ?? 0) > tick;
   let dir = Math.abs(dxPx) > 2 ? Math.sign(dxPx) : 0;
+  // An awake boss is the way: the hero goes at it (its doorways are shut until it falls).
+  const boss = bossAwake(sim, p);
+  if (boss && Math.abs(centerX(boss) - cx) > 4) dir = centerX(boss) < cx ? -1 : 1;
   if (escaping) dir = mem['escapeDir'] ?? -1;
   if (dir > 0) input.right = true;
   else if (dir < 0) input.left = true;
@@ -301,11 +389,20 @@ export const route: BotPolicy = (sim, tick, mem) => {
 
   // Cut it down: the chain, a fresh press every other tick, turned toward it, rather than running into it or leaping it;
   // but never a raised shield.
-  const foe = escaping || (shut && near === shield) ? null : near;
+  const moves = movesOf(sim);
+  const foe = escaping || (shut && near === shield) || (near && !opening(near, moves)) ? null : near;
+  // A boss closed up (waiting, winding up): the hero stands at the edge of its reach, turned to it, ready to parry.
+  if (near && !foe && !escaping && near.flags['boss'] === true) {
+    const toward = centerX(near) < cx ? -1 : 1;
+    input.left = toward < 0 && p.facing > 0;
+    input.right = toward > 0 && p.facing < 0;
+  }
   if (foe) {
+    // Turned toward it (and closing in), but never walking into its body.
     const toward = centerX(foe) < cx ? -1 : 1;
-    input.left = toward < 0;
-    input.right = toward > 0;
+    const gap = toward > 0 ? foe.x - (p.x + p.w) : p.x - (foe.x + foe.w);
+    input.left = toward < 0 && (gap > 6 || p.facing > 0);
+    input.right = toward > 0 && (gap > 6 || p.facing < 0);
     input.action = tick % 2 === 0;
   }
   // A shot coming at the hero within a cut's reach (a low one is jumped before it gets there): cut out of the air.
@@ -322,12 +419,38 @@ export const route: BotPolicy = (sim, tick, mem) => {
     const d = Math.abs(centerX(shield) - cx);
     const toward = centerX(shield) < cx ? -1 : 1;
     const winding = typeof shield.props[MOVE] === 'string' && shield.props[MOVE] !== '';
-    // Close enough to be reached: stand and parry as it comes (a fresh press as its clock reaches PARRY_AT).
-    const parrying = winding && d <= PARRY_REACH;
-    const step = parrying ? 0 : winding ? (d < BAIT_SAFE ? -toward : 0) : d > BAIT_NEAR ? toward : 0;
+    // Out of the thrust's reach as it winds up (within it, the hero stands and parries: below).
+    const step = winding ? (d < BAIT_SAFE ? -toward : 0) : d > BAIT_NEAR ? toward : 0;
     input.left = step < 0;
     input.right = step > 0;
-    if (parrying && Number(shield.props[MOVE_TICK] ?? 0) === PARRY_AT) input.guard = true;
+  }
+  // A parryable blow that will reach the hero: no new cut while it winds up, the hero stands, and the guard goes up
+  // PARRY_LEAD ticks before it lands.
+  const blow = p.grounded ? parryable(sim, p, moves) : null;
+  const busy = typeof p.props[MOVE] === 'string' && p.props[MOVE] !== '';
+  if (blow !== null) {
+    input.action = false;
+    input.left = false;
+    input.right = false;
+    if (blow === PARRY_LEAD) input.guard = true;
+    // Caught in a cut of its own as the blow comes: the dash cuts the cut short and slips the blow, through the foe.
+    if (busy && hasDash && blow <= 4 && p.props[LOCK_PROP] === 2) {
+      const toward = blowFrom(sim, p, moves);
+      input.left = toward < 0;
+      input.right = toward > 0;
+      input.dash = true;
+    }
+  }
+  // A shot winding up or a low one coming: no new cut, so the hero is free to jump it (below).
+  const shots = shotsComing(sim, p, moves, 64);
+  if (shots.winding || shots.low) input.action = false;
+  // A boss leaping at the hero: slip under it with the dash (or run under it), to come down behind it.
+  const leaping = boss && !boss.grounded && makingOf(boss, moves)?.endsOnLanding === true && Math.abs(centerX(boss) - cx) < 140;
+  if (leaping && boss) {
+    const toward = centerX(boss) < cx ? -1 : 1;
+    input.left = toward < 0;
+    input.right = toward > 0;
+    input.dash = hasDash && p.grounded && tick % 2 === 0;
   }
   // Low on hearts with a flask in hand and nothing hostile near: stand and drink.
   const clear = !sim.world.entities.some((e) => isHostile(e) && e.dormant !== true && Math.abs(centerX(e) - cx) < CLEAR_REACH && Math.abs(centerY(e) - centerY(p)) < CLEAR_REACH);
@@ -396,11 +519,15 @@ export const route: BotPolicy = (sim, tick, mem) => {
   const released = mem['jumpPrev'] !== 1;
   if (phase === 0) {
     // Over a pit, the last step (the longest jump); off any other edge the way jumps from, at the edge.
-    if (released && !foe && !shield && !waiting && (escaping || wallAhead || (pitNext && lastStep) || targetAbove || threat || (jumpMove && edgeAhead && !pitNext))) {
+    const wayJump = wallAhead || (pitNext && lastStep) || targetAbove || (jumpMove && edgeAhead && !pitNext);
+    if (released && !waiting && ((shots.low && !leaping) || (!foe && !shield && (escaping || wayJump || threat)))) {
       input.jump = true;
       mem[PHASE] = 1;
-      const needAir = jumpMove && hasDouble && !reaches({ doubleJump: false, dash: false });
-      const needDash = jumpMove && hasDash && !reaches({ doubleJump: hasDouble, dash: false });
+      // The air jump and the dash are kept for the way's own jump, taken where it takes off (or at a pit): a hop over a
+      // shot or a foe on open floor short of it is a plain jump, which comes down on the floor still ahead.
+      const atTakeoff = wayJump || pitNext;
+      const needAir = atTakeoff && jumpMove && hasDouble && !reaches({ doubleJump: false, dash: false });
+      const needDash = atTakeoff && jumpMove && hasDash && !reaches({ doubleJump: hasDouble, dash: false });
       mem['needAir'] = needAir ? 1 : 0;
       mem['wide'] = needDash || (pitNext && pitWidth(sim, front + facing * 4 * k, feet, facing) >= WIDE_PIT) ? 1 : 0;
     }

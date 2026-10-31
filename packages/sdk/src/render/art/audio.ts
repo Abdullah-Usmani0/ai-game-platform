@@ -57,6 +57,14 @@ export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
     { wave: 'triangle', from: 110, to: 32, dur: 0.42, vol: 0.24 },
     { wave: 'noise', from: 900, to: 80, dur: 0.38, vol: 0.14 },
   ],
+  // A boss rises: a great bell tolled once, low and long, its hum and its minor third under the strike.
+  toll: [
+    { wave: 'noise', from: 3200, to: 700, dur: 0.07, vol: 0.06 },
+    { wave: 'sine', from: 98, to: 98, dur: 1.8, vol: 0.17 },
+    { wave: 'sine', from: 196, to: 196, dur: 1.3, vol: 0.08 },
+    { wave: 'sine', from: 233, to: 233, dur: 1.0, vol: 0.05 },
+    { wave: 'triangle', from: 392, to: 392, dur: 0.5, vol: 0.03 },
+  ],
   // A boss's roar as it enrages: a falling sawtooth growl over noise.
   roar: [
     { wave: 'sawtooth', from: 220, to: 70, dur: 0.6, vol: 0.12 },
@@ -172,6 +180,12 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return 'slam';
     case 'custom:enrage':
       return 'roar';
+    case 'custom:boss':
+      return 'toll';
+    case 'custom:arena_shut':
+      return 'slam';
+    case 'custom:arena_open':
+      return 'door';
     case 'custom:till':
       return 'dig';
     case 'custom:plant':

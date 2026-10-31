@@ -10,8 +10,8 @@ const Tick = z.int().min(0).max(240);
  * mirrors it), `y` up from the feet as a negative number (-40 is 40 px above them).
  */
 export const HitBox = z.object({
-  from: z.int().min(0).max(29),
-  to: z.int().min(0).max(29),
+  from: z.int().min(0).max(59),
+  to: z.int().min(0).max(59),
   x: z.int().min(-96).max(160),
   y: z.int().min(-192).max(32),
   w: z.int().min(1).max(192),
@@ -53,7 +53,8 @@ export const Move = z.object({
    */
   input: z.enum(['attack', 'air', 'plunge', 'riposte', 'guard', 'item']).optional(),
   startup: z.int().min(1).max(120),
-  active: z.int().min(1).max(30),
+  /** Up to a second: a leap's blow lasts its whole flight (it ends as the owner lands). */
+  active: z.int().min(1).max(60),
   recovery: z.int().min(0).max(120),
   hitboxes: z.array(HitBox).max(4),
   damage: z.int().min(0).max(20),
@@ -79,8 +80,12 @@ export const Move = z.object({
   mp: z.int().min(0).max(100).default(0),
   /** Hearts it restores to its owner at its first active tick (a flask drunk). */
   heal: z.int().min(0).max(20).default(0),
-  /** A shot loosed at tick `at` from the owner's front, at `speed` px/s forward (and `vy` up or down). */
-  projectile: z.object({ type: Id, at: Tick, speed: z.number().min(10).max(900), vy: z.number().min(-900).max(900).optional() }).optional(),
+  /**
+   * A shot loosed at tick `at` from the owner's front, at `speed` px/s forward (and `vy` up or down), its middle at the
+   * owner's middle, or `y` px up from its feet as a negative number (a wave along the floor; a shot that touches the
+   * floor is spent, so its lowest pixel stays above the feet).
+   */
+  projectile: z.object({ type: Id, at: Tick, speed: z.number().min(10).max(900), vy: z.number().min(-900).max(900).optional(), y: z.int().min(-192).max(0).optional() }).optional(),
 });
 export type Move = z.infer<typeof Move>;
 

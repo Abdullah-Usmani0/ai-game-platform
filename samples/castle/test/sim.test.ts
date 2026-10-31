@@ -15,12 +15,13 @@ describe('castle sample', () => {
     expect(world(level, castle.feelPresets[castle.defaultFeel]!).steps.map((s) => s.type)).toEqual(['wings', 'boots']);
   });
 
-  it('the route bot takes both relics, rests at both altars and reaches the way out; the greedy walker cannot', () => {
+  it('the route bot takes both relics, rests at both altars, beats the headsman and reaches the way out; the greedy walker cannot', () => {
     const sim = createSim({ ...SIM_OPTIONS, level: LEVELS[0]!, seed: 1 });
     const route = runBot(sim, castle.bots['route']!, levelTicksOf(SIM_OPTIONS));
     expect(route.completed).toBe(true);
     expect(route.events['pickup']).toBeGreaterThanOrEqual(2);
     expect(sim.events.count('custom:rest')).toBe(2);
+    expect([sim.events.count('custom:boss'), sim.events.count('custom:arena_open'), sim.world.entities.some((e) => e.type === 'headsman')]).toEqual([1, 1, false]);
     expect(route.events['feedback']).toBeGreaterThan(0);
     const walker = runBot(createSim({ ...SIM_OPTIONS, level: LEVELS[0]!, seed: 1 }), castle.bots['walker']!, 60 * 60);
     expect(walker.completed).toBe(false);

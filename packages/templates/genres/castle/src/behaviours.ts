@@ -1,4 +1,4 @@
-import type { BehaviourFsm } from '@gg/schemas';
+import type { BehaviourFsm, Condition, LeafCondition } from '@gg/schemas';
 import { VOCAB as PLATFORMER_VOCAB } from '@gg/template-platformer';
 
 /**
@@ -107,5 +107,49 @@ export const ARCHER: BehaviourFsm = {
   },
 };
 
-export const DEFAULT_BEHAVIOURS: BehaviourFsm[] = [GHOUL, HOUND, GARGOYLE, SENTINEL, WRAITH, ARCHER];
+/** A transition's condition: a state's timer, and with it another test. */
+const after = (ms: number, also?: LeafCondition): Condition => (also ? { kind: 'all', of: [{ kind: 'timer_elapsed', ms }, also] } : { kind: 'timer_elapsed', ms });
+
+export const HEADSMAN: BehaviourFsm = {
+  version: 1,
+  id: 'headsman',
+  designNotes: 'Kneels over its cleaver until the hero comes near, rises, and fights: chops at a hero in reach, leaps at one who keeps away, drags its cleaver to send a wave along the floor; at half health it roars and fights faster, a sweeping two-blow combo in place of the chop.',
+  initial: 'dormant',
+  states: {
+    dormant: { onEnter: [{ kind: 'play_anim', anim: 'kneel' }], update: [], transitions: [{ to: 'rise', when: { kind: 'player_within', px: 200 } }] },
+    rise: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'rise' }, { kind: 'emit', event: 'custom:boss' }], update: [], transitions: [{ to: 'watch', when: after(1020) }] },
+    watch: {
+      onEnter: [{ kind: 'play_anim', anim: 'walk' }],
+      update: [{ kind: 'move_toward_player', speed: 34 }],
+      transitions: [
+        { to: 'roar', when: { kind: 'all', of: [{ kind: 'hp_below', fraction: 0.5 }, { kind: 'flag', name: 'enraged', is: false }] } },
+        { to: 'chop', when: after(500, { kind: 'player_within', px: 76 }) },
+        { to: 'leap', when: after(700, { kind: 'player_beyond', px: 150 }) },
+        { to: 'drag', when: after(900, { kind: 'chance', p: 0.03 }) },
+      ],
+    },
+    chop: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'chop' }], update: [], transitions: [{ to: 'watch', when: after(1120) }] },
+    leap: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'leap' }], update: [], transitions: [{ to: 'watch', when: after(1550, { kind: 'grounded' }) }] },
+    drag: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'drag' }], update: [], transitions: [{ to: 'watch', when: after(1170) }] },
+    roar: {
+      onEnter: [{ kind: 'set_flag', name: 'enraged', value: true }, { kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'roar' }, { kind: 'emit', event: 'custom:enrage' }],
+      update: [],
+      transitions: [{ to: 'fury', when: after(1190) }],
+    },
+    fury: {
+      onEnter: [{ kind: 'play_anim', anim: 'walk' }],
+      update: [{ kind: 'move_toward_player', speed: 50 }],
+      transitions: [
+        { to: 'combo', when: after(300, { kind: 'player_within', px: 84 }) },
+        { to: 'leap2', when: after(400, { kind: 'player_beyond', px: 140 }) },
+        { to: 'drag2', when: after(500, { kind: 'chance', p: 0.05 }) },
+      ],
+    },
+    combo: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'combo' }], update: [], transitions: [{ to: 'fury', when: after(1120) }] },
+    leap2: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'leap' }], update: [], transitions: [{ to: 'fury', when: after(1550, { kind: 'grounded' }) }] },
+    drag2: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'drag' }], update: [], transitions: [{ to: 'fury', when: after(1170) }] },
+  },
+};
+
+export const DEFAULT_BEHAVIOURS: BehaviourFsm[] = [GHOUL, HOUND, GARGOYLE, SENTINEL, WRAITH, ARCHER, HEADSMAN];
 export const VOCAB = PLATFORMER_VOCAB;

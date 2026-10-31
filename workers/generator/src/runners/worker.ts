@@ -391,7 +391,7 @@ const levels: StageFn = async (ctx) => {
   };
   const proofsDir = join(ctx.gameDir, 'content', 'proofs');
   const hintsDir = join(ctx.gameDir, 'content', 'hints');
-  const plan = levelPlan(g.levelGrammar.kind, { levels: fm.scope.levels, bosses: fm.scope.bosses, tier: fm.scopeTier });
+  const plan = levelPlan(g.levelGrammar.kind, { levels: fm.scope.levels, bosses: fm.scope.bosses, tier: fm.scopeTier }, g.singleLevelDifficulty);
 
   const written: string[] = [];
   const tried: string[] = [];

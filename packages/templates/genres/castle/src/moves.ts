@@ -21,7 +21,11 @@ import { MoveSet } from '@gg/schemas';
  *   with a step, the longest reach of the cast; the shield swings open as it does, and stays open as it recovers;
  * - the wraith's hex: its hands raised with the ghost-fire between them for 36 ticks, then a slow orb; and its fade, no
  *   attack: it dissolves, drifts 100 px on (through the hero, unseen and untouchable), and gathers again;
- * - the bone archer's loose: an arrow nocked and drawn back to the jaw for 40 ticks, then loosed low and fast.
+ * - the bone archer's loose: an arrow nocked and drawn back to the jaw for 40 ticks, then loosed low and fast;
+ * - the headsman's, the region's boss: rising from its knee (untouchable), the chop (the cleaver raised high for half a
+ *   second, then brought down ahead: parryable), the leap at a hero who keeps away (landing cleaver first), the drag (the
+ *   cleaver scraped along the floor, a wave of sparks running out low), the roar at half health (untouchable), and in
+ *   its fury the combo: a low sweep, then an overhead, in one move (parryable).
  */
 export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
   version: 1,
@@ -259,6 +263,105 @@ export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
       hitstun: 0,
       hitstop: 0,
       projectile: { type: 'shaft', at: 40, speed: 260 },
+    },
+    {
+      id: 'rise',
+      owner: 'headsman',
+      anim: 'rise',
+      startup: 20,
+      active: 20,
+      recovery: 20,
+      hitboxes: [],
+      damage: 0,
+      knockback: { x: 0, y: 0 },
+      hitstun: 0,
+      hitstop: 0,
+      iframes: { from: 0, to: 59 },
+    },
+    {
+      id: 'chop',
+      owner: 'headsman',
+      anim: 'chop',
+      startup: 30,
+      active: 4,
+      recovery: 32,
+      // The cleaver's fall, from over the helm to the floor ahead (and over the front of its own bulk).
+      hitboxes: [{ from: 0, to: 3, x: -8, y: -66, w: 80, h: 66 }],
+      damage: 2,
+      knockback: { x: 260, y: -220 },
+      hitstun: 0,
+      hitstop: 6,
+      motion: [{ from: 28, to: 31, vx: 90 }],
+      parryable: true,
+    },
+    {
+      id: 'leap',
+      owner: 'headsman',
+      anim: 'leap',
+      startup: 24,
+      // Longer than the flight under either feel, so the cleaver comes down with the body: the move ends as it lands.
+      active: 40,
+      recovery: 28,
+      // The body in flight with the cleaver raised, then on the way down the cleaver brought forward, as the chop's.
+      hitboxes: [
+        { from: 0, to: 19, x: -16, y: -62, w: 56, h: 66 },
+        { from: 20, to: 39, x: -8, y: -66, w: 80, h: 66 },
+      ],
+      damage: 2,
+      knockback: { x: 240, y: -260 },
+      hitstun: 0,
+      hitstop: 6,
+      motion: [{ from: 24, to: 63, vx: 200, vy: -480 }],
+      endsOnLanding: true,
+    },
+    {
+      id: 'drag',
+      owner: 'headsman',
+      anim: 'drag',
+      startup: 34,
+      active: 1,
+      recovery: 34,
+      hitboxes: [],
+      damage: 1,
+      knockback: { x: 0, y: 0 },
+      hitstun: 0,
+      hitstop: 0,
+      projectile: { type: 'wave', at: 34, speed: 170, y: -6 },
+    },
+    {
+      id: 'roar',
+      owner: 'headsman',
+      anim: 'roar',
+      startup: 20,
+      active: 30,
+      recovery: 20,
+      hitboxes: [],
+      damage: 0,
+      knockback: { x: 0, y: 0 },
+      hitstun: 0,
+      hitstop: 0,
+      iframes: { from: 0, to: 69 },
+    },
+    {
+      id: 'combo',
+      owner: 'headsman',
+      anim: 'combo',
+      startup: 22,
+      active: 18,
+      recovery: 26,
+      hitboxes: [
+        { from: 0, to: 3, x: -8, y: -30, w: 82, h: 30 },
+        { from: 14, to: 17, x: -8, y: -66, w: 80, h: 66 },
+      ],
+      damage: 2,
+      knockback: { x: 240, y: -200 },
+      hitstun: 0,
+      hitstop: 5,
+      motion: [
+        { from: 20, to: 23, vx: 120 },
+        { from: 34, to: 37, vx: 90 },
+      ],
+      parryable: true,
     },
   ],
 });

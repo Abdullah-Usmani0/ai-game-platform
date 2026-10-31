@@ -532,6 +532,225 @@
         "at": 40,
         "speed": 260
       }
+    },
+    {
+      "id": "rise",
+      "owner": "headsman",
+      "anim": "rise",
+      "startup": 20,
+      "active": 20,
+      "recovery": 20,
+      "hitboxes": [],
+      "damage": 0,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      },
+      "hitstun": 0,
+      "hitstop": 0,
+      "poise": 0,
+      "motion": [],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": false,
+      "iframes": {
+        "from": 0,
+        "to": 59
+      },
+      "mp": 0,
+      "heal": 0
+    },
+    {
+      "id": "chop",
+      "owner": "headsman",
+      "anim": "chop",
+      "startup": 30,
+      "active": 4,
+      "recovery": 32,
+      "hitboxes": [
+        {
+          "from": 0,
+          "to": 3,
+          "x": -8,
+          "y": -66,
+          "w": 80,
+          "h": 66
+        }
+      ],
+      "damage": 2,
+      "knockback": {
+        "x": 260,
+        "y": -220
+      },
+      "hitstun": 0,
+      "hitstop": 6,
+      "poise": 0,
+      "motion": [
+        {
+          "from": 28,
+          "to": 31,
+          "vx": 90
+        }
+      ],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": true,
+      "mp": 0,
+      "heal": 0
+    },
+    {
+      "id": "leap",
+      "owner": "headsman",
+      "anim": "leap",
+      "startup": 24,
+      "active": 40,
+      "recovery": 28,
+      "hitboxes": [
+        {
+          "from": 0,
+          "to": 19,
+          "x": -16,
+          "y": -62,
+          "w": 56,
+          "h": 66
+        },
+        {
+          "from": 20,
+          "to": 39,
+          "x": -8,
+          "y": -66,
+          "w": 80,
+          "h": 66
+        }
+      ],
+      "damage": 2,
+      "knockback": {
+        "x": 240,
+        "y": -260
+      },
+      "hitstun": 0,
+      "hitstop": 6,
+      "poise": 0,
+      "motion": [
+        {
+          "from": 24,
+          "to": 63,
+          "vx": 200,
+          "vy": -480
+        }
+      ],
+      "cancels": [],
+      "endsOnLanding": true,
+      "parryable": false,
+      "mp": 0,
+      "heal": 0
+    },
+    {
+      "id": "drag",
+      "owner": "headsman",
+      "anim": "drag",
+      "startup": 34,
+      "active": 1,
+      "recovery": 34,
+      "hitboxes": [],
+      "damage": 1,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      },
+      "hitstun": 0,
+      "hitstop": 0,
+      "poise": 0,
+      "motion": [],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": false,
+      "mp": 0,
+      "heal": 0,
+      "projectile": {
+        "type": "wave",
+        "at": 34,
+        "speed": 170,
+        "y": -6
+      }
+    },
+    {
+      "id": "roar",
+      "owner": "headsman",
+      "anim": "roar",
+      "startup": 20,
+      "active": 30,
+      "recovery": 20,
+      "hitboxes": [],
+      "damage": 0,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      },
+      "hitstun": 0,
+      "hitstop": 0,
+      "poise": 0,
+      "motion": [],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": false,
+      "iframes": {
+        "from": 0,
+        "to": 69
+      },
+      "mp": 0,
+      "heal": 0
+    },
+    {
+      "id": "combo",
+      "owner": "headsman",
+      "anim": "combo",
+      "startup": 22,
+      "active": 18,
+      "recovery": 26,
+      "hitboxes": [
+        {
+          "from": 0,
+          "to": 3,
+          "x": -8,
+          "y": -30,
+          "w": 82,
+          "h": 30
+        },
+        {
+          "from": 14,
+          "to": 17,
+          "x": -8,
+          "y": -66,
+          "w": 80,
+          "h": 66
+        }
+      ],
+      "damage": 2,
+      "knockback": {
+        "x": 240,
+        "y": -200
+      },
+      "hitstun": 0,
+      "hitstop": 5,
+      "poise": 0,
+      "motion": [
+        {
+          "from": 20,
+          "to": 23,
+          "vx": 120
+        },
+        {
+          "from": 34,
+          "to": 37,
+          "vx": 90
+        }
+      ],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": true,
+      "mp": 0,
+      "heal": 0
     }
   ]
 }

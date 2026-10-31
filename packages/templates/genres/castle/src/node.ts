@@ -20,11 +20,13 @@ export const castle: GenreManifest = {
   interviewFragment: read('./gdd/interview.md'),
   // The tier's view; a moonlit gothic palette until the art direction draws one from the idea; the rig's quicker frames.
   styleDefaults: { canvas: { w: 480, h: 270 }, palette: { ...THEMES['gothic']!.roles, extra: [] }, animationFps: { character: 12, effects: 15 } },
+  // One region at every tier, and the boss in it; the region grows with the tier (its halls, its later foes).
   scopeBudget: {
-    small: { levels: 1, enemies: 2, items: 3, bosses: 0 },
-    medium: { levels: 1, enemies: 3, items: 4, bosses: 0 },
-    large: { levels: 1, enemies: 3, items: 5, bosses: 1 },
+    small: { levels: 1, enemies: 3, items: 3, bosses: 1 },
+    medium: { levels: 1, enemies: 6, items: 4, bosses: 1 },
+    large: { levels: 1, enemies: 6, items: 5, bosses: 1 },
   },
+  singleLevelDifficulty: { small: 0.3, medium: 0.5, large: 0.75 },
   gddDefaults: {
     pillars: ['every hall hides a way back', 'a relic reopens the castle', 'rest is earned at the altar'],
     verbs: ['run', 'jump', 'dash', 'cut', 'parry', 'drink', 'explore', 'rest'],

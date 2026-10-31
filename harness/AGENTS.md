@@ -63,7 +63,7 @@ once a player wins the level and the worker, replaying that run on the version, 
   a farm has crops.json (written from the idea after the systems and held to their rules by validate:systems); every
   game may have sprites.json (its cast's own look: per type a shipped sprite of its build, ramp colours and overlays,
   held to the art rules by validate:sprites; a type without one draws as it ships); a castle game ships moves.json
-  (frame data for its sword, its parry and its flask, and its cast's attacks: startup, active and recovery ticks, the boxes that strike, knockback,
+  (frame data for its sword, its parry and its flask, and its cast's attacks, its boss's among them: startup, active and recovery ticks, the boxes that strike, knockback,
   stagger and hitstop; held to the moves' rules, every foe's blow winding up for 150 ms or more); a freeform game also
   has entities.json, objectives.json, proofs/*.json (recorded winning runs, written by the worker) and hints/*.json
   (the way through a level for the explorer, kept beside the run it found)

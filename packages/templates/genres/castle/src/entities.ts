@@ -10,6 +10,8 @@ export const GARGOYLE_TYPE = 'gargoyle';
 export const SENTINEL_TYPE = 'sentinel';
 export const WRAITH_TYPE = 'wraith';
 export const ARCHER_TYPE = 'bone-archer';
+/** The region's boss, in a room of its own before the way out (a `boss` room the arena shuts). */
+export const HEADSMAN_TYPE = 'headsman';
 /** A grate in a floor that opens from below (the shortcuts system): four tiles wide, one deep (the floor's top row). */
 export const GATE_TYPE = 'gate';
 
@@ -34,9 +36,11 @@ export const ENTITY_DEFS: EntityDef[] = [
   { type: SENTINEL_TYPE, w: 20, h: 44, hp: 5, gravity: true, fsm: 'sentinel', contactDamage: 1 },
   { type: WRAITH_TYPE, w: 16, h: 28, hp: 3, gravity: false, fsm: 'wraith', contactDamage: 0 },
   { type: ARCHER_TYPE, w: 14, h: 34, hp: 2, gravity: true, fsm: 'bone-archer', contactDamage: 1 },
+  { type: HEADSMAN_TYPE, w: 36, h: 64, hp: 36, gravity: true, fsm: 'headsman', contactDamage: 0, boss: true },
   { type: 'ember', w: 6, h: 6, hp: 1, gravity: false, projectile: true, contactDamage: 1 },
   { type: 'hex', w: 8, h: 8, hp: 1, gravity: false, projectile: true, contactDamage: 1 },
   { type: 'shaft', w: 12, h: 3, hp: 1, gravity: false, projectile: true, contactDamage: 1 },
+  { type: 'wave', w: 16, h: 10, hp: 1, gravity: false, projectile: true, contactDamage: 1 },
   { type: SOUL_TYPE, w: 8, h: 8, hp: 1, gravity: false, pickup: true },
   { type: WINGS_TYPE, w: 12, h: 12, gravity: false, tint: 'accent' },
   { type: BOOTS_TYPE, w: 12, h: 12, gravity: false, tint: 'accent' },
@@ -52,6 +56,8 @@ export const GUARDS: Readonly<Record<string, number>> = { [SENTINEL_TYPE]: 30 };
 
 export const COLLECTIBLE_TYPES = [SOUL_TYPE];
 export const ENEMY_TYPES: readonly string[] = ENTITY_DEFS.filter((d) => d.fsm).map((d) => d.type);
+/** The bosses: each fights in a `boss` room of its own, which the arena shuts while it lives. */
+export const BOSS_TYPES: readonly string[] = ENTITY_DEFS.filter((d) => d.boss === true).map((d) => d.type);
 /** The relics and the ability flag each grants (the gated movement reads them); abilities last as `ab:` props. */
 export const RELIC_TYPES: readonly string[] = Object.keys(RELIC_ABILITY);
 export const ABILITIES: readonly string[] = [ABILITY_DOUBLE_JUMP, ABILITY_DASH];
