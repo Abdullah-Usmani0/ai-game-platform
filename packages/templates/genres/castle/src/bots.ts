@@ -194,6 +194,19 @@ function shieldAhead(sim: Sim, p: Entity, way: number): Entity | null {
   return best;
 }
 
+/** A shot coming at the hero that a cut would strike from where it stands (null: none): cut out of the air. */
+function shotInReach(sim: Sim, p: Entity): Entity | null {
+  const cx = centerX(p);
+  const feet = p.y + p.h;
+  for (const e of sim.world.entities) {
+    if (!e.alive || !e.isProjectile || e.contactDamage <= 0) continue;
+    const dx = centerX(e) - cx;
+    if (Math.abs(dx) > CUT_REACH || dx * e.vx >= 0 || e.y + e.h < feet - CUT_HIGH || e.y > feet) continue;
+    return e;
+  }
+  return null;
+}
+
 function hostileAhead(sim: Sim, p: Entity, facing: number, k: number): boolean {
   const cx = centerX(p);
   return sim.world.entities.some((e) => {
@@ -286,9 +299,17 @@ export const route: BotPolicy = (sim, tick, mem) => {
     input.right = toward > 0;
     input.action = tick % 2 === 0;
   }
+  // A shot coming at the hero within a cut's reach (a low one is jumped before it gets there): cut out of the air.
+  const shot = p.grounded && !foe && !escaping ? shotInReach(sim, p) : null;
+  if (shot) {
+    const toward = centerX(shot) < cx ? -1 : 1;
+    input.left = toward < 0;
+    input.right = toward > 0;
+    input.action = tick % 2 === 0;
+  }
   // Bait a raised shield: in to just outside its thrust's trigger, then out of its reach as the thrust winds up; once the
   // thrust swings the shield open (or the bearer turns or reels) it is cut down as above.
-  if (shut && shield && !escaping && !foe) {
+  if (shut && shield && !escaping && !foe && !shot) {
     const d = Math.abs(centerX(shield) - cx);
     const toward = centerX(shield) < cx ? -1 : 1;
     const winding = typeof shield.props[MOVE] === 'string' && shield.props[MOVE] !== '';

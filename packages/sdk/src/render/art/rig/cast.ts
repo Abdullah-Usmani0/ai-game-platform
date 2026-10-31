@@ -278,6 +278,159 @@ export function sentinel(t: number, mode: SentinelMode): Part[] {
   return stand(parts, [nl.ankle, fl.ankle, nl.toe, fl.toe], SENTINEL_H - 1);
 }
 
+// ---------------------------------------------------------------- wraith: a hooded shroud of ghost-fire (36 x 44)
+
+export const WRAITH_W = 36, WRAITH_H = 44;
+/** The cast by frame: the hands gather at the chest, rise with the hex over the hood (the wind-up), push it out, hold, settle. */
+const CAST = [
+  { arm: 70, lift: 0, orb: 1.2, at: 'chest' },
+  { arm: -60, lift: -1, orb: 2.4, at: 'over' },
+  { arm: 8, lift: 0, orb: 0, at: 'none' },
+  { arm: 12, lift: 0, orb: 0, at: 'none' },
+  { arm: 50, lift: 0, orb: 0, at: 'none' },
+] as const;
+/** The fade by frame: how much of the shroud is left (1 whole, 0 only the eyes). */
+const FADE = [1, 0.62, 0.3, 0, 0.3, 0.62] as const;
+export type WraithMode = 'idle' | 'cast' | 'fade' | 'hurt';
+export function wraith(t: number, mode: WraithMode): Part[] {
+  const [s, c] = sinCosDeg(t * 360);
+  // A shroud black-green to the hem, ghost-fire in its wisps and eyes, pale grey bone for hands.
+  const shroud = R('kkkov'), hem = R('kovVy'), wisp = R('oVyYw'), dark = R('kkkkk'), eye = R('Ywwww'), bone = R('tTuUw'), fire = R('VyYww');
+  const k = mode === 'cast' ? CAST[Math.min(CAST.length - 1, Math.round(t * CAST.length))]! : null;
+  const left = mode === 'fade' ? FADE[Math.min(FADE.length - 1, Math.round(t * FADE.length))]! : 1;
+  const hurt = mode === 'hurt';
+  const bob = mode === 'idle' ? s * 0.8 : 0;
+  const lean = hurt ? -18 : k && k.at === 'none' ? 10 : 0;
+  // The figure from the hood down: its waist floats over the frame's lower third.
+  const waist = v(18, 26 + bob + (k ? k.lift : 0));
+  const chest = plus(waist, polar(-90 + lean, 8));
+  const head = plus(chest, polar(-90 + lean * 0.8, 6));
+  const parts: Part[] = [];
+  if (left > 0) {
+    // The shroud: a bell from the shoulders, the hem frayed into three wisps that sway.
+    const hemY = 34 + bob;
+    const body = [plus(chest, v(-4.5, -1)), plus(chest, v(4.5, -1)), v(waist.x + 6, waist.y + 2), v(waist.x + 7.5, hemY), v(waist.x - 7.5, hemY), v(waist.x - 6, waist.y + 2)];
+    const scale = (p: Vec) => v(waist.x + (p.x - waist.x) * (0.55 + 0.45 * left), p.y);
+    parts.push(poly('shroud', (left < 1 ? body.map(scale) : body).slice(), 1.2, shroud, 2));
+    // The hem burns: a band of ghost-fire where the shroud frays.
+    parts.push(cap('hem', v(waist.x - 7 * (0.55 + 0.45 * left), hemY - 1), v(waist.x + 7 * (0.55 + 0.45 * left), hemY - 1), 1.3, 1.3, hem, 2.05));
+    for (const [i, dx] of [-5, 0, 5].entries()) {
+      const sway = (mode === 'idle' ? Math.sin((t + i / 3) * Math.PI * 2) : c) * 1.6;
+      const from = v(waist.x + dx * left, hemY - 1);
+      const to = plus(from, v(sway - 1.5, (6 + (i === 1 ? 3 : 0)) * left));
+      parts.push(cap(`wisp${i}`, from, to, 1.5 * left + 0.4, 0.3, wisp, 2.1));
+    }
+    if (left >= 0.6) {
+      // Sleeves from the shoulders, bony hands.
+      const arm = (side: number, depth: number) => {
+        const sh = plus(chest, v(side * 2.5, 1));
+        const a = hurt ? -140 + side * 20 : k ? k.arm + side * 8 : 70 + side * 6 + s * 4;
+        const el = plus(sh, polar(a, 5));
+        const hand = plus(el, polar(a + (k && k.at === 'over' ? 20 : 18), 4.5));
+        parts.push(cap(`sleeve${side}`, sh, el, 2, 1.6, shroud, depth), cap(`fore${side}`, el, hand, 1.5, 1.1, shroud, depth + 0.01), cap(`hand${side}`, hand, plus(hand, polar(a + 30, 1.6)), 0.8, 0.5, bone, depth + 0.02));
+        return hand;
+      };
+      arm(-1, 1.8);
+      const hand = arm(1, 4.5);
+      if (k && k.orb > 0) {
+        const at = k.at === 'over' ? plus(head, v(4, -5.5)) : plus(hand, v(1.5, -1));
+        parts.push(cap('hex', at, at, k.orb + 0.6, k.orb + 0.6, fire, 5), cap('hexCore', at, at, k.orb * 0.45, k.orb * 0.45, R('wwwww'), 5.1));
+      }
+    }
+    // The hood, peaked, with the dark of the face open toward the front.
+    parts.push(cap('hood', chest, head, 4.4, 4.2, shroud, 3), cap('peak', head, plus(head, polar(-120 + lean, 5.5)), 2.2, 0.6, shroud, 3.05));
+    parts.push(cap('face', plus(head, v(1.2, 0.8)), plus(head, v(2.4, 1.8)), 2.6, 2.2, dark, 3.1));
+  }
+  // The eyes stay longest as it fades: two cold points of ghost-fire.
+  const eyes = plus(head, v(2.6, 0.6));
+  parts.push(cap('eyeN', eyes, eyes, 0.6, 0.6, eye, 3.2), cap('eyeF', plus(eyes, v(-1.8, 0.2)), plus(eyes, v(-1.8, 0.2)), 0.5, 0.5, eye, 3.15));
+  return parts;
+}
+
+// ---------------------------------------------------------------- archer: a bone archer in a torn hood (36 x 40)
+
+export const ARCHER_W = 36, ARCHER_H = 40;
+/**
+ * The draw by frame: an arrow nocked low, the bow raised, the string drawn back to the jaw, held at full draw (the
+ * wind-up a player reads), loosed, and lowered. Bow arm angle (0 ahead), how far the string is drawn, the arrow on it.
+ */
+const DRAW = [
+  { a: 50, pull: 1, arrow: true },
+  { a: 12, pull: 2, arrow: true },
+  { a: 0, pull: 6, arrow: true },
+  { a: -2, pull: 8.5, arrow: true },
+  { a: 0, pull: 0, arrow: false },
+  { a: 30, pull: 0, arrow: false },
+] as const;
+export type ArcherMode = 'walk' | 'draw' | 'hurt';
+export function archer(t: number, mode: ArcherMode): Part[] {
+  const [s, c] = sinCosDeg(t * 360);
+  // Aged bone, a torn crimson cowl and rags, a dark wood bow, an ember in each eye.
+  const bone = R('tuUUw'), boneDark = R('ttuUU'), cowl = R('kxxdD'), wood = R('kkpqQ'), string = R('TTuUU'), steel = R('tTuUw'), ember = R('EEEEE');
+  const k = mode === 'draw' ? DRAW[Math.min(DRAW.length - 1, Math.round(t * DRAW.length))]! : null;
+  const walk = mode === 'walk', hurt = mode === 'hurt';
+  const lean = hurt ? -16 : k ? -4 : 6;
+  const pelvis = v(17, 22 - (walk ? Math.abs(c) * 0.8 : 0));
+  const chest = plus(pelvis, polar(-90 + lean, 8));
+  const neck = plus(chest, polar(-90 + lean, 2.4));
+  const head = plus(neck, polar(-90 + lean * 0.5, 2.6));
+  const leg = (phase: number, dx: number) => {
+    const hip = plus(pelvis, v(dx, 0.5));
+    const a = 92 + (walk ? 22 * phase : dx * 5);
+    const knee = plus(hip, polar(a - 8, 7));
+    const ankle = plus(knee, polar(a + 10 + (walk ? 14 * Math.max(0, -phase) : 0), 7.5));
+    return { hip, knee, ankle, toe: plus(ankle, v(2.6, 0.4)) };
+  };
+  const stance = k ? 0.8 : 0.4;
+  const nl = leg(walk ? s : stance, 1.5), fl = leg(walk ? -s : -stance, -1.5);
+  // The bow arm reaches ahead to the bow; the drawing hand pulls the string back toward the jaw.
+  const shB = plus(chest, v(1.5, 1)), shD = plus(chest, v(-1.5, 1));
+  const bowA = hurt ? 70 : k ? k.a : 60 + s * 6;
+  const grip = plus(shB, polar(bowA, 10));
+  const elB = plus(shB, polar(bowA + 6, 5));
+  const up = polar(bowA - 90, 1), down = polar(bowA + 90, 1);
+  const tipU = plus(grip, v(up.x * 11 - 2.5, up.y * 11)), tipD = plus(grip, v(down.x * 11 - 2.5, down.y * 11));
+  const pull = k ? k.pull : 0;
+  const nock = plus(grip, polar(bowA + 180, 1 + pull));
+  const hand = k && pull > 0 ? nock : plus(shD, polar(hurt ? -120 : 100, 9));
+  const elD = plus(shD, polar(k && pull > 0 ? 160 : 110, 4));
+  const parts: Part[] = [
+    cap('thighF', fl.hip, fl.knee, 1.1, 0.9, boneDark, 1, -1), cap('shinF', fl.knee, fl.ankle, 0.9, 0.8, boneDark, 1.01, -1), cap('footF', fl.ankle, fl.toe, 0.8, 0.6, boneDark, 1.02, -1),
+    cap('upperD', shD, elD, 1, 0.9, boneDark, 1.2, -1), cap('foreD', elD, hand, 0.9, 0.8, boneDark, 1.21, -1),
+    // A spine and ribs under the cowl's rags, the pelvis.
+    cap('spine', pelvis, chest, 0.9, 0.9, bone, 2),
+    cap('ribs', plus(chest, v(0, 0.5)), plus(chest, v(0.5, 3.5)), 2.6, 2, bone, 2.1),
+    cap('pelvis', plus(pelvis, v(-1.8, 0)), plus(pelvis, v(1.8, 0)), 1.6, 1.6, bone, 2.05),
+    poly('rags', [plus(pelvis, v(-3, -0.5)), plus(pelvis, v(3, -0.5)), plus(pelvis, v(3.5, 4 + (walk ? s : 0))), plus(pelvis, v(1, 6)), plus(pelvis, v(-1, 4.5)), plus(pelvis, v(-3.5, 6.5 - (walk ? s : 0)))], 0.6, cowl, 2.2),
+    // The cowl over the shoulders and the skull, the face open, ember eyes.
+    poly('mantle', [plus(chest, v(-4, 0)), plus(chest, v(4, 0.5)), plus(chest, v(3.5, 5)), plus(chest, v(0, 4)), plus(chest, v(-3, 6.5))], 0.8, cowl, 3),
+    cap('skull', neck, head, 2.2, 2.6, bone, 4),
+    cap('jaw', plus(head, polar(60 + lean, 1.6)), plus(head, polar(70 + lean, 3)), 1.2, 0.9, bone, 4.05),
+    cap('hood', plus(head, v(-1.6, -0.8)), plus(head, polar(-150 + lean, 3.4)), 2.4, 1.2, cowl, 4.1),
+    cap('socket', plus(head, v(1.2, -0.2)), plus(head, v(1.2, -0.2)), 0.9, 0.9, R('kkkkk'), 4.15),
+    cap('eye', plus(head, v(1.3, -0.2)), plus(head, v(1.3, -0.2)), 0.6, 0.6, ember, 4.2),
+    cap('thighN', nl.hip, nl.knee, 1.2, 1, bone, 5), cap('shinN', nl.knee, nl.ankle, 1, 0.85, bone, 5.01), cap('footN', nl.ankle, nl.toe, 0.85, 0.6, bone, 5.02),
+    // The bow before the body: two limbs from the grip, the string to the nock (or straight when slack), the arrow.
+    cap('limbU', grip, tipU, 0.9, 0.5, wood, 6), cap('limbD', grip, tipD, 0.9, 0.5, wood, 6),
+    cap('stringU', tipU, k && pull > 0 ? nock : tipD, 0.3, 0.3, string, 6.1),
+    ...(k && pull > 0 ? [cap('stringD', nock, tipD, 0.3, 0.3, string, 6.1)] : []),
+    ...(k && k.arrow ? [cap('arrow', nock, plus(grip, polar(bowA, 4)), 0.4, 0.4, wood, 6.2), cap('head', plus(grip, polar(bowA, 4)), plus(grip, polar(bowA, 6.5)), 0.8, 0.2, steel, 6.25)] : []),
+    cap('upperB', shB, elB, 1, 0.9, bone, 6.5), cap('foreB', elB, grip, 0.9, 0.8, bone, 6.51),
+  ];
+  return stand(parts, [nl.ankle, fl.ankle, nl.toe, fl.toe], ARCHER_H - 1);
+}
+
+// ---------------------------------------------------------------- the shots: a hex of ghost-fire (10 x 10)
+
+export function hex(t: number): Part[] {
+  const [s, c] = sinCosDeg(t * 360);
+  return [
+    cap('trail', v(2 + s * 0.4, 5 + c * 0.4), v(5, 5), 1.6, 2.2, R('kovVy'), 1),
+    cap('orb', v(6, 5), v(6, 5), 3.2, 3.2, R('vVyYw'), 2),
+    cap('core', v(6.5, 4.6), v(6.5, 4.6), 1.3, 1.3, R('Ywwww'), 3),
+  ];
+}
+
 // ---------------------------------------------------------------- altar: a stone font with a flame (20 x 34)
 
 export const ALTAR_W = 20, ALTAR_H = 34;
@@ -336,8 +489,8 @@ const frames = (n: number, draw: (t: number) => Part[], w: number, h: number): s
 
 /**
  * The castle's cast as recipes: a ghoul that shambles and lurches, a hound that crouches, runs and leaps, a gargoyle
- * that wakes to spit, a sentinel behind its shield, an altar's flame, a soul's flicker and the grate of a shortcut. Baked
- * once, when the art kit loads.
+ * that wakes to spit, a sentinel behind its shield, a wraith that casts and fades, a bone archer and their shots, an
+ * altar's flame, a soul's flicker and the grate of a shortcut. Baked once, when the art kit loads.
  */
 export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
   ghoul: {
@@ -385,6 +538,32 @@ export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
     // Driven out and held: the spear drawn back over the shoulder before them is the wind-up.
     active: { thrust: [2, 3] },
   },
+  // It floats: drawn about its middle, no shadow under it, the wisps hanging below its body.
+  wraith: {
+    anchor: 'center',
+    noShadow: true,
+    anims: {
+      idle: frames(4, (t) => wraith(t, 'idle'), WRAITH_W, WRAITH_H),
+      hurt: [bake(wraith(0, 'hurt'), WRAITH_W, WRAITH_H)],
+      cast: frames(5, (t) => wraith(t, 'cast'), WRAITH_W, WRAITH_H),
+      fade: frames(6, (t) => wraith(t, 'fade'), WRAITH_W, WRAITH_H),
+    },
+    // The hex pushed out; gone but for its eyes through the fade's middle.
+    active: { cast: [2], fade: [3] },
+  },
+  'bone-archer': {
+    anchor: 'feet',
+    anims: {
+      walk: frames(4, (t) => archer(t, 'walk'), ARCHER_W, ARCHER_H),
+      hurt: [bake(archer(0, 'hurt'), ARCHER_W, ARCHER_H)],
+      draw: frames(6, (t) => archer(t, 'draw'), ARCHER_W, ARCHER_H),
+    },
+    // Loosed: the nock, the bow raised and the long draw before it are the wind-up.
+    active: { draw: [4] },
+  },
+  hex: { anchor: 'center', noShadow: true, anims: { run: frames(3, hex, 10, 10) } },
+  // The bone archer's arrow: crimson fletching, a dark shaft, a steel head.
+  shaft: { anchor: 'center', noShadow: true, anims: { run: [['.d..........U.', 'dDdqqqqqqqqqTw', '.d..........U.']] } },
   altar: { anchor: 'feet', anims: { idle: frames(3, altar, ALTAR_W, ALTAR_H) } },
   soul: { anchor: 'center', anims: { idle: frames(3, soul, SOUL_W, SOUL_H) } },
   gate: { anchor: 'center', noShadow: true, anims: { idle: [bake(gate(), GATE_W, GATE_H)] } },

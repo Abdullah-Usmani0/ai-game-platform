@@ -857,7 +857,7 @@ export class MainScene extends Phaser.Scene {
       s.img.setAlpha(blink ? 0.35 : 1);
       // A wind-up or an aim flashes the attacker hot red: every attack is read before it lands. A foe's move flashes over
       // its startup, by its own clock.
-      const windingUp = move ? moveTick < move.startup : e.anim === 'windup' || e.anim === 'aim';
+      const windingUp = move ? move.damage > 0 && moveTick < move.startup : e.anim === 'windup' || e.anim === 'aim';
       const telegraph = !e.isPlayer && windingUp && tick % 8 < 3;
       if (e.tookDamageTick >= 0 && tick - e.tookDamageTick < 4) s.img.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
       else if (telegraph) s.img.setTint(toInt(this.pal.danger[3])).setTintMode(Phaser.TintModes.FILL);

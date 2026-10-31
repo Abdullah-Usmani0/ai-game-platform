@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "id": "wraith",
+  "designNotes": "Drifts toward the player at its own height; within reach raises its hands and casts a slow hex at them, then fades, drifting on through them unseen, and gathers again on the far side.",
+  "initial": "drift",
+  "states": {
+    "drift": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "idle"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 24
+        }
+      ],
+      "transitions": [
+        {
+          "to": "cast",
+          "when": {
+            "kind": "player_within",
+            "px": 176
+          }
+        }
+      ]
+    },
+    "cast": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "cast"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "fade",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 1140
+          }
+        }
+      ]
+    },
+    "fade": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "play_anim",
+          "anim": "fade"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "drift",
+          "when": {
+            "kind": "timer_elapsed",
+            "ms": 690
+          }
+        }
+      ]
+    }
+  }
+}

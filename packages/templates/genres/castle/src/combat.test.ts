@@ -8,10 +8,10 @@ import { AB_PREFIX, BLOCK_TICKS, BUFFER_TICKS, castle, DEFAULT_MOVES, GUARD, GUA
 
 /** A ghoul that stands where it is put: a target that keeps still. */
 const STILL: BehaviourFsm = { version: 1, id: 'ghoul', designNotes: '', initial: 'stand', states: { stand: { onEnter: [{ kind: 'idle' }], update: [], transitions: [] } } };
-/** A sentinel that stands where it is put: turned to face the hero as it starts, or left facing right (its back to a hero on its left). */
-const sentinelStands = (facingHero: boolean): BehaviourFsm => ({
+/** A foe that stands where it is put: turned to face the hero as it starts, or left facing right (its back to a hero on its left). */
+const stands = (id: string, facingHero: boolean): BehaviourFsm => ({
   version: 1,
-  id: 'sentinel',
+  id,
   designNotes: '',
   initial: 'stand',
   states: { stand: { onEnter: [facingHero ? { kind: 'move_toward_player', speed: 0 } : { kind: 'idle' }], update: [], transitions: [] } },
@@ -255,7 +255,7 @@ describe('the castle sword', () => {
 
 describe("the sentinel's shield", () => {
   it('turns aside a cut from the front: the bearer unhurt, the cut over, the hero thrown back unhurt for a moment', () => {
-    const sim = arena([{ type: 'sentinel', x: 5, y: 14, props: {} }], { behaviours: [sentinelStands(true)] });
+    const sim = arena([{ type: 'sentinel', x: 5, y: 14, props: {} }], { behaviours: [stands('sentinel', true)] });
     const s = sentinel(sim);
     expect([s.facing, s.flags['guarding']]).toEqual([-1, true]);
     const blocks: number[] = [];
@@ -269,13 +269,13 @@ describe("the sentinel's shield", () => {
   });
 
   it('does not cover its back, nor a plunge from over its head', () => {
-    const back = arena([{ type: 'sentinel', x: 5, y: 14, props: {} }], { behaviours: [sentinelStands(false)] });
+    const back = arena([{ type: 'sentinel', x: 5, y: 14, props: {} }], { behaviours: [stands('sentinel', false)] });
     expect(sentinel(back).facing).toBe(1);
     tap(back, { action: true, right: true });
     while (making(back)) step(back, {});
     expect(sentinel(back).hp).toBe(4);
 
-    const sim = arena([{ type: 'sentinel', x: 7, y: 14, props: {} }], { props: { [`${AB_PREFIX}double-jump`]: true }, behaviours: [sentinelStands(true)] });
+    const sim = arena([{ type: 'sentinel', x: 7, y: 14, props: {} }], { props: { [`${AB_PREFIX}double-jump`]: true }, behaviours: [stands('sentinel', true)] });
     const s = sentinel(sim);
     // Up over it: a jump and the air jump, drifting right until above it, then the plunge.
     for (let i = 0; i < 50 && Math.abs(hero(sim).x + 7 - (s.x + 10)) > 3; i++) step(sim, { right: true, jump: i < 12 || (i > 13 && i < 24) });
@@ -286,7 +286,7 @@ describe("the sentinel's shield", () => {
   });
 
   it(`gives by each blow it turns aside, and breaks at the third cut: the blow lands and the bearer reels ${GUARD_BREAK_TICKS} ticks`, () => {
-    const sim = arena([{ type: 'sentinel', x: 7, y: 14, props: {} }], { behaviours: [sentinelStands(true)] });
+    const sim = arena([{ type: 'sentinel', x: 7, y: 14, props: {} }], { behaviours: [stands('sentinel', true)] });
     const s = sentinel(sim);
     const events: string[] = [];
     for (const name of ['custom:block', 'custom:guard_break']) sim.events.on(name, () => events.push(name));
@@ -302,7 +302,7 @@ describe("the sentinel's shield", () => {
   });
 
   it(`is whole again ${GUARD_REFILL_TICKS} ticks after its last block`, () => {
-    const sim = arena([{ type: 'sentinel', x: 5, y: 14, props: {} }], { behaviours: [sentinelStands(true)] });
+    const sim = arena([{ type: 'sentinel', x: 5, y: 14, props: {} }], { behaviours: [stands('sentinel', true)] });
     const s = sentinel(sim);
     tap(sim, { action: true, right: true });
     while (making(sim)) step(sim, {});
@@ -312,7 +312,7 @@ describe("the sentinel's shield", () => {
   });
 
   it('swings open as the bearer thrusts: raised through the wind-up, open from the first blow through the recovery', () => {
-    const sim = arena([{ type: 'sentinel', x: 14, y: 14, props: {} }], { behaviours: [sentinelStands(true)] });
+    const sim = arena([{ type: 'sentinel', x: 14, y: 14, props: {} }], { behaviours: [stands('sentinel', true)] });
     const s = sentinel(sim);
     const lunge = move('lunge');
     startMove(s, lunge);
@@ -326,7 +326,7 @@ describe("the sentinel's shield", () => {
     expect(raised.slice(lunge.startup, lunge.startup + lunge.active + lunge.recovery - 1).some(Boolean)).toBe(false);
     expect(raised.at(-1)).toBe(true);
     // A cut in the recovery lands: the hero, out of the thrust's reach, steps in as it ends.
-    const again = arena([{ type: 'sentinel', x: 9, y: 14, props: {} }], { behaviours: [sentinelStands(true)] });
+    const again = arena([{ type: 'sentinel', x: 9, y: 14, props: {} }], { behaviours: [stands('sentinel', true)] });
     const t = sentinel(again);
     startMove(t, lunge);
     while (moveTick(t) < lunge.startup + lunge.active + 2) step(again, {});
@@ -345,5 +345,62 @@ describe("the sentinel's shield", () => {
       expect([feelId, r.completed, sim.world.player.hp, r.deaths]).toEqual([feelId, true, 5, 0]);
       expect(sim.world.entities.some((e) => e.type === 'sentinel')).toBe(false);
     }
+  });
+});
+
+describe('the wraith and the bone archer', () => {
+  it("lets a wraith's hands rise with the ghost-fire for 36 ticks before it casts a hex at the hero", () => {
+    const sim = arena([{ type: 'wraith', x: 12, y: 13, props: {} }], { behaviours: castle.defaultBehaviours });
+    const w = sim.world.entities.find((e) => e.type === 'wraith')!;
+    const hexes = () => sim.world.entities.filter((e) => e.type === 'hex');
+    for (let i = 0; i < 240 && !(moveOf(w, MOVES)?.id === 'hex' && moveTick(w) === move('hex').startup); i++) step(sim, {});
+    expect([moveOf(w, MOVES)?.id, hexes().length, w.grounded]).toEqual(['hex', 0, false]);
+    step(sim, {});
+    expect(hexes().map((e) => e.vx < 0)).toEqual([true]);
+  });
+
+  it('fades through the hero, untouchable and harmless, and gathers again some 100 px on', () => {
+    // A wraith that fades as it starts, turned toward the hero: the fade is a move its behaviour makes by playing the clip.
+    const fades: BehaviourFsm = { version: 1, id: 'wraith', designNotes: '', initial: 'fade', states: { fade: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'fade' }], update: [], transitions: [] } } };
+    const sim = arena([{ type: 'wraith', x: 7, y: 13, props: {} }], { behaviours: [fades] });
+    const w = sim.world.entities.find((e) => e.type === 'wraith')!;
+    expect(moveOf(w, MOVES)?.id).toBe('fade');
+    const from = w.x + moveTick(w) * (move('fade').motion[0]!.vx / 60);
+    // A cut as it drifts in: its body takes nothing, and it takes nothing from the hero as it passes through.
+    tap(sim, { action: true, right: true });
+    while (moveOf(w, MOVES)) step(sim, {});
+    expect([w.hp, hero(sim).hp, from - w.x > 60]).toEqual([3, 5, true]);
+    // Gathered again, a cut lands.
+    hero(sim).x = w.x + w.w + 10;
+    tap(sim, { action: true, left: true });
+    while (making(sim)) step(sim, {});
+    expect(w.hp).toBe(2);
+  });
+
+  it('lets a bone archer draw for 40 ticks, then loose an arrow low at the hero, and back away', () => {
+    const sim = arena([{ type: 'bone-archer', x: 14, y: 14, props: {} }], { behaviours: castle.defaultBehaviours });
+    const a = sim.world.entities.find((e) => e.type === 'bone-archer')!;
+    const shafts = () => sim.world.entities.filter((e) => e.type === 'shaft');
+    for (let i = 0; i < 240 && !(moveOf(a, MOVES)?.id === 'loose' && moveTick(a) === move('loose').startup); i++) step(sim, {});
+    expect([moveOf(a, MOVES)?.id, shafts().length]).toEqual(['loose', 0]);
+    step(sim, {});
+    const [arrow] = shafts();
+    expect([arrow!.vx < 0, arrow!.y + arrow!.h > hero(sim).y + hero(sim).h / 2]).toEqual([true, true]);
+    // Loosed and recovered, it backs away from the hero.
+    for (let i = 0; i < 90 && a.fsm?.state !== 'back'; i++) step(sim, {});
+    step(sim, {}, 4);
+    expect([a.fsm?.state, a.vx > 0]).toEqual(['back', true]);
+  });
+
+  it('cuts a shot out of the air', () => {
+    const sim = arena([{ type: 'bone-archer', x: 14, y: 14, props: {} }], { behaviours: castle.defaultBehaviours });
+    const shafts = () => sim.world.entities.filter((e) => e.type === 'shaft');
+    for (let i = 0; i < 240 && shafts().length === 0; i++) step(sim, {});
+    const arrow = shafts()[0]!;
+    // Pressed as it comes within 60 px, the cut is out as it arrives.
+    while (arrow.alive && arrow.x + arrow.w / 2 - (hero(sim).x + 7) > 60) step(sim, {});
+    tap(sim, { action: true, right: true });
+    step(sim, {}, 10);
+    expect([arrow.alive, shafts().length, hero(sim).hp]).toEqual([false, 0, 5]);
   });
 });

@@ -38,8 +38,11 @@ describe('the castle cast', () => {
     expect(Object.keys(CAST_RECIPES.hound!.anims)).toEqual(['idle', 'run', 'jump', 'hurt', 'pounce']);
     expect(Object.keys(CAST_RECIPES.gargoyle!.anims)).toEqual(['idle', 'aim', 'hurt']);
     expect(Object.keys(CAST_RECIPES.sentinel!.anims)).toEqual(['idle', 'walk', 'hurt', 'block', 'thrust']);
+    expect(Object.keys(CAST_RECIPES.wraith!.anims)).toEqual(['idle', 'hurt', 'cast', 'fade']);
+    expect(Object.keys(CAST_RECIPES['bone-archer']!.anims)).toEqual(['walk', 'hurt', 'draw']);
     // Each attack names the frames that hit, so a move draws its wind-up over its startup.
     expect([CAST_RECIPES.ghoul!.active, CAST_RECIPES.hound!.active, CAST_RECIPES.gargoyle!.active, CAST_RECIPES.sentinel!.active]).toEqual([{ claw: [2, 3] }, { pounce: [2, 3] }, { aim: [1] }, { thrust: [2, 3] }]);
+    expect([CAST_RECIPES.wraith!.active, CAST_RECIPES['bone-archer']!.active]).toEqual([{ cast: [2], fade: [3] }, { draw: [4] }]);
     for (const recipe of Object.values(CAST_RECIPES)) {
       const a = paintFrames(recipe, pal);
       const b = paintFrames(recipe, pal);

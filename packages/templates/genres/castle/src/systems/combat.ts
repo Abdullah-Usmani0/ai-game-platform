@@ -118,6 +118,8 @@ function finisher(m: Move, moves: ReadonlyMap<string, Move>): boolean {
  * - A cut faces the way the hero is pressing as it starts, and roots it on the ground but for the cut's own step, which
  *   stops at a ledge. A dash cuts it short from its dash-cancel tick.
  * - Each cut strikes each foe once: thrown back, staggered (its behaviour holds), the world held a moment as it lands.
+ *   It strikes a foe's shot out of the air too.
+ * - A move's i-frames (the wraith's fade) keep every blow off its body while they last.
  * - A shield (GUARDS) turns aside a blow from the side its bearer faces while its guard is up: the cut ends, the hero
  *   is thrown back unhurt, and the guard gives by the blow's poise; at nothing it breaks, the blow lands and the bearer
  *   reels for GUARD_BREAK_TICKS. Over its head (the plunge) or at its back the shield does not cover it, nor once the
@@ -178,7 +180,8 @@ export const combat = defineSystem<CombatState>({
     }
     const t = moveTick(p);
     if (t === m.startup) ctx.emit(finisher(m, s.moves) ? 'custom:finisher' : 'custom:swing', { entity: p.id, move: m.id });
-    const strikes = stepMove(ctx, p, m, ctx.world.entities.filter((e) => isHostile(e) && e.dormant !== true));
+    // Foes, and the shots they loose: a cut strikes a shot out of the air.
+    const strikes = stepMove(ctx, p, m, ctx.world.entities.filter((e) => e.dormant !== true && (isHostile(e) || (e.alive && e.isProjectile && e.contactDamage > 0))));
     // Turned aside by a shield (onDamage): the cut is over and the hero is thrown back.
     if (s.hurt > 0) {
       p.props[LOCK] = 1;
@@ -202,6 +205,9 @@ export const combat = defineSystem<CombatState>({
   },
   onDamage(s, hit, ctx) {
     const { target, source } = hit;
+    // A move's i-frames (the wraith's fade): nothing touches the body while they last.
+    const own = moveOf(target, s.moves);
+    if (own?.iframes && moveTick(target) >= own.iframes.from && moveTick(target) <= own.iframes.to) return 0;
     const full = GUARDS[target.type];
     if (full === undefined || !source || !source.isPlayer || !guardUp(target, s.moves)) return hit.amount;
     const blow = moveOf(source, s.moves);
@@ -251,13 +257,13 @@ export const meta = {
   genres: ['castle'],
   required: true,
   summary:
-    "Sword combat on the action key from the game's moves (content/moves.json): a chain of cuts on the ground, a cut in the air and, with down, a plunge that bounces off what it strikes. Each cut roots the hero but for its own step, strikes each foe once, throws it back and staggers it; a blow throws the hero back, reeling. The cast's attacks are moves too, each made by a behaviour state that plays its clip, each winding up long enough to read. A shield-bearer turns aside blows from the front until its guard breaks; over its head, at its back, or once its own thrust swings the shield open, blows land.",
+    "Sword combat on the action key from the game's moves (content/moves.json): a chain of cuts on the ground, a cut in the air and, with down, a plunge that bounces off what it strikes. Each cut roots the hero but for its own step, strikes each foe once, throws it back and staggers it; a blow throws the hero back, reeling. The cast's attacks are moves too, each made by a behaviour state that plays its clip, each winding up long enough to read. A shield-bearer turns aside blows from the front until its guard breaks; over its head, at its back, or once its own thrust swings the shield open, blows land. Nothing touches a body through its move's i-frames (a wraith's fade).",
   params: {},
   // A foe's move that looses a shot (the gargoyle's spit) spawns it.
   emits: ['hit', 'damage', 'death', 'spawn', 'custom:swing', 'custom:finisher', 'custom:block', 'custom:guard_break'],
   feedbackFor: ['hit', 'custom:swing', 'custom:finisher', 'custom:block', 'custom:guard_break'],
   controls: { action: 'attack', down: 'plunge (in the air)', left: 'face', right: 'face' },
-  // The shots the castle's moves loose: the gargoyle's embers.
-  provides: { combat: 'melee', spawns: ['ember'] },
+  // The shots the castle's moves loose: the gargoyle's embers, the wraith's hexes, the bone archer's arrows.
+  provides: { combat: 'melee', spawns: ['ember', 'hex', 'shaft'] },
   requires: { movement: ['platformer'], roles: ['hostile'] },
 } as const;

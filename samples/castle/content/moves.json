@@ -343,6 +343,92 @@
       "endsOnLanding": false,
       "parryable": true,
       "mp": 0
+    },
+    {
+      "id": "hex",
+      "owner": "wraith",
+      "anim": "cast",
+      "startup": 36,
+      "active": 1,
+      "recovery": 30,
+      "hitboxes": [],
+      "damage": 1,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      },
+      "hitstun": 0,
+      "hitstop": 0,
+      "poise": 0,
+      "motion": [],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": false,
+      "mp": 0,
+      "projectile": {
+        "type": "hex",
+        "at": 36,
+        "speed": 110
+      }
+    },
+    {
+      "id": "fade",
+      "owner": "wraith",
+      "anim": "fade",
+      "startup": 8,
+      "active": 24,
+      "recovery": 8,
+      "hitboxes": [],
+      "damage": 0,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      },
+      "hitstun": 0,
+      "hitstop": 0,
+      "poise": 0,
+      "motion": [
+        {
+          "from": 0,
+          "to": 39,
+          "vx": 150
+        }
+      ],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": false,
+      "iframes": {
+        "from": 0,
+        "to": 39
+      },
+      "mp": 0
+    },
+    {
+      "id": "loose",
+      "owner": "bone-archer",
+      "anim": "draw",
+      "startup": 40,
+      "active": 1,
+      "recovery": 24,
+      "hitboxes": [],
+      "damage": 1,
+      "knockback": {
+        "x": 0,
+        "y": 0
+      },
+      "hitstun": 0,
+      "hitstop": 0,
+      "poise": 0,
+      "motion": [],
+      "cancels": [],
+      "endsOnLanding": false,
+      "parryable": false,
+      "mp": 0,
+      "projectile": {
+        "type": "shaft",
+        "at": 40,
+        "speed": 260
+      }
     }
   ]
 }

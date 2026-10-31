@@ -75,5 +75,37 @@ export const SENTINEL: BehaviourFsm = {
   },
 };
 
-export const DEFAULT_BEHAVIOURS: BehaviourFsm[] = [GHOUL, HOUND, GARGOYLE, SENTINEL];
+export const WRAITH: BehaviourFsm = {
+  version: 1,
+  id: 'wraith',
+  designNotes: 'Drifts toward the player at its own height; within reach raises its hands and casts a slow hex at them, then fades, drifting on through them unseen, and gathers again on the far side.',
+  initial: 'drift',
+  states: {
+    drift: { onEnter: [{ kind: 'play_anim', anim: 'idle' }], update: [{ kind: 'move_toward_player', speed: 24 }], transitions: [{ to: 'cast', when: { kind: 'player_within', px: 176 } }] },
+    cast: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'cast' }], update: [], transitions: [{ to: 'fade', when: { kind: 'timer_elapsed', ms: 1140 } }] },
+    fade: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'fade' }], update: [], transitions: [{ to: 'drift', when: { kind: 'timer_elapsed', ms: 690 } }] },
+  },
+};
+
+export const ARCHER: BehaviourFsm = {
+  version: 1,
+  id: 'bone-archer',
+  designNotes: 'Patrols its floor; within range draws an arrow back to its jaw and looses it low at the player, then backs away to draw again, standing its ground at a ledge or a wall.',
+  initial: 'patrol',
+  states: {
+    patrol: { onEnter: [{ kind: 'play_anim', anim: 'walk' }], update: [{ kind: 'patrol', speed: 26 }], transitions: [{ to: 'draw', when: { kind: 'all', of: [{ kind: 'player_within', px: 224 }, { kind: 'grounded' }] } }] },
+    draw: { onEnter: [{ kind: 'move_toward_player', speed: 0 }, { kind: 'play_anim', anim: 'draw' }], update: [], transitions: [{ to: 'back', when: { kind: 'timer_elapsed', ms: 1100 } }] },
+    back: {
+      onEnter: [{ kind: 'play_anim', anim: 'walk' }],
+      update: [{ kind: 'move_away_from_player', speed: 40 }],
+      transitions: [
+        { to: 'draw', when: { kind: 'any', of: [{ kind: 'at_ledge' }, { kind: 'hit_wall' }] } },
+        { to: 'draw', when: { kind: 'all', of: [{ kind: 'timer_elapsed', ms: 700 }, { kind: 'player_within', px: 224 }] } },
+        { to: 'patrol', when: { kind: 'player_beyond', px: 288 } },
+      ],
+    },
+  },
+};
+
+export const DEFAULT_BEHAVIOURS: BehaviourFsm[] = [GHOUL, HOUND, GARGOYLE, SENTINEL, WRAITH, ARCHER];
 export const VOCAB = PLATFORMER_VOCAB;

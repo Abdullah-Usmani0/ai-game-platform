@@ -14,7 +14,10 @@ import { MoveSet } from '@gg/schemas';
  * - the hound's pounce: coiled for 18 ticks, then a leap jaws first;
  * - the gargoyle's spit: its eyes and maw blazing for half a second, then an ember;
  * - the sentinel's lunge: the spear drawn back over its shoulder for 24 ticks, then driven out over the shield's rim
- *   with a step, the longest reach of the cast; the shield swings open as it does, and stays open as it recovers.
+ *   with a step, the longest reach of the cast; the shield swings open as it does, and stays open as it recovers;
+ * - the wraith's hex: its hands raised with the ghost-fire between them for 36 ticks, then a slow orb; and its fade, no
+ *   attack: it dissolves, drifts 100 px on (through the hero, unseen and untouchable), and gathers again;
+ * - the bone archer's loose: an arrow nocked and drawn back to the jaw for 40 ticks, then loosed low and fast.
  */
 export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
   version: 1,
@@ -161,6 +164,49 @@ export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
       hitstop: 4,
       motion: [{ from: 24, to: 27, vx: 120 }],
       parryable: true,
+    },
+    {
+      id: 'hex',
+      owner: 'wraith',
+      anim: 'cast',
+      startup: 36,
+      active: 1,
+      recovery: 30,
+      hitboxes: [],
+      damage: 1,
+      knockback: { x: 0, y: 0 },
+      hitstun: 0,
+      hitstop: 0,
+      projectile: { type: 'hex', at: 36, speed: 110 },
+    },
+    {
+      id: 'fade',
+      owner: 'wraith',
+      anim: 'fade',
+      startup: 8,
+      active: 24,
+      recovery: 8,
+      hitboxes: [],
+      damage: 0,
+      knockback: { x: 0, y: 0 },
+      hitstun: 0,
+      hitstop: 0,
+      motion: [{ from: 0, to: 39, vx: 150 }],
+      iframes: { from: 0, to: 39 },
+    },
+    {
+      id: 'loose',
+      owner: 'bone-archer',
+      anim: 'draw',
+      startup: 40,
+      active: 1,
+      recovery: 24,
+      hitboxes: [],
+      damage: 1,
+      knockback: { x: 0, y: 0 },
+      hitstun: 0,
+      hitstop: 0,
+      projectile: { type: 'shaft', at: 40, speed: 260 },
     },
   ],
 });

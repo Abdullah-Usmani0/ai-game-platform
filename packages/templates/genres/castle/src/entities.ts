@@ -8,6 +8,8 @@ export const GHOUL_TYPE = 'ghoul';
 export const HOUND_TYPE = 'hound';
 export const GARGOYLE_TYPE = 'gargoyle';
 export const SENTINEL_TYPE = 'sentinel';
+export const WRAITH_TYPE = 'wraith';
+export const ARCHER_TYPE = 'bone-archer';
 /** A grate in a floor that opens from below (the shortcuts system): four tiles wide, one deep (the floor's top row). */
 export const GATE_TYPE = 'gate';
 
@@ -19,16 +21,22 @@ export const PLAYER = { w: 14, h: 42, hp: 5 } as const;
 
 /**
  * The castle's cast at 16 px tiles. A foe takes cuts to fell: the ghoul three (the whole chain, or the cut and the
- * thrust), the hound two, the stone gargoyle four, the sentinel five. Every one but the sentinel is low enough for the
- * plainest jump of the heaviest feel to clear (28 px against a 37 px rise): the sentinel holds its hall behind its
- * shield until it is beaten (or flown over with the wings).
+ * thrust), the hound two, the stone gargoyle four, the sentinel five, the wraith three, the bone archer two. Every one but
+ * the sentinel is low enough for the plainest jump of the heaviest feel to clear (28 px against a 37 px rise): the
+ * sentinel holds its hall behind its shield until it is beaten (or flown over with the wings). The wraith floats a tile
+ * over the floor and hurts only with its hexes: it fades through the hero unharmed and unharming. Shots (the gargoyle's
+ * embers, the wraith's hexes, the archer's arrows) can be cut out of the air.
  */
 export const ENTITY_DEFS: EntityDef[] = [
   { type: GHOUL_TYPE, w: 16, h: 28, hp: 3, gravity: true, fsm: 'ghoul', contactDamage: 1 },
   { type: HOUND_TYPE, w: 24, h: 16, hp: 2, gravity: true, fsm: 'hound', contactDamage: 1 },
   { type: GARGOYLE_TYPE, w: 20, h: 24, hp: 4, gravity: true, fsm: 'gargoyle', contactDamage: 1 },
   { type: SENTINEL_TYPE, w: 20, h: 44, hp: 5, gravity: true, fsm: 'sentinel', contactDamage: 1 },
+  { type: WRAITH_TYPE, w: 16, h: 28, hp: 3, gravity: false, fsm: 'wraith', contactDamage: 0 },
+  { type: ARCHER_TYPE, w: 14, h: 34, hp: 2, gravity: true, fsm: 'bone-archer', contactDamage: 1 },
   { type: 'ember', w: 6, h: 6, hp: 1, gravity: false, projectile: true, contactDamage: 1 },
+  { type: 'hex', w: 8, h: 8, hp: 1, gravity: false, projectile: true, contactDamage: 1 },
+  { type: 'shaft', w: 12, h: 3, hp: 1, gravity: false, projectile: true, contactDamage: 1 },
   { type: SOUL_TYPE, w: 8, h: 8, hp: 1, gravity: false, pickup: true },
   { type: WINGS_TYPE, w: 12, h: 12, gravity: false, tint: 'accent' },
   { type: BOOTS_TYPE, w: 12, h: 12, gravity: false, tint: 'accent' },

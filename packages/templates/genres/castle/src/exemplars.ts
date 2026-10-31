@@ -1,5 +1,5 @@
 import type { Exemplar } from '@gg/template-core';
-import { GARGOYLE, GHOUL, HOUND, SENTINEL } from './behaviours.js';
+import { ARCHER, GARGOYLE, GHOUL, HOUND, SENTINEL, WRAITH } from './behaviours.js';
 import { generateRegion } from './level/generate.js';
 
 export const EXEMPLARS: Exemplar[] = [
@@ -7,6 +7,8 @@ export const EXEMPLARS: Exemplar[] = [
   { kind: 'behaviour', prompt: 'A crypt hound that crouches, then bounds at the player in low leaps.', artifact: HOUND },
   { kind: 'behaviour', prompt: 'A stone watcher that wakes when the player comes near and spits embers.', artifact: GARGOYLE },
   { kind: 'behaviour', prompt: 'A shield-bearer that advances behind its shield and thrusts its spear at the player in reach.', artifact: SENTINEL },
+  { kind: 'behaviour', prompt: 'A wraith that drifts at the player, casts a slow hex, then fades through them to cast again.', artifact: WRAITH },
+  { kind: 'behaviour', prompt: 'A bone archer that keeps its distance, drawing and loosing arrows at the player.', artifact: ARCHER },
   { kind: 'level', prompt: 'A first wing: the wings behind the start, a hall, an altar, and a ledge only a double jump climbs.', artifact: generateRegion({ seed: 11, difficulty: 0.15 }) },
   { kind: 'level', prompt: 'A full region on two floors: wings, an altar, the ledge, halls and the boots above; a shaft down to a second altar, then back below past a chasm only the dash crosses to the way out, where a gate in the ceiling opens a shortcut up to the first altar.', artifact: generateRegion({ seed: 23, difficulty: 0.55 }) },
   {
