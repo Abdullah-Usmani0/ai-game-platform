@@ -29,14 +29,14 @@
     "collectibleTypes": [
       "soul"
     ],
-    "feedbackExtras": "e317a0cd58463118",
+    "feedbackExtras": "2fdbb00c6bd58b87",
     "paramDefaults": "08f44b07b5901a25",
-    "systemsMeta": "17ba1d56e74dc8a8",
+    "systemsMeta": "7d8f624926343f58",
     "scopeBudget": "1a9f04d4a4b9f05a",
-    "gddDefaults": "4f4a0600b4ca2abd",
-    "gddFragment": "1e69e2cdf6b48f77",
+    "gddDefaults": "512160cf35ab4731",
+    "gddFragment": "a08e480eab131486",
     "interviewFragment": "b96990cd0ad1ef88",
-    "panels": "53eb7e4bd0ef6a75",
+    "panels": "c9e94c8a4c73ff9c",
     "exemplars": "7c68aeb64dc40b8a",
     "levelGrammar": "graph",
     "tier": "castle",
@@ -65,7 +65,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "b4f9b6a87054026d",
+      "finalHash": "8fff02d255ed10d8",
       "events": {
         "jump": 96,
         "land": 82,
@@ -84,7 +84,7 @@
       "completed": true,
       "ticks": 3320,
       "deaths": 0,
-      "finalHash": "ebefcb8da7db74c9",
+      "finalHash": "c94b61c7eef75d4c",
       "events": {
         "jump": 18,
         "land": 19,
@@ -103,7 +103,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "3aec17e93bd83fda",
+      "finalHash": "e1038e15ce93dd2b",
       "events": {
         "jump": 94,
         "land": 95,
@@ -126,7 +126,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "5d44c2987baafa67",
+      "finalHash": "2d9b70310c4c81c8",
       "events": {
         "jump": 96,
         "land": 82,
@@ -145,7 +145,7 @@
       "completed": true,
       "ticks": 3357,
       "deaths": 0,
-      "finalHash": "189663b58b94d8cc",
+      "finalHash": "1d61d4c3844b9c25",
       "events": {
         "jump": 17,
         "land": 18,
@@ -164,7 +164,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "d5e9e33729756cf4",
+      "finalHash": "4f794a5ba7b75a53",
       "events": {
         "jump": 94,
         "land": 95,
@@ -187,7 +187,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "ee7bda94297d8dd2",
+      "finalHash": "743684b599595bad",
       "events": {
         "jump": 96,
         "land": 82,
@@ -204,13 +204,13 @@
     },
     "seed1-difficulty0.5:route": {
       "completed": true,
-      "ticks": 4373,
+      "ticks": 4311,
       "deaths": 0,
-      "finalHash": "96353029b49da473",
+      "finalHash": "0799414b84d100db",
       "events": {
         "jump": 26,
         "land": 25,
-        "hit": 26,
+        "hit": 23,
         "death": 10,
         "pickup": 10,
         "level_complete": 1,
@@ -225,7 +225,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "b144873ed7cb3c4c",
+      "finalHash": "c8a7604a9ed53ea1",
       "events": {
         "jump": 44,
         "land": 46,
@@ -248,7 +248,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "b6f974bc348122bc",
+      "finalHash": "c160000bd4395a4d",
       "events": {
         "jump": 96,
         "land": 82,
@@ -267,7 +267,7 @@
       "completed": true,
       "ticks": 4089,
       "deaths": 0,
-      "finalHash": "bf9ef4c87bcc8f1f",
+      "finalHash": "d428fef3e0ecf052",
       "events": {
         "jump": 22,
         "land": 21,
@@ -286,7 +286,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "3260bd47abae2829",
+      "finalHash": "7651260e89935308",
       "events": {
         "jump": 44,
         "land": 46,
@@ -309,7 +309,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "7dff2f9885e7eade",
+      "finalHash": "a58a836fb3e34509",
       "events": {
         "jump": 96,
         "land": 82,
@@ -326,13 +326,13 @@
     },
     "seed1-difficulty0.75:route": {
       "completed": true,
-      "ticks": 4353,
+      "ticks": 4325,
       "deaths": 0,
-      "finalHash": "67b7604b45707de2",
+      "finalHash": "1274406063546c3a",
       "events": {
         "jump": 28,
         "land": 26,
-        "hit": 25,
+        "hit": 24,
         "death": 10,
         "pickup": 11,
         "level_complete": 1,
@@ -347,7 +347,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "f62ebe16438486c4",
+      "finalHash": "05d4a720cd32c589",
       "events": {
         "jump": 44,
         "land": 46,
@@ -370,7 +370,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 0,
-      "finalHash": "3fd7320188cc253d",
+      "finalHash": "ac6d62e6c14bef82",
       "events": {
         "jump": 96,
         "land": 82,
@@ -389,7 +389,7 @@
       "completed": true,
       "ticks": 4208,
       "deaths": 0,
-      "finalHash": "36f87a4c32b3c848",
+      "finalHash": "6818cd4ccee377e7",
       "events": {
         "jump": 24,
         "land": 22,
@@ -408,7 +408,7 @@
       "completed": false,
       "ticks": 4000,
       "deaths": 2,
-      "finalHash": "cab8b15b47db7200",
+      "finalHash": "ed6f5c8e19c2d46f",
       "events": {
         "jump": 44,
         "land": 46,

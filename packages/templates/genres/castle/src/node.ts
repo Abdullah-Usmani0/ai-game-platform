@@ -27,7 +27,7 @@ export const castle: GenreManifest = {
   },
   gddDefaults: {
     pillars: ['every hall hides a way back', 'a relic reopens the castle', 'rest is earned at the altar'],
-    verbs: ['run', 'jump', 'dash', 'cut', 'explore', 'rest'],
+    verbs: ['run', 'jump', 'dash', 'cut', 'parry', 'drink', 'explore', 'rest'],
     feedbackEvents: [
       { event: 'jump', channels: ['sfx'] },
       { event: 'land', channels: ['sfx'] },

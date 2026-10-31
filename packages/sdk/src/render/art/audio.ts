@@ -92,6 +92,22 @@ export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
     { wave: 'sine', from: 330, to: 330, dur: 0.8, vol: 0.06, delay: 0.04 },
     { wave: 'triangle', from: 880, to: 880, dur: 0.5, vol: 0.03, delay: 0.12 },
   ],
+  // A parry: a blade caught clean, a high bright ring that hangs, over a short knock.
+  parry: [
+    { wave: 'triangle', from: 2350, to: 2350, dur: 0.38, vol: 0.07 },
+    { wave: 'square', from: 1760, to: 1700, dur: 0.06, vol: 0.06 },
+    { wave: 'noise', from: 6000, to: 2400, dur: 0.05, vol: 0.08 },
+    { wave: 'triangle', from: 140, to: 100, dur: 0.06, vol: 0.1 },
+  ],
+  // A flask: a cork drawn and a glug, then, as the hearts come, a soft rising chime.
+  glug: [
+    { wave: 'square', from: 900, to: 1500, dur: 0.03, vol: 0.04 },
+    { wave: 'sine', from: 220, to: 160, dur: 0.12, vol: 0.12, delay: 0.08 },
+    { wave: 'sine', from: 240, to: 170, dur: 0.12, vol: 0.1, delay: 0.24 },
+  ],
+  heal: arp([523, 659, 784, 1047], 0.07, 0.24, 0.07, 'triangle'),
+  // A dodge: air split by a body slipping through a blow.
+  whoosh: [{ wave: 'noise', from: 1800, to: 5200, dur: 0.14, vol: 0.09 }],
   // A blade turned aside by a shield: a bright ring of steel on steel over a dull knock.
   clang: [
     { wave: 'square', from: 1480, to: 1400, dur: 0.07, vol: 0.06 },
@@ -142,6 +158,14 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return 'finisher';
     case 'custom:block':
       return 'clang';
+    case 'custom:parry':
+      return 'parry';
+    case 'custom:drink':
+      return 'glug';
+    case 'custom:heal':
+      return 'heal';
+    case 'custom:dodge':
+      return 'whoosh';
     case 'custom:guard_break':
       return 'guardbreak';
     case 'custom:slam':

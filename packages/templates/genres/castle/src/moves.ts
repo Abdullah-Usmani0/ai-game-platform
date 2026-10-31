@@ -9,6 +9,10 @@ import { MoveSet } from '@gg/schemas';
  * - In the air the attack is an overhead cut; with down held it is the plunge, which falls blade first and bounces the
  *   hero off what it strikes.
  * Every cut roots the hero where it stands, but for its own step forward.
+ * - The guard key parries: the blade brought up before the chest, its window 8 ticks. A foe's parryable blow in it is
+ *   turned and the foe reels, open to the riposte: a lunging two-handed stab that the attack key makes on it, untouchable
+ *   while it is made.
+ * - The item key drinks a flask: rooted for 40 ticks, the hearts back as it is drunk; a blow before that spills it.
  * The cast's, each started by its behaviour playing the move's clip, each winding up long enough to read and answer:
  * - the ghoul's claw: the claws raised over its skull for 18 ticks, then a lunging rake;
  * - the hound's pounce: coiled for 18 ticks, then a leap jaws first;
@@ -108,6 +112,53 @@ export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
       endsOnLanding: true,
     },
     {
+      id: 'parry',
+      owner: 'player',
+      anim: 'parry',
+      input: 'guard',
+      startup: 2,
+      active: 8,
+      recovery: 14,
+      hitboxes: [],
+      damage: 0,
+      knockback: { x: 0, y: 0 },
+      hitstun: 0,
+      hitstop: 0,
+    },
+    {
+      id: 'riposte',
+      owner: 'player',
+      anim: 'riposte',
+      input: 'riposte',
+      startup: 8,
+      active: 4,
+      recovery: 18,
+      hitboxes: [{ from: 0, to: 3, x: 4, y: -34, w: 44, h: 20 }],
+      damage: 3,
+      knockback: { x: 320, y: -180 },
+      hitstun: 30,
+      hitstop: 7,
+      poise: 60,
+      motion: [{ from: 6, to: 11, vx: 180 }],
+      // A finisher: nothing touches the hero while it is made.
+      iframes: { from: 0, to: 29 },
+    },
+    {
+      id: 'drink',
+      owner: 'player',
+      anim: 'drink',
+      input: 'item',
+      startup: 40,
+      active: 1,
+      recovery: 12,
+      hitboxes: [],
+      damage: 0,
+      knockback: { x: 0, y: 0 },
+      hitstun: 0,
+      hitstop: 0,
+      heal: 2,
+    },
+    {
       id: 'claw',
       owner: 'ghoul',
       anim: 'claw',
@@ -120,6 +171,7 @@ export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
       hitstun: 0,
       hitstop: 4,
       motion: [{ from: 18, to: 21, vx: 90 }],
+      parryable: true,
     },
     {
       id: 'pounce',

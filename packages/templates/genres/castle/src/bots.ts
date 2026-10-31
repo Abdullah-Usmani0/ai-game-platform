@@ -1,4 +1,4 @@
-import { centerX, centerY, emptyInput, isHostile, MOVE, type Entity, type InputState, type Sim } from '@gg/sdk';
+import { centerX, centerY, emptyInput, isHostile, MOVE, MOVE_TICK, type Entity, type InputState, type Sim } from '@gg/sdk';
 import type { BotPolicy } from '@gg/template-core';
 import { ABILITY_DASH, ABILITY_DOUBLE_JUMP, ALTAR_TYPE, GUARDS, RELIC_ABILITY } from './entities.js';
 import { envelopeFor, pathTo, roomOf, tallTiles } from './level/progress.js';
@@ -177,6 +177,15 @@ const SHIELD_WATCH = 120;
  */
 const BAIT_NEAR = 46;
 const BAIT_SAFE = 70;
+/**
+ * A thrust that will reach the hero is parried rather than run from: the guard pressed as the thrust's clock reaches
+ * PARRY_AT (its window then covers the thrust's first blows) when the bearer is within PARRY_REACH; the riposte follows.
+ */
+const PARRY_AT = 19;
+const PARRY_REACH = 60;
+/** A flask is drunk at this many hearts or fewer, standing, with no foe within CLEAR_REACH. */
+const DRINK_AT = 2;
+const CLEAR_REACH = 160;
 
 /** The nearest awake shield-bearer ahead (`way`) on the hero's floor within SHIELD_WATCH, with no pit between (null: none). */
 function shieldAhead(sim: Sim, p: Entity, way: number): Entity | null {
@@ -313,9 +322,19 @@ export const route: BotPolicy = (sim, tick, mem) => {
     const d = Math.abs(centerX(shield) - cx);
     const toward = centerX(shield) < cx ? -1 : 1;
     const winding = typeof shield.props[MOVE] === 'string' && shield.props[MOVE] !== '';
-    const step = winding ? (d < BAIT_SAFE ? -toward : 0) : d > BAIT_NEAR ? toward : 0;
+    // Close enough to be reached: stand and parry as it comes (a fresh press as its clock reaches PARRY_AT).
+    const parrying = winding && d <= PARRY_REACH;
+    const step = parrying ? 0 : winding ? (d < BAIT_SAFE ? -toward : 0) : d > BAIT_NEAR ? toward : 0;
     input.left = step < 0;
     input.right = step > 0;
+    if (parrying && Number(shield.props[MOVE_TICK] ?? 0) === PARRY_AT) input.guard = true;
+  }
+  // Low on hearts with a flask in hand and nothing hostile near: stand and drink.
+  const clear = !sim.world.entities.some((e) => isHostile(e) && e.dormant !== true && Math.abs(centerX(e) - cx) < CLEAR_REACH && Math.abs(centerY(e) - centerY(p)) < CLEAR_REACH);
+  if (p.grounded && !foe && !shot && p.hp <= DRINK_AT && Number(p.props['flasks'] ?? 0) > 0 && clear) {
+    input.left = false;
+    input.right = false;
+    input.item = tick % 4 === 0;
   }
 
   const facing = dir !== 0 ? dir : p.facing;

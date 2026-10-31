@@ -35,6 +35,9 @@ export interface KnightMaterials {
   blade: Ramp;
   plume: Ramp;
   smear: Ramp;
+  /** A flask's glass and the amber elixir in it. */
+  glass: Ramp;
+  elixir: Ramp;
 }
 
 /** The knight's materials from a game's palette: cool steel, the hero's garment colour, accent trim, wood-toned leather. */
@@ -47,6 +50,8 @@ export function knightMaterials(pal: ArtPalette): KnightMaterials {
     blade: ramp(mix(pal.hero[3], [200, 210, 220], 0.5)),
     plume: pal.hero,
     smear: ramp(mix(pal.white, pal.accent[4], 0.2)),
+    glass: ramp(mix(pal.white, pal.ui[2], 0.4)),
+    elixir: pal.accent,
   };
 }
 
@@ -64,6 +69,8 @@ export interface Clip {
   wind: number;
   /** Drawn in the air (a jump, a fall): the feet may leave the ground, never sink below it. */
   air?: boolean;
+  /** Something in the far hand, which then comes across in front of the body: a flask being drunk. */
+  hold?: 'flask';
 }
 
 const IDLE_A: Pose = { dx: 0, lift: 0, lean: 3, head: -2, armN: [62, 40], armF: [100, 25], legN: [76, 24], legF: [104, 16], blade: -8 };
@@ -88,6 +95,18 @@ const A3_HIT: Pose = { dx: 13, lift: 0, lean: 22, head: -14, armN: [368, 4], arm
 const A3_END: Pose = { dx: 11, lift: 0, lean: 12, head: -6, armN: [400, 20], armF: [100, 35], legN: [52, 36], legF: [120, 14], blade: 8 };
 
 const at = (frame: number, frames: number) => frame / (frames - 1);
+
+// Defence and healing. The forearm's angle is the upper arm's less the bend; the blade's is the forearm's plus its own.
+// The parry: the blade brought up before the chest, point high, the far hand braced behind the hilt, on the back foot.
+const PARRY_SET: Pose = { dx: -1, lift: 0, lean: -4, head: 2, armN: [40, 105], armF: [60, 110], legN: [62, 34], legF: [116, 22], blade: -25 };
+const PARRY_HOLD: Pose = { ...PARRY_SET, lean: -6, head: 4, armN: [42, 108], blade: -24 };
+// The riposte: drawn back low to the hip in both hands, point forward, then a lunging two-handed stab through.
+const RIP_BACK: Pose = { dx: -2, lift: 0, lean: -2, head: 0, armN: [120, 100], armF: [110, 90], legN: [56, 64], legF: [124, 40], blade: -25 };
+const RIP_HIT: Pose = { dx: 11, lift: 0, lean: 26, head: -14, armN: [4, 4], armF: [12, 6], legN: [38, 32], legF: [132, 8], blade: 0 };
+const RIP_END: Pose = { dx: 9, lift: 0, lean: 14, head: -8, armN: [18, 6], armF: [28, 15], legN: [48, 34], legF: [124, 12], blade: 2 };
+// The drink: the blade hung low in the sword hand, the far hand lifts a flask to the visor, the head tipped back.
+const DRINK_UP: Pose = { dx: 0, lift: 0, lean: 2, head: -4, armN: [80, 20], armF: [30, 148], legN: [74, 26], legF: [106, 18], blade: 40 };
+const DRINK_TIP: Pose = { ...DRINK_UP, lean: -4, head: -22, armF: [20, 150] };
 
 // Off the ground and on the move: knees drawn up on the way up, legs reaching for the floor on the way down, a dash
 // leant into with the blade trailing, a hit taken on the back foot.
@@ -120,17 +139,30 @@ export const KNIGHT_CLIPS: readonly Clip[] = [
   { name: 'hurt', frames: 2, loop: true, wind: 0.35, keys: [{ at: 0, pose: HURT_A }, { at: 0.5, pose: HURT_B }] },
   { name: 'airslash', frames: 7, loop: false, air: true, active: [2, 3], swing: 1, wind: -0.2, keys: [{ at: 0, pose: JUMP_A }, { at: at(1, 7), pose: AIR_UP }, { at: at(3, 7), pose: AIR_HIT }, { at: at(6, 7), pose: AIR_END }] },
   { name: 'plunge', frames: 4, loop: false, air: true, active: [2, 3], swing: 0, wind: 0.4, keys: [{ at: 0, pose: PLUNGE_UP }, { at: at(1, 4), pose: PLUNGE_UP }, { at: at(2, 4), pose: PLUNGE_DOWN }, { at: at(3, 4), pose: PLUNGE_HELD }] },
+  // The parry's window is its held guard (frames 1 and 2), drawn over the move's active ticks.
+  { name: 'parry', frames: 4, loop: false, active: [1, 2], wind: 0, keys: [{ at: 0, pose: STANCE }, { at: at(1, 4), pose: PARRY_SET }, { at: at(2, 4), pose: PARRY_HOLD }, { at: at(3, 4), pose: STANCE }] },
+  { name: 'riposte', frames: 9, loop: false, active: [4, 5], swing: 0, wind: 0, keys: [{ at: 0, pose: STANCE }, { at: at(3, 9), pose: RIP_BACK }, { at: at(5, 9), pose: RIP_HIT }, { at: at(8, 9), pose: RIP_END }] },
+  // Raised, tipped and drunk at frame 4, when the hearts come back.
+  { name: 'drink', frames: 6, loop: false, active: [4], hold: 'flask', wind: 0, keys: [{ at: 0, pose: STANCE }, { at: at(2, 6), pose: DRINK_UP }, { at: at(3, 6), pose: DRINK_TIP }, { at: at(4, 6), pose: DRINK_TIP }, { at: at(5, 6), pose: STANCE }] },
 ];
 
 /** The knight's parts in one frame, back to front: cape, far limbs, body and tabard, near leg, helm and plume, near arm and sword. */
-export function knightParts(b: Body, J: Joints, m: KnightMaterials, cape: readonly Vec[], plume: readonly Vec[], arc: readonly Vec[] | null): Part[] {
+export function knightParts(b: Body, J: Joints, m: KnightMaterials, cape: readonly Vec[], plume: readonly Vec[], arc: readonly Vec[] | null, hold?: Clip['hold']): Part[] {
   const parts: Part[] = [];
+  // Holding a flask, the far arm comes across in front of the body (drawn over the helm, under the sword arm).
+  const farArm = hold ? 4.6 : 0;
   const cap = (id: string, a: Vec, c: Vec, ra: number, rb: number, mat: Ramp, depth: number, bias = 0, mark?: Part['mark'], layer?: Part['layer']) =>
     parts.push({ id, shape: { kind: 'capsule', a, b: c, ra, rb }, mat, depth, bias, ...(mark ? { mark } : {}), ...(layer ? { layer } : {}) });
   parts.push({ id: 'cape', shape: { kind: 'poly', pts: strip(cape, 4, 9, 3), round: 2.5 }, mat: m.cloth, depth: 0, bias: -1, layer: 'cloth' });
-  cap('upperF', J.shoulderF, J.elbowF, b.upperR[0], b.upperR[1], m.steel, 1, -1);
-  cap('foreF', J.elbowF, J.handF, b.foreR[0], b.foreR[1], m.steel, 1.01, -1);
-  cap('handF', J.handF, J.handF, b.handR, b.handR, m.leather, 1.02, -1);
+  cap('upperF', J.shoulderF, J.elbowF, b.upperR[0], b.upperR[1], m.steel, 1 + farArm, hold ? 0 : -1);
+  cap('foreF', J.elbowF, J.handF, b.foreR[0], b.foreR[1], m.steel, 1.01 + farArm, hold ? 0 : -1);
+  cap('handF', J.handF, J.handF, b.handR, b.handR, m.leather, 1.02 + farArm, hold ? 0 : -1);
+  if (hold === 'flask') {
+    // A squat vial of amber with its neck at the fingers, upright to the forearm.
+    const fore = atan2Deg(J.handF.y - J.elbowF.y, J.handF.x - J.elbowF.x);
+    cap('flask', J.handF, plus(J.handF, polar(fore + 90, 3.4)), 1.5, 1.9, m.elixir, 5.7);
+    cap('flaskNeck', J.handF, plus(J.handF, polar(fore - 90, 1.6)), 0.7, 0.7, m.glass, 5.71);
+  }
   cap('thighF', J.hipF, J.kneeF, b.thighR[0], b.thighR[1], m.leather, 1.5, -1);
   cap('shinF', J.kneeF, J.ankleF, b.shinR[0], b.shinR[1], m.steel, 1.51, -1);
   cap('footF', J.ankleF, J.toeF, b.footR, b.footR * 0.8, m.leather, 1.52, -1);
@@ -211,7 +243,7 @@ export function knightFrames(b: Body, clip: Clip, m: KnightMaterials, foot: Vec)
   }
   return J.map((j, f) => {
     let arc: Vec[] | null = null;
-    if (clip.active?.includes(f) && f > 0) {
+    if (clip.active?.includes(f) && f > 0 && clip.swing !== undefined) {
       const prev = J[f - 1]!;
       if (clip.swing) {
         const from = atan2Deg(prev.tip.y - j.shoulderN.y, prev.tip.x - j.shoulderN.x);
@@ -227,6 +259,6 @@ export function knightFrames(b: Body, clip: Clip, m: KnightMaterials, foot: Vec)
         arc = [plus(j.tip, polar(j.bladeA + 90, 1.4)), plus(tail, polar(j.bladeA + 90, 0.5)), plus(tail, polar(j.bladeA - 90, 0.5)), plus(j.tip, polar(j.bladeA - 90, 1.4))];
       }
     }
-    return knightParts(b, j, m, capes[f]!, plumes[f]!, arc);
+    return knightParts(b, j, m, capes[f]!, plumes[f]!, arc, clip.hold);
   });
 }

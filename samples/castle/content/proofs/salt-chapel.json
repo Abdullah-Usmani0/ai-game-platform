@@ -2,7 +2,7 @@
   "version": 1,
   "level": "salt-chapel",
   "seed": 1,
-  "ticks": 4373,
+  "ticks": 4311,
   "by": "solver",
   "script": [
     {
@@ -3619,7 +3619,7 @@
     },
     {
       "from": 3046,
-      "to": 3048,
+      "to": 3066,
       "input": {
         "left": false,
         "right": false,
@@ -3632,21 +3632,22 @@
       }
     },
     {
-      "from": 3048,
-      "to": 3069,
+      "from": 3066,
+      "to": 3067,
       "input": {
         "left": false,
-        "right": true,
+        "right": false,
         "up": false,
         "down": false,
         "jump": false,
         "dash": false,
         "action": false,
-        "pause": false
+        "pause": false,
+        "guard": true
       }
     },
     {
-      "from": 3069,
+      "from": 3067,
       "to": 3071,
       "input": {
         "left": false,
@@ -3661,6 +3662,174 @@
     },
     {
       "from": 3071,
+      "to": 3072,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3072,
+      "to": 3073,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3073,
+      "to": 3074,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3074,
+      "to": 3075,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3075,
+      "to": 3076,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3076,
+      "to": 3077,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3077,
+      "to": 3078,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3078,
+      "to": 3079,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3079,
+      "to": 3080,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3080,
+      "to": 3081,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3081,
+      "to": 3082,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3082,
+      "to": 3083,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3083,
       "to": 3084,
       "input": {
         "left": true,
@@ -3969,7 +4138,7 @@
     },
     {
       "from": 3105,
-      "to": 3106,
+      "to": 3138,
       "input": {
         "left": true,
         "right": false,
@@ -3982,22 +4151,51 @@
       }
     },
     {
-      "from": 3106,
-      "to": 3107,
+      "from": 3138,
+      "to": 3158,
       "input": {
-        "left": true,
+        "left": false,
         "right": false,
         "up": false,
         "down": false,
         "jump": false,
         "dash": false,
-        "action": true,
+        "action": false,
         "pause": false
       }
     },
     {
-      "from": 3107,
-      "to": 3114,
+      "from": 3158,
+      "to": 3159,
+      "input": {
+        "left": false,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false,
+        "guard": true
+      }
+    },
+    {
+      "from": 3159,
+      "to": 3163,
+      "input": {
+        "left": false,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3163,
+      "to": 3164,
       "input": {
         "left": true,
         "right": false,
@@ -4010,77 +4208,7 @@
       }
     },
     {
-      "from": 3114,
-      "to": 3115,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3115,
-      "to": 3116,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3116,
-      "to": 3117,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3117,
-      "to": 3118,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3118,
-      "to": 3119,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3119,
+      "from": 3164,
       "to": 3165,
       "input": {
         "left": true,
@@ -4089,55 +4217,41 @@
         "down": false,
         "jump": false,
         "dash": false,
-        "action": false,
+        "action": true,
         "pause": false
       }
     },
     {
       "from": 3165,
-      "to": 3167,
+      "to": 3166,
       "input": {
-        "left": false,
+        "left": true,
         "right": false,
         "up": false,
         "down": false,
         "jump": false,
         "dash": false,
         "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3166,
+      "to": 3167,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
         "pause": false
       }
     },
     {
       "from": 3167,
-      "to": 3188,
-      "input": {
-        "left": false,
-        "right": true,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3188,
-      "to": 3190,
-      "input": {
-        "left": false,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3190,
-      "to": 3202,
+      "to": 3168,
       "input": {
         "left": true,
         "right": false,
@@ -4150,8 +4264,8 @@
       }
     },
     {
-      "from": 3202,
-      "to": 3203,
+      "from": 3168,
+      "to": 3169,
       "input": {
         "left": true,
         "right": false,
@@ -4164,8 +4278,8 @@
       }
     },
     {
-      "from": 3203,
-      "to": 3204,
+      "from": 3169,
+      "to": 3170,
       "input": {
         "left": true,
         "right": false,
@@ -4178,8 +4292,8 @@
       }
     },
     {
-      "from": 3204,
-      "to": 3205,
+      "from": 3170,
+      "to": 3171,
       "input": {
         "left": true,
         "right": false,
@@ -4192,8 +4306,8 @@
       }
     },
     {
-      "from": 3205,
-      "to": 3206,
+      "from": 3171,
+      "to": 3172,
       "input": {
         "left": true,
         "right": false,
@@ -4206,8 +4320,8 @@
       }
     },
     {
-      "from": 3206,
-      "to": 3207,
+      "from": 3172,
+      "to": 3173,
       "input": {
         "left": true,
         "right": false,
@@ -4220,8 +4334,8 @@
       }
     },
     {
-      "from": 3207,
-      "to": 3208,
+      "from": 3173,
+      "to": 3174,
       "input": {
         "left": true,
         "right": false,
@@ -4234,8 +4348,8 @@
       }
     },
     {
-      "from": 3208,
-      "to": 3209,
+      "from": 3174,
+      "to": 3175,
       "input": {
         "left": true,
         "right": false,
@@ -4248,8 +4362,8 @@
       }
     },
     {
-      "from": 3209,
-      "to": 3210,
+      "from": 3175,
+      "to": 3176,
       "input": {
         "left": true,
         "right": false,
@@ -4262,8 +4376,8 @@
       }
     },
     {
-      "from": 3210,
-      "to": 3211,
+      "from": 3176,
+      "to": 3177,
       "input": {
         "left": true,
         "right": false,
@@ -4276,8 +4390,8 @@
       }
     },
     {
-      "from": 3211,
-      "to": 3212,
+      "from": 3177,
+      "to": 3178,
       "input": {
         "left": true,
         "right": false,
@@ -4290,8 +4404,8 @@
       }
     },
     {
-      "from": 3212,
-      "to": 3213,
+      "from": 3178,
+      "to": 3179,
       "input": {
         "left": true,
         "right": false,
@@ -4304,8 +4418,8 @@
       }
     },
     {
-      "from": 3213,
-      "to": 3214,
+      "from": 3179,
+      "to": 3180,
       "input": {
         "left": true,
         "right": false,
@@ -4318,8 +4432,8 @@
       }
     },
     {
-      "from": 3214,
-      "to": 3215,
+      "from": 3180,
+      "to": 3181,
       "input": {
         "left": true,
         "right": false,
@@ -4332,8 +4446,8 @@
       }
     },
     {
-      "from": 3215,
-      "to": 3216,
+      "from": 3181,
+      "to": 3450,
       "input": {
         "left": true,
         "right": false,
@@ -4346,120 +4460,8 @@
       }
     },
     {
-      "from": 3216,
-      "to": 3217,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3217,
-      "to": 3218,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3218,
-      "to": 3219,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3219,
-      "to": 3220,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3220,
-      "to": 3221,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3221,
-      "to": 3222,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3222,
-      "to": 3223,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3223,
-      "to": 3509,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3509,
-      "to": 3529,
+      "from": 3450,
+      "to": 3470,
       "input": {
         "left": true,
         "right": false,
@@ -4472,8 +4474,8 @@
       }
     },
     {
-      "from": 3529,
-      "to": 3530,
+      "from": 3470,
+      "to": 3471,
       "input": {
         "left": true,
         "right": false,
@@ -4486,8 +4488,8 @@
       }
     },
     {
-      "from": 3530,
-      "to": 3556,
+      "from": 3471,
+      "to": 3497,
       "input": {
         "left": true,
         "right": false,
@@ -4500,8 +4502,8 @@
       }
     },
     {
-      "from": 3556,
-      "to": 3557,
+      "from": 3497,
+      "to": 3498,
       "input": {
         "left": true,
         "right": false,
@@ -4514,8 +4516,8 @@
       }
     },
     {
-      "from": 3557,
-      "to": 3572,
+      "from": 3498,
+      "to": 3513,
       "input": {
         "left": true,
         "right": false,
@@ -4528,8 +4530,8 @@
       }
     },
     {
-      "from": 3572,
-      "to": 3573,
+      "from": 3513,
+      "to": 3514,
       "input": {
         "left": false,
         "right": false,
@@ -4542,8 +4544,8 @@
       }
     },
     {
-      "from": 3573,
-      "to": 3594,
+      "from": 3514,
+      "to": 3535,
       "input": {
         "left": false,
         "right": true,
@@ -4556,8 +4558,8 @@
       }
     },
     {
-      "from": 3594,
-      "to": 3706,
+      "from": 3535,
+      "to": 3646,
       "input": {
         "left": true,
         "right": false,
@@ -4570,8 +4572,8 @@
       }
     },
     {
-      "from": 3706,
-      "to": 3707,
+      "from": 3646,
+      "to": 3647,
       "input": {
         "left": true,
         "right": false,
@@ -4584,8 +4586,8 @@
       }
     },
     {
-      "from": 3707,
-      "to": 3708,
+      "from": 3647,
+      "to": 3648,
       "input": {
         "left": true,
         "right": false,
@@ -4598,8 +4600,8 @@
       }
     },
     {
-      "from": 3708,
-      "to": 3709,
+      "from": 3648,
+      "to": 3649,
       "input": {
         "left": true,
         "right": false,
@@ -4612,8 +4614,8 @@
       }
     },
     {
-      "from": 3709,
-      "to": 3710,
+      "from": 3649,
+      "to": 3650,
       "input": {
         "left": true,
         "right": false,
@@ -4626,8 +4628,8 @@
       }
     },
     {
-      "from": 3710,
-      "to": 3711,
+      "from": 3650,
+      "to": 3651,
       "input": {
         "left": true,
         "right": false,
@@ -4640,8 +4642,8 @@
       }
     },
     {
-      "from": 3711,
-      "to": 3712,
+      "from": 3651,
+      "to": 3652,
       "input": {
         "left": true,
         "right": false,
@@ -4654,8 +4656,8 @@
       }
     },
     {
-      "from": 3712,
-      "to": 3713,
+      "from": 3652,
+      "to": 3653,
       "input": {
         "left": true,
         "right": false,
@@ -4668,8 +4670,8 @@
       }
     },
     {
-      "from": 3713,
-      "to": 3714,
+      "from": 3653,
+      "to": 3654,
       "input": {
         "left": true,
         "right": false,
@@ -4682,8 +4684,8 @@
       }
     },
     {
-      "from": 3714,
-      "to": 3715,
+      "from": 3654,
+      "to": 3655,
       "input": {
         "left": true,
         "right": false,
@@ -4696,8 +4698,8 @@
       }
     },
     {
-      "from": 3715,
-      "to": 3716,
+      "from": 3655,
+      "to": 3656,
       "input": {
         "left": true,
         "right": false,
@@ -4710,8 +4712,8 @@
       }
     },
     {
-      "from": 3716,
-      "to": 3717,
+      "from": 3656,
+      "to": 3657,
       "input": {
         "left": true,
         "right": false,
@@ -4724,8 +4726,8 @@
       }
     },
     {
-      "from": 3717,
-      "to": 3718,
+      "from": 3657,
+      "to": 3658,
       "input": {
         "left": true,
         "right": false,
@@ -4738,8 +4740,8 @@
       }
     },
     {
-      "from": 3718,
-      "to": 3719,
+      "from": 3658,
+      "to": 3659,
       "input": {
         "left": true,
         "right": false,
@@ -4752,8 +4754,8 @@
       }
     },
     {
-      "from": 3719,
-      "to": 3720,
+      "from": 3659,
+      "to": 3660,
       "input": {
         "left": true,
         "right": false,
@@ -4766,8 +4768,8 @@
       }
     },
     {
-      "from": 3720,
-      "to": 3721,
+      "from": 3660,
+      "to": 3661,
       "input": {
         "left": true,
         "right": false,
@@ -4780,8 +4782,8 @@
       }
     },
     {
-      "from": 3721,
-      "to": 3722,
+      "from": 3661,
+      "to": 3662,
       "input": {
         "left": true,
         "right": false,
@@ -4794,8 +4796,8 @@
       }
     },
     {
-      "from": 3722,
-      "to": 3723,
+      "from": 3662,
+      "to": 3663,
       "input": {
         "left": true,
         "right": false,
@@ -4808,8 +4810,8 @@
       }
     },
     {
-      "from": 3723,
-      "to": 3724,
+      "from": 3663,
+      "to": 3664,
       "input": {
         "left": true,
         "right": false,
@@ -4822,8 +4824,8 @@
       }
     },
     {
-      "from": 3724,
-      "to": 3725,
+      "from": 3664,
+      "to": 3665,
       "input": {
         "left": true,
         "right": false,
@@ -4836,8 +4838,8 @@
       }
     },
     {
-      "from": 3725,
-      "to": 3726,
+      "from": 3665,
+      "to": 3666,
       "input": {
         "left": true,
         "right": false,
@@ -4850,8 +4852,8 @@
       }
     },
     {
-      "from": 3726,
-      "to": 3727,
+      "from": 3666,
+      "to": 3667,
       "input": {
         "left": true,
         "right": false,
@@ -4864,8 +4866,8 @@
       }
     },
     {
-      "from": 3727,
-      "to": 3728,
+      "from": 3667,
+      "to": 3668,
       "input": {
         "left": true,
         "right": false,
@@ -4878,8 +4880,8 @@
       }
     },
     {
-      "from": 3728,
-      "to": 3729,
+      "from": 3668,
+      "to": 3669,
       "input": {
         "left": true,
         "right": false,
@@ -4892,8 +4894,8 @@
       }
     },
     {
-      "from": 3729,
-      "to": 3730,
+      "from": 3669,
+      "to": 3670,
       "input": {
         "left": true,
         "right": false,
@@ -4906,8 +4908,8 @@
       }
     },
     {
-      "from": 3730,
-      "to": 3731,
+      "from": 3670,
+      "to": 3671,
       "input": {
         "left": true,
         "right": false,
@@ -4920,8 +4922,8 @@
       }
     },
     {
-      "from": 3731,
-      "to": 3812,
+      "from": 3671,
+      "to": 3672,
       "input": {
         "left": true,
         "right": false,
@@ -4934,8 +4936,64 @@
       }
     },
     {
-      "from": 3812,
-      "to": 3838,
+      "from": 3672,
+      "to": 3673,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3673,
+      "to": 3674,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3674,
+      "to": 3675,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3675,
+      "to": 3749,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3749,
+      "to": 3775,
       "input": {
         "left": true,
         "right": false,
@@ -4948,8 +5006,8 @@
       }
     },
     {
-      "from": 3838,
-      "to": 3839,
+      "from": 3775,
+      "to": 3776,
       "input": {
         "left": false,
         "right": false,
@@ -4962,8 +5020,8 @@
       }
     },
     {
-      "from": 3839,
-      "to": 3840,
+      "from": 3776,
+      "to": 3779,
       "input": {
         "left": false,
         "right": false,
@@ -4976,8 +5034,8 @@
       }
     },
     {
-      "from": 3840,
-      "to": 3845,
+      "from": 3779,
+      "to": 3782,
       "input": {
         "left": false,
         "right": true,
@@ -4990,7 +5048,147 @@
       }
     },
     {
-      "from": 3845,
+      "from": 3782,
+      "to": 3792,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3792,
+      "to": 3819,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3819,
+      "to": 3828,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3828,
+      "to": 3831,
+      "input": {
+        "left": false,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3831,
+      "to": 3835,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3835,
+      "to": 3837,
+      "input": {
+        "left": false,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3837,
+      "to": 3850,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3850,
+      "to": 3851,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3851,
+      "to": 3852,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3852,
+      "to": 3853,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3853,
       "to": 3854,
       "input": {
         "left": true,
@@ -5005,7 +5203,203 @@
     },
     {
       "from": 3854,
-      "to": 3881,
+      "to": 3855,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3855,
+      "to": 3856,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3856,
+      "to": 3857,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3857,
+      "to": 3858,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3858,
+      "to": 3859,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3859,
+      "to": 3860,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3860,
+      "to": 3861,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3861,
+      "to": 3862,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3862,
+      "to": 3863,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3863,
+      "to": 3864,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3864,
+      "to": 3865,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3865,
+      "to": 3866,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3866,
+      "to": 3867,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 3867,
+      "to": 4063,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4063,
+      "to": 4083,
       "input": {
         "left": true,
         "right": false,
@@ -5018,8 +5412,8 @@
       }
     },
     {
-      "from": 3881,
-      "to": 3890,
+      "from": 4083,
+      "to": 4084,
       "input": {
         "left": true,
         "right": false,
@@ -5032,322 +5426,28 @@
       }
     },
     {
-      "from": 3890,
-      "to": 3894,
+      "from": 4084,
+      "to": 4111,
       "input": {
-        "left": false,
+        "left": true,
         "right": false,
         "up": false,
         "down": false,
-        "jump": false,
+        "jump": true,
         "dash": false,
         "action": false,
         "pause": false
       }
     },
     {
-      "from": 3894,
-      "to": 3897,
-      "input": {
-        "left": false,
-        "right": true,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3897,
-      "to": 3899,
-      "input": {
-        "left": false,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3899,
-      "to": 3912,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3912,
-      "to": 3913,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3913,
-      "to": 3914,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3914,
-      "to": 3915,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3915,
-      "to": 3916,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3916,
-      "to": 3917,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3917,
-      "to": 3918,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3918,
-      "to": 3919,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3919,
-      "to": 3920,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3920,
-      "to": 3921,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3921,
-      "to": 3922,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3922,
-      "to": 3923,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3923,
-      "to": 3924,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3924,
-      "to": 3925,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3925,
-      "to": 3926,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3926,
-      "to": 3927,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3927,
-      "to": 3928,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 3928,
-      "to": 3929,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 3929,
-      "to": 4126,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4126,
+      "from": 4111,
       "to": 4146,
       "input": {
         "left": true,
         "right": false,
         "up": false,
         "down": false,
-        "jump": true,
+        "jump": false,
         "dash": false,
         "action": false,
         "pause": false
@@ -5363,19 +5463,383 @@
         "down": false,
         "jump": false,
         "dash": false,
-        "action": false,
+        "action": true,
         "pause": false
       }
     },
     {
       "from": 4147,
+      "to": 4148,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4148,
+      "to": 4149,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4149,
+      "to": 4150,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4150,
+      "to": 4151,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4151,
+      "to": 4152,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4152,
+      "to": 4153,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4153,
+      "to": 4154,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4154,
+      "to": 4155,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4155,
+      "to": 4156,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4156,
+      "to": 4157,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4157,
+      "to": 4158,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4158,
+      "to": 4159,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4159,
+      "to": 4160,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4160,
+      "to": 4161,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4161,
+      "to": 4162,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4162,
+      "to": 4163,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4163,
+      "to": 4164,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4164,
+      "to": 4165,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4165,
+      "to": 4166,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4166,
+      "to": 4167,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4167,
+      "to": 4168,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4168,
+      "to": 4169,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4169,
+      "to": 4170,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4170,
+      "to": 4171,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4171,
+      "to": 4172,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 4172,
+      "to": 4173,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": true,
+        "pause": false
+      }
+    },
+    {
+      "from": 4173,
       "to": 4174,
       "input": {
         "left": true,
         "right": false,
         "up": false,
         "down": false,
-        "jump": true,
+        "jump": false,
         "dash": false,
         "action": false,
         "pause": false
@@ -5383,21 +5847,7 @@
     },
     {
       "from": 4174,
-      "to": 4208,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4208,
-      "to": 4209,
+      "to": 4175,
       "input": {
         "left": true,
         "right": false,
@@ -5410,8 +5860,8 @@
       }
     },
     {
-      "from": 4209,
-      "to": 4210,
+      "from": 4175,
+      "to": 4176,
       "input": {
         "left": true,
         "right": false,
@@ -5424,8 +5874,8 @@
       }
     },
     {
-      "from": 4210,
-      "to": 4211,
+      "from": 4176,
+      "to": 4177,
       "input": {
         "left": true,
         "right": false,
@@ -5438,8 +5888,8 @@
       }
     },
     {
-      "from": 4211,
-      "to": 4212,
+      "from": 4177,
+      "to": 4178,
       "input": {
         "left": true,
         "right": false,
@@ -5452,8 +5902,8 @@
       }
     },
     {
-      "from": 4212,
-      "to": 4213,
+      "from": 4178,
+      "to": 4179,
       "input": {
         "left": true,
         "right": false,
@@ -5466,400 +5916,8 @@
       }
     },
     {
-      "from": 4213,
-      "to": 4214,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4214,
-      "to": 4215,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4215,
-      "to": 4216,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4216,
-      "to": 4217,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4217,
-      "to": 4218,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4218,
-      "to": 4219,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4219,
-      "to": 4220,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4220,
-      "to": 4221,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4221,
-      "to": 4222,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4222,
-      "to": 4223,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4223,
-      "to": 4224,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4224,
-      "to": 4225,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4225,
-      "to": 4226,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4226,
-      "to": 4227,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4227,
-      "to": 4228,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4228,
-      "to": 4229,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4229,
-      "to": 4230,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4230,
-      "to": 4231,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4231,
-      "to": 4232,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4232,
-      "to": 4233,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4233,
-      "to": 4234,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4234,
-      "to": 4235,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4235,
-      "to": 4236,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4236,
-      "to": 4237,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4237,
-      "to": 4238,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4238,
-      "to": 4239,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4239,
-      "to": 4240,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": false,
-        "pause": false
-      }
-    },
-    {
-      "from": 4240,
-      "to": 4241,
-      "input": {
-        "left": true,
-        "right": false,
-        "up": false,
-        "down": false,
-        "jump": false,
-        "dash": false,
-        "action": true,
-        "pause": false
-      }
-    },
-    {
-      "from": 4241,
-      "to": 4373,
+      "from": 4179,
+      "to": 4311,
       "input": {
         "left": true,
         "right": false,

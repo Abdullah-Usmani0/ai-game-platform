@@ -47,8 +47,11 @@ export const Move = z.object({
   owner: Id,
   /** The owner's clip: an enemy's behaviour starts the move by playing it. */
   anim: Id,
-  /** The hero's moves: what starts it (the attack key on the ground, in the air, with down in the air, on a staggered foe). */
-  input: z.enum(['attack', 'air', 'plunge', 'riposte']).optional(),
+  /**
+   * The hero's moves: what starts it (the attack key on the ground, in the air, with down in the air, on a foe its parry
+   * turned; the guard key, a parry; the item key, a flask).
+   */
+  input: z.enum(['attack', 'air', 'plunge', 'riposte', 'guard', 'item']).optional(),
   startup: z.int().min(1).max(120),
   active: z.int().min(1).max(30),
   recovery: z.int().min(0).max(120),
@@ -74,6 +77,8 @@ export const Move = z.object({
   iframes: z.object({ from: Tick, to: Tick }).optional(),
   /** Magic it costs the hero. */
   mp: z.int().min(0).max(100).default(0),
+  /** Hearts it restores to its owner at its first active tick (a flask drunk). */
+  heal: z.int().min(0).max(20).default(0),
   /** A shot loosed at tick `at` from the owner's front, at `speed` px/s forward (and `vy` up or down). */
   projectile: z.object({ type: Id, at: Tick, speed: z.number().min(10).max(900), vy: z.number().min(-900).max(900).optional() }).optional(),
 });

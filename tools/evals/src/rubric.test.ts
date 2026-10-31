@@ -55,7 +55,7 @@ describe('the castle rubric', () => {
     const region = castle.levelGrammar.generate({ seed: 1, difficulty: 0.5 });
     const v = measure({ genre: 'castle', entityDefs: castle.entityDefs, player: castle.player, behaviours: castle.defaultBehaviours, levels: [region], assets: [] });
     // The knight's eleven clips: idle, run, the chain's three, jump, fall, dash, hurt, the air cut and the plunge.
-    expect(v).toMatchObject({ hero_height: 42, hero_clips: 11, parallax_layers: 3, ability_gates: 2, shortcut_loops: 1 });
+    expect(v).toMatchObject({ hero_height: 42, hero_clips: 14, parallax_layers: 3, ability_gates: 2, shortcut_loops: 1 });
     expect(v['rooms']).toBeGreaterThanOrEqual(12);
     expect(v['altar_spacing']).toBeLessThanOrEqual(4);
     const g = grade(CASTLE_RUBRIC, v);

@@ -1070,6 +1070,21 @@ export class MainScene extends Phaser.Scene {
         this.burst('ring', fx, fy, [this.pal.white], 1, { speed: 0, life: 8, add: true });
         break;
       }
+      case 'custom:parry': {
+        // A blade caught clean: a white ring at the clash, sparks flung back at the attacker, the screen blinking white.
+        const e = sim.world.entities.find((x) => x.id === Number(payload['entity']));
+        const fx = p.facing < 0 ? p.x - 4 : p.x + p.w + 4;
+        const fy = p.y + p.h * 0.35;
+        for (const life of [8, 14]) this.burst('ring', fx, fy, [this.pal.white], 1, { speed: 0, life, add: true });
+        this.burst('spark', fx, fy, [this.pal.white, this.pal.accent[4]], 12, { speed: 2.2, angle: e && e.x < p.x ? Math.PI : 0, spread: 1.8, life: 14, add: true });
+        if (this.controller.mode === 'realtime') this.cameras.main.flash(70, ...this.pal.white);
+        break;
+      }
+      case 'custom:heal': {
+        // Golden motes rising about the hero as the hearts come back.
+        for (let i = 0; i < 3; i++) this.burst('star', p.x + p.w / 2 + (i - 1) * 5, p.y + p.h * (0.4 + i * 0.15), [this.pal.accent[4], this.pal.white], 3, { speed: 0.6, angle: -Math.PI / 2, spread: 1.2, ay: -0.02, life: 26, add: true });
+        break;
+      }
       case 'custom:guard_break': {
         // The shield knocked aside: splinters and a burst of sparks.
         const at = this.where(payload);
@@ -1771,6 +1786,7 @@ const HUD_ICONS: Record<string, readonly string[]> = {
   seed: ['.y.Y.', '.yVy.', '..V..', '.qrq.', 'qqqqq'],
   moon: ['..bB.', '.bB..', '.bB..', '.bB..', '..bB.'],
   check: ['....V', '...VY', 'V.VY.', 'YVY..', '.Y...'],
+  flask: ['.ww.', '.UU.', 'bBBb', 'bABb', 'aAAa', '.aa.'],
 };
 const HUD_KEY_ICONS: Record<string, string> = {
   coins: 'coin',
@@ -1798,6 +1814,7 @@ const HUD_KEY_ICONS: Record<string, string> = {
   energy: 'bolt',
   seeds: 'seed',
   delivered: 'check',
+  flasks: 'flask',
 };
 
 /**

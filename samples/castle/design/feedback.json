@@ -93,5 +93,31 @@
       "sfx",
       "shake"
     ]
+  },
+  {
+    "event": "custom:parry",
+    "channels": [
+      "sfx",
+      "flash"
+    ]
+  },
+  {
+    "event": "custom:drink",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:heal",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "custom:dodge",
+    "channels": [
+      "sfx"
+    ]
   }
 ]

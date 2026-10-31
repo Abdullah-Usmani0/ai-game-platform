@@ -36,6 +36,17 @@ export const GUARD_REFILL_TICKS = 120;
 /** A shield's guard left (in poise), and the tick it last turned a blow aside. */
 export const GUARD = '_guard';
 export const GUARD_AT = '_guardAt';
+/** Ticks a foe reels once the hero's parry turns its blow, open to a riposte; the world holds as the blades meet. */
+export const PARRY_STAGGER_TICKS = 45;
+const PARRY_HITSTOP = 8;
+/** A foe the parry turned is open to a riposte until this tick. */
+export const OPEN_UNTIL = '_openUntil';
+/** How near ahead a turned foe is ripostes (px from the hero's middle to the foe's near edge). */
+const RIPOSTE_REACH = 40;
+/** The hero's flasks left (a prop, and the HUD's `flasks`): full again at every reload and at a region's start. */
+export const FLASKS = 'flasks';
+/** Ticks between two dodge sounds: one dash slipping a blow over several ticks is one dodge. */
+const DODGE_GAP = 20;
 
 interface CombatState {
   /** The game's moves by id (content/moves.json, else the castle's own). */
@@ -47,6 +58,10 @@ interface CombatState {
   buffered: number;
   /** Ticks the hero still reels from a blow. */
   hurt: number;
+  prevGuard: boolean;
+  prevItem: boolean;
+  /** The tick of the last dodge heard. */
+  dodged: number;
 }
 
 /**
@@ -59,10 +74,31 @@ export function guardUp(e: Entity, moves: ReadonlyMap<string, Move>): boolean {
   return !m || moveTick(e) < m.startup;
 }
 
-/** The move the attack key starts from nothing: the chain's first on the ground; in the air the plunge with down held, else the air cut. */
-function opener(p: Entity, down: boolean, moves: ReadonlyMap<string, Move>): Move | null {
+/** A foe the hero's parry turned, still open to a riposte, within RIPOSTE_REACH ahead at the hero's height. */
+function openFoeAhead(p: Entity, ctx: SimCtx): boolean {
+  const cx = centerX(p);
+  return ctx.world.entities.some((e) => {
+    const until = e.props[OPEN_UNTIL];
+    if (!e.alive || typeof until !== 'number' || until < ctx.tick || e.y > p.y + p.h || e.y + e.h < p.y) return false;
+    const gap = p.facing > 0 ? e.x - cx : cx - (e.x + e.w);
+    return gap >= -e.w && gap <= RIPOSTE_REACH;
+  });
+}
+
+/** The hero's move on a key of its own (the parry on guard, the flask on item), if the game has one. */
+function heroMove(moves: ReadonlyMap<string, Move>, input: 'guard' | 'item'): Move | null {
+  return [...moves.values()].find((m) => m.owner === 'player' && m.input === input) ?? null;
+}
+
+/**
+ * The move the attack key starts from nothing: the riposte on a turned foe ahead, else the chain's first on the ground;
+ * in the air the plunge with down held, else the air cut.
+ */
+function opener(p: Entity, down: boolean, moves: ReadonlyMap<string, Move>, ctx: SimCtx): Move | null {
   const hero = [...moves.values()].filter((m) => m.owner === 'player');
   if (p.grounded) {
+    const riposte = openFoeAhead(p, ctx) ? hero.find((m) => m.input === 'riposte') : undefined;
+    if (riposte) return riposte;
     const chained = new Set(hero.flatMap((m) => m.cancels.flatMap((c) => c.into)));
     return hero.find((m) => m.input === 'attack' && !chained.has(m.id)) ?? null;
   }
@@ -125,17 +161,30 @@ function finisher(m: Move, moves: ReadonlyMap<string, Move>): boolean {
  *   reels for GUARD_BREAK_TICKS. Over its head (the plunge) or at its back the shield does not cover it, nor once the
  *   bearer's own thrust has swung it open.
  * - A blow on the hero throws it back, reeling for HURT_TICKS (HURT_AIR_TICKS in the air), its cut broken off.
+ * - The guard key parries (the hero's move on `guard`): a foe's parryable blow in its active ticks is turned, the foe
+ *   reeling PARRY_STAGGER_TICKS, open to the riposte the attack key then makes. A blow outside the window lands.
+ * - The item key drinks a flask (the move on `item`, standing, hurt and holding one): the flask is spent as it starts,
+ *   the hearts come at its first active tick, and a blow before that spills it. Flasks (the `flasks` param) are full
+ *   again at every reload, a rest or a fall back to one.
+ * - A dash slips every blow while it lasts (once the boots are found).
  */
 export const combat = defineSystem<CombatState>({
   id: 'combat',
   init: (ctx) => {
     const set = (MoveSet.safeParse(ctx.content['moves']).data ?? DEFAULT_MOVES).moves;
+    // Flasks full again: at a region's start, and at every reload from a rest (resting, or falling back to it).
+    const flasks = Number(ctx.params['flasks'] ?? 3);
+    ctx.world.player.props[FLASKS] = flasks;
+    ctx.world.hud[FLASKS] = flasks;
     return {
       moves: new Map(set.map((m) => [m.id, m])),
       byClip: new Map(set.filter((m) => m.owner !== 'player').map((m) => [`${m.owner}/${m.anim}`, m])),
       prevAction: false,
       buffered: 0,
       hurt: 0,
+      prevGuard: false,
+      prevItem: false,
+      dodged: -DODGE_GAP,
     };
   },
   fixedUpdate(s, input, ctx) {
@@ -145,7 +194,11 @@ export const combat = defineSystem<CombatState>({
     const pressed = input.action && !s.prevAction;
     const down = input.down;
     const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+    const guard = input.guard === true && !s.prevGuard;
+    const item = input.item === true && !s.prevItem;
     s.prevAction = input.action;
+    s.prevGuard = input.guard === true;
+    s.prevItem = input.item === true;
     if (!p.alive) {
       endMove(p);
       p.props[LOCK] = 0;
@@ -164,8 +217,21 @@ export const combat = defineSystem<CombatState>({
       endMove(p);
       m = null;
     }
+    // The guard key parries and the item key drinks, from a stand, free of any move.
+    const flasks = Number(p.props[FLASKS] ?? 0);
+    const parry = !m && p.grounded && guard ? heroMove(s.moves, 'guard') : null;
+    const drink = !m && !parry && p.grounded && item && flasks > 0 && p.hp < p.maxHp ? heroMove(s.moves, 'item') : null;
+    if (parry || drink) {
+      m = (parry ?? drink)!;
+      startMove(p, m);
+      if (drink) {
+        p.props[FLASKS] = flasks - 1;
+        ctx.world.hud[FLASKS] = flasks - 1;
+        ctx.emit('custom:drink', { entity: p.id, flasks: flasks - 1 });
+      }
+    }
     if (pressed || s.buffered > 0) {
-      const next = m ? cancelInto(m, moveTick(p), s.moves, (n) => n.input === (p.grounded ? 'attack' : 'air')) : pressed ? opener(p, down, s.moves) : null;
+      const next = m ? cancelInto(m, moveTick(p), s.moves, (n) => n.input === (p.grounded ? 'attack' : 'air')) : pressed ? opener(p, down, s.moves, ctx) : null;
       if (next) {
         if (dir !== 0) p.facing = dir;
         startMove(p, next);
@@ -179,7 +245,12 @@ export const combat = defineSystem<CombatState>({
       return;
     }
     const t = moveTick(p);
-    if (t === m.startup) ctx.emit(finisher(m, s.moves) ? 'custom:finisher' : 'custom:swing', { entity: p.id, move: m.id });
+    if (t === m.startup && m.damage > 0) ctx.emit(finisher(m, s.moves) ? 'custom:finisher' : 'custom:swing', { entity: p.id, move: m.id });
+    // A flask drunk: the hearts come back as it tips.
+    if (t === m.startup && m.heal > 0) {
+      p.hp = Math.min(p.maxHp, p.hp + m.heal);
+      ctx.emit('custom:heal', { entity: p.id, hp: p.hp });
+    }
     // Foes, and the shots they loose: a cut strikes a shot out of the air.
     const strikes = stepMove(ctx, p, m, ctx.world.entities.filter((e) => e.dormant !== true && (isHostile(e) || (e.alive && e.isProjectile && e.contactDamage > 0))));
     // Turned aside by a shield (onDamage): the cut is over and the hero is thrown back.
@@ -187,10 +258,12 @@ export const combat = defineSystem<CombatState>({
       p.props[LOCK] = 1;
       return;
     }
+    // One riposte a parry: the blow closes the opening.
+    if (m.input === 'riposte') for (const x of strikes) if (x.landed) x.target.props[OPEN_UNTIL] = -1;
     // A foe staggered out of its own move reels rather than going on drawing it.
     for (const x of strikes) if (x.staggered && !x.target.isPlayer && s.byClip.has(`${x.target.type}/${x.target.anim}`)) x.target.anim = 'hurt';
     // Rooted on the ground but for the cut's own step, which stops where the floor does (no cut carries the hero off a ledge).
-    if (m.input === 'attack' || m.input === 'riposte') {
+    if (m.input === 'attack' || m.input === 'riposte' || m.input === 'guard' || m.input === 'item') {
       const stepping = m.motion.some((x) => t >= x.from && t <= x.to);
       const front = p.facing < 0 ? p.x - 1 : p.x + p.w + 1;
       const floor = ctx.map.kindAtPx(front, p.y + p.h + 1);
@@ -208,6 +281,28 @@ export const combat = defineSystem<CombatState>({
     // A move's i-frames (the wraith's fade): nothing touches the body while they last.
     const own = moveOf(target, s.moves);
     if (own?.iframes && moveTick(target) >= own.iframes.from && moveTick(target) <= own.iframes.to) return 0;
+    if (target.isPlayer) {
+      // A dash slips every blow while it lasts.
+      if (target.flags['dashing'] === true) {
+        if (ctx.tick - s.dodged >= DODGE_GAP) ctx.emit('custom:dodge', { entity: target.id });
+        s.dodged = ctx.tick;
+        return 0;
+      }
+      // A parry turns a parryable blow in its window: the attacker reels, open to a riposte; the parry is over at once.
+      const theirs = source ? moveOf(source, s.moves) : null;
+      const t = moveTick(target);
+      if (source && own?.input === 'guard' && theirs?.parryable && t >= own.startup && t < own.startup + own.active) {
+        source.stunTicks = Math.max(source.stunTicks ?? 0, PARRY_STAGGER_TICKS);
+        endMove(source);
+        if (s.byClip.has(`${source.type}/${source.anim}`)) source.anim = 'hurt';
+        source.props[OPEN_UNTIL] = ctx.tick + PARRY_STAGGER_TICKS;
+        endMove(target);
+        ctx.world.hitstop = Math.max(ctx.world.hitstop ?? 0, PARRY_HITSTOP);
+        ctx.emit('custom:parry', { entity: source.id });
+        return 0;
+      }
+      return hit.amount;
+    }
     const full = GUARDS[target.type];
     if (full === undefined || !source || !source.isPlayer || !guardUp(target, s.moves)) return hit.amount;
     const blow = moveOf(source, s.moves);
@@ -257,12 +352,15 @@ export const meta = {
   genres: ['castle'],
   required: true,
   summary:
-    "Sword combat on the action key from the game's moves (content/moves.json): a chain of cuts on the ground, a cut in the air and, with down, a plunge that bounces off what it strikes. Each cut roots the hero but for its own step, strikes each foe once, throws it back and staggers it; a blow throws the hero back, reeling. The cast's attacks are moves too, each made by a behaviour state that plays its clip, each winding up long enough to read. A shield-bearer turns aside blows from the front until its guard breaks; over its head, at its back, or once its own thrust swings the shield open, blows land. Nothing touches a body through its move's i-frames (a wraith's fade).",
-  params: {},
+    "Sword combat on the action key from the game's moves (content/moves.json): a chain of cuts on the ground, a cut in the air and, with down, a plunge that bounces off what it strikes. Each cut roots the hero but for its own step, strikes each foe once, throws it back and staggers it; a blow throws the hero back, reeling. The cast's attacks are moves too, each made by a behaviour state that plays its clip, each winding up long enough to read. A shield-bearer turns aside blows from the front until its guard breaks; over its head, at its back, or once its own thrust swings the shield open, blows land. Nothing touches a body through its move's i-frames (a wraith's fade). The guard key parries: a parryable blow in its window is turned, the foe reeling, open to a riposte on the attack key. The item key drinks a flask (hearts back unless a blow spills it), full again at every rest. A dash slips every blow.",
+  params: {
+    flasks: { type: 'number', min: 0, max: 9, default: 3, affects: 'none' },
+  },
   // A foe's move that looses a shot (the gargoyle's spit) spawns it.
-  emits: ['hit', 'damage', 'death', 'spawn', 'custom:swing', 'custom:finisher', 'custom:block', 'custom:guard_break'],
-  feedbackFor: ['hit', 'custom:swing', 'custom:finisher', 'custom:block', 'custom:guard_break'],
-  controls: { action: 'attack', down: 'plunge (in the air)', left: 'face', right: 'face' },
+  emits: ['hit', 'damage', 'death', 'spawn', 'custom:swing', 'custom:finisher', 'custom:block', 'custom:guard_break', 'custom:parry', 'custom:drink', 'custom:heal', 'custom:dodge'],
+  feedbackFor: ['hit', 'custom:swing', 'custom:finisher', 'custom:block', 'custom:guard_break', 'custom:parry', 'custom:drink', 'custom:heal', 'custom:dodge'],
+  controls: { action: 'attack', down: 'plunge (in the air)', left: 'face', right: 'face', guard: 'parry', item: 'drink a flask' },
+  hud: ['flasks'],
   // The shots the castle's moves loose: the gargoyle's embers, the wraith's hexes, the bone archer's arrows.
   provides: { combat: 'melee', spawns: ['ember', 'hex', 'shaft'] },
   requires: { movement: ['platformer'], roles: ['hostile'] },

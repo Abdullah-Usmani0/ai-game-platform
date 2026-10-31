@@ -23,10 +23,12 @@ describe('rigs', () => {
     for (const clip of knight.clips) {
       const own = frames.filter((f) => f.clip === clip.name);
       expect(own.length, clip.name).toBe(clip.frames);
-      for (const f of own) expect(f.parts.some((p) => p.id === 'smear'), `${clip.name} ${f.frame}`).toBe((clip.active ?? []).includes(f.frame) && f.frame > 0);
+      // A clip that swings (a cut, a thrust) smears its blows; the parry's window and the drink's draught are no blows.
+      for (const f of own) expect(f.parts.some((p) => p.id === 'smear'), `${clip.name} ${f.frame}`).toBe(clip.swing !== undefined && (clip.active ?? []).includes(f.frame) && f.frame > 0);
     }
-    // idle 8, run 8, the chain 9 + 8 + 11, jump, fall, dash and hurt 2 each, the air cut 7 and the plunge 4.
-    expect(frames.length).toBe(63);
+    // idle 8, run 8, the chain 9 + 8 + 11, jump, fall, dash and hurt 2 each, the air cut 7, the plunge 4, the parry 4, the
+    // riposte 9 and the drink 6.
+    expect(frames.length).toBe(82);
   }, 60_000);
 
   it('write a normal map that faces the viewer where the colour is opaque', () => {

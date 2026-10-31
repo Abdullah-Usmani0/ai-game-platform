@@ -14,7 +14,7 @@ export * from './entities.js';
 export * from './behaviours.js';
 export * from './moves.js';
 export { movement, abilities, shortcuts, combat };
-export { BLOCK_TICKS, BUFFER_TICKS, GUARD, GUARD_AT, GUARD_BREAK_TICKS, GUARD_REFILL_TICKS, guardUp, HURT_AIR_TICKS, HURT_TICKS, LOCK, PLUNGE_BOUNCE } from './systems/combat.js';
+export { BLOCK_TICKS, BUFFER_TICKS, FLASKS, GUARD, GUARD_AT, GUARD_BREAK_TICKS, GUARD_REFILL_TICKS, guardUp, HURT_AIR_TICKS, HURT_TICKS, LOCK, OPEN_UNTIL, PARRY_STAGGER_TICKS, PLUNGE_BOUNCE } from './systems/combat.js';
 
 /** A shared system as the castle offers it: the same code, listed for the castle. */
 const forCastle = (mod: SystemModule | undefined): SystemModule => ({ meta: { ...mod!.meta, genres: ['castle'] }, create: mod!.create });
@@ -58,6 +58,10 @@ export const castleRuntime: GenreRuntime = {
     { event: 'custom:finisher', channels: ['sfx', 'shake'] },
     { event: 'custom:block', channels: ['sfx'] },
     { event: 'custom:guard_break', channels: ['sfx', 'shake'] },
+    { event: 'custom:parry', channels: ['sfx', 'flash'] },
+    { event: 'custom:drink', channels: ['sfx'] },
+    { event: 'custom:heal', channels: ['sfx', 'particle'] },
+    { event: 'custom:dodge', channels: ['sfx'] },
   ],
   // A fall returns the player to their last rest (the rest system's death rule): hazards only hurt.
   composedParams: { hazards: { respawn: false } },

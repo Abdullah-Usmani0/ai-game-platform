@@ -1,13 +1,16 @@
 # Castle GDD fragment
 
 The castle tier: a tall hero (14x42 px, three tiles of 16 px) in a 480x270 view. Verbs: run, jump (variable height,
-coyote time, buffer), cut, rest, and two earned abilities: the wings relic grants one air jump (double jump), the
+coyote time, buffer), cut, parry, drink a flask, rest, and two earned abilities: the wings relic grants one air jump (double jump), the
 boots relic the dash (one per airtime). Abilities last: through deaths, rests and into the next region.
 The sword follows the game's frame data (content/moves.json): on the ground a chain of three cuts (a rising cut, a low
 sweep, a lunging thrust), each pressed in the last one's window; in the air an overhead cut; with down in the air a
 plunge that bounces off what it strikes. A cut roots the hero but for its own step, strikes each foe once, throws it
 back, staggers it and holds the world a moment; a dash cuts a cut short late in it. A blow throws the hero back,
-reeling. Foes take cuts to fell: a ghoul three, a hound two, a gargoyle four, a sentinel five, a wraith three, a bone
+reeling. The guard key parries: the blade up before the chest for 8 ticks; a parryable blow in that window (the ghoul's
+claw, the sentinel's thrust) is turned, the foe reeling 45 ticks, and the attack key then makes the riposte, a lunging
+two-handed stab for three hearts. The item key drinks a flask: rooted for 40 ticks, two hearts back as it tips, spilled
+by a blow before that; three flasks, full again at every rest. Once the boots are found, a dash slips every blow. Foes take cuts to fell: a ghoul three, a hound two, a gargoyle four, a sentinel five, a wraith three, a bone
 archer two. A cut strikes shots out of the air too.
 Level grammar: a level is a region of rooms, each a screen (30x17 tiles), on a grid: doorways join neighbours on a row,
 and a shaft of one-way ledges joins the rows. The wings lie in a room behind the start (the player goes back for them);
@@ -34,5 +37,5 @@ guard breaks (three cuts; then it reels); over its head (the plunge), at its bac
 shield open, blows land: bait the thrust, step back from it, and cut as it recovers.
 Feel presets: castle-agile (default), castle-weighty. Every gate is sized to hold under both.
 Feedback table must bind: jump, land, dash, hit, death, pickup, checkpoint, level_complete, custom:swing,
-custom:finisher, custom:block, custom:guard_break.
+custom:finisher, custom:block, custom:guard_break, custom:parry, custom:drink, custom:heal, custom:dodge.
 Scope tiers: small = 1 region, 1-2 enemy types; medium = 1 region, 2-3 enemy types; large = 1 region, 3 enemy types + 1 boss.

@@ -4,7 +4,7 @@ import { KNIGHT_CLIPS } from '@gg/sdk/art';
 import { levelTicksOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { validateMoves } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
-import { AB_PREFIX, BLOCK_TICKS, BUFFER_TICKS, castle, DEFAULT_MOVES, GUARD, GUARD_BREAK_TICKS, GUARD_REFILL_TICKS, GUARDS, HURT_AIR_TICKS, HURT_TICKS, LOCK, PLUNGE_BOUNCE } from './node.js';
+import { AB_PREFIX, ABILITY_DASH, BLOCK_TICKS, BUFFER_TICKS, castle, DEFAULT_MOVES, FLASKS, GUARD, GUARD_BREAK_TICKS, GUARD_REFILL_TICKS, GUARDS, HURT_AIR_TICKS, HURT_TICKS, LOCK, OPEN_UNTIL, PARRY_STAGGER_TICKS, PLUNGE_BOUNCE } from './node.js';
 
 /** A ghoul that stands where it is put: a target that keeps still. */
 const STILL: BehaviourFsm = { version: 1, id: 'ghoul', designNotes: '', initial: 'stand', states: { stand: { onEnter: [{ kind: 'idle' }], update: [], transitions: [] } } };
@@ -402,5 +402,93 @@ describe('the wraith and the bone archer', () => {
     tap(sim, { action: true, right: true });
     step(sim, {}, 10);
     expect([arrow.alive, shafts().length, hero(sim).hp]).toEqual([false, 0, 5]);
+  });
+});
+
+describe('defence and healing', () => {
+  /** Steps until the ghoul's claw has run `t` ticks of its clock. */
+  const clawAt = (sim: Sim, g: { props: Record<string, unknown> }, t: number) => {
+    for (let i = 0; i < 300 && !(moveOf(g as never, MOVES)?.id === 'claw' && moveTick(g as never) === t); i++) step(sim, {});
+  };
+
+  it(`parries a claw timed over its blow: the hero untouched, the ghoul reeling ${PARRY_STAGGER_TICKS} ticks, and a riposte fells it`, () => {
+    const sim = arena([{ type: 'ghoul', x: 7, y: 14, props: {} }], { behaviours: castle.defaultBehaviours });
+    const g = ghouls(sim)[0]!;
+    const parries: number[] = [];
+    sim.events.on('custom:parry', () => parries.push(sim.tick));
+    clawAt(sim, g, move('claw').startup - 4);
+    tap(sim, { guard: true });
+    expect(making(sim)).toBe('parry');
+    step(sim, {}, 8);
+    expect([parries.length, hero(sim).hp, moveOf(g, MOVES), (g.stunTicks ?? 0) > PARRY_STAGGER_TICKS - 20, Number(g.props[OPEN_UNTIL]) > sim.tick]).toEqual([1, 5, null, true, true]);
+    // The attack key on a turned foe ahead is the riposte (pressed once the clash's hitstop is over): three hearts, the
+    // whole of a ghoul.
+    while ((sim.world.hitstop ?? 0) > 0) step(sim, {});
+    tap(sim, { action: true, right: true });
+    expect(making(sim)).toBe('riposte');
+    while (making(sim)) step(sim, {});
+    expect(ghouls(sim)).toEqual([]);
+  });
+
+  it('lets a blow through a parry made too soon, and makes the plain cut on a foe no parry turned', () => {
+    const sim = arena([{ type: 'ghoul', x: 7, y: 14, props: {} }], { behaviours: castle.defaultBehaviours });
+    const g = ghouls(sim)[0]!;
+    clawAt(sim, g, 2);
+    tap(sim, { guard: true });
+    clawAt(sim, g, move('claw').startup + 2);
+    expect(hero(sim).hp).toBe(4);
+    const still = arena([{ type: 'ghoul', x: 5, y: 14, props: {} }]);
+    tap(still, { action: true, right: true });
+    expect(making(still)).toBe('cut');
+  });
+
+  it('drinks a flask: rooted, two hearts back as it tips after 40 ticks, the flask spent', () => {
+    const sim = arena([]);
+    hero(sim).hp = 2;
+    const heals: number[] = [];
+    sim.events.on('custom:heal', () => heals.push(sim.tick));
+    tap(sim, { item: true });
+    expect([making(sim), hero(sim).props[FLASKS], sim.world.hud[FLASKS]]).toEqual(['drink', 2, 2]);
+    step(sim, { right: true }, move('drink').startup - 4);
+    expect([hero(sim).hp, heals.length, Math.abs(hero(sim).vx) < 1]).toEqual([2, 0, true]);
+    step(sim, {}, 6);
+    expect([hero(sim).hp, heals.length]).toEqual([4, 1]);
+    // At full hearts, or with none left, the key does nothing.
+    while (making(sim)) step(sim, {});
+    hero(sim).hp = hero(sim).maxHp;
+    tap(sim, { item: true });
+    expect(making(sim)).toBeNull();
+  });
+
+  it('spills a flask struck before it is drunk, and fills the flasks again at a rest', () => {
+    const sim = arena([{ type: 'ghoul', x: 7, y: 14, props: {} }], { behaviours: castle.defaultBehaviours });
+    const g = ghouls(sim)[0]!;
+    hero(sim).hp = 3;
+    // As the claw starts (its clock is 1 once a step has run it).
+    clawAt(sim, g, 1);
+    tap(sim, { item: true });
+    expect(making(sim)).toBe('drink');
+    step(sim, {}, move('drink').startup + 10);
+    expect([hero(sim).hp, hero(sim).props[FLASKS]]).toEqual([2, 2]);
+    // At an altar, a rest: the region loads again, the flasks full.
+    const rest = arena([{ type: 'altar', x: 3, y: 14, props: {} }]);
+    hero(rest).hp = 2;
+    tap(rest, { item: true });
+    while (making(rest)) step(rest, {});
+    expect(hero(rest).props[FLASKS]).toBe(2);
+    tap(rest, { up: true });
+    step(rest, {}, 90);
+    expect([hero(rest).props[FLASKS], rest.world.hud[FLASKS]]).toEqual([3, 3]);
+  });
+
+  it('slips a blow with the dash', () => {
+    const sim = arena([{ type: 'ghoul', x: 7, y: 14, props: {} }], { behaviours: castle.defaultBehaviours, props: { [`${AB_PREFIX}${ABILITY_DASH}`]: true } });
+    const g = ghouls(sim)[0]!;
+    const dodges: number[] = [];
+    sim.events.on('custom:dodge', () => dodges.push(sim.tick));
+    clawAt(sim, g, move('claw').startup - 2);
+    step(sim, { dash: true, right: true }, 3);
+    step(sim, {}, 8);
+    expect([hero(sim).hp, dodges.length > 0]).toEqual([5, true]);
   });
 });
