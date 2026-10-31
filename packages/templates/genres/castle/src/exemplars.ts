@@ -7,7 +7,7 @@ export const EXEMPLARS: Exemplar[] = [
   { kind: 'behaviour', prompt: 'A crypt hound that crouches, then bounds at the player in low leaps.', artifact: HOUND },
   { kind: 'behaviour', prompt: 'A stone watcher that wakes when the player comes near and spits embers.', artifact: GARGOYLE },
   { kind: 'level', prompt: 'A first wing: the wings behind the start, a hall, an altar, and a ledge only a double jump climbs.', artifact: generateRegion({ seed: 11, difficulty: 0.15 }) },
-  { kind: 'level', prompt: 'A full region: wings, an altar, the ledge, halls, the boots, a second altar, a descent, a chasm only the dash crosses, the way out.', artifact: generateRegion({ seed: 23, difficulty: 0.55 }) },
+  { kind: 'level', prompt: 'A full region on two floors: wings, an altar, the ledge, halls and the boots above; a shaft down to a second altar, then back below past a chasm only the dash crosses to the way out.', artifact: generateRegion({ seed: 23, difficulty: 0.55 }) },
   {
     kind: 'systems',
     prompt: 'A castle explorer where relics unlock the double jump and the dash, altars save the way, with souls and stomping.',

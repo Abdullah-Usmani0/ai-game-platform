@@ -31,17 +31,60 @@ export function envelopeFor(feel: FeelPreset, tileSize: number, a: Abilities): E
   return env;
 }
 
-/** Standing tiles reachable from a tile with an envelope, by BFS distance (for bots, which keep to GlueTS imports). */
-export function reachFrom(map: Tilemap, from: { x: number; y: number }, env: Envelope, tall: number): Map<string, number> {
-  return reachableTiles(map, from, env, tall);
+const key = (x: number, y: number) => `${x},${y}`;
+
+/**
+ * The way from a standing tile to the nearest tile that is a target, over the moves a bot can make (moves, with `spare`
+ * tiles of reach to spare on every jump), tile by tile from `from` (included) to the target (included); null when no
+ * target can be reached. A breadth-first search, so the way is one of the shortest in moves. For bots, which keep to
+ * GlueTS imports.
+ */
+export function pathTo(map: Tilemap, from: { x: number; y: number }, isTarget: (x: number, y: number) => boolean, env: Envelope, tall: number, spare = 0): Array<{ x: number; y: number }> | null {
+  const parent = new Map<string, { x: number; y: number } | null>([[key(from.x, from.y), null]]);
+  const queue = [from];
+  for (let i = 0; i < queue.length; i++) {
+    const n = queue[i]!;
+    if (isTarget(n.x, n.y)) {
+      const path: Array<{ x: number; y: number }> = [];
+      for (let t: { x: number; y: number } | null = n; t; t = parent.get(key(t.x, t.y)) ?? null) path.push(t);
+      return path.reverse();
+    }
+    for (const m of moves(map, n, env, tall, spare)) {
+      const k = key(m.x, m.y);
+      if (parent.has(k)) continue;
+      parent.set(k, n);
+      queue.push(m);
+    }
+  }
+  return null;
+}
+
+/**
+ * The moves a body can make from a standing tile, as a bot makes them: the jump graph's, less the arcs whose way down
+ * from the apex crosses a floor (the graph only checks the rise and the apex row, a generous superset for the solver):
+ * a body coming down lands on the first floor under it, a one-way ledge included.
+ */
+export function moves(map: Tilemap, n: { x: number; y: number }, env: Envelope, tall: number, spare = 0): Array<{ x: number; y: number }> {
+  return jumpNeighbours(map, n, env, tall).filter((m) => {
+    // A step along the floor.
+    if (m.y === n.y && Math.abs(m.x - n.x) === 1) return true;
+    // With tiles to spare: no jump within `spare` tiles of the farthest the envelope carries the body at its height.
+    const dy = m.y - n.y;
+    const reach = env.maxDx.get(dy) ?? (dy < 0 ? 0 : (env.maxDx.get(env.maxDropTiles) ?? 0));
+    if (Math.abs(m.x - n.x) > 1 && Math.abs(m.x - n.x) > reach - spare) return false;
+    const apex = Math.max(0, Math.min(n.y, m.y) - 1);
+    for (let y = apex + 1; y <= m.y; y++) {
+      const k = map.kindAt(m.x, y);
+      if (k === 'solid' || k === 'oneway') return false;
+    }
+    return true;
+  });
 }
 
 /** Rows the hero's body spans: three at 16 px tiles. */
 export function tallTiles(tileSize: number): number {
   return Math.max(1, Math.ceil(PLAYER.h / tileSize));
 }
-
-const key = (x: number, y: number) => `${x},${y}`;
 
 /** BFS distance to the nearest standing tile from which a relic at (x, y) can be touched (at it, or a jump below it). */
 export function relicReach(dist: Map<string, number>, x: number, y: number, env: Envelope): number | null {

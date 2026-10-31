@@ -26,8 +26,9 @@ Where the search loses its way (a maze, a long walk round, a goal behind a detou
 "value": ..}` (a HUD number, or the score, at least so much). Put a step at each turn the way takes, not on every tile,
 never inside a wall, and end at the goal. The worker writes them when no bot wins a level and keeps only hints that
 found the win; after an edit that moves the way, hints that no longer find it are dropped with the run.
-A castle game's level is a region: rooms at least a screen wide (30x17 tiles of 16 px) side by side with doorways,
-listed in `rooms` with their kind (`save` for an altar's room, `exit` for the last). Its world solver checks the relics in
+A castle game's level is a region: rooms a screen each (30x17 tiles of 16 px) on a grid, doorways between neighbours on
+a row and a shaft of one-way ledges between rows, listed in `rooms` with their kind (`save` for an altar's room, `exit`
+for the last). Its world solver checks the relics in
 order reach the way out, nothing the player can get to strands them, every room is reached, every save room has its
 altar and no stretch between altars runs past four rooms; its route bot, which rests at each altar it passes, proves it.
 Regenerate rather than move rooms: a gate (the wings' ledge, the boots' chasm) is sized to hold under both castle feels.

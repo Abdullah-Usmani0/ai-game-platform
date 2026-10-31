@@ -5,8 +5,9 @@ import { ALTAR_TYPE, BOOTS_TYPE, GARGOYLE_TYPE, GHOUL_TYPE, HOUND_TYPE, SOUL_TYP
 
 /** One screen of the castle view (480x270 at 16 px tiles): no room is narrower, so the camera never shows two. */
 export const SCREEN_TILES = 30;
+/** One screen's rows: a room's height, and a row of rooms in the region. */
 export const REGION_ROWS = 17;
-/** The walking row of the region's ground floor; the ground is the two rows under it. */
+/** The walking row of a room's ground floor (in the room's own rows); the ground is the two rows under it. */
 export const BASE_WALK = 14;
 /**
  * Gate sizes in tiles, held under both castle feels (see the package tests). A plain jump lifts the feet at most 3.6
@@ -21,10 +22,17 @@ export const HIGH_WALK = BASE_WALK - LEDGE_TILES;
 const DOOR_ROWS = 4;
 /** The widest level LevelJson holds. */
 export const MAX_REGION_TILES = 400;
+/** The shaft from the top row of rooms down to the bottom one: this many columns, at the far end of the room above. */
+export const SHAFT_TILES = 6;
+/** One-way ledges up the shaft, this many rows apart (the weighty feel's plain jump climbs them), on alternate sides. */
+const SHAFT_STEP = 2;
 
 type Grid = string[][];
 
-/** What a room's builder draws with: columns are the room's own, rows the region's. */
+/**
+ * What a room's builder draws with, in the room's own frame: the player comes in at column 0 and leaves past column
+ * w-1 (a room on the way back is drawn mirrored), rows count from the room's top.
+ */
 interface Room {
   readonly w: number;
   readonly d: number;
@@ -33,7 +41,7 @@ interface Room {
   floor(lx0: number, lx1: number, walk: number): void;
   fill(lx0: number, y0: number, lx1: number, y1: number, ch: string): void;
   put(type: string, lx: number, y: number): void;
-  /** A spike trench: the ground taken out under columns lx0..lx1, spikes at the bottom of the region. */
+  /** A spike trench: the ground taken out under columns lx0..lx1, spikes at the bottom of the room. */
   trench(lx0: number, lx1: number, walk: number): void;
   /** Open floor at (lx, walk): air with room for a body over it, ground under it. */
   open(lx: number, walk: number): boolean;
@@ -46,7 +54,6 @@ interface RoomPlan {
   /** Builds the room, entered at walking row `walk`; returns the walking row it leaves at. */
   build(r: Room, walk: number): number;
 }
-
 /** A relic on a pedestal two tiles wide and one high, floating a tile over it, in the middle of the room. */
 function relicRoom(type: string): RoomPlan {
   return {
@@ -159,21 +166,6 @@ const LEDGE: RoomPlan = {
   },
 };
 
-/** Back down to the ground floor: a drop LEDGE_TILES deep, which the wings climb again. */
-const DESCENT: RoomPlan = {
-  id: 'descent',
-  kind: 'room',
-  w: SCREEN_TILES,
-  build(r, walk) {
-    const edge = 12;
-    const low = walk + LEDGE_TILES;
-    r.floor(0, edge, walk);
-    r.floor(edge + 1, r.w - 2, low);
-    if (r.d >= 0.5) r.put(HOUND_TYPE, edge + 9, low);
-    return low;
-  },
-};
-
 /** The boots gate: a spike chasm CHASM_TILES wide across the middle, souls along the arc over it. */
 const CHASM: RoomPlan = {
   id: 'chasm',
@@ -201,76 +193,115 @@ const EXIT: RoomPlan = {
   },
 };
 
-/**
- * The region's rooms in order, left to right: the wings lie behind the start (the player goes back for them), a hall
- * leads to an altar and the ledge only the wings climb; from 0.2 the boots wait past one hall (two from 0.4) with an
- * altar after them, then a descent, the chasm only the boots cross, a hall and the way out. No stretch between rests runs
- * past four rooms, and the region stays within MAX_REGION_TILES.
- */
-function mission(d: number): RoomPlan[] {
-  let n = 0;
-  const halls = (count: number) => Array.from({ length: count }, () => hall(++n, SCREEN_TILES));
-  const plans = [relicRoom(WINGS_TYPE), START, ...halls(1), altarRoom(1), LEDGE, ...halls(d >= 0.4 ? 2 : 1)];
-  if (d >= 0.2) plans.push(relicRoom(BOOTS_TYPE), altarRoom(2), DESCENT, CHASM, ...halls(1));
-  plans.push(EXIT);
-  return plans;
+/** Where the mission puts a room: the row of rooms (0 the top) and its column of screens, and which way it is crossed. */
+interface Placed {
+  plan: RoomPlan;
+  row: number;
+  col: number;
+  /** Crossed right to left (the row back): drawn mirrored. */
+  back: boolean;
 }
 
 /**
- * Seeded castle region: one level of rooms a screen wide or more, 17 rows tall, side by side with doorways between
- * them. Difficulty adds the second gate (from 0.2), halls, trenches, taller walls and enemies.
+ * The region's rooms in order, laid out on a grid of screens. Along the top row, left to right: the wings behind the
+ * start (the player goes back for them), a hall, an altar, the ledge only the wings climb, one or two halls and the
+ * boots. From 0.2 the way turns down a shaft at the far end into the second altar's room, then runs back left along the
+ * row below: a hall from 0.4, the chasm only the boots cross, a hall and the way out, which ends under the first
+ * altar. Below 0.2 the boots room is the way out's neighbour on one row. No stretch between rests runs past four rooms.
+ */
+function mission(d: number): Placed[] {
+  let n = 0;
+  const halls = (count: number) => Array.from({ length: count }, () => hall(++n, SCREEN_TILES));
+  const top = [relicRoom(WINGS_TYPE), START, ...halls(1), altarRoom(1), LEDGE, ...halls(d >= 0.4 ? 2 : 1)];
+  if (d < 0.2) return [...top, EXIT].map((plan, col) => ({ plan, row: 0, col, back: false }));
+  top.push(relicRoom(BOOTS_TYPE));
+  const bottom = [altarRoom(2), ...halls(d >= 0.4 ? 1 : 0), CHASM, ...halls(1), EXIT];
+  const turn = top.length - 1;
+  return [...top.map((plan, col) => ({ plan, row: 0, col, back: false })), ...bottom.map((plan, i) => ({ plan, row: 1, col: turn - i, back: true }))];
+}
+
+/**
+ * Seeded castle region: rooms a screen wide on one row, or from 0.2 two rows joined by a shaft, with doorways between
+ * neighbours. Difficulty adds the second gate (from 0.2), halls, trenches, taller walls and enemies.
  */
 export function generateRegion(params: LevelGenParams): LevelJson {
   const rng = new Rng(params.seed);
   const d = Math.max(0, Math.min(1, params.difficulty));
-  const plans = mission(d);
-  const width = plans.reduce((n, p) => n + p.w, 0);
-  const grid: Grid = Array.from({ length: REGION_ROWS }, () => Array<string>(width).fill('#'));
+  const placed = mission(d);
+  const cols = Math.max(...placed.map((p) => p.col)) + 1;
+  const rows = Math.max(...placed.map((p) => p.row)) + 1;
+  const width = cols * SCREEN_TILES;
+  const height = rows * REGION_ROWS;
+  const grid: Grid = Array.from({ length: height }, () => Array<string>(width).fill('#'));
   const set = (x: number, y: number, ch: string) => {
-    if (x >= 0 && x < width && y >= 0 && y < REGION_ROWS) grid[y]![x] = ch;
+    if (x >= 0 && x < width && y >= 0 && y < height) grid[y]![x] = ch;
   };
+  const at = (x: number, y: number) => grid[y]?.[x];
   const entities: LevelJson['entities'] = [];
   const rooms: LevelRoom[] = [];
-  let x0 = 0;
   let walk = BASE_WALK;
   let spawn = { x: 0, y: 0 };
   let goal = { x: 0, y: 0 };
-  for (const [i, plan] of plans.entries()) {
-    // The first room's first column is the region's left wall; every room's last column is its right wall.
-    const first = i === 0 ? 1 : 0;
+  const shafts: Array<{ x: number; top: number; bottom: number }> = [];
+  for (const [i, p] of placed.entries()) {
+    const { plan } = p;
+    const x0 = p.col * SCREEN_TILES;
+    const y0 = p.row * REGION_ROWS;
+    // A room's own column to the region's: mirrored on the way back.
+    const gx = (lx: number) => x0 + (p.back ? plan.w - 1 - lx : lx);
+    const prev = placed[i - 1];
+    // The side the player comes in by is a wall where they do not come in through a doorway: the region's first room,
+    // and the room the shaft drops into.
+    const entryWall = !prev || prev.row !== p.row;
     const room: Room = {
       w: plan.w,
       d,
       rng,
       floor(lx0, lx1, row) {
-        for (let lx = Math.max(first, lx0); lx <= Math.min(plan.w - 2, lx1); lx++) {
-          for (let y = 1; y < REGION_ROWS; y++) set(x0 + lx, y, y <= row ? '.' : '#');
+        for (let lx = Math.max(entryWall ? 1 : 0, lx0); lx <= Math.min(plan.w - 2, lx1); lx++) {
+          for (let y = 1; y < REGION_ROWS; y++) set(gx(lx), y0 + y, y <= row ? '.' : '#');
         }
       },
-      fill(lx0, y0, lx1, y1, ch) {
-        for (let y = y0; y <= y1; y++) for (let lx = lx0; lx <= lx1; lx++) set(x0 + lx, y, ch);
+      fill(lx0, ya, lx1, yb, ch) {
+        for (let y = ya; y <= yb; y++) for (let lx = lx0; lx <= lx1; lx++) set(gx(lx), y0 + y, ch);
       },
       put(type, lx, y) {
-        entities.push({ type, x: x0 + lx, y, props: {} });
+        entities.push({ type, x: gx(lx), y: y0 + y, props: {} });
       },
       trench(lx0, lx1, row) {
         for (let lx = lx0; lx <= lx1; lx++) {
-          for (let y = row + 1; y < REGION_ROWS - 1; y++) set(x0 + lx, y, '.');
-          set(x0 + lx, REGION_ROWS - 1, '^');
+          for (let y = row + 1; y < REGION_ROWS - 1; y++) set(gx(lx), y0 + y, '.');
+          set(gx(lx), y0 + REGION_ROWS - 1, '^');
         }
       },
       open(lx, row) {
-        const at = (y: number) => grid[y]?.[x0 + lx];
-        return at(row) === '.' && at(row - 1) === '.' && at(row - 2) === '.' && at(row + 1) === '#';
+        const x = gx(lx);
+        return at(x, y0 + row) === '.' && at(x, y0 + row - 1) === '.' && at(x, y0 + row - 2) === '.' && at(x, y0 + row + 1) === '#';
       },
     };
-    const entry = walk;
+    const entry = prev && prev.row !== p.row ? BASE_WALK : walk;
     walk = plan.build(room, entry);
-    if (plan === START) spawn = { x: x0 + 8, y: entry };
-    if (plan === EXIT) goal = { x: x0 + plan.w - 5, y: walk };
-    if (i < plans.length - 1) for (let y = walk - DOOR_ROWS + 1; y <= walk; y++) set(x0 + plan.w - 1, y, '.');
-    rooms.push({ id: plan.id, x: x0, y: 0, w: plan.w, h: REGION_ROWS, kind: plan.kind });
-    x0 += plan.w;
+    if (plan === START) spawn = { x: gx(8), y: y0 + entry };
+    if (plan === EXIT) goal = { x: gx(plan.w - 5), y: y0 + walk };
+    const next = placed[i + 1];
+    if (next && next.row === p.row) {
+      // A doorway in the wall the player leaves by.
+      for (let y = walk - DOOR_ROWS + 1; y <= walk; y++) set(gx(plan.w - 1), y0 + y, '.');
+    } else if (next) {
+      // The way turns down to the next row: a shaft at the far end of this room, cut once the room below is built.
+      shafts.push({ x: gx(plan.w - 2 - SHAFT_TILES), top: y0 + walk, bottom: next.row * REGION_ROWS + BASE_WALK });
+    }
+    rooms.push({ id: plan.id, x: x0, y: y0, w: plan.w, h: REGION_ROWS, kind: plan.kind });
+  }
+  // Each shaft: the floor between the two walking rows taken away, and one-way ledges on alternate halves every
+  // SHAFT_STEP rows from the floor below up to the one above, so a fall goes down past them and a jump climbs them.
+  for (const sh of shafts) {
+    for (let x = sh.x; x < sh.x + SHAFT_TILES; x++) for (let y = sh.top + 1; y <= sh.bottom; y++) set(x, y, '.');
+    const half = SHAFT_TILES / 2;
+    for (let k = 0, y = sh.bottom - SHAFT_STEP + 1; y > sh.top; k++, y -= SHAFT_STEP) {
+      const from = k % 2 === 0 ? sh.x : sh.x + half;
+      for (let x = from; x < from + half; x++) set(x, y, '-');
+    }
   }
   set(spawn.x, spawn.y, 'S');
   return {
@@ -279,7 +310,7 @@ export function generateRegion(params: LevelGenParams): LevelJson {
     name: `Region ${params.seed}`,
     tileSize: 16,
     width,
-    height: REGION_ROWS,
+    height,
     legend: { '.': 'air', '#': 'solid', '^': 'hazard', '-': 'oneway', G: 'goal', S: 'spawn' },
     rows: grid.map((r) => r.join('')),
     entities,

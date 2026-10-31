@@ -1,14 +1,28 @@
 import { centerX, centerY, emptyInput, type Entity, type InputState, type Sim } from '@gg/sdk';
 import type { BotPolicy } from '@gg/template-core';
 import { ABILITY_DASH, ABILITY_DOUBLE_JUMP, ALTAR_TYPE, RELIC_ABILITY } from './entities.js';
-import { envelopeFor, reachFrom, relicReach, tallTiles } from './level/progress.js';
+import { envelopeFor, pathTo, tallTiles } from './level/progress.js';
 
 /** Tiles of hazard ahead (columns whose first floor down is spikes or the void) that need the air abilities. */
 const WIDE_PIT = 4;
-/** The bot's memory keys: what it heads for, and how far through a jump it is. */
+/**
+ * The bot's memory keys: the plan's signature and target (the relic it heads for, or the goal), the way there (PATH_N
+ * tiles at `px<i>`, `py<i>`, and AT, the one it last stood on), the waypoint it steers for, and how far through a jump
+ * it is.
+ */
 const PLAN_SIG = 'sig';
 const PLAN_X = 'tx';
 const PLAN_Y = 'ty';
+const PATH_N = 'pn';
+const AT = 'at';
+const WX = 'wx';
+const WY = 'wy';
+/** Walking steps along one row the waypoint runs ahead by: the bot keeps running through them. */
+const LOOK_AHEAD = 5;
+/** How far across a run off an edge carries the body on its way down a few rows: further needs a jump. */
+const DRIFT_TILES = 3;
+/** Tiles of reach a planned jump keeps in hand where the region allows it. */
+const SPARE_TILES = 2;
 /** 0 on the ground, 1 the first jump rising, 2 let go before an air jump, 3 the air jump rising, 4 coming down. */
 const PHASE = 'phase';
 
@@ -25,25 +39,56 @@ function signature(sim: Sim): number {
   return (p.flags[ABILITY_DOUBLE_JUMP] === true ? 1 : 0) + (p.flags[ABILITY_DASH] === true ? 2 : 0) + 4 * live;
 }
 
-/** The nearest relic the player can reach now, else the goal. */
-function choose(sim: Sim, mem: Record<string, number>): void {
+/**
+ * Plans the way to the nearest relic the player can reach now (a standing tile it can be touched from: under it, within a
+ * jump), else to the goal: a shortest walk over the jump graph from the tile the player stands on, kept in memory.
+ */
+function plan(sim: Sim, mem: Record<string, number>): void {
   const p = sim.world.player;
   const ts = sim.map.tileSize;
   const env = envelopeFor(sim.options.feel, ts, { doubleJump: p.flags[ABILITY_DOUBLE_JUMP] === true, dash: p.flags[ABILITY_DASH] === true });
-  const dist = reachFrom(sim.map, tileOf(sim, p), env, tallTiles(ts));
+  const relics = sim.world.entities.filter((e) => e.alive && RELIC_ABILITY[e.type] !== undefined).map((e) => tileOf(sim, e));
   const goal = sim.options.level.goal;
-  let best = Infinity;
-  mem[PLAN_X] = goal.x;
-  mem[PLAN_Y] = goal.y;
-  for (const e of sim.world.entities) {
-    if (!e.alive || RELIC_ABILITY[e.type] === undefined) continue;
-    const t = tileOf(sim, e);
-    const d = relicReach(dist, t.x, t.y, env);
-    if (d === null || d >= best) continue;
-    best = d;
-    mem[PLAN_X] = t.x;
-    mem[PLAN_Y] = t.y;
+  const touches = (x: number, y: number) => relics.find((r) => r.x === x && y >= r.y && y <= r.y + env.jumpUpTiles + 1);
+  const from = tileOf(sim, p);
+  // A way with a tile of reach to spare on every jump where there is one (the envelope's farthest needs a perfect run-up).
+  const way = (isTarget: (x: number, y: number) => boolean) => pathTo(sim.map, from, isTarget, env, tallTiles(ts), SPARE_TILES) ?? pathTo(sim.map, from, isTarget, env, tallTiles(ts));
+  const toRelic = relics.length > 0 ? way((x, y) => touches(x, y) !== undefined) : null;
+  const path = toRelic ?? way((x, y) => x === goal.x && (y === goal.y || y === goal.y - 1)) ?? [from];
+  const end = path[path.length - 1]!;
+  const relic = toRelic ? touches(end.x, end.y)! : null;
+  mem[PLAN_X] = relic ? relic.x : goal.x;
+  mem[PLAN_Y] = relic ? relic.y : goal.y;
+  mem[PATH_N] = path.length;
+  for (const [i, t] of path.entries()) {
+    mem[`px${i}`] = t.x;
+    mem[`py${i}`] = t.y;
   }
+  mem[AT] = 0;
+}
+
+/**
+ * Where on the planned way the player stands, from AT on: a tile of it or one beside it on the same row, or on the
+ * floor of tile AT on the way to the next move's take-off (a jump's corridor holds no path tiles); -1 off it.
+ */
+function placeOnPath(mem: Record<string, number>, t: { x: number; y: number }): number {
+  const n = mem[PATH_N] ?? 0;
+  const at = mem[AT] ?? 0;
+  for (let i = at; i < n && i <= at + 16; i++) if (mem[`py${i}`] === t.y && Math.abs((mem[`px${i}`] ?? -99) - t.x) <= 1) return i;
+  const ax = mem[`px${at}`] ?? -99;
+  const bx = mem[`px${at + 1}`] ?? ax;
+  if (mem[`py${at}`] === t.y && t.x >= Math.min(ax, bx) && t.x <= Math.max(ax, bx)) return at;
+  return -1;
+}
+
+/** The waypoint from path tile `i`: along a run of walking steps on one row up to LOOK_AHEAD ahead, then the next move's landing. */
+function waypoint(mem: Record<string, number>, i: number): { x: number; y: number } {
+  const n = mem[PATH_N] ?? 0;
+  if (i >= n - 1) return { x: mem[PLAN_X] ?? 0, y: mem[PLAN_Y] ?? 0 };
+  let j = i;
+  while (j < n - 1 && j - i < LOOK_AHEAD && mem[`py${j + 1}`] === mem[`py${j}`] && Math.abs((mem[`px${j + 1}`] ?? 0) - (mem[`px${j}`] ?? 0)) === 1) j++;
+  const k = Math.min(n - 1, j === i ? i + 1 : j);
+  return { x: mem[`px${k}`] ?? 0, y: mem[`py${k}`] ?? 0 };
 }
 
 /** A column with no floor before spikes or the bottom of the map, looking down from the feet. */
@@ -93,12 +138,23 @@ export const route: BotPolicy = (sim, tick, mem) => {
   const ts = sim.map.tileSize;
   const k = ts / 8;
   const sig = signature(sim);
-  if (mem[PLAN_SIG] !== sig && p.grounded) {
-    choose(sim, mem);
-    mem[PLAN_SIG] = sig;
+  if (p.grounded) {
+    // On the ground: where on the way the player stands; a new plan when an ability or a relic changed, or when they
+    // stand off the way (a jump that landed short, a knock back, the region loaded again at an altar).
+    const here = tileOf(sim, p);
+    let at = mem[PLAN_SIG] === sig ? placeOnPath(mem, here) : -1;
+    if (at < 0) {
+      plan(sim, mem);
+      mem[PLAN_SIG] = sig;
+      at = 0;
+    }
+    mem[AT] = at;
+    const w = waypoint(mem, at);
+    mem[WX] = w.x;
+    mem[WY] = w.y;
   }
-  const tx = mem[PLAN_X] ?? sim.options.level.goal.x;
-  const ty = mem[PLAN_Y] ?? sim.options.level.goal.y;
+  const tx = mem[WX] ?? sim.options.level.goal.x;
+  const ty = mem[WY] ?? sim.options.level.goal.y;
   const hasDouble = p.flags[ABILITY_DOUBLE_JUMP] === true;
   const hasDash = p.flags[ABILITY_DASH] === true;
   const cx = centerX(p);
@@ -141,6 +197,26 @@ export const route: BotPolicy = (sim, tick, mem) => {
   const lastStep = pitColumn(sim, back + facing * 3, feet);
   const targetAbove = ty * ts + ts <= feet - 4 * k && Math.abs(dxPx) < ts * 3;
   const threat = dir !== 0 && hostileAhead(sim, p, facing, k);
+  // The next move on the way is a jump when it lands higher up, two tiles or more along the same row, or further down
+  // than a run off the edge drifts (DRIFT_TILES): taken where the ground ends under the front foot. A move down closer in
+  // is a drop off the edge (a jump would rise and come down on the ledge above).
+  const here = tileOf(sim, p);
+  const nx = mem[`px${(mem[AT] ?? 0) + 1}`];
+  const ny = mem[`py${(mem[AT] ?? 0) + 1}`];
+  const jumpMove = nx !== undefined && ny !== undefined && (ny < here.y || Math.abs(nx - here.x) > (ny > here.y ? DRIFT_TILES : 1));
+  // What the move needs: the plain jump's reach at its height with a tile to spare (a short run-up falls short of the
+  // envelope's best), else the wings', else the dash as well.
+  const reaches = (a: { doubleJump: boolean; dash: boolean }) => {
+    if (nx === undefined || ny === undefined) return true;
+    const env = envelopeFor(sim.options.feel, ts, a);
+    const dy = ny - here.y;
+    return (env.maxDx.get(dy) ?? (dy < 0 ? 0 : (env.maxDx.get(env.maxDropTiles) ?? 0))) >= Math.abs(nx - here.x) + 1;
+  };
+  const groundAt = (px: number) => {
+    const kind = sim.map.kindAtPx(px, feet + 1);
+    return kind === 'solid' || kind === 'oneway';
+  };
+  const edgeAhead = dir !== 0 && !groundAt(front + facing * 2);
 
   if (p.grounded) {
     mem[PHASE] = 0;
@@ -156,16 +232,20 @@ export const route: BotPolicy = (sim, tick, mem) => {
   const phase = mem[PHASE] ?? 0;
   const released = mem['jumpPrev'] !== 1;
   if (phase === 0) {
-    if (released && (escaping || wallAhead || (pitNext && lastStep) || targetAbove || threat)) {
+    // Over a pit, the last step (the longest jump); off any other edge the way jumps from, at the edge.
+    if (released && (escaping || wallAhead || (pitNext && lastStep) || targetAbove || threat || (jumpMove && edgeAhead && !pitNext))) {
       input.jump = true;
       mem[PHASE] = 1;
-      mem['wide'] = pitNext && pitWidth(sim, front + facing * 4 * k, feet, facing) >= WIDE_PIT ? 1 : 0;
+      const needAir = jumpMove && hasDouble && !reaches({ doubleJump: false, dash: false });
+      const needDash = jumpMove && hasDash && !reaches({ doubleJump: hasDouble, dash: false });
+      mem['needAir'] = needAir ? 1 : 0;
+      mem['wide'] = needDash || (pitNext && pitWidth(sim, front + facing * 4 * k, feet, facing) >= WIDE_PIT) ? 1 : 0;
     }
   } else if (phase === 1 || phase === 3) {
     // Hold through the rise and the float at the apex; at the first apex, the air jump if one is wanted.
     const atApex = p.vy >= -12 * k;
     if (atApex && (mem['apexTick'] ?? -1) < 0) mem['apexTick'] = tick;
-    const wantAir = phase === 1 && hasDouble && mem['airJumped'] !== 1 && (wallAhead || targetAbove || mem['wide'] === 1);
+    const wantAir = phase === 1 && hasDouble && mem['airJumped'] !== 1 && (wallAhead || targetAbove || mem['wide'] === 1 || mem['needAir'] === 1);
     if (atApex && wantAir) mem[PHASE] = 2;
     else if (p.vy > sim.options.feel.halfGravThreshold) mem[PHASE] = 4;
     else input.jump = true;

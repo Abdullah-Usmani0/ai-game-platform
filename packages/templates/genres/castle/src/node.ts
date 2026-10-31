@@ -45,8 +45,8 @@ export const castle: GenreManifest = {
 };
 export * from './index.js';
 export * from './check.js';
-export { generateRegion, SCREEN_TILES, REGION_ROWS, BASE_WALK, LEDGE_TILES, CHASM_TILES, HIGH_WALK, MAX_REGION_TILES } from './level/generate.js';
+export { generateRegion, SCREEN_TILES, REGION_ROWS, BASE_WALK, LEDGE_TILES, CHASM_TILES, HIGH_WALK, MAX_REGION_TILES, SHAFT_TILES } from './level/generate.js';
 export { validateRegion, CASTLE_TILE } from './level/validate.js';
-export { world, envelopeFor, tallTiles, roomOf, MAX_STRETCH, type Abilities, type World, type WorldStep } from './level/progress.js';
+export { world, envelopeFor, tallTiles, roomOf, pathTo, moves, MAX_STRETCH, type Abilities, type World, type WorldStep } from './level/progress.js';
 export { route } from './bots.js';
 export { AB_PREFIX } from './systems/abilities.js';

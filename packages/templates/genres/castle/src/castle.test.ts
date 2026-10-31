@@ -3,7 +3,7 @@ import { createSim, emptyInput, type InputState, type ProgressSave, type Sim, ty
 import { levelTicksOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { deathRule, deathSwitches } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
-import { AB_PREFIX, castle, CHASM_TILES, envelopeFor, LEDGE_TILES, MAX_REGION_TILES, MAX_STRETCH, SCREEN_TILES, world } from './node.js';
+import { AB_PREFIX, castle, CHASM_TILES, envelopeFor, LEDGE_TILES, MAX_REGION_TILES, MAX_STRETCH, REGION_ROWS, SCREEN_TILES, world } from './node.js';
 
 const optionsFor = (feel: string = castle.defaultFeel): Omit<SimOptions, 'level' | 'seed'> =>
   simOptionsFor(castle, SystemsJson.parse({ ...systemsJsonFor(castle), feelPreset: feel }), { behaviours: castle.defaultBehaviours });
@@ -66,15 +66,23 @@ describe('castle template', () => {
     }
   });
 
-  it('lays a region out as rooms a screen wide or more, side by side, an altar in every save room and rests close together', () => {
+  it('lays a region out on a grid of screens: a row, then from 0.2 a row back below it, down a shaft', () => {
     for (const difficulty of [0.15, 0.5, 0.9]) {
       const level = castle.levelGrammar.generate({ seed: 4, difficulty });
+      // The schema holds rooms inside the level and apart from each other.
       expect(LevelJson.safeParse(level).success).toBe(true);
       expect(level.width).toBeLessThanOrEqual(MAX_REGION_TILES);
       const rooms = level.rooms!;
       expect(new Set(rooms.map((r) => r.id)).size).toBe(rooms.length);
-      expect(rooms.reduce((x, r) => (expect(r.x).toBe(x), x + r.w), 0)).toBe(level.width);
-      for (const r of rooms) expect(r.w).toBeGreaterThanOrEqual(SCREEN_TILES);
+      for (const r of rooms) expect([r.w, r.h, r.x % SCREEN_TILES, r.y % REGION_ROWS]).toEqual([SCREEN_TILES, REGION_ROWS, 0, 0]);
+      expect(new Set(rooms.map((r) => r.y)).size).toBe(difficulty >= 0.2 ? 2 : 1);
+      if (difficulty >= 0.2) {
+        // The way out lies on the row below, under the first altar's room; the shaft drops into the second altar's.
+        const at = (id: string) => rooms.find((r) => r.id === id)!;
+        expect([at('exit').x, at('exit').y]).toEqual([at('altar-1').x, REGION_ROWS]);
+        expect([at('altar-2').x, at('altar-2').y]).toEqual([at('relic-boots').x, REGION_ROWS]);
+        expect(level.rows[REGION_ROWS]!.slice(at('altar-2').x, at('altar-2').x + SCREEN_TILES)).toContain('.');
+      }
       expect(rooms.filter((r) => r.kind === 'save').length).toBe(difficulty >= 0.2 ? 2 : 1);
       expect(rooms.at(-1)!.kind).toBe('exit');
       const w = world(level, castle.feelPresets[castle.defaultFeel]!);
