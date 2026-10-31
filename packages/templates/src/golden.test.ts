@@ -78,6 +78,7 @@ describe('golden lock: curated genres', () => {
         exemplars: hashValue(g.exemplars),
         levelGrammar: g.levelGrammar.kind,
         ...(g.tier ? { tier: g.tier } : {}),
+        ...(g.styleDefaults ? { styleDefaults: hashValue(g.styleDefaults) } : {}),
         solverBot: g.solverBot,
         bots: Object.keys(g.bots).sort(),
         ...(g.designContent ? { designContent: hashValue(g.designContent.map((d) => ({ key: d.key, artifact: d.artifact, readBy: d.readBy, guide: d.guide, fallback: d.fallback }))) } : {}),

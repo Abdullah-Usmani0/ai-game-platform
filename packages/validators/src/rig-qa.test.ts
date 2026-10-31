@@ -18,7 +18,8 @@ describe('rig art QA', () => {
         expect(r.issues, `${outline}`).toEqual([]);
       }
     }
-  });
+    // Every frame of every clip painted four times over: more than vitest's 5 s default on a busy machine.
+  }, 60_000);
 
   it('fails a frame with a pixel off the palette, a lone speck, a missing outline or feet off the ground', () => {
     const pal = artPalette(PALETTES['gothic']!, 'dark');

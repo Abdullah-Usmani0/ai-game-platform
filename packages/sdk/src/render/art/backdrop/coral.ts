@@ -1,6 +1,6 @@
 // The coral theme: a sunlit reef kingdom under water.
-import { hash2, PixelCanvas } from '@gg/sdk/art';
-import { parseHex, type RGB } from '@gg/sdk/art';
+import { parseHex, type RGB } from '../color.js';
+import { hash2, PixelCanvas } from '../pixels.js';
 import { bandAt, bayer, dith, fbm, fillCircle, vgradient } from './brush.js';
 
 const H = (s: string) => parseHex(s);

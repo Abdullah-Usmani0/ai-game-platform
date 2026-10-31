@@ -4,7 +4,7 @@ import { drawText, GLYPHS, measure } from './font.js';
 import type { ArtPalette } from './palette.js';
 import { PixelCanvas, type Template } from './pixels.js';
 import { frameSize, paintFrames, RECIPES, recipeForType, type Recipe } from './sprites.js';
-import type { Setting } from './terrain.js';
+import { sideView, type Setting } from './terrain.js';
 
 /** The slot letters each ramp a design may recolour paints with, and the shade of the ramp each takes. */
 export const RAMP_SLOTS: Readonly<Record<SpriteRamp, Readonly<Record<string, number>>>> = {
@@ -136,9 +136,12 @@ export function spriteBases(recipe: string): string[] {
   return [recipe, ...Object.keys(RECIPES).filter((n) => n !== recipe && kind(n, RECIPES[n]!) === mine)];
 }
 
-/** The shipped sprite the player draws with in a setting (a top-down player 12 px wide or more is the keeper). */
+/**
+ * The shipped sprite the player draws with in a setting (a top-down player 12 px wide or more is the keeper). The
+ * castle's view draws its hero with the knight's rig; designs and art QA still judge it as the side hero.
+ */
 export function playerRecipe(setting: Setting, playerW: number): string {
-  if (setting === 'side') return 'hero-side';
+  if (sideView(setting)) return 'hero-side';
   if (setting === 'space') return 'ship';
   if (setting === 'farm') return 'farmer';
   return playerW >= 12 ? 'keeper' : 'hero-topdown';

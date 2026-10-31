@@ -1,6 +1,6 @@
 // The frost theme: a frozen clockwork city at night.
-import { hash2, PixelCanvas } from '@gg/sdk/art';
-import { parseHex, type RGB } from '@gg/sdk/art';
+import { parseHex, type RGB } from '../color.js';
+import { hash2, PixelCanvas } from '../pixels.js';
 import { bandAt, bayer, dith, fbm, fillCircle, fillPoly, fillRect, vgradient } from './brush.js';
 
 const H = (s: string) => parseHex(s);

@@ -1,5 +1,6 @@
 /** Painting primitives for procedural backdrops: dithered gradients, polygons, circles and value noise, all deterministic. */
-import { hash2, type PixelCanvas, type RGB } from '@gg/sdk/art';
+import type { RGB } from '../color.js';
+import { hash2, type PixelCanvas } from '../pixels.js';
 
 export const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 export const bayer = (x: number, y: number) => (BAYER4[(y & 3) * 4 + (x & 3)]! + 0.5) / 16;

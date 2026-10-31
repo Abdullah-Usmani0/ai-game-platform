@@ -96,7 +96,8 @@ const gdd: StageFn = async (ctx) => {
   const clean = sanitize(req.prompt.trim(), blocked);
   const cleanReq = { ...req, prompt: clean.text };
   if (!existsSync(join(design, 'style.json'))) {
-    const base = { ...DEFAULT_STYLE, name: 'style' };
+    // The genre's own look first (the castle tier's view and palette), then the platform's.
+    const base = { ...DEFAULT_STYLE, ...(req.genre === 'freeform' ? {} : genreOf(req.genre).styleDefaults), name: 'style' };
     writeJson(join(design, 'style.json'), refs.matched.length ? styleFromReferences(refs.matched, base, 'reference-style') : base);
   }
   const styleNotes = refs.matched.flatMap((e) => e.card.notes).slice(0, 8);

@@ -1,5 +1,5 @@
 import type { PixelCanvas, RGB } from '@gg/sdk/art';
-import { THEMES, type Layer } from './painter/index.js';
+import { THEMES, type Layer } from './painter.js';
 import { quantize, tileable, toGrid } from './post.js';
 import { checkBackdrop, type BackdropIssue } from './qa.js';
 

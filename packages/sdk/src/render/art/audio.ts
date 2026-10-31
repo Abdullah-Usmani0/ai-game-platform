@@ -86,6 +86,12 @@ export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
   wilt: arp([392, 349, 330, 262], 0.18, 0.3, 0.08, 'triangle'),
   // The courier's job: a counter bell as an order comes in, a load swung up, a clink and a lift as it is handed over,
   // and a clock's tick-tock as an order's last seconds run.
+  // Resting at an altar: a low open fifth that swells and a soft bell over it, slow to fade.
+  rest: [
+    { wave: 'sine', from: 220, to: 220, dur: 0.8, vol: 0.08 },
+    { wave: 'sine', from: 330, to: 330, dur: 0.8, vol: 0.06, delay: 0.04 },
+    { wave: 'triangle', from: 880, to: 880, dur: 0.5, vol: 0.03, delay: 0.12 },
+  ],
   bell: [
     { wave: 'sine', from: 1568, to: 1568, dur: 0.5, vol: 0.09 },
     { wave: 'sine', from: 3951, to: 3951, dur: 0.22, vol: 0.025 },
@@ -117,6 +123,8 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return 'bump';
     case 'custom:door_open':
       return 'door';
+    case 'custom:rest':
+      return 'rest';
     case 'custom:finisher':
       return 'finisher';
     case 'custom:slam':

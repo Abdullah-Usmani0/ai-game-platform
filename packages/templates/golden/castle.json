@@ -39,6 +39,7 @@
     "exemplars": "84ae5db18bf20faf",
     "levelGrammar": "graph",
     "tier": "castle",
+    "styleDefaults": "d939dfa765822a4b",
     "solverBot": "route",
     "bots": [
       "chaos",

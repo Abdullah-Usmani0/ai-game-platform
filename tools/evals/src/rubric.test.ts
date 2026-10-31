@@ -50,6 +50,16 @@ describe('the castle rubric', () => {
     for (const id of ['telegraph_ms', 'boss_phases', 'rooms', 'parallax_layers', 'npcs', 'endings', 'music_cues']) expect(g.results.find((r) => r.id === id)?.pass, id).toBe(true);
   });
 
+  it('measures the castle tier by its own hero and halls: the knight rig, a region of rooms, three layers behind the play', () => {
+    const castle = GENRES['castle']!;
+    const region = castle.levelGrammar.generate({ seed: 1, difficulty: 0.5 });
+    const v = measure({ genre: 'castle', entityDefs: castle.entityDefs, player: castle.player, behaviours: castle.defaultBehaviours, levels: [region], assets: [] });
+    expect(v).toMatchObject({ hero_height: 42, hero_clips: 9, parallax_layers: 3 });
+    expect(v['rooms']).toBeGreaterThanOrEqual(12);
+    const g = grade(CASTLE_RUBRIC, v);
+    for (const id of ['hero_height', 'rooms', 'parallax_layers']) expect(g.results.find((r) => r.id === id)?.pass, id).toBe(true);
+  });
+
   it('holds a ceiling line to at most its target', () => {
     const g = grade([{ id: 'altar_spacing', area: 'world', text: '', target: 4, most: true }], { altar_spacing: 5 });
     expect(g.results[0]!.pass).toBe(false);

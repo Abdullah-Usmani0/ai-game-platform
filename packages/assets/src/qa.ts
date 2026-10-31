@@ -1,5 +1,5 @@
 import type { PixelCanvas, RGB } from '@gg/sdk/art';
-import type { Layer } from './painter/index.js';
+import type { Layer } from './painter.js';
 
 /** What the backdrop QA measured. */
 export interface BackdropMeasure {

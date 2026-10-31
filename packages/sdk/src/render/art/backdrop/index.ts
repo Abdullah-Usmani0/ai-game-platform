@@ -1,4 +1,6 @@
-import type { PaletteRoles, PixelCanvas, RGB } from '@gg/sdk/art';
+import { parseHex, type RGB } from '../color.js';
+import type { PaletteRoles } from '../palette.js';
+import type { PixelCanvas } from '../pixels.js';
 import * as coral from './coral.js';
 import * as frost from './frost.js';
 import * as gothic from './gothic.js';
@@ -20,3 +22,14 @@ export const THEMES: Readonly<Record<string, Theme>> = {
   coral: { id: 'coral', roles: coral.ROLES, palette: coral.PALETTE, layers: { far: coral.coralFar, mid: coral.coralMid, near: coral.coralNear }, floor: coral.coralFloor },
   frost: { id: 'frost', roles: frost.ROLES, palette: frost.PALETTE, layers: { far: frost.frostFar, mid: frost.frostMid, near: frost.frostNear }, floor: frost.frostFloor },
 };
+
+/** The theme whose palette roles are nearest a game's: the painter it draws its backdrop with until it has its own. */
+export function themeFor(roles: PaletteRoles): Theme {
+  const keys = ['background', 'mid', 'foreground', 'accent', 'danger', 'ui'] as const;
+  const far = (t: Theme) => keys.reduce((sum, k) => {
+    const a = parseHex(roles[k]);
+    const b = parseHex(t.roles[k]);
+    return sum + Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+  }, 0);
+  return Object.values(THEMES).reduce((best, t) => (far(t) < far(best) ? t : best));
+}

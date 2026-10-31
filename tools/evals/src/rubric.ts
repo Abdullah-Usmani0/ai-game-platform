@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BehaviourFsm, Condition, LevelJson } from '@gg/schemas';
 import type { EntityDef } from '@gg/sdk';
-import { frameSize, playerRecipe, RECIPES, SETTING_BY_GENRE, type Setting } from '@gg/sdk/art';
+import { frameSize, playerRecipe, RECIPES, RIGS, SETTING_BY_GENRE, type Setting } from '@gg/sdk/art';
 import { readGameInputs, resolveGame } from '@gg/templates/node';
 
 /**
@@ -48,7 +48,7 @@ export interface RubricInputs {
 }
 
 /** Parallax layers the view draws behind the play in each setting (phaser-view's scenery). */
-const PARALLAX: Readonly<Record<Setting, number>> = { side: 3, space: 3, dungeon: 0, field: 0, farm: 0 };
+const PARALLAX: Readonly<Record<Setting, number>> = { side: 3, space: 3, dungeon: 0, field: 0, farm: 0, castle: 3 };
 
 const timerOf = (c: Condition): number => (c.kind === 'timer_elapsed' ? c.ms : c.kind === 'all' ? Math.max(0, ...c.of.map(timerOf)) : c.kind === 'any' ? Math.min(...c.of.map(timerOf)) : 0);
 const hpThresholds = (c: Condition): number[] => (c.kind === 'hp_below' ? [c.fraction] : c.kind === 'all' || c.kind === 'any' ? c.of.flatMap(hpThresholds) : []);
@@ -57,6 +57,8 @@ const hpThresholds = (c: Condition): number[] => (c.kind === 'hp_below' ? [c.fra
 export function measure(g: RubricInputs): Record<string, number | null> {
   const setting = SETTING_BY_GENRE[g.genre] ?? 'side';
   const recipe = RECIPES[playerRecipe(setting, g.player.w)];
+  // The castle tier draws its hero with the knight's rig: its body and its clips are the hero's.
+  const rig = setting === 'castle' ? RIGS['knight'] : undefined;
   // The shortest wait in a state that leads into an instant hit: what the player has to see it coming.
   let telegraph: number | null = null;
   for (const fsm of g.behaviours) {
@@ -70,8 +72,8 @@ export function measure(g: RubricInputs): Record<string, number | null> {
   const phases = bossFsms.length ? Math.max(...bossFsms.map((f) => 1 + new Set(Object.values(f.states).flatMap((s) => s.transitions.flatMap((t) => hpThresholds(t.when)))).size)) : 0;
   const rooms = g.levels.reduce((n, l) => n + ((l as { rooms?: unknown[] }).rooms?.length ?? 1), 0);
   return {
-    hero_height: recipe ? frameSize(recipe).h - 2 : null,
-    hero_clips: recipe ? Object.keys(recipe.anims).length : null,
+    hero_height: rig ? rig.body.h : recipe ? frameSize(recipe).h - 2 : null,
+    hero_clips: rig ? rig.clips.length : recipe ? Object.keys(recipe.anims).length : null,
     telegraph_ms: telegraph,
     boss_phases: phases,
     rooms,

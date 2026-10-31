@@ -6,10 +6,13 @@ import { mix, parseHex, toInt, type RGB } from './art/color.js';
 import { fitRow, textImage, wrapText } from './art/font.js';
 import { artPalette, type ArtPalette, type OutlineMode } from './art/palette.js';
 import { PixelCanvas, hash2 } from './art/pixels.js';
-import { FLAG, PARTICLES, TORCH, paintClouds, paintGlow, paintNebula, paintParticle, paintPlanet, paintRidge, paintScanlines, paintShadow, paintSky, paintSkyOrb, paintStars, paintVignette, paintVoid } from './art/scenery.js';
+import { FLAG, PARTICLES, TORCH, paintClouds, paintHangings, paintGlow, paintNebula, paintParticle, paintPlanet, paintRidge, paintScanlines, paintShadow, paintSky, paintSkyOrb, paintStars, paintVignette, paintVoid } from './art/scenery.js';
 import { compileSheet, playerRecipe, spriteFor } from './art/designs.js';
 import { RECIPES, cropRecipe, cropTune, frameSize, legendFor, paintFrames, type Anchor, type Recipe } from './art/sprites.js';
-import { groundUnder, paintRegion, prepareLevelArt, settingFor, torchSpots, type Setting } from './art/terrain.js';
+import { themeFor } from './art/backdrop/index.js';
+import { tileable } from './art/backdrop/post.js';
+import { paintRig, RIGS, type Rig } from './art/rig/index.js';
+import { groundUnder, paintRegion, prepareLevelArt, settingFor, sideView, torchSpots, type Setting } from './art/terrain.js';
 import { toCanvas } from './canvas.js';
 import type { GameController } from './controller.js';
 import { Sfx } from './sfx.js';
@@ -33,6 +36,10 @@ const ANIM_ALIASES: Record<string, string> = { walk: 'run', fly: 'run', chase: '
 /** Fallback colours by the palette role an entity type asks for: light, base, dark template letters. */
 const TINT_LETTERS: Record<string, [string, string, string]> = { accent: ['b', 'A', 'a'], ui: ['I', 'i', 't'], danger: ['e', 'D', 'd'], foreground: ['5', '4', '3'], mid: ['u', 'T', 't'] };
 const CHUNK_TILES = 64;
+/** A move between two rooms slides the view across in this many ticks. */
+const ROOM_SLIDE_TICKS = 20;
+/** Backdrop layers are painted this much wider and blended across it, so they wrap without a seam. */
+const WRAP_BAND = 24;
 const HUD_H = 14;
 /** How long the level name stays up after a level loads, in ticks. */
 const BANNER_TICKS = 110;
@@ -149,6 +156,8 @@ export class MainScene extends Phaser.Scene {
   private bubbles = new Map<number, { back: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Image; icon: Phaser.GameObjects.Image; pointer: Phaser.GameObjects.Image }>();
   private bannerImg: Phaser.GameObjects.Image | null = null;
   private followTarget = { x: 0, y: 0 };
+  /** A level of rooms holds the view to the room the player is in; a new room slides it across from where it was. */
+  private room = { index: -1, fromX: 0, fromY: 0, at: 0, seen: -1 };
   private unsubs: Array<() => void> = [];
   private drawnVersion = -1;
   private drawnExitLocked = false;
@@ -191,7 +200,7 @@ export class MainScene extends Phaser.Scene {
     this.readDesigns();
     const { w, h } = this.style.canvas;
     const cam = this.cameras.main;
-    cam.setBackgroundColor(this.setting === 'side' ? this.style.palette.background : toInt(this.pal.ink));
+    cam.setBackgroundColor(sideView(this.setting) ? this.style.palette.background : toInt(this.pal.ink));
     cam.setRoundPixels(true);
     this.buildSheets();
     this.buildEffectTextures();
@@ -285,6 +294,29 @@ export class MainScene extends Phaser.Scene {
     return sheet;
   }
 
+  /** A rig's frames as one sheet: a grid of them (in one strip they would be wider than a texture may be). */
+  private sheetFromRig(name: string, rig: Rig): Sheet {
+    const frames = paintRig(rig, this.pal);
+    const cols = Math.max(1, Math.min(frames.length, Math.floor(2048 / rig.w)));
+    const pc = new PixelCanvas(cols * rig.w, Math.ceil(frames.length / cols) * rig.h);
+    const at = (i: number) => ({ x: (i % cols) * rig.w, y: Math.floor(i / cols) * rig.h });
+    frames.forEach((f, i) => pc.blit(f.color, at(i).x, at(i).y));
+    const key = `gg-sheet-${name}`;
+    const tex = this.addCanvasTexture(key, pc);
+    const anims = new Map<string, string[]>();
+    const tops = new Map<string, number>();
+    frames.forEach((f, i) => {
+      const frame = `${f.clip}:${f.frame}`;
+      tex?.add(frame, 0, at(i).x, at(i).y, rig.w, rig.h);
+      anims.set(f.clip, [...(anims.get(f.clip) ?? []), frame]);
+      tops.set(frame, firstPaintedRow(f.color));
+    });
+    // The frame's foot point is its bottom middle, as a template sprite's is.
+    const sheet: Sheet = { key, w: rig.w, h: rig.h, anchor: 'feet', anims, directional: false, floor: false, noShadow: false, fixture: false, tops };
+    this.sheets.set(name, sheet);
+    return sheet;
+  }
+
   /**
    * The game's designs (content/sprites.json), each compiled on its own: one that cannot be read or drawn is left out
    * and its type draws as it ships. Never a crash, never the placeholder shape.
@@ -313,6 +345,8 @@ export class MainScene extends Phaser.Scene {
 
   private buildSheets(): void {
     for (const [name, recipe] of Object.entries(RECIPES)) this.sheetFromRecipe(name, recipe);
+    // The castle tier's hero is drawn by its rig.
+    if (this.setting === 'castle') this.sheetFromRig('rig:knight', RIGS['knight']!);
     for (const [type, recipe] of this.designs) this.sheetFromRecipe(`game:${type}`, recipe);
     this.sheetFromRecipe('flag', FLAG);
     this.sheetFromRecipe('torch', TORCH);
@@ -434,7 +468,7 @@ export class MainScene extends Phaser.Scene {
   private addScreenEffects(): void {
     const { w, h } = this.style.canvas;
     if (this.fx.vignette) {
-      this.addCanvasTexture('gg-vignette', paintVignette(w, h, this.pal.ink, this.setting === 'side' ? 0.45 : 0.62));
+      this.addCanvasTexture('gg-vignette', paintVignette(w, h, this.pal.ink, this.setting === 'castle' ? 0.55 : this.setting === 'side' ? 0.45 : 0.62));
       this.add.image(0, 0, 'gg-vignette').setOrigin(0).setScrollFactor(0).setDepth(9_000);
     }
     if (this.fx.crt) {
@@ -499,10 +533,17 @@ export class MainScene extends Phaser.Scene {
     const by = -(spare >= HUD_H ? spare + HUD_H : spare) / 2;
     cam.setBounds(-(bw - map.pixelWidth) / 2, by, bw, bh);
     this.horizonY = by + bh - viewH;
-    cam.startFollow(this.followTarget, true, this.style.camera.lerp, this.style.camera.lerp);
-    cam.setDeadzone(this.style.camera.deadzone.w, this.style.camera.deadzone.h);
-    this.aimCamera(sim.world.player);
-    cam.centerOn(this.followTarget.x, this.followTarget.y);
+    this.room = { index: -1, fromX: 0, fromY: 0, at: 0, seen: -1 };
+    if ((map.level.rooms ?? []).length > 0) {
+      // A level of rooms: the view is held to the room the player is in (roomCamera), not followed.
+      cam.stopFollow();
+      this.roomCamera(sim.tick);
+    } else {
+      cam.startFollow(this.followTarget, true, this.style.camera.lerp, this.style.camera.lerp);
+      cam.setDeadzone(this.style.camera.deadzone.w, this.style.camera.deadzone.h);
+      this.aimCamera(sim.world.player);
+      cam.centerOn(this.followTarget.x, this.followTarget.y);
+    }
     this.buildBackdrop();
     this.buildTiles();
     this.buildDecor();
@@ -555,6 +596,15 @@ export class MainScene extends Phaser.Scene {
       add('gg-far', paintRidge(256, h, this.pal.far, { seed: 1, base: 0.74, height: 0.3, jag: 0.8 }), -95, { fx: 0.1, fy: 0.05, driftX: 0, driftY: 0, horizon: true });
       add('gg-clouds', paintClouds(this.pal, 320, h, 3), -93, { fx: 0.16, fy: 0.03, driftX: 0.05, driftY: 0, horizon: true });
       add('gg-near', paintRidge(320, h, this.pal.near, { seed: 2, base: 0.92, height: 0.26, jag: 0.35 }), -90, { fx: 0.3, fy: 0.12, driftX: 0, driftY: 0, horizon: true });
+    } else if (this.setting === 'castle') {
+      // The castle's halls in the painter's theme nearest the game's palette: a far skyline and a ruined arcade nearer,
+      // each wrapping as the view moves, then what hangs from the vaults a step behind the play. (The theme's own near
+      // layer, pillars meant to stand in front of a scene, reads as a black slot behind it.)
+      const theme = themeFor(this.style.palette);
+      const layer = (name: 'far' | 'mid') => tileable(theme.layers[name](w + WRAP_BAND, h, 7), WRAP_BAND);
+      add('gg-castle-far', layer('far'), -100, { fx: 0.06, fy: 0, driftX: 0, driftY: 0, horizon: false });
+      add('gg-castle-mid', layer('mid'), -95, { fx: 0.3, fy: 0, driftX: 0, driftY: 0, horizon: false });
+      add('gg-castle-hangings', paintHangings(this.pal, w, h, 11), -90, { fx: 0.6, fy: 0, driftX: 0, driftY: 0, horizon: false });
     } else if (this.setting === 'space') {
       add('gg-sky', paintSky(this.pal, w, h, 3), -100, still);
       add('gg-nebula', paintNebula(this.pal, 256, 7), -98, { fx: 0.05, fy: 0.05, driftX: 0, driftY: -0.05, horizon: false });
@@ -610,7 +660,7 @@ export class MainScene extends Phaser.Scene {
   private buildDecor(): void {
     const map = this.controller.sim.map;
     const ts = map.tileSize;
-    if (this.setting === 'side') {
+    if (sideView(this.setting)) {
       for (let ty = 0; ty < map.height; ty++) {
         for (let tx = 0; tx < map.width; tx++) {
           if (map.kindAt(tx, ty) === 'goal' && (ty + 1 >= map.height || map.kindAt(tx, ty + 1) !== 'goal')) this.addDecor('flag', tx * ts + Math.floor(ts / 2), (ty + 1) * ts, 'feet', this.pal.accent[3], tx);
@@ -626,7 +676,7 @@ export class MainScene extends Phaser.Scene {
     if (this.setting === 'space') return;
     const { w, h } = this.style.canvas;
     const night = this.pal.sky[0][0] + this.pal.sky[0][1] + this.pal.sky[0][2] < 150;
-    const kind = this.setting === 'dungeon' ? 'ember' : this.setting === 'field' ? 'pollen' : night ? 'firefly' : 'pollen';
+    const kind = this.setting === 'dungeon' || this.setting === 'castle' ? 'ember' : this.setting === 'field' ? 'pollen' : night ? 'firefly' : 'pollen';
     const color = kind === 'ember' ? this.pal.accent[4] : kind === 'firefly' ? mix(this.pal.rim[4], this.pal.accent[4], 0.5) : this.pal.white;
     for (let i = 0; i < 14; i++) {
       const img = this.add.image(0, 0, 'gg-p-dot').setScrollFactor(0).setDepth(kind === 'ember' ? 350 : 95).setTint(toInt(color)).setBlendMode(Phaser.BlendModes.ADD);
@@ -664,7 +714,7 @@ export class MainScene extends Phaser.Scene {
 
   /** The sheet an entity draws with: the game's design for its type (or the player's), else its shipped sprite. */
   private recipeName(e: Entity): string | null {
-    if (e.isPlayer) return this.designs.has('@player') ? 'game:@player' : playerRecipe(this.setting, e.w);
+    if (e.isPlayer) return this.setting === 'castle' ? 'rig:knight' : this.designs.has('@player') ? 'game:@player' : playerRecipe(this.setting, e.w);
     return spriteFor(e.type, { drawAs: this.drawAs.get(e.type), designs: this.designs })?.name ?? (e.isProjectile ? 'orb' : null);
   }
 
@@ -693,7 +743,7 @@ export class MainScene extends Phaser.Scene {
       return has(`${s.dir}-${base}`) ? `${s.dir}-${base}` : `${s.dir}-idle`;
     }
     if (hurt && has('hurt')) return 'hurt';
-    if (e.isPlayer && this.setting === 'side') {
+    if (e.isPlayer && sideView(this.setting)) {
       if (tick <= this.dashUntilTick && has('dash')) return 'dash';
       if (!e.grounded) return e.vy < 0 ? 'jump' : 'fall';
       return Math.abs(e.vx) > 0.15 ? 'run' : 'idle';
@@ -716,7 +766,7 @@ export class MainScene extends Phaser.Scene {
     const sim = this.controller.sim;
     const tick = sim.tick;
     const seen = new Set<number>();
-    const ysort = this.setting !== 'side';
+    const ysort = !sideView(this.setting);
     const shadows = this.setting === 'dungeon' || this.setting === 'field' || this.setting === 'farm';
     for (const e of sim.world.entities) {
       if (!e.alive) continue;
@@ -746,7 +796,7 @@ export class MainScene extends Phaser.Scene {
       if (s.sheet.anchor === 'feet') s.img.setPosition(Math.round(cx), Math.round(feet) + 1);
       else s.img.setPosition(Math.round(cx), Math.round(cy) + bob);
       s.img.setScale(e.scaleX, e.scaleY);
-      const flips = this.setting === 'side' ? true : s.sheet.directional ? s.dir === 'side' : this.setting !== 'space' && !e.pickup;
+      const flips = sideView(this.setting) ? true : s.sheet.directional ? s.dir === 'side' : this.setting !== 'space' && !e.pickup;
       s.img.setFlipX(flips && e.facing < 0);
       const kind = this.drawAs.get(e.type) ?? e.type;
       if (kind === 'arrow') s.img.setRotation(Math.atan2(e.vy, e.vx));
@@ -855,6 +905,36 @@ export class MainScene extends Phaser.Scene {
     const lead = typeof run === 'number' && run !== 0 ? Math.sign(run) * Math.round(cam.width / cam.zoom / 4) : 0;
     this.followTarget.x = Math.round(p.x + p.w / 2) + lead;
     this.followTarget.y = Math.round(p.y + p.h / 2);
+  }
+
+  /**
+   * The view over a level of rooms: centred on the player and held inside the room they are in (a room no wider than
+   * the view stands still in it). Entering another room slides the view there from where it was, as the game plays; a
+   * jump in time (a frame stepped to a tick, a restart) shows the room as it settles, so such a frame always shows the
+   * same thing.
+   */
+  private roomCamera(tick: number): void {
+    const sim = this.controller.sim;
+    const rooms = sim.map.level.rooms ?? [];
+    const ts = sim.map.tileSize;
+    const cam = this.cameras.main;
+    const p = sim.world.player;
+    const cx = p.x + p.w / 2;
+    const cy = p.y + p.h / 2;
+    const found = rooms.findIndex((r) => cx >= r.x * ts && cx < (r.x + r.w) * ts && cy >= r.y * ts && cy < (r.y + r.h) * ts);
+    const index = found >= 0 ? found : Math.max(0, this.room.index);
+    const room = rooms[index]!;
+    const vw = cam.width / cam.zoom;
+    const vh = cam.height / cam.zoom;
+    const hold = (c: number, from: number, size: number, view: number) => (size <= view ? from + (size - view) / 2 : Math.min(Math.max(c - view / 2, from), from + size - view));
+    const tx = hold(cx, room.x * ts, room.w * ts, vw);
+    const ty = hold(cy, room.y * ts, room.h * ts, vh);
+    const playing = this.room.index >= 0 && tick >= this.room.seen && tick - this.room.seen <= 2;
+    if (index !== this.room.index) this.room = { index, fromX: playing ? cam.scrollX : tx, fromY: playing ? cam.scrollY : ty, at: tick, seen: tick };
+    this.room.seen = tick;
+    const t = Math.min(1, Math.max(0, (tick - this.room.at) / ROOM_SLIDE_TICKS));
+    const ease = t * t * (3 - 2 * t);
+    cam.setScroll(Math.round(this.room.fromX + (tx - this.room.fromX) * ease), Math.round(this.room.fromY + (ty - this.room.fromY) * ease));
   }
 
   private where(payload: Record<string, unknown>): { x: number; y: number } {
@@ -1224,7 +1304,7 @@ export class MainScene extends Phaser.Scene {
         .setTexture(heldSheet.key, frames[Math.floor((tick * this.fps.effects) / 60) % frames.length])
         .setPosition(Math.round(ps.img.x), Math.round(top))
         .setScale(1 + 0.4 * squash, 1 - 0.3 * squash)
-        .setFlipX(this.setting === 'side' && p.facing < 0)
+        .setFlipX(sideView(this.setting) && p.facing < 0)
         .setDepth(ps.img.depth + 0.5)
         .setVisible(true);
     } else this.heldImg.setVisible(false);
@@ -1544,6 +1624,7 @@ export class MainScene extends Phaser.Scene {
     const tick = sim.tick;
     if (sim.map.version !== this.drawnVersion || (this.setting === 'dungeon' && this.exitLocked() !== this.drawnExitLocked)) this.buildTiles();
     this.aimCamera(sim.world.player);
+    if ((sim.map.level.rooms ?? []).length > 0) this.roomCamera(tick);
     this.syncEntities();
     this.stepCourier(tick);
     this.stepParticles(tick);
@@ -1633,13 +1714,43 @@ const HUD_KEY_ICONS: Record<string, string> = {
   delivered: 'check',
 };
 
+/**
+ * A box inside `parent` the size of the largest whole multiple of the canvas that fits, centred, kept so as the page
+ * resizes: the view fills it, so every pixel of the art is the same number of screen pixels (where even one multiple
+ * does not fit, the box is the parent and the view shrinks to fit as every tier's does).
+ */
+function integerBox(parent: HTMLElement | string | undefined, w: number, h: number): HTMLElement | string | undefined {
+  const host = typeof parent === 'string' ? document.getElementById(parent) : parent;
+  if (!host || typeof window === 'undefined') return parent;
+  const box = document.createElement('div');
+  box.style.position = 'absolute';
+  host.style.position = host.style.position || 'relative';
+  host.appendChild(box);
+  const fit = () => {
+    const pw = host.clientWidth || window.innerWidth;
+    const ph = host.clientHeight || window.innerHeight;
+    const z = Math.floor(Math.min(pw / w, ph / h));
+    const bw = z >= 1 ? w * z : pw;
+    const bh = z >= 1 ? h * z : ph;
+    box.style.width = `${bw}px`;
+    box.style.height = `${bh}px`;
+    box.style.left = `${Math.floor((pw - bw) / 2)}px`;
+    box.style.top = `${Math.floor((ph - bh) / 2)}px`;
+  };
+  fit();
+  window.addEventListener('resize', fit);
+  return box;
+}
+
 export function createPhaserGame(controller: GameController, style: ViewStyle, parent: HTMLElement | string | undefined, onCreated: () => void): { game: Phaser.Game; scene: MainScene } {
   const scene = new MainScene(controller, style, onCreated);
+  // The castle tier keeps its pixels whole: the view scales by whole multiples only.
+  const castle = settingFor(style.genre, undefined) === 'castle';
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     width: style.canvas.w,
     height: style.canvas.h,
-    parent,
+    parent: castle ? integerBox(parent, style.canvas.w, style.canvas.h) : parent,
     pixelArt: style.pixelArt,
     roundPixels: true,
     backgroundColor: style.palette.background,

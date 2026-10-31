@@ -10,13 +10,13 @@ import { hash2, type PixelCanvas } from './pixels.js';
  * the floor and torches light it. Everything is seeded by position, so a level looks the same every time it loads.
  */
 
-export type Setting = 'side' | 'dungeon' | 'field' | 'farm' | 'space';
+export type Setting = 'side' | 'dungeon' | 'field' | 'farm' | 'space' | 'castle';
 
 /** The setting each genre is drawn in; a genre not listed here falls back by how its player moves. */
 export const SETTING_BY_GENRE: Readonly<Record<string, Setting>> = {
   platformer: 'side',
   metroidvania: 'side',
-  castle: 'side',
+  castle: 'castle',
   'topdown-action': 'dungeon',
   puzzle: 'dungeon',
   roguelike: 'dungeon',
@@ -25,6 +25,11 @@ export const SETTING_BY_GENRE: Readonly<Record<string, Setting>> = {
   lifesim: 'farm',
   shmup: 'space',
 };
+
+/** A setting seen from the side (gravity, a sky or a hall behind the level), rather than from above. */
+export function sideView(setting: Setting): boolean {
+  return setting === 'side' || setting === 'castle';
+}
 
 export function settingFor(genre: string | undefined, movementMode: 'platformer' | 'topdown' | undefined): Setting {
   return SETTING_BY_GENRE[genre ?? ''] ?? (movementMode === 'topdown' ? 'dungeon' : 'side');
@@ -152,7 +157,7 @@ export function groundUnder(map: TerrainMap, setting: Setting, fixtures: Readonl
 export function prepareLevelArt(pal: ArtPalette, setting: Setting, map: TerrainMap, exitLocked: boolean): LevelArt {
   const ts = map.tileSize;
   const lights = setting === 'dungeon' ? torchSpots(map).map((s) => ({ x: s.tx * ts + ts / 2, y: (s.ty + 1) * ts, radius: Math.max(40, ts * 4.5) })) : [];
-  return { pal, setting, map, depth: setting === 'side' ? depthField(map) : null, lights, exitLocked };
+  return { pal, setting, map, depth: sideView(setting) ? depthField(map) : null, lights, exitLocked };
 }
 
 // ---------------------------------------------------------------- cobbles
@@ -181,6 +186,66 @@ function cobble(x: number, y: number, cw: number, ch: number, seed: number): { i
     }
   }
   return { id, edge: (f2 - f1) * Math.min(cw, ch), above: y + 0.5 < fy };
+}
+
+// ---------------------------------------------------------------- castle
+
+/**
+ * Cut stone laid in courses: blocks a tile wide and half a tile high, staggered, each lit along its top and left edges
+ * and shadowed at its foot, with dark mortar between them and the odd pitted or cracked face. The walking surface is a
+ * worn, bright lip; moss creeps into the mortar near it; deep inside the wall the stone falls away into darkness.
+ */
+function paintCastleStone(art: LevelArt, pc: PixelCanvas, x0: number, y0: number, gx: number, gy: number): void {
+  const { pal, map } = art;
+  const T = pal.terrain;
+  const R = pal.rim;
+  const ts = map.tileSize;
+  const W = map.width * ts;
+  const dv = art.depth ? art.depth[gy * W + gx]! : 4;
+  const px = gx - x0;
+  const py = gy - y0;
+  const openU = !solidPx(map, gx, gy - 1);
+  const openD = !solidPx(map, gx, gy + 1);
+  const openL = !solidPx(map, gx - 1, gy);
+  const openR = !solidPx(map, gx + 1, gy);
+  // The walking surface: a worn lip, chipped here and there, over a lit course.
+  if (openU) {
+    pc.set(px, py, openL || openR ? T[3] : hash2(gx, gy, 13) < 0.1 ? T[3] : T[4]);
+    return;
+  }
+  if (openD) {
+    pc.set(px, py, mix(T[0], pal.ink, 0.25));
+    return;
+  }
+  const ch = Math.max(4, Math.round(ts / 2));
+  const bw = Math.max(8, ts);
+  const course = Math.floor(gy / ch);
+  const shift = course % 2 === 1 ? Math.floor(bw / 2) : 0;
+  const bx = (gx + shift) % bw;
+  const by = gy % ch;
+  const block = Math.floor((gx + shift) / bw);
+  const tone = hash2(block, course, 41);
+  const mortar = bx === 0 || by === ch - 1;
+  let c: RGB;
+  if (mortar) {
+    // Moss in the joints near a surface the light reaches.
+    const nearSurface = dv < ts * 0.75;
+    c = nearSurface && hash2(gx >> 1, gy, 43) < 0.16 ? (hash2(gx, gy, 47) < 0.5 ? R[1] : R[2]) : mix(T[0], pal.ink, 0.2);
+  } else if (by === 0) c = tone < 0.3 ? T[2] : T[3];
+  else if (bx === 1 || openL) c = T[3];
+  else if (by === ch - 2 || bx === bw - 1 || openR) c = T[1];
+  else {
+    c = tone < 0.22 ? mix(T[2], T[1], 0.45) : tone > 0.86 ? mix(T[2], T[3], 0.35) : T[2];
+    const pit = hash2(gx, gy, 17);
+    if (pit > 0.94) c = T[1];
+    // A hairline crack across the odd block.
+    if (tone > 0.93 && Math.abs(bx - by * 1.6 - 3) < 0.6) c = mix(T[0], pal.ink, 0.15);
+  }
+  // Depth: the face of a wall reads; a step inside it darkens; deep stone is near black, dithered between.
+  const band = dv / ts + (bayer(gx, gy) - 0.5) * 0.9;
+  if (band > 1.6) c = mix(c, pal.ink, 0.72);
+  else if (band > 0.8) c = mix(c, pal.ink, 0.38);
+  pc.set(px, py, c);
 }
 
 // ---------------------------------------------------------------- side view
@@ -607,6 +672,8 @@ export function paintRegion(art: LevelArt, pc: PixelCanvas, x0: number, y0: numb
       const kind = kindAt(map, tx, ty);
       if (setting === 'side') {
         if (kind === 'solid') paintSideRock(art, pc, x0, y0, gx, gy);
+      } else if (setting === 'castle') {
+        if (kind === 'solid') paintCastleStone(art, pc, x0, y0, gx, gy);
       } else if (setting === 'farm' && (kind === 'solid' || kind === 'air' || kind === 'spawn')) pc.set(px, py, paintFarmPx(art, gx, gy));
       else if (kind === 'solid') pc.set(px, py, paintWallPx(art, gx, gy));
       else pc.set(px, py, paintFloorPx(art, gx, gy));
@@ -619,11 +686,11 @@ export function paintRegion(art: LevelArt, pc: PixelCanvas, x0: number, y0: numb
       const ox = tx * ts - x0;
       const oy = ty * ts - y0;
       if (kind === 'hazard') {
-        if (setting !== 'side') {
+        if (!sideView(setting)) {
           // A floor trap: a dark plate the spikes come out of.
           for (let y = 1; y < ts - 1; y++) for (let x = 1; x < ts - 1; x++) pc.set(ox + x, oy + y, mix(pal.floor[1], pal.ink, 0.4));
         }
-        paintSpikes(pal, pc, ox, oy, ts, setting === 'side' && solidTile(map, tx, ty - 1) && !solidTile(map, tx, ty + 1));
+        paintSpikes(pal, pc, ox, oy, ts, sideView(setting) && solidTile(map, tx, ty - 1) && !solidTile(map, tx, ty + 1));
       } else if (kind === 'oneway') {
         paintPlank(pal, pc, ox, oy, ts, tx, { l: kindAt(map, tx - 1, ty) !== 'oneway', r: kindAt(map, tx + 1, ty) !== 'oneway' });
       } else if (kind === 'goal' && setting === 'dungeon') {

@@ -62,6 +62,8 @@ export interface Clip {
   swing?: number;
   /** Wind on the cloth: the clip's own speed through the air (negative streams it back). */
   wind: number;
+  /** Drawn in the air (a jump, a fall): the feet may leave the ground, never sink below it. */
+  air?: boolean;
 }
 
 const IDLE_A: Pose = { dx: 0, lift: 0, lean: 3, head: -2, armN: [62, 40], armF: [100, 25], legN: [76, 24], legF: [104, 16], blade: -8 };
@@ -87,12 +89,27 @@ const A3_END: Pose = { dx: 11, lift: 0, lean: 12, head: -6, armN: [400, 20], arm
 
 const at = (frame: number, frames: number) => frame / (frames - 1);
 
+// Off the ground and on the move: knees drawn up on the way up, legs reaching for the floor on the way down, a dash
+// leant into with the blade trailing, a hit taken on the back foot.
+const JUMP_A: Pose = { dx: 1, lift: 7, lean: 6, head: -8, armN: [28, 45], armF: [150, 35], legN: [52, 95], legF: [104, 70], blade: -40 };
+const JUMP_B: Pose = { ...JUMP_A, lift: 8, head: -6, armN: [24, 42], armF: [156, 32], legN: [48, 100], legF: [100, 76] };
+const FALL_A: Pose = { dx: 0, lift: 4, lean: 4, head: 8, armN: [38, 34], armF: [162, 30], legN: [76, 28], legF: [106, 40], blade: 55 };
+const FALL_B: Pose = { ...FALL_A, armN: [34, 30], armF: [166, 27], legN: [74, 32], legF: [108, 36] };
+const DASH_A: Pose = { dx: 5, lift: 0, lean: 30, head: -18, armN: [150, 25], armF: [55, 40], legN: [46, 30], legF: [132, 22], blade: 165 };
+const DASH_B: Pose = { ...DASH_A, lean: 32, legN: [44, 34], legF: [136, 18] };
+const HURT_A: Pose = { dx: -4, lift: 0, lean: -24, head: 20, armN: [160, 30], armF: [215, 25], legN: [68, 26], legF: [114, 30], blade: 20 };
+const HURT_B: Pose = { ...HURT_A, lean: -20, head: 16, armN: [154, 34] };
+
 export const KNIGHT_CLIPS: readonly Clip[] = [
   { name: 'idle', frames: 8, loop: true, keys: [{ at: 0, pose: IDLE_A }, { at: 0.5, pose: IDLE_B }], wind: 0 },
   { name: 'run', frames: 8, loop: true, keys: Array.from({ length: 8 }, (_, i) => ({ at: i / 8, pose: runPose(i / 8) })), wind: -0.55 },
   { name: 'attack1', frames: 9, loop: false, active: [3, 4], swing: 1, wind: 0, keys: [{ at: 0, pose: STANCE }, { at: at(2, 9), pose: A1_UP }, { at: at(4, 9), pose: A1_HIT }, { at: at(8, 9), pose: A1_END }] },
   { name: 'attack2', frames: 8, loop: false, active: [2, 3], swing: -1, wind: 0, keys: [{ at: 0, pose: A1_END }, { at: at(1, 8), pose: A2_LOW }, { at: at(3, 8), pose: A2_HIT }, { at: at(7, 8), pose: A2_END }] },
   { name: 'attack3', frames: 11, loop: false, active: [4, 5], swing: 0, wind: 0, keys: [{ at: 0, pose: A2_END }, { at: at(3, 11), pose: A3_BACK }, { at: at(5, 11), pose: A3_HIT }, { at: at(10, 11), pose: A3_END }] },
+  { name: 'jump', frames: 2, loop: true, air: true, wind: -0.3, keys: [{ at: 0, pose: JUMP_A }, { at: 0.5, pose: JUMP_B }] },
+  { name: 'fall', frames: 2, loop: true, air: true, wind: -0.25, keys: [{ at: 0, pose: FALL_A }, { at: 0.5, pose: FALL_B }] },
+  { name: 'dash', frames: 2, loop: true, wind: -1.1, keys: [{ at: 0, pose: DASH_A }, { at: 0.5, pose: DASH_B }] },
+  { name: 'hurt', frames: 2, loop: true, wind: 0.35, keys: [{ at: 0, pose: HURT_A }, { at: 0.5, pose: HURT_B }] },
 ];
 
 /** The knight's parts in one frame, back to front: cape, far limbs, body and tabard, near leg, helm and plume, near arm and sword. */

@@ -45,6 +45,61 @@ export function paintRidge(w: number, h: number, color: RGB, opts: { seed: numbe
   return pc;
 }
 
+/**
+ * What hangs from a hall's vaults, a step behind the play: chains (some ending in a cage or a hook) and torn banners
+ * on rods, in the hall's own dark stone and its danger colour, tiling horizontally. Thin things: they give the hall
+ * depth without standing in the way of reading the play.
+ */
+export function paintHangings(pal: ArtPalette, w: number, h: number, seed: number): PixelCanvas {
+  const pc = new PixelCanvas(w, h);
+  const iron = mix(pal.terrain[1], pal.ink, 0.35);
+  const ironLit = pal.terrain[2];
+  const set = (x: number, y: number, c: RGB) => pc.set(((x % w) + w) % w, y, c);
+  const count = Math.max(2, Math.round(w / 110));
+  for (let i = 0; i < count; i++) {
+    const cx = Math.round(((i + 0.25 + hash2(i, 3, seed) * 0.5) * w) / count);
+    const kind = hash2(i, 5, seed);
+    if (kind < 0.62) {
+      // A chain of links, each a lit and a dark pixel, ending in a cage or a hook.
+      const len = Math.round(h * (0.12 + hash2(i, 7, seed) * 0.28));
+      for (let y = 0; y < len; y++) {
+        const link = y % 4;
+        if (link === 3) continue;
+        set(cx + (y % 8 < 4 ? 0 : 1), y, link === 0 ? ironLit : iron);
+      }
+      if (kind < 0.3) {
+        // A cage: bars round a rounded top, a floor plate.
+        const top = len;
+        for (let y = 0; y < 18; y++) {
+          for (let x = -6; x <= 6; x++) {
+            const round = y < 3 && Math.abs(x) > 3 + y;
+            if (round) continue;
+            if (y === 0 || y === 17 || y === 9 || Math.abs(x) === 6 || x % 3 === 0) set(cx + x, top + y, y === 0 || x === -6 ? ironLit : iron);
+          }
+        }
+      } else {
+        for (const [x, y] of [[0, 0], [0, 1], [1, 2], [2, 2], [3, 1]] as const) set(cx + x, len + y, iron);
+      }
+    } else {
+      // A torn banner: a rod, the cloth in the danger colour with a pale band, ragged at the foot.
+      const bw = 12 + Math.floor(hash2(i, 9, seed) * 6);
+      const top = 6 + Math.floor(hash2(i, 11, seed) * 10);
+      const len = Math.round(h * (0.22 + hash2(i, 13, seed) * 0.16));
+      for (let x = -2; x < bw + 2; x++) set(cx + x, top, ironLit);
+      for (let y = 1; y <= len; y++) {
+        for (let x = 0; x < bw; x++) {
+          const rag = len - Math.round(4 * hash2(cx + x, 17, seed) + 3 * Math.abs(((x * 2) % 6) - 3) * 0.5);
+          if (y > rag) continue;
+          const fold = x % 4 === 0;
+          const band = y > len * 0.2 && y < len * 0.2 + 3;
+          set(cx + x, top + y, band ? pal.accent[1] : fold ? pal.danger[0] : x < 2 ? pal.danger[2] : pal.danger[1]);
+        }
+      }
+    }
+  }
+  return pc;
+}
+
 /** Flat-bottomed cumulus that tiles horizontally: lit on top, shaded underneath; dim and moonlit when the sky is dark. */
 export function paintClouds(pal: ArtPalette, w: number, h: number, seed: number): PixelCanvas {
   const pc = new PixelCanvas(w, h);

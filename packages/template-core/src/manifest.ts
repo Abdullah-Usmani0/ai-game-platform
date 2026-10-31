@@ -1,4 +1,4 @@
-import type { ArtifactName, BehaviourFsm, CuratedGenre, EcaRule, FeedbackChannel, GddFrontmatter, LevelJson, ParamValue, ScopeTier, SystemsJson } from '@gg/schemas';
+import type { ArtifactName, BehaviourFsm, CuratedGenre, EcaRule, FeedbackChannel, GddFrontmatter, LevelJson, ParamValue, ScopeTier, StyleCard, SystemsJson } from '@gg/schemas';
 import type { EntityDef, FeelPreset, InputState, Sim, SystemDef } from '@gg/sdk';
 import type { CatalogSystem, EntityRole, Issue, ValidationReport } from '@gg/validators';
 
@@ -193,6 +193,11 @@ export interface GenreManifest extends GenreRuntime {
   solverBot: string;
   gddFragment: string;
   interviewFragment: string;
+  /**
+   * Where the genre's look starts, before the idea or a reference changes it: the castle tier's 480x270 view, its
+   * palette, its frame rates. Absent, the platform's default style.
+   */
+  styleDefaults?: Partial<Pick<StyleCard, 'canvas' | 'palette' | 'animationFps'>>;
   scopeBudget: Record<ScopeTier, ScopeBudget>;
   gddDefaults: GddDefaults;
   panels: PanelSpec[];

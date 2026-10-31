@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { THEMES } from '@gg/sdk/art';
 import type { GenreManifest } from '@gg/template-core';
 import { castleCheck } from './check.js';
 import { EXEMPLARS } from './exemplars.js';
@@ -16,6 +17,8 @@ export const castle: GenreManifest = {
   solverBot: castleCheck.solverBot,
   gddFragment: read('./gdd/fragment.md'),
   interviewFragment: read('./gdd/interview.md'),
+  // The tier's view; a moonlit gothic palette until the art direction draws one from the idea; the rig's quicker frames.
+  styleDefaults: { canvas: { w: 480, h: 270 }, palette: { ...THEMES['gothic']!.roles, extra: [] }, animationFps: { character: 12, effects: 15 } },
   scopeBudget: {
     small: { levels: 1, enemies: 2, items: 3, bosses: 0 },
     medium: { levels: 1, enemies: 3, items: 4, bosses: 0 },

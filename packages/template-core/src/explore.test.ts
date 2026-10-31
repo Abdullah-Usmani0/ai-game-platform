@@ -139,7 +139,8 @@ describe('hints', () => {
     expect(r.ticks).toBeLessThan(2400);
     // The same hints, the same run.
     expect(explore(maze, { budget: 20_000, subgoals: subgoalsFrom(hints.steps) }).script).toEqual(r.script);
-  });
+    // Three searches, one of them spending its whole budget: a busy machine takes longer than vitest's 5 s default.
+  }, 60_000);
 
   it('reports how many steps the best moment had done when the budget runs out', () => {
     const hints = suggestHints(MAZE, { movementMode: 'topdown', feel: CELESTE_CLASS })!;

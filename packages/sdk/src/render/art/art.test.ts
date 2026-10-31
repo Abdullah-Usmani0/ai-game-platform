@@ -18,6 +18,9 @@ import {
   prepareLevelArt,
   rgbToHsl,
   settingFor,
+  sideView,
+  themeFor,
+  THEMES,
   sfxFor,
   textImage,
   torchSpots,
@@ -245,6 +248,25 @@ describe('terrain', () => {
     expect(settingFor('something-new', 'topdown')).toBe('dungeon');
     expect(settingFor(undefined, undefined)).toBe('side');
     expect(Object.keys(SETTING_BY_GENRE)).toEqual(expect.arrayContaining(['platformer', 'survivors', 'topdown-action', 'shmup', 'metroidvania', 'puzzle']));
+  });
+
+  it('the castle is seen from the side: cut stone that is lit at its face and dark deep in the wall', () => {
+    expect(settingFor('castle', 'platformer')).toBe('castle');
+    expect(sideView('castle') && sideView('side') && !sideView('dungeon')).toBe(true);
+    // A floor four tiles deep under open air: its lip is the brightest stone, the stone three tiles in the darkest.
+    const rows = ['....', '....', '####', '####', '####', '####'];
+    const map = { width: 4, height: rows.length, tileSize: 16, kindAt: (x: number, y: number) => (rows[y]![x] === '#' ? 'solid' : 'air') };
+    const pal = artPalette({ background: '#0d0a12', mid: '#3b3346', foreground: '#e8dcc8', accent: '#d9a441', danger: '#a3172a', ui: '#efe6d2' }, 'dark');
+    const pc = new PixelCanvas(64, rows.length * 16);
+    paintRegion(prepareLevelArt(pal, 'castle', map, false), pc, 0, 0);
+    const lum = (x: number, y: number) => pc.get(x, y).reduce((a, b) => a + b, 0);
+    expect(pc.alpha(20, 10)).toBe(0);
+    expect(lum(20, 32)).toBeGreaterThan(lum(20, 40));
+    expect(lum(20, 40)).toBeGreaterThan(lum(20, 88));
+  });
+
+  it('a backdrop is painted in the theme nearest the game palette', () => {
+    for (const [id, t] of Object.entries(THEMES)) expect(themeFor(t.roles).id).toBe(id);
   });
 });
 

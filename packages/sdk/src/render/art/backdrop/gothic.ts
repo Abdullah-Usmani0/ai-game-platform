@@ -1,6 +1,6 @@
 // The gothic theme: a moonlit cathedral city (far), a ruined arcade (mid), pillars, chains and candles (near).
-import { hash2, PixelCanvas } from '@gg/sdk/art';
-import { mix, parseHex, type RGB } from '@gg/sdk/art';
+import { mix, parseHex, type RGB } from '../color.js';
+import { hash2, PixelCanvas } from '../pixels.js';
 import { bandAt, bayer, dith, fbm, fillCircle, fillPoly, fillRect, pointedArch, vgradient } from './brush.js';
 
 const H = (s: string) => parseHex(s);

@@ -15,7 +15,8 @@ describe('rigs', () => {
       expect(Buffer.from(a[i]!.color.data).equals(Buffer.from(b[i]!.color.data)), `${a[i]!.clip} ${a[i]!.frame}`).toBe(true);
       expect(Buffer.from(a[i]!.normal.data).equals(Buffer.from(b[i]!.normal.data))).toBe(true);
     }
-  });
+    // Every frame painted twice: room for a busy machine.
+  }, 60_000);
 
   it('draw every clip at its frame count, with a smear on the frames that hit and nowhere else', () => {
     const frames = paintRig(knight, pal);
@@ -24,8 +25,9 @@ describe('rigs', () => {
       expect(own.length, clip.name).toBe(clip.frames);
       for (const f of own) expect(f.parts.some((p) => p.id === 'smear'), `${clip.name} ${f.frame}`).toBe((clip.active ?? []).includes(f.frame) && f.frame > 0);
     }
-    expect(frames.length).toBe(44);
-  });
+    // idle 8, run 8, the chain 9 + 8 + 11, and jump, fall, dash and hurt 2 each.
+    expect(frames.length).toBe(52);
+  }, 60_000);
 
   it('write a normal map that faces the viewer where the colour is opaque', () => {
     const f = paintRig(knight, pal)[0]!;

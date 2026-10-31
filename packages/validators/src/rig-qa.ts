@@ -13,7 +13,7 @@ export interface RigMeasure {
   /** Outline corners where a 2x2 block holds three outline pixels: a line that steps twice. */
   jaggies: number;
   outlinePixels: number;
-  /** Frames whose lowest row is not the anchor's. */
+  /** Frames whose lowest row is not the anchor's (an airborne clip's may be above it, never below). */
   offGround: number;
   /** How far the body box's top sits from the top of the drawn body in idle and run frames, as a share of its height (worst frame). */
   bodyGap: number;
@@ -26,6 +26,7 @@ const same = (d: Uint8ClampedArray, i: number, c: readonly number[]) => d[i] ===
 export function measureRig(rig: Rig, frames: readonly RigFrame[], pal: ArtPalette): RigMeasure {
   const m: RigMeasure = { frames: frames.length, offPalette: 0, unoutlined: 0, specks: 0, jaggies: 0, outlinePixels: 0, offGround: 0, bodyGap: 0, maxPop: 0 };
   const { w, h } = rig;
+  const air = new Set(rig.clips.filter((c) => c.air).map((c) => c.name));
   let prevArea = -1;
   let prevClip = '';
   for (const f of frames) {
@@ -57,7 +58,7 @@ export function measureRig(rig: Rig, frames: readonly RigFrame[], pal: ArtPalett
         if (neighbours === 0) m.specks++;
       }
     }
-    if (lowest !== rig.anchor.y) m.offGround++;
+    if (air.has(f.clip) ? lowest > rig.anchor.y : lowest !== rig.anchor.y) m.offGround++;
     if ((f.clip === 'idle' || f.clip === 'run') && bodyTop >= 0) m.bodyGap = Math.max(m.bodyGap, Math.abs(bodyTop - (rig.anchor.y - rig.body.h)) / rig.body.h);
     if (f.clip === prevClip && prevArea > 0) m.maxPop = Math.max(m.maxPop, Math.abs(area - prevArea) / prevArea);
     prevArea = area;
@@ -71,7 +72,8 @@ export const RIG_LIMITS = { jaggyShare: 0.12, bodyGap: 0.12, maxPop: 0.3 } as co
 
 /**
  * Art QA for a rig: every pixel on its palette, the silhouette outlined all round, no specks, few jaggies, every frame
- * standing on its anchor, a body box as tall as the body drawn, and no pops between frames.
+ * standing on its anchor (or, in the air, never below it), a body box as tall as the body drawn, and no pops between
+ * frames.
  */
 export function checkRig(rig: Rig, frames: readonly RigFrame[], pal: ArtPalette): ValidationReport {
   const m = measureRig(rig, frames, pal);

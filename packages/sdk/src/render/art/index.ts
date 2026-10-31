@@ -9,3 +9,5 @@ export * from './sprites.js';
 export * from './terrain.js';
 export * from './designs.js';
 export * from './rig/index.js';
+export { THEMES, themeFor, type Layer as BackdropLayer, type Theme } from './backdrop/index.js';
+export { colourDistance, quantize, tileable } from './backdrop/post.js';
