@@ -1,5 +1,5 @@
 import type { Provider, StructuredRequest, StructuredResponse, TextRequest, TextResponse } from '@gg/llm';
-import { CuratedGenre, parseAnyGdd, type BehaviourFsm, type CreateRequest, type EditRoute } from '@gg/schemas';
+import { FreeformBase, parseAnyGdd, type BehaviourFsm, type CreateRequest, type EditRoute } from '@gg/schemas';
 import { defaultSystems } from '@gg/scaffold';
 import type { GenreManifest } from '@gg/template-core';
 import { BASE_MANIFESTS, IDENTITY_ROSTER } from '@gg/template-freeform/node';
@@ -101,17 +101,17 @@ export class FakeProvider implements Provider {
         break;
       }
       case 'FreeformSystemsJson': {
-        const base = CuratedGenre.parse(marker(/^Base genre: ([a-z-]+)/m));
+        const base = FreeformBase.parse(marker(/^Base genre: ([a-z-]+)/m));
         data = exampleFor(base, this.ctx.request?.prompt)?.systems ?? baseSystems(base);
         break;
       }
       case 'EntityRoster': {
-        const base = CuratedGenre.parse(marker(/^Base genre: ([a-z-]+)/m));
+        const base = FreeformBase.parse(marker(/^Base genre: ([a-z-]+)/m));
         data = exampleFor(base, this.ctx.request?.prompt)?.roster ?? IDENTITY_ROSTER;
         break;
       }
       case 'Objectives': {
-        const base = CuratedGenre.parse(marker(/^Base genre: ([a-z-]+)/m));
+        const base = FreeformBase.parse(marker(/^Base genre: ([a-z-]+)/m));
         data = exampleFor(base, this.ctx.request?.prompt)?.objectives ?? defaultObjectives(base, Number(marker(/^Level time: (\d+)/m) ?? 60));
         break;
       }

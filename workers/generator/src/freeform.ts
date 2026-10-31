@@ -1,10 +1,10 @@
-import { CURATED_GENRES, FreeformGddFrontmatter, type CreateRequest, type CuratedGenre, type EntityRoster, type FreeformSystemsJson, type Objectives } from '@gg/schemas';
+import { FREEFORM_BASES, FreeformGddFrontmatter, type CreateRequest, type FreeformBase, type EntityRoster, type FreeformSystemsJson, type Objectives } from '@gg/schemas';
 import { grammarHasGoal, systemsJsonFor } from '@gg/template-core';
 import { BASE_MANIFESTS, EXAMPLES, IDENTITY_ROSTER, type FreeformExample } from '@gg/template-freeform/node';
 import { draftFrontmatter } from './gdd-draft.js';
 
 /** Words that point at a base genre: what its levels and verbs are made of. */
-const BASE_WORDS: Record<CuratedGenre, RegExp> = {
+const BASE_WORDS: Record<FreeformBase, RegExp> = {
   platformer: /\b(jump\w*|leap\w*|platform\w*|ledge\w*|side-?scroll\w*|climb\w*|runners?|rooftops?|forest|lanterns?|moth|lighthouses?|cellars?|stairs?|cliffs?)\b/g,
   survivors: /\b(surviv\w*|swarm\w*|hordes?|waves?|hold(ing)? out|until dawn|arena|hive|bees?|caf[eé]s?|tea-?(room|shop|house)s?|orders?|tables?|customers?|waiters?)\b/g,
   'topdown-action': /\b(rooms?|dungeon\w*|vaults?|swords?|blades?|clear\w*|top-?down|guards?|burglar|heist)\b/g,
@@ -15,11 +15,11 @@ const BASE_WORDS: Record<CuratedGenre, RegExp> = {
 };
 
 /** The base genre a freeform idea reads closest to, from its words: the dry run's choice and the fallback's. */
-export function guessBase(prompt: string): CuratedGenre {
+export function guessBase(prompt: string): FreeformBase {
   const text = prompt.toLowerCase();
-  let best: CuratedGenre = 'topdown-action';
+  let best: FreeformBase = 'topdown-action';
   let score = 0;
-  for (const g of CURATED_GENRES) {
+  for (const g of FREEFORM_BASES) {
     const n = text.match(BASE_WORDS[g])?.length ?? 0;
     if (n > score) {
       best = g;
@@ -30,20 +30,20 @@ export function guessBase(prompt: string): CuratedGenre {
 }
 
 /** The hand-made example on a base, the one sharing most words with the idea; null when none builds on that base. */
-export function exampleFor(base: CuratedGenre, prompt = ''): FreeformExample | null {
+export function exampleFor(base: FreeformBase, prompt = ''): FreeformExample | null {
   const words = new Set(prompt.toLowerCase().match(/[a-z]{4,}/g) ?? []);
   const shared = (ex: FreeformExample) => (ex.prompt.toLowerCase().match(/[a-z]{4,}/g) ?? []).filter((w) => words.has(w)).length;
   return EXAMPLES.filter((ex) => ex.systems.composition.base === base).sort((a, b) => shared(b) - shared(a))[0] ?? null;
 }
 
 /** A freeform GDD front matter drafted on a base: the base genre's defaults, the idea's title. */
-export function draftFreeformFrontmatter(req: CreateRequest, base: CuratedGenre): FreeformGddFrontmatter {
+export function draftFreeformFrontmatter(req: CreateRequest, base: FreeformBase): FreeformGddFrontmatter {
   const fm = draftFrontmatter({ ...req, genre: base }, BASE_MANIFESTS[base]);
   return FreeformGddFrontmatter.parse({ ...fm, genre: 'freeform', base });
 }
 
 /** The base genre's own systems as a freeform game's: the fallback when no composition is accepted. */
-export function baseSystems(base: CuratedGenre): FreeformSystemsJson {
+export function baseSystems(base: FreeformBase): FreeformSystemsJson {
   return { ...systemsJsonFor(BASE_MANIFESTS[base]), genre: 'freeform', composition: { base } };
 }
 
@@ -55,7 +55,7 @@ export const BASE_ROSTER: EntityRoster = IDENTITY_ROSTER;
  * runs out; on an arena base, which has no goal tile, hold out for the level time; else reach the goal. Arenas and
  * goals come with lives, so dying always costs something.
  */
-export function defaultObjectives(base: CuratedGenre, levelTimeS: number): Objectives {
+export function defaultObjectives(base: FreeformBase, levelTimeS: number): Objectives {
   const grammar = BASE_MANIFESTS[base].levelGrammar.kind;
   if (grammar === 'farm') {
     return {

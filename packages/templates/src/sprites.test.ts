@@ -15,6 +15,7 @@ const PALETTES: Record<string, PaletteRoles> = {
   metroidvania: { background: '#0d0b16', mid: '#3b3552', foreground: '#f2e9d8', accent: '#ffc857', danger: '#e4572e', ui: '#9ad1d4' },
   puzzle: { background: '#17130f', mid: '#5a4632', foreground: '#f3e3c3', accent: '#d9822b', danger: '#c0392b', ui: '#7bd389' },
   lifesim: { background: '#1d2b1f', mid: '#6b8e4e', foreground: '#f2d7b6', accent: '#f0b84a', danger: '#d9534f', ui: '#f5eedc' },
+  castle: { background: '#0c0b10', mid: '#3d3646', foreground: '#e6dcc8', accent: '#c9a14a', danger: '#a3282c', ui: '#d8cfbf' },
 };
 const OUTLINES: OutlineMode[] = ['dark', 'none'];
 

@@ -1,4 +1,4 @@
-import type { BehaviourFsm, CuratedGenre } from '@gg/schemas';
+import type { BehaviourFsm, FreeformBase } from '@gg/schemas';
 import type { EntityDef } from '@gg/sdk';
 import { metroidvaniaRuntime } from '@gg/template-metroidvania';
 import { autoRun, autoRunMeta, platformerRuntime } from '@gg/template-platformer';
@@ -11,7 +11,7 @@ import { carryBlock, objectives, ordersBlock, objectivesMeta, rolesOf, vehicleBl
 import type { EntityRole, MovementKind, SystemsCatalog } from '@gg/validators';
 
 /** The curated genres' runtimes: every system, entity and behaviour a freeform game can be made of. */
-export const RUNTIMES: Readonly<Record<CuratedGenre, GenreRuntime>> = {
+export const RUNTIMES: Readonly<Record<FreeformBase, GenreRuntime>> = {
   platformer: platformerRuntime,
   survivors: survivorsRuntime,
   'topdown-action': topdownActionRuntime,
@@ -20,7 +20,7 @@ export const RUNTIMES: Readonly<Record<CuratedGenre, GenreRuntime>> = {
   puzzle: puzzleRuntime,
   lifesim: lifesimRuntime,
 };
-export const CURATED_IDS = Object.keys(RUNTIMES) as CuratedGenre[];
+export const CURATED_IDS = Object.keys(RUNTIMES) as FreeformBase[];
 
 /**
  * The blocks only freeform games compose: systems that belong to no genre, some with what they bring beyond the system
@@ -37,8 +37,8 @@ export const BLOCKS: Readonly<Record<string, BlockModule>> = {
  * Every system by id, with the genres that ship it (the first is its home); the shared objectives belong to none, and
  * neither do the blocks only freeform games compose.
  */
-export const SYSTEMS: Readonly<Record<string, SystemModule & { genres: CuratedGenre[] }>> = (() => {
-  const out: Record<string, SystemModule & { genres: CuratedGenre[] }> = {};
+export const SYSTEMS: Readonly<Record<string, SystemModule & { genres: FreeformBase[] }>> = (() => {
+  const out: Record<string, SystemModule & { genres: FreeformBase[] }> = {};
   for (const id of CURATED_IDS) {
     for (const [sid, mod] of Object.entries(RUNTIMES[id].systems)) {
       const known = out[sid];
@@ -55,7 +55,7 @@ export const SYSTEMS: Readonly<Record<string, SystemModule & { genres: CuratedGe
 export const FREEFORM_CATALOG: SystemsCatalog = Object.fromEntries(Object.entries(SYSTEMS).map(([id, m]) => [id, m.meta]));
 
 /** How a curated genre's player moves: what its movement system provides. */
-export function movementOf(genre: CuratedGenre): MovementKind {
+export function movementOf(genre: FreeformBase): MovementKind {
   const rt = RUNTIMES[genre];
   for (const id of rt.requiredSystems) {
     const kind = rt.systems[id]?.meta.provides?.movement;
@@ -65,7 +65,7 @@ export function movementOf(genre: CuratedGenre): MovementKind {
 }
 
 /** The systems a freeform game on a base can use: any that works with the base's movement, and none that moves the player another way. */
-export function usableSystems(base: CuratedGenre): string[] {
+export function usableSystems(base: FreeformBase): string[] {
   const kind = movementOf(base);
   return Object.entries(SYSTEMS)
     .filter(([, m]) => (m.meta.provides?.movement ?? kind) === kind && (m.meta.requires?.movement ?? [kind]).includes(kind))
@@ -79,7 +79,7 @@ export function usableSystems(base: CuratedGenre): string[] {
 export interface Archetype {
   id: string;
   /** The genre that ships it; null for a block's own. */
-  genre: CuratedGenre | null;
+  genre: FreeformBase | null;
   /** The block that brings it. */
   block?: string;
   def: EntityDef;

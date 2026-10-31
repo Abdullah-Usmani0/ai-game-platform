@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,9 +22,17 @@ function gameDir(files: Record<string, unknown>): string {
 }
 const gddMd = (fm: unknown) => `---\n${JSON.stringify(fm)}\n---\n## Concept\nx\n`;
 
+/** A genre's sample game, or one made from its defaults while it has none yet (the castle until its sample ships). */
+function sampleOf(id: string): string {
+  if (existsSync(join(samples, id))) return join(samples, id);
+  const g = GENRES[id]!;
+  const fm = { title: 'Sample', genre: id, scopeTier: 'medium', pillars: g.gddDefaults.pillars, scope: g.scopeBudget['medium'], targets: g.gddDefaults.targets, verbs: g.gddDefaults.verbs, feedbackEvents: g.gddDefaults.feedbackEvents };
+  return gameDir({ 'design/systems.json': systemsJsonFor(g), 'design/gdd.md': gddMd(fm) });
+}
+
 describe('resolveGame', () => {
   it('a curated game resolves to its genre, the very object the registry holds', () => {
-    for (const id of Object.keys(GENRES)) expect(resolveGame(join(samples, id)), id).toBe(GENRES[id]);
+    for (const id of Object.keys(GENRES)) expect(resolveGame(sampleOf(id)), id).toBe(GENRES[id]);
     expect(manifestFor({}, 'shmup')).toBe(GENRES['shmup']);
     expect(catalogFor({ genre: 'shmup' })).toBe(CATALOG);
     expect(kitFor({ version: 1, genre: 'puzzle', feelPreset: 'grid-snappy', systems: [{ id: 'grid-push', params: {} }] })).toBe(CHECKS['puzzle']);
@@ -102,7 +110,7 @@ describe('checkProofs', () => {
 describe('checkGameSystems', () => {
   it("a curated game is checked against its catalog and its GDD: each genre's defaults pass with its sample's GDD", () => {
     for (const [id, g] of Object.entries(GENRES)) {
-      const dir = gameDir({ 'design/systems.json': systemsJsonFor(g), 'design/gdd.md': readFileSync(join(samples, id, 'design', 'gdd.md'), 'utf8') });
+      const dir = gameDir({ 'design/systems.json': systemsJsonFor(g), 'design/gdd.md': readFileSync(join(sampleOf(id), 'design', 'gdd.md'), 'utf8') });
       expect(checkGameSystems(dir).issues.filter((i) => i.severity === 'error'), id).toEqual([]);
     }
   });

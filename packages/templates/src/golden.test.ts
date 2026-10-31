@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import type { LevelJson } from '@gg/schemas';
 import { createSim, hashValue, Tilemap, type FeelPreset } from '@gg/sdk';
 import { artPalette, paintFrames, paintRegion, paintRig, prepareLevelArt, PixelCanvas, RECIPES, RIGS, SETTING_BY_GENRE, SFX_PRESETS, type PaletteRoles } from '@gg/sdk/art';
-import { runBot, simOptionsFor, systemsJsonFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
+import { levelTicksOf, runBot, simOptionsFor, systemsJsonFor, type GenreManifest, type LevelGenParams } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import { GENRES } from './node.js';
 
@@ -77,6 +77,7 @@ describe('golden lock: curated genres', () => {
         panels: hashValue(g.panels),
         exemplars: hashValue(g.exemplars),
         levelGrammar: g.levelGrammar.kind,
+        ...(g.tier ? { tier: g.tier } : {}),
         solverBot: g.solverBot,
         bots: Object.keys(g.bots).sort(),
         ...(g.designContent ? { designContent: hashValue(g.designContent.map((d) => ({ key: d.key, artifact: d.artifact, readBy: d.readBy, guide: d.guide, fallback: d.fallback }))) } : {}),
@@ -93,7 +94,9 @@ describe('golden lock: curated genres', () => {
         runs[`${tag(params)}:validate`] = { ok: report.ok, issues: report.issues.map((i) => i.code).sort() };
         const options = simOptionsFor(g, systems, { behaviours: g.defaultBehaviours, content });
         for (const name of Object.keys(g.bots).sort()) {
-          const r = runBot(createSim({ ...options, level: level as LevelJson, seed: 1 }), g.bots[name]!, BOT_TICKS);
+          // A castle region takes longer than BOT_TICKS to cross: its solver gets the region's own budget.
+          const ticks = g.tier === 'castle' && name === g.solverBot ? levelTicksOf(options) : BOT_TICKS;
+          const r = runBot(createSim({ ...options, level: level as LevelJson, seed: 1 }), g.bots[name]!, ticks);
           runs[`${tag(params)}:${name}`] = { completed: r.completed, ticks: r.ticks, deaths: r.deaths, finalHash: r.finalHash, events: r.events };
         }
       }

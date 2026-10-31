@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import type { LevelJson, ScopeTier } from '@gg/schemas';
+import { FREEFORM_BASES, type LevelJson, type ScopeTier } from '@gg/schemas';
 import { createSim, type FeedbackBinding, type Sim } from '@gg/sdk';
 import { levelPlan, levelQuality, levelTicksOf, plannedLevelCount, rankCorrelation, runBot, scriptFromLog, simOptionsFor, systemsJsonFor, type GenreManifest, type LevelQuality } from '@gg/template-core';
 import { GENRES } from '@gg/templates/node';
@@ -99,7 +99,8 @@ const all: Measured[] = [];
 const allRamps: Array<{ effort: number; proof: number }> = [];
 const genres: Record<string, unknown> = {};
 const t0 = Date.now();
-for (const g of Object.values(GENRES).filter((x) => !values.genre || x.id === values.genre)) {
+// The band calibrates freeform games, so it measures the genres they build on.
+for (const g of Object.values(GENRES).filter((x) => (FREEFORM_BASES as readonly string[]).includes(x.id) && (!values.genre || x.id === values.genre))) {
   const mine: Measured[] = [];
   const ramps: Array<{ effort: number; proof: number }> = [];
   const games = g.levelGrammar.kind === 'arena' ? 4 : 1;

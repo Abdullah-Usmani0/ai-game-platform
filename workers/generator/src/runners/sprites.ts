@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateArtifact, providerFor } from '@gg/llm';
-import { CURATED_GENRES, SpriteSheet, StyleCard, type CuratedGenre, type EntityRoster } from '@gg/schemas';
+import { FREEFORM_BASES, SpriteSheet, StyleCard, type FreeformBase, type EntityRoster } from '@gg/schemas';
 import { artPalette, buildOf, paintDesignSheet, rampsOf, RECIPES, spriteBases } from '@gg/sdk/art';
 import { encodePng } from '@gg/sdk/png';
 import { castOf, manifestFor, readGameFiles, settingOf } from '@gg/templates/node';
@@ -56,7 +56,7 @@ function castLines(cast: readonly CastMember[], roster: EntityRoster | null): st
 
 /** Designs to show as the example: the freeform example on the game's base that reads closest to the idea, else the first with designs. */
 function spriteExample(base: string, prompt?: string): unknown {
-  const own = (CURATED_GENRES as readonly string[]).includes(base) ? exampleFor(base as CuratedGenre, prompt) : null;
+  const own = (FREEFORM_BASES as readonly string[]).includes(base) ? exampleFor(base as FreeformBase, prompt) : null;
   return own?.content?.['sprites'] ?? EXAMPLES.find((e) => e.content?.['sprites'])?.content?.['sprites'];
 }
 

@@ -1,4 +1,4 @@
-import type { BehaviourFsm, CuratedGenre, EntityRoster, ParamValue } from '@gg/schemas';
+import type { BehaviourFsm, FreeformBase, EntityRoster, ParamValue } from '@gg/schemas';
 import type { EntityDef } from '@gg/sdk';
 import { err, type EntityRole, type Issue } from '@gg/validators';
 import { ARCHETYPES, RUNTIMES, SYSTEMS, paramArchetype, type Archetype } from './registry.js';
@@ -28,7 +28,7 @@ export interface CompiledRoster {
  * projectiles the included behaviours fire, each under the roster's name when it gives one and its own otherwise. An
  * empty roster reproduces the base genre's entities exactly.
  */
-export function compileRoster(base: CuratedGenre, roster: EntityRoster, systemIds: readonly string[]): CompiledRoster {
+export function compileRoster(base: FreeformBase, roster: EntityRoster, systemIds: readonly string[]): CompiledRoster {
   const issues: Issue[] = [];
   const baseRt = RUNTIMES[base];
   const named = new Map<string, { type: string; hp: number }>();
@@ -83,10 +83,10 @@ export function compileRoster(base: CuratedGenre, roster: EntityRoster, systemId
     if (a.genre !== null) for (const p of projectilesOf(a.behaviour)) queue.push(`${a.genre}:${p}`);
   }
 
-  const nameIn = (genre: CuratedGenre) => new Map(used.filter((a) => a.genre === genre).map((a) => [a.def.type, typeOf.get(a.id)!]));
+  const nameIn = (genre: FreeformBase) => new Map(used.filter((a) => a.genre === genre).map((a) => [a.def.type, typeOf.get(a.id)!]));
   // Behaviour ids are shared where two genres ship the same behaviour (platformer and metroidvania walkers), and
   // made apart where they differ.
-  const fsmOwner = new Map<string, { genre: CuratedGenre | null; json: string }>();
+  const fsmOwner = new Map<string, { genre: FreeformBase | null; json: string }>();
   const fsmId = (a: Archetype): string | undefined => {
     if (!a.behaviour || a.genre === null) return a.def.fsm;
     const json = JSON.stringify(a.behaviour);

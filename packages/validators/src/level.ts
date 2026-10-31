@@ -46,6 +46,50 @@ function corridorFree(map: Tilemap, x0: number, x1: number, y: number, tallTiles
 }
 
 /**
+ * The standing tiles one move from n: a step or a fall to either side, or a jump or an arc inside the envelope whose
+ * corridor is free. The edges of the reachability search, for callers that need the graph itself (softlock checks).
+ */
+export function jumpNeighbours(map: Tilemap, n: { x: number; y: number }, env: Envelope, tallTiles: number): Array<{ x: number; y: number }> {
+  const out: Node[] = [];
+  // Walk left/right along the surface; drop off ledges.
+  for (const dx of [-1, 1]) {
+    const x = n.x + dx;
+    if (!fits(map, x, n.y, tallTiles)) continue;
+    if (standable(map, x, n.y)) out.push({ x, y: n.y });
+    else {
+      // Fall straight down until standing or hazard.
+      for (let y = n.y + 1; y <= n.y + env.maxDropTiles && y < map.height; y++) {
+        if (!free(map, x, y)) break;
+        if (standable(map, x, y)) {
+          out.push({ x, y });
+          break;
+        }
+      }
+    }
+  }
+  // Jumps and arcs: every (dx, dy) inside the envelope whose landing tile is standable and whose corridor is free.
+  for (let dy = -env.jumpUpTiles; dy <= env.maxDropTiles; dy++) {
+    const maxDx = env.maxDx.get(dy) ?? (dy < 0 ? 0 : env.maxDx.get(env.maxDropTiles) ?? 0);
+    for (let adx = 0; adx <= maxDx; adx++) {
+      for (const sign of adx === 0 ? [1] : [-1, 1]) {
+        const x = n.x + sign * adx;
+        const y = n.y + dy;
+        if (x < 0 || x >= map.width || y < 0 || y >= map.height) continue;
+        if (!standable(map, x, y) || !fits(map, x, y, tallTiles)) continue;
+        // Rising part: the column above the start must be free up to the apex row (one tile above the lower of
+        // start and landing, so ground-level hazards are cleared); then a free corridor along the apex row.
+        const apexY = Math.max(0, Math.min(n.y, y) - 1);
+        let clear = true;
+        for (let yy = n.y; yy >= apexY; yy--) if (!fits(map, n.x, yy, tallTiles)) { clear = false; break; }
+        if (clear && adx > 0) clear = corridorFree(map, n.x, x, apexY, tallTiles);
+        if (clear) out.push({ x, y });
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * BFS over standing tiles with walk, jump and fall edges from the feel envelope.
  * Returns the set of reachable standing tiles and the BFS distance map.
  */
@@ -57,46 +101,11 @@ export function reachableTiles(map: Tilemap, start: Node, env: Envelope, tallTil
   while (queue.length > 0) {
     const n = queue.shift()!;
     const d = dist.get(key(n))!;
-    const push = (m: Node) => {
+    for (const m of jumpNeighbours(map, n, env, tallTiles)) {
       const k = key(m);
-      if (dist.has(k)) return;
+      if (dist.has(k)) continue;
       dist.set(k, d + 1);
       queue.push(m);
-    };
-    // Walk left/right along the surface; drop off ledges.
-    for (const dx of [-1, 1]) {
-      const x = n.x + dx;
-      if (!fits(map, x, n.y, tallTiles)) continue;
-      if (standable(map, x, n.y)) push({ x, y: n.y });
-      else {
-        // Fall straight down until standing or hazard.
-        for (let y = n.y + 1; y <= n.y + env.maxDropTiles && y < map.height; y++) {
-          if (!free(map, x, y)) break;
-          if (standable(map, x, y)) {
-            push({ x, y });
-            break;
-          }
-        }
-      }
-    }
-    // Jumps and arcs: every (dx, dy) inside the envelope whose landing tile is standable and whose corridor is free.
-    for (let dy = -env.jumpUpTiles; dy <= env.maxDropTiles; dy++) {
-      const maxDx = env.maxDx.get(dy) ?? (dy < 0 ? 0 : env.maxDx.get(env.maxDropTiles) ?? 0);
-      for (let adx = 0; adx <= maxDx; adx++) {
-        for (const sign of adx === 0 ? [1] : [-1, 1]) {
-          const x = n.x + sign * adx;
-          const y = n.y + dy;
-          if (x < 0 || x >= map.width || y < 0 || y >= map.height) continue;
-          if (!standable(map, x, y) || !fits(map, x, y, tallTiles)) continue;
-          // Rising part: the column above the start must be free up to the apex row (one tile above the lower of
-          // start and landing, so ground-level hazards are cleared); then a free corridor along the apex row.
-          const apexY = Math.max(0, Math.min(n.y, y) - 1);
-          let clear = true;
-          for (let yy = n.y; yy >= apexY; yy--) if (!fits(map, n.x, yy, tallTiles)) { clear = false; break; }
-          if (clear && adx > 0) clear = corridorFree(map, n.x, x, apexY, tallTiles);
-          if (clear) push({ x, y });
-        }
-      }
     }
   }
   return dist;

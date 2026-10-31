@@ -662,6 +662,12 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   cargo: 'parcel',
   source: 'counter',
   dropoff: 'table',
+  // The castle's cast, on the side view's sprites until the castle tier draws its own.
+  ghoul: 'walker',
+  hound: 'brute',
+  gargoyle: 'turret',
+  soul: 'crystal',
+  altar: 'door',
 };
 
 /** The recipe an entity type draws with: its own, or that of the shipped type it is drawn as (a renamed type). */

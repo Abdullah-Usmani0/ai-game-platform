@@ -4,6 +4,9 @@ import { centerX, centerY, defineSystem, type SimCtx } from '@gg/sdk';
 /** The player's map of a region, a prop that lasts as long as their other props: '1' per room seen, '0' per room not, in the region's order. */
 export const MAP_PREFIX = '_map:';
 
+/** A region takes longer to cross than a level: the tooling (solver runs, proofs) gives one five minutes. */
+export const REGION_TICKS = 5 * 60 * 60;
+
 interface RoomsState {
   /** The room each entity there at the start belongs to, by entity id (-1 for none); one spawned later never sleeps. */
   home: Record<number, number>;
@@ -60,6 +63,7 @@ export const rooms = defineSystem<RoomsState>({
   fixedUpdate(s, _input, ctx) {
     if (ctx.world.player.alive) enter(s, ctx);
   },
+  levelTicks: () => REGION_TICKS,
 });
 
 export const meta = {

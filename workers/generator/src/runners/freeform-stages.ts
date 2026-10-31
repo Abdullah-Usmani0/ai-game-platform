@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { generateArtifact, providerFor, type GenerateResult } from '@gg/llm';
-import { CURATED_GENRES, type CreateRequest, type CuratedGenre, type EntityRoster, type FreeformGddFrontmatter, type FreeformSystemsJson, type LevelHints, type LevelJson, type Objectives, type ScopeTier } from '@gg/schemas';
+import { FREEFORM_BASES, type CreateRequest, type FreeformBase, type EntityRoster, type FreeformGddFrontmatter, type FreeformSystemsJson, type LevelHints, type LevelJson, type Objectives, type ScopeTier } from '@gg/schemas';
 import { sfxPresetFor } from '@gg/sdk/art';
 import { grammarHasGoal, plannedLevelCount, rolesPresent, suggestHints, type GenreManifest } from '@gg/template-core';
 import { ARCHETYPES, BASE_MANIFESTS, checkFreeformObjectives, compileRoster, compose, designContentFor, FREEFORM_CATALOG, freeformDesignManifest, hudKeysOf, IDENTITY_ROSTER, movementOf, proveLevel, RUNTIMES, SYSTEMS, usableSystems } from '@gg/template-freeform/node';
@@ -14,16 +14,16 @@ import type { PairDraft, StageContext, StageOutcome } from './types.js';
 import { add, ok, readGdd, readSystems, sumUsage, writeJson, ZERO } from './stage-kit.js';
 
 /** Genres that move the way a base does: where the systems and entities a freeform game on it may use come from. */
-const sameMovement = (base: CuratedGenre) => CURATED_GENRES.filter((g) => RUNTIMES[g].movementMode === RUNTIMES[base].movementMode);
+const sameMovement = (base: FreeformBase) => FREEFORM_BASES.filter((g) => RUNTIMES[g].movementMode === RUNTIMES[base].movementMode);
 
 /** Hostile entities a freeform game on a base can have (none of them bosses). */
-const hostilesFor = (base: CuratedGenre) => Object.values(ARCHETYPES).filter((a) => a.genre !== null && sameMovement(base).includes(a.genre) && a.roles.includes('hostile') && !a.def.boss);
+const hostilesFor = (base: FreeformBase) => Object.values(ARCHETYPES).filter((a) => a.genre !== null && sameMovement(base).includes(a.genre) && a.roles.includes('hostile') && !a.def.boss);
 
 /** The verbs games moving like a base offer: a freeform GDD's verbs come from these. */
-const verbsFor = (base: CuratedGenre) => [...new Set(sameMovement(base).flatMap((g) => BASE_MANIFESTS[g].gddDefaults.verbs))];
+const verbsFor = (base: FreeformBase) => [...new Set(sameMovement(base).flatMap((g) => BASE_MANIFESTS[g].gddDefaults.verbs))];
 
 /** One line per base for the GDD prompt: what its levels and movement are, its budget, verbs and enemies. */
-function baseLine(base: CuratedGenre, tier: ScopeTier): string {
+function baseLine(base: FreeformBase, tier: ScopeTier): string {
   const m = BASE_MANIFESTS[base];
   return `- ${base} (${m.name}): ${movementOf(base)} movement, ${m.levelGrammar.kind} levels; budget ${JSON.stringify(m.scopeBudget[tier])}; verbs ${verbsFor(base).join(', ')}; enemies to build on: ${hostilesFor(base).map((a) => a.id).join(', ')}.`;
 }
@@ -56,7 +56,7 @@ export async function freeformFrontmatter(ctx: StageContext, req: CreateRequest,
     `Concept:\n${req.prompt}`,
     styleNotes.length ? `Art direction (from the style card): ${styleNotes.join('; ')}.` : '',
     "This idea fits no single genre template. Build it on the base genre whose levels and movement fit it best; the systems stage then mixes in systems from any genre that moves the same way (another genre's weapon, a survival clock, collect-and-exit rules).",
-    `Bases (tier '${req.scopeTier}'; the scope must not exceed the chosen base's budget):\n${CURATED_GENRES.map((b) => baseLine(b, req.scopeTier)).join('\n')}`,
+    `Bases (tier '${req.scopeTier}'; the scope must not exceed the chosen base's budget):\n${FREEFORM_BASES.map((b) => baseLine(b, req.scopeTier)).join('\n')}`,
     `Starting point (choose the base; keep the shape; adapt title, pillars, scope and targets to the concept):\n${JSON.stringify(draft)}`,
   ].join('\n\n');
   const res = await generateArtifact<FreeformGddFrontmatter>({
@@ -142,7 +142,7 @@ const COMPOSITION_SYSTEM = [
  * The archetypes a freeform game on a base can name, with what each is: its role, health, behaviour, boss flag; those
  * of genres moving like the base, and the entities its selected blocks bring (a courier's cargo and stations).
  */
-function archetypeLines(base: CuratedGenre, systemIds: readonly string[]): string {
+function archetypeLines(base: FreeformBase, systemIds: readonly string[]): string {
   return Object.values(ARCHETYPES)
     .filter((a) => (a.genre === null ? systemIds.includes(a.block!) : sameMovement(base).includes(a.genre)))
     .map((a) => `- ${a.id}: ${a.roles.join(', ') || 'prop'}; hp ${a.def.hp ?? 1}${a.def.fsm ? `; behaviour ${a.def.fsm}` : ''}${a.def.pickup ? '; pickup' : ''}${a.def.projectile ? '; projectile' : ''}${a.def.boss ? '; boss' : ''}${a.genre === base ? ' (placed by the base levels)' : a.genre === null ? ` (comes with the ${a.block} system, which places it on the levels)` : ''}`)

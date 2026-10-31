@@ -12,5 +12,7 @@
   "puzzle:dungeon:open": "7180875d185db9dc",
   "puzzle:dungeon:locked": "7180875d185db9dc",
   "lifesim:farm:open": "4bee59155bbedd0a",
-  "lifesim:farm:locked": "4bee59155bbedd0a"
+  "lifesim:farm:locked": "4bee59155bbedd0a",
+  "castle:side:open": "34bd806a519dedbc",
+  "castle:side:locked": "34bd806a519dedbc"
 }

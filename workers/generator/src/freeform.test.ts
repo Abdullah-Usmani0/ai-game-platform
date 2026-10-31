@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FileStore, waitingLevels, type Store } from '@gg/db';
 import { registerProvider } from '@gg/llm';
-import { ARTIFACT_SCHEMAS, CreateRequest, CURATED_GENRES, LevelJson, Objectives, SpriteSheet, type BehaviourFsm, type LevelHints } from '@gg/schemas';
+import { ARTIFACT_SCHEMAS, CreateRequest, FREEFORM_BASES, LevelJson, Objectives, SpriteSheet, type BehaviourFsm, type LevelHints } from '@gg/schemas';
 import { BASE_MANIFESTS, EXAMPLES, freeformManifest, HEIST, LANTERN, type FreeformExample } from '@gg/template-freeform/node';
 import { checkGameSprites, checkProofs, readGameFiles, readGameLevels } from '@gg/templates/node';
 import { validateBehaviour } from '@gg/validators';
@@ -72,7 +72,7 @@ describe('freeform ideas', () => {
   });
 
   it('the drafts on every base, in every tier, pass the checks a model answer must pass', () => {
-    for (const base of CURATED_GENRES) {
+    for (const base of FREEFORM_BASES) {
       for (const scopeTier of ['small', 'medium', 'large'] as const) {
         const req = CreateRequest.parse({ prompt: 'A cosy little test game about a brave teapot.', genre: 'freeform', scopeTier, dryRun: true });
         const fm = draftFreeformFrontmatter(req, base);

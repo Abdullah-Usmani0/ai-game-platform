@@ -16,6 +16,7 @@ export type Setting = 'side' | 'dungeon' | 'field' | 'farm' | 'space';
 export const SETTING_BY_GENRE: Readonly<Record<string, Setting>> = {
   platformer: 'side',
   metroidvania: 'side',
+  castle: 'side',
   'topdown-action': 'dungeon',
   puzzle: 'dungeon',
   roguelike: 'dungeon',

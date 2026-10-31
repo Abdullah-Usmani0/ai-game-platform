@@ -1,0 +1,49 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import type { GenreManifest } from '@gg/template-core';
+import { castleCheck } from './check.js';
+import { EXEMPLARS } from './exemplars.js';
+import { castleRuntime } from './index.js';
+import { generateRegion } from './level/generate.js';
+import { PANELS } from './panels.js';
+
+const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
+
+export const castle: GenreManifest = {
+  ...castleRuntime,
+  levelGrammar: { kind: 'graph', generate: generateRegion, validate: castleCheck.validate },
+  bots: castleCheck.bots,
+  solverBot: castleCheck.solverBot,
+  gddFragment: read('./gdd/fragment.md'),
+  interviewFragment: read('./gdd/interview.md'),
+  scopeBudget: {
+    small: { levels: 1, enemies: 2, items: 3, bosses: 0 },
+    medium: { levels: 1, enemies: 3, items: 4, bosses: 0 },
+    large: { levels: 1, enemies: 3, items: 5, bosses: 1 },
+  },
+  gddDefaults: {
+    pillars: ['every hall hides a way back', 'a relic reopens the castle', 'rest is earned at the altar'],
+    verbs: ['run', 'jump', 'dash', 'stomp', 'explore', 'rest'],
+    feedbackEvents: [
+      { event: 'jump', channels: ['sfx'] },
+      { event: 'land', channels: ['sfx'] },
+      { event: 'dash', channels: ['sfx', 'particle'] },
+      { event: 'hit', channels: ['shake', 'flash', 'sfx'] },
+      { event: 'death', channels: ['flash', 'sfx'] },
+      { event: 'pickup', channels: ['sfx', 'particle', 'flash'] },
+      { event: 'checkpoint', channels: ['sfx'] },
+      { event: 'level_complete', channels: ['sfx', 'particle'] },
+    ],
+    targets: { sessionMin: 10, levelTimeS: 240, deathsPerLevel: 4 },
+  },
+  panels: PANELS,
+  exemplars: EXEMPLARS,
+  samples: [],
+};
+export * from './index.js';
+export * from './check.js';
+export { generateRegion, SCREEN_TILES, REGION_ROWS, BASE_WALK, LEDGE_TILES, CHASM_TILES, HIGH_WALK, MAX_REGION_TILES } from './level/generate.js';
+export { validateRegion, CASTLE_TILE } from './level/validate.js';
+export { world, envelopeFor, tallTiles, roomOf, MAX_STRETCH, type Abilities, type World, type WorldStep } from './level/progress.js';
+export { route } from './bots.js';
+export { AB_PREFIX } from './systems/abilities.js';

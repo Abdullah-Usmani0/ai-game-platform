@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CuratedGenre, Id, TemplateGenre } from './common';
+import { FreeformBase, Id, TemplateGenre } from './common';
 
 export const ParamValue = z.union([z.number(), z.string().max(64), z.boolean()]);
 export type ParamValue = z.infer<typeof ParamValue>;
@@ -20,7 +20,7 @@ export const SystemsJson = z.object({
 export type SystemsJson = z.infer<typeof SystemsJson>;
 
 /** What a freeform game is made of besides its systems: the curated genre it builds on (levels, solver, feel, art setting). */
-export const Composition = z.object({ base: CuratedGenre });
+export const Composition = z.object({ base: FreeformBase });
 export type Composition = z.infer<typeof Composition>;
 
 /** A freeform game's systems.json: systems from any genre's catalog, on a base genre. */

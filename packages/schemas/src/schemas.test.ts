@@ -137,8 +137,8 @@ describe('freeform', () => {
     // Freeform files have schemas of their own; a change here changes every curated prompt, so it needs a reason.
     const hash = (name: Parameters<typeof toJsonSchema>[0]) => createHash('sha256').update(JSON.stringify(toJsonSchema(name))).digest('hex').slice(0, 16);
     expect({ GddFrontmatter: hash('GddFrontmatter'), SystemsJson: hash('SystemsJson'), BehaviourFsm: hash('BehaviourFsm'), EcaRule: hash('EcaRule'), WaveTable: hash('WaveTable'), EditRoute: hash('EditRoute') }).toEqual({
-      GddFrontmatter: '62b2bac5f36b50e5',
-      SystemsJson: '5db9814c9cb7ee9a',
+      GddFrontmatter: 'efc1b45d8f273830',
+      SystemsJson: '6485479f9904cd5b',
       BehaviourFsm: 'bfd19052b00a3c0c',
       EcaRule: 'b74e8a8a3ef2a254',
       WaveTable: '1f7d2cffadcf4df3',

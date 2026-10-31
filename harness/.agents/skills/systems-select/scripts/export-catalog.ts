@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { CuratedGenre } from '@gg/schemas';
+import { FreeformBase } from '@gg/schemas';
 import type { CatalogSystem } from '@gg/validators';
 import { FREEFORM_CATALOG, freeformDesignManifest } from '@gg/template-freeform/node';
 import { CATALOG, genre } from '@gg/templates/node';
@@ -11,7 +11,7 @@ const [id, base] = process.argv.slice(2);
 const visible = (c: CatalogSystem) => ({ ...c, params: Object.fromEntries(Object.entries(c.params).filter(([, p]) => !p.composed)) });
 let payload: Record<string, unknown>;
 if (id === 'freeform') {
-  const m = base ? freeformDesignManifest(CuratedGenre.parse(base)) : null;
+  const m = base ? freeformDesignManifest(FreeformBase.parse(base)) : null;
   const systems = m ? Object.values(m.systems).map((s) => s.meta) : Object.values(FREEFORM_CATALOG);
   payload = { genre: 'freeform', base: base ?? null, feelPresets: m ? Object.keys(m.feelPresets) : [], required: [], optional: systems.map((c) => c.id), systems: systems.map(visible) };
 } else {

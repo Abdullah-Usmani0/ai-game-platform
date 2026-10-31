@@ -1,4 +1,5 @@
 import type { Genre } from '@gg/schemas';
+import { castle } from '@gg/template-castle/node';
 import { buildCatalog, type GenreManifest } from '@gg/template-core';
 import { lifesim } from '@gg/template-lifesim/node';
 import { metroidvania } from '@gg/template-metroidvania/node';
@@ -9,7 +10,7 @@ import { shmup } from '@gg/template-shmup/node';
 import { topdownAction } from '@gg/template-topdown-action/node';
 
 /** Adding a genre: one entry here and one in ./check.ts, plus the package in the templates, game-base and web dependency lists. */
-export const GENRES: Record<string, GenreManifest> = { platformer, survivors, 'topdown-action': topdownAction, shmup, metroidvania, puzzle, lifesim };
+export const GENRES: Record<string, GenreManifest> = { platformer, survivors, 'topdown-action': topdownAction, shmup, metroidvania, puzzle, lifesim, castle };
 
 export function genre(id: string): GenreManifest {
   const g = GENRES[id];

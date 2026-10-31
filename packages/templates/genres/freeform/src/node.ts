@@ -1,4 +1,4 @@
-import type { CuratedGenre, EntityRoster, FreeformSystemsJson, LevelProof, Objectives } from '@gg/schemas';
+import type { FreeformBase, EntityRoster, FreeformSystemsJson, LevelProof, Objectives } from '@gg/schemas';
 import { grammarHasGoal, rolesOf, type DesignContent, type GenreManifest, type PanelSpec } from '@gg/template-core';
 import { checkObjectives, type ValidationReport } from '@gg/validators';
 import { lifesim } from '@gg/template-lifesim/node';
@@ -19,7 +19,7 @@ export * from './check.js';
 export * from './prove.js';
 
 /** The curated genres' full manifests: a freeform game takes its level grammar, budgets and prompts from its base's. */
-export const BASE_MANIFESTS: Readonly<Record<CuratedGenre, GenreManifest>> = { platformer, survivors, 'topdown-action': topdownAction, metroidvania, shmup, puzzle, lifesim };
+export const BASE_MANIFESTS: Readonly<Record<FreeformBase, GenreManifest>> = { platformer, survivors, 'topdown-action': topdownAction, metroidvania, shmup, puzzle, lifesim };
 
 /** The content files a game's design stage writes for the systems it runs, from whichever genre ships them (a farm's crops). */
 export function designContentFor(systemIds: readonly string[]): DesignContent[] {
@@ -64,7 +64,7 @@ export function freeformManifest(file: FreeformSystemsJson, roster: EntityRoster
  * A freeform game before its systems are chosen: its base genre's manifest, offering every system that works with the
  * base's movement (the systems stage chooses among them). The GDD and systems stages work from it.
  */
-export function freeformDesignManifest(base: CuratedGenre): GenreManifest {
+export function freeformDesignManifest(base: FreeformBase): GenreManifest {
   const b = BASE_MANIFESTS[base];
   const usable = usableSystems(base);
   return {

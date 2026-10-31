@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { CURATED_GENRES } from '@gg/schemas';
+import { FREEFORM_BASES } from '@gg/schemas';
 import { describe, expect, it } from 'vitest';
 
 interface Band {
@@ -20,8 +20,8 @@ const band = JSON.parse(readFileSync(new URL('../curated-band.json', import.meta
  * a genre missing, means the band would wave through what it should catch.
  */
 describe('curated band', () => {
-  it('covers every curated genre', () => {
-    expect(Object.keys(band.genres).sort()).toEqual([...CURATED_GENRES].sort());
+  it('covers every genre a freeform game builds on', () => {
+    expect(Object.keys(band.genres).sort()).toEqual([...FREEFORM_BASES].sort());
     for (const [id, g] of Object.entries(band.genres)) expect(g.levels, id).toBeGreaterThanOrEqual(3);
   });
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CuratedGenre, ScopeTier, TemplateGenre } from './common';
+import { FreeformBase, ScopeTier, TemplateGenre } from './common';
 import { FeedbackChannel, GameEventName } from './events';
 
 export const GddFrontmatter = z.object({
@@ -29,7 +29,7 @@ export type GddFrontmatter = z.infer<typeof GddFrontmatter>;
  * A freeform game's front matter: the curated genre it builds on (its levels, solver, feel and art setting), the rest as
  * any game's. Its budgets, verbs and enemies are the base genre's to start from.
  */
-export const FreeformGddFrontmatter = GddFrontmatter.extend({ genre: z.literal('freeform'), base: CuratedGenre });
+export const FreeformGddFrontmatter = GddFrontmatter.extend({ genre: z.literal('freeform'), base: FreeformBase });
 export type FreeformGddFrontmatter = z.infer<typeof FreeformGddFrontmatter>;
 
 /** Any game's front matter: a freeform game's names its base genre. */

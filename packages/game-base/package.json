@@ -12,6 +12,7 @@
     "@gg/engine": "workspace:*",
     "@gg/schemas": "workspace:*",
     "@gg/sdk": "workspace:*",
+    "@gg/template-castle": "workspace:*",
     "@gg/template-core": "workspace:*",
     "@gg/template-freeform": "workspace:*",
     "@gg/template-lifesim": "workspace:*",
