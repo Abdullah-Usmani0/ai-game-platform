@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { SpriteSheet } from '@gg/schemas';
+import { MoveSet, SpriteSheet, type Move } from '@gg/schemas';
+import { MOVE, MOVE_TICK } from '../sim/moves.js';
 import type { Entity, Menu } from '../sim/world.js';
 import { sfxFor } from './art/audio.js';
 import { mix, parseHex, toInt, type RGB } from './art/color.js';
@@ -15,6 +16,7 @@ import { paintRig, RIGS, type Rig } from './art/rig/index.js';
 import { groundUnder, paintRegion, prepareLevelArt, settingFor, sideView, torchSpots, type Setting } from './art/terrain.js';
 import { toCanvas } from './canvas.js';
 import type { GameController } from './controller.js';
+import { moveClipFrame } from './move-frames.js';
 import { Sfx } from './sfx.js';
 
 export interface ViewStyle {
@@ -91,6 +93,8 @@ interface Sheet {
   fixture: boolean;
   /** The first painted row of each frame: where the top of the body is as it bobs (what is held over a head rides it). */
   tops: Map<string, number>;
+  /** A rig's clips that hit: the frames that draw the blow (a move's clip is drawn by its clock around them). */
+  actives?: Map<string, readonly number[]>;
 }
 
 interface Shown {
@@ -188,6 +192,8 @@ export class MainScene extends Phaser.Scene {
   private drawAs = new Map<string, string>();
   /** The game's own designs for its types and its player ('@player'), from content/sprites.json. */
   private designs = new Map<string, Recipe>();
+  /** The game's moves by id (content/moves.json): what a body making one is drawn with. */
+  private moves = new Map<string, Move>();
   private bossTex: Phaser.Textures.CanvasTexture | null = null;
   private bossImg!: Phaser.GameObjects.Image;
   private bossSig = '';
@@ -214,6 +220,7 @@ export class MainScene extends Phaser.Scene {
     this.fps = { ...this.fps, ...(this.style.animationFps ?? {}) };
     this.setting = settingFor(this.style.genre, this.controller.sim.options.movementMode);
     this.readDesigns();
+    this.readMoves();
     const { w, h } = this.style.canvas;
     const cam = this.cameras.main;
     cam.setBackgroundColor(sideView(this.setting) ? this.style.palette.background : toInt(this.pal.ink));
@@ -329,7 +336,8 @@ export class MainScene extends Phaser.Scene {
       tops.set(frame, firstPaintedRow(f.color));
     });
     // The frame's foot point is its bottom middle, as a template sprite's is.
-    const sheet: Sheet = { key, w: rig.w, h: rig.h, anchor: 'feet', anims, directional: false, floor: false, noShadow: false, fixture: false, tops };
+    const actives = new Map(rig.clips.flatMap((c) => (c.active ? [[c.name, c.active] as const] : [])));
+    const sheet: Sheet = { key, w: rig.w, h: rig.h, anchor: 'feet', anims, directional: false, floor: false, noShadow: false, fixture: false, tops, actives };
     this.sheets.set(name, sheet);
     return sheet;
   }
@@ -338,6 +346,19 @@ export class MainScene extends Phaser.Scene {
    * The game's designs (content/sprites.json), each compiled on its own: one that cannot be read or drawn is left out
    * and its type draws as it ships. Never a crash, never the placeholder shape.
    */
+  /** The game's frame data (content/moves.json): a body making a move is drawn with the move's clip, by its clock. */
+  private readMoves(): void {
+    const parsed = MoveSet.safeParse(this.controller.options.simOptions.content?.['moves']);
+    if (parsed.success) for (const m of parsed.data.moves) this.moves.set(m.id, m);
+  }
+
+  /** The move a body is making, when its clip is the one it shows. */
+  private moveOn(e: Entity): Move | null {
+    const id = e.props[MOVE];
+    const m = typeof id === 'string' && id !== '' ? this.moves.get(id) : undefined;
+    return m && m.anim === e.anim ? m : null;
+  }
+
   private readDesigns(): void {
     const raw = this.controller.options.simOptions.content?.['sprites'];
     if (raw === undefined) return;
@@ -760,6 +781,7 @@ export class MainScene extends Phaser.Scene {
       return has(`${s.dir}-${base}`) ? `${s.dir}-${base}` : `${s.dir}-idle`;
     }
     if (hurt && has('hurt')) return 'hurt';
+    if (this.moveOn(e) && has(e.anim)) return e.anim;
     if (e.isPlayer && sideView(this.setting)) {
       if (tick <= this.dashUntilTick && has('dash')) return 'dash';
       if (!e.grounded) return e.vy < 0 ? 'jump' : 'fall';
@@ -806,7 +828,10 @@ export class MainScene extends Phaser.Scene {
       const fps = e.pickup || e.isProjectile ? this.fps.effects : this.fps.character;
       // Fixtures keep their own time, so a room of tables does not blink as one.
       const phase = s.sheet.fixture ? e.id * 5 : 0;
-      s.img.setFrame(frames[(Math.floor((tick * fps) / 60) + phase) % frames.length]!);
+      // A move's clip runs by the move's clock, its blow drawn exactly while the move strikes; the rest by the wall clock.
+      const move = anim === e.anim ? this.moveOn(e) : null;
+      const moveTick = Number(e.props[MOVE_TICK] ?? 0);
+      s.img.setFrame(frames[move ? moveClipFrame(move, moveTick, frames.length, s.sheet.actives?.get(anim)) : (Math.floor((tick * fps) / 60) + phase) % frames.length]!);
       const cx = e.x + e.w / 2;
       const cy = e.y + e.h / 2;
       const feet = e.y + e.h;

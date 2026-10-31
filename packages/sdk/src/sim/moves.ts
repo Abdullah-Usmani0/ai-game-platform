@@ -1,9 +1,12 @@
 import { moveLength, type Move, type MoveSet } from '@gg/schemas';
-import { centerX, overlaps, type Entity, type SimCtx } from '@gg/sdk';
+import { overlaps } from './physics.js';
+import type { SimCtx } from './system.js';
+import { centerX, type Entity } from './world.js';
 
 /**
- * A body's move clock, kept in its props so a save keeps it: the move it is making ('' for none), the tick of it, and
- * who it has struck (their ids, comma-separated: each is struck once a move).
+ * A body's move clock, kept in its props so a save keeps it (and the view draws the move's clip by it): the move it is
+ * making ('' for none), the tick of it, and who it has struck (their ids, comma-separated: each is struck once a move).
+ * The moves are frame data (content/moves.json, a MoveSet): a game's combat system steps them with these.
  */
 export const MOVE = '_move';
 export const MOVE_TICK = '_moveTick';

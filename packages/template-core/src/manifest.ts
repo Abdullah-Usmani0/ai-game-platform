@@ -188,6 +188,11 @@ export interface GenreManifest extends GenreRuntime {
   extraContent?: (params: LevelGenParams) => Record<string, unknown>;
   /** Content files the design stage writes from the idea (a farm's crops). */
   designContent?: readonly DesignContent[];
+  /**
+   * Content files every game of the genre ships as the genre writes them, content/<key>.json, which a game may then
+   * edit (the castle's moves: the frame data its sword and its view follow). The scaffold writes them.
+   */
+  shippedContent?: Readonly<Record<string, unknown>>;
   bots: Record<string, BotPolicy>;
   /** Bot that must complete a valid level (the solvability oracle at playtest time). */
   solverBot: string;

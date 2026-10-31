@@ -1,8 +1,13 @@
 // Wiring only: the system code is the platformer's checked movement system, built in its gated mode.
 import { createMovement } from '@gg/template-platformer';
+import { LOCK } from './systems/combat.js';
 
-/** Platformer movement with the abilities gated, as the metroidvania's: wings add an air jump, boots the dash. */
-export const movement = createMovement({ id: 'movement-castle', gated: true });
+/**
+ * Platformer movement with the abilities gated, as the metroidvania's: wings add an air jump, boots the dash. A cut
+ * holds it (the combat system's lock): no running, jumping or turning while the hero commits to a cut or reels from a
+ * blow, and a dash only once the cut allows it.
+ */
+export const movement = createMovement({ id: 'movement-castle', gated: true, lock: LOCK });
 
 export const meta = {
   id: 'movement-castle',

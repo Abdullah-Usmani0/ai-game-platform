@@ -60,5 +60,25 @@
       "sfx",
       "flash"
     ]
+  },
+  {
+    "event": "custom:door_open",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
+  },
+  {
+    "event": "custom:swing",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:finisher",
+    "channels": [
+      "sfx",
+      "shake"
+    ]
   }
 ]

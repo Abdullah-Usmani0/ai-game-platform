@@ -7,6 +7,7 @@ export * from './physics.js';
 export * from './trig.js';
 export * from './feel.js';
 export * from './world.js';
+export * from './moves.js';
 export * from './system.js';
 export * from './fsm.js';
 export * from './sim.js';

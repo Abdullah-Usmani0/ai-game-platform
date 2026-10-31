@@ -17,13 +17,14 @@ export const GATE_TYPE = 'gate';
 export const PLAYER = { w: 14, h: 42, hp: 5 } as const;
 
 /**
- * The castle's cast at 16 px tiles. Every enemy is low enough for the plainest jump of the heaviest feel to clear
- * (28 px against a 37 px rise), so the stomp, the stand-in until the castle's own combat, reaches all of them.
+ * The castle's cast at 16 px tiles. A foe takes cuts to fell: the ghoul three (the whole chain, or the cut and the
+ * thrust), the hound two, the stone gargoyle four. Every one is low enough for the plainest jump of the heaviest feel to
+ * clear (28 px against a 37 px rise).
  */
 export const ENTITY_DEFS: EntityDef[] = [
-  { type: GHOUL_TYPE, w: 16, h: 28, hp: 1, gravity: true, fsm: 'ghoul', contactDamage: 1 },
-  { type: HOUND_TYPE, w: 24, h: 16, hp: 1, gravity: true, fsm: 'hound', contactDamage: 1 },
-  { type: GARGOYLE_TYPE, w: 20, h: 24, hp: 2, gravity: true, fsm: 'gargoyle', contactDamage: 1 },
+  { type: GHOUL_TYPE, w: 16, h: 28, hp: 3, gravity: true, fsm: 'ghoul', contactDamage: 1 },
+  { type: HOUND_TYPE, w: 24, h: 16, hp: 2, gravity: true, fsm: 'hound', contactDamage: 1 },
+  { type: GARGOYLE_TYPE, w: 20, h: 24, hp: 4, gravity: true, fsm: 'gargoyle', contactDamage: 1 },
   { type: 'ember', w: 6, h: 6, hp: 1, gravity: false, projectile: true, contactDamage: 1 },
   { type: SOUL_TYPE, w: 8, h: 8, hp: 1, gravity: false, pickup: true },
   { type: WINGS_TYPE, w: 12, h: 12, gravity: false, tint: 'accent' },

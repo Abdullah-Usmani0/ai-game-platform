@@ -10,12 +10,13 @@ export const EXEMPLARS: Exemplar[] = [
   { kind: 'level', prompt: 'A full region on two floors: wings, an altar, the ledge, halls and the boots above; a shaft down to a second altar, then back below past a chasm only the dash crosses to the way out, where a gate in the ceiling opens a shortcut up to the first altar.', artifact: generateRegion({ seed: 23, difficulty: 0.55 }) },
   {
     kind: 'systems',
-    prompt: 'A castle explorer where relics unlock the double jump and the dash, altars save the way, with souls and stomping.',
+    prompt: 'A castle explorer where relics unlock the double jump and the dash, altars save the way, with souls and a sword.',
     artifact: {
       version: 1,
       genre: 'castle',
       feelPreset: 'castle-agile',
       systems: [
+        { id: 'combat', params: {} },
         { id: 'movement-castle', params: {} },
         { id: 'relics', params: { relicScore: 25 } },
         { id: 'abilities', params: {} },
@@ -23,7 +24,6 @@ export const EXEMPLARS: Exemplar[] = [
         { id: 'rest', params: { reach: 8 } },
         { id: 'shortcuts', params: {} },
         { id: 'hazards', params: { respawnDelayTicks: 30 } },
-        { id: 'combat-stomp', params: { bounceVy: -140 } },
         { id: 'pickups', params: { value: 1 } },
         { id: 'goal', params: { bonus: 20 } },
       ],

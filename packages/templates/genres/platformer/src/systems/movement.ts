@@ -29,6 +29,13 @@ export interface MovementOptions {
    * air jump. Ungated (the platformer): dash always available on its cooldown, no air jumps.
    */
   gated: boolean;
+  /**
+   * A prop a combat system keeps on the player: 1 while it commits to a move or reels from a blow (no running, jumping
+   * or dashing, and it keeps its facing: the combat system drives its velocity, gravity still pulls), 2 once a dash may
+   * cut the move short. With it, the movement keeps flags.dashing while a dash lasts. Without it: the movement as it
+   * always was.
+   */
+  lock?: string;
 }
 
 /** Precision platformer movement driven entirely by the feel preset (Celeste-class by default). */
@@ -54,13 +61,14 @@ export function createMovement(opts: MovementOptions) {
       if (!p.alive) return;
       // A runner (the auto-run system) sets the speed the player keeps running at: left and right do nothing then.
       const run = typeof p.props[RUN_SPEED] === 'number' ? p.props[RUN_SPEED] : 0;
-      const dir = run !== 0 ? Math.sign(run) : (input.right ? 1 : 0) - (input.left ? 1 : 0);
+      const lock = opts.lock ? Number(p.props[opts.lock] ?? 0) : 0;
+      const dir = lock !== 0 ? 0 : run !== 0 ? Math.sign(run) : (input.right ? 1 : 0) - (input.left ? 1 : 0);
       if (dir !== 0) p.facing = dir;
       const canDash = !opts.gated || (p.flags[ABILITY_DASH] === true && !s.airDashed);
       const maxAirJumps = opts.gated && p.flags[ABILITY_DOUBLE_JUMP] === true ? 1 : 0;
 
       // Dash: fixed-speed burst, gravity off, then cooldown.
-      const dashPressed = input.dash && !s.prevDash;
+      const dashPressed = input.dash && !s.prevDash && lock !== 1;
       if (dashPressed && canDash && s.dashCooldown === 0 && s.dashTicks === 0) {
         if (opts.gated) {
           // Gated dashes travel flat: the dash ends any variable-jump rise (ungated keeps the platformer's behaviour).
@@ -79,13 +87,15 @@ export function createMovement(opts: MovementOptions) {
         s.dashTicks--;
         p.vy = 0;
       } else {
-        // Horizontal: accelerate toward target, reduce when over max.
+        // Horizontal: accelerate toward target, reduce when over max. Locked, it stays where the combat system sets it.
         const mult = p.grounded ? 1 : f.airMult;
         const target = run !== 0 ? run : dir * f.maxRun;
-        if (Math.abs(p.vx) > Math.abs(target) && Math.sign(p.vx) === Math.sign(target) && target !== 0) {
-          p.vx = approach(p.vx, target, f.runReduce * mult * dt);
-        } else {
-          p.vx = approach(p.vx, target, f.runAccel * mult * dt);
+        if (lock === 0) {
+          if (Math.abs(p.vx) > Math.abs(target) && Math.sign(p.vx) === Math.sign(target) && target !== 0) {
+            p.vx = approach(p.vx, target, f.runReduce * mult * dt);
+          } else {
+            p.vx = approach(p.vx, target, f.runAccel * mult * dt);
+          }
         }
         // Gravity with half-gravity apex when the jump is held.
         if (!p.grounded) {
@@ -104,7 +114,8 @@ export function createMovement(opts: MovementOptions) {
       if (jumpPressed) s.jumpBuffer = Math.round(f.jumpBufferTime * TICKS);
       else if (s.jumpBuffer > 0) s.jumpBuffer--;
 
-      if (s.jumpBuffer > 0 && s.coyote > 0 && s.dashTicks === 0) {
+      if (lock !== 0) s.varJump = 0;
+      if (lock === 0 && s.jumpBuffer > 0 && s.coyote > 0 && s.dashTicks === 0) {
         p.vy = f.jumpSpeed;
         p.vx += dir * f.jumpHBoost;
         s.varJump = Math.round(f.varJumpTime * TICKS);
@@ -113,7 +124,7 @@ export function createMovement(opts: MovementOptions) {
         p.scaleX = f.squashJump[0];
         p.scaleY = f.squashJump[1];
         ctx.emit('jump', { x: p.x, y: p.y });
-      } else if (jumpPressed && s.coyote === 0 && s.airJumps < maxAirJumps && s.dashTicks === 0) {
+      } else if (lock === 0 && jumpPressed && s.coyote === 0 && s.airJumps < maxAirJumps && s.dashTicks === 0) {
         // Air jump (double jump): a full jump from wherever the player is, once per airtime.
         p.vy = f.jumpSpeed;
         s.varJump = Math.round(f.varJumpTime * TICKS);
@@ -145,6 +156,7 @@ export function createMovement(opts: MovementOptions) {
       p.scaleX = approach(p.scaleX, 1, 1.75 * dt);
       p.scaleY = approach(p.scaleY, 1, 1.75 * dt);
 
+      if (opts.lock) p.flags['dashing'] = s.dashTicks > 0;
       s.prevJump = input.jump;
       s.prevDash = input.dash;
     },

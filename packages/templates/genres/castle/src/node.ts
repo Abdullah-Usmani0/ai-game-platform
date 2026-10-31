@@ -6,6 +6,7 @@ import { castleCheck } from './check.js';
 import { EXEMPLARS } from './exemplars.js';
 import { castleRuntime } from './index.js';
 import { generateRegion } from './level/generate.js';
+import { DEFAULT_MOVES } from './moves.js';
 import { PANELS } from './panels.js';
 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
@@ -26,7 +27,7 @@ export const castle: GenreManifest = {
   },
   gddDefaults: {
     pillars: ['every hall hides a way back', 'a relic reopens the castle', 'rest is earned at the altar'],
-    verbs: ['run', 'jump', 'dash', 'stomp', 'explore', 'rest'],
+    verbs: ['run', 'jump', 'dash', 'cut', 'explore', 'rest'],
     feedbackEvents: [
       { event: 'jump', channels: ['sfx'] },
       { event: 'land', channels: ['sfx'] },
@@ -41,6 +42,8 @@ export const castle: GenreManifest = {
   },
   panels: PANELS,
   exemplars: EXEMPLARS,
+  // The hero's frame data: the combat system strikes by it and the view draws each cut by its clock.
+  shippedContent: { moves: DEFAULT_MOVES },
   samples: ['samples/castle'],
 };
 export * from './index.js';

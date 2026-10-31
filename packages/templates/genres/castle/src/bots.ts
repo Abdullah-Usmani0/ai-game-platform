@@ -1,4 +1,4 @@
-import { centerX, centerY, emptyInput, type Entity, type InputState, type Sim } from '@gg/sdk';
+import { centerX, centerY, emptyInput, isHostile, type Entity, type InputState, type Sim } from '@gg/sdk';
 import type { BotPolicy } from '@gg/template-core';
 import { ABILITY_DASH, ABILITY_DOUBLE_JUMP, ALTAR_TYPE, RELIC_ABILITY } from './entities.js';
 import { envelopeFor, pathTo, roomOf, tallTiles } from './level/progress.js';
@@ -128,6 +128,46 @@ function pitWidth(sim: Sim, fromPx: number, feet: number, facing: number): numbe
   return 30;
 }
 
+/**
+ * How far from the hero's middle its first cut reaches, with the foe's approach over the cut's wind-up allowed for, and
+ * how high above its feet the cut's box stands (the castle's moves: the cut's box runs 2 to 38 px ahead, up to 46 px up).
+ */
+const CUT_REACH = 44;
+const CUT_HIGH = 46;
+
+/** How far ahead a foe on the hero's floor is waited for before a jump over a pit, and for how long at most. */
+const WAIT_REACH = 112;
+const WAIT_TICKS = 75;
+
+/** An awake foe on the hero's own floor, up to WAIT_REACH ahead: one a leap over a pit would meet in the air. */
+function foeComing(sim: Sim, p: Entity, facing: number): boolean {
+  const cx = centerX(p);
+  const feet = p.y + p.h;
+  return sim.world.entities.some((e) => {
+    if (!isHostile(e) || e.dormant === true || e.isProjectile) return false;
+    const dx = (centerX(e) - cx) * facing;
+    return dx > 0 && dx <= WAIT_REACH && Math.abs(e.y + e.h - feet) <= 16;
+  });
+}
+
+/** The nearest awake foe a cut would reach from where the hero stands, either way it turns (null: none). */
+function foeInReach(sim: Sim, p: Entity): Entity | null {
+  const cx = centerX(p);
+  const feet = p.y + p.h;
+  let best: Entity | null = null;
+  let bestGap = Infinity;
+  for (const e of sim.world.entities) {
+    if (!isHostile(e) || e.dormant === true || e.isProjectile) continue;
+    const gap = e.x >= cx ? e.x - cx : cx - (e.x + e.w);
+    if (gap > CUT_REACH || e.y + e.h < feet - CUT_HIGH || e.y > feet) continue;
+    if (gap < bestGap) {
+      best = e;
+      bestGap = gap;
+    }
+  }
+  return best;
+}
+
 function hostileAhead(sim: Sim, p: Entity, facing: number, k: number): boolean {
   const cx = centerX(p);
   return sim.world.entities.some((e) => {
@@ -178,8 +218,11 @@ export const route: BotPolicy = (sim, tick, mem) => {
   const cx = centerX(p);
   const dxPx = tx * ts + ts / 2 - cx;
 
-  // Stall breaker: standing still on the ground for 90 ticks turns back for 24 ticks with a jump.
-  if (p.grounded && Math.abs(p.x - (mem['lastX'] ?? -1)) < 0.5) mem['still'] = (mem['still'] ?? 0) + 1;
+  // A foe within a cut's reach, met on the ground: the hero stands and cuts it down (below), which is no stall.
+  const near = p.grounded ? foeInReach(sim, p) : null;
+  // Stall breaker: standing still on the ground for 90 ticks (longer than any wait for a foe) turns back for 24 ticks
+  // with a jump.
+  if (p.grounded && !near && Math.abs(p.x - (mem['lastX'] ?? -1)) < 0.5) mem['still'] = (mem['still'] ?? 0) + 1;
   else mem['still'] = 0;
   mem['lastX'] = p.x;
   if ((mem['still'] ?? 0) > 90) {
@@ -202,6 +245,15 @@ export const route: BotPolicy = (sim, tick, mem) => {
       mem[rested] = 1;
       input.up = true;
     }
+  }
+
+  // Cut it down: the chain, a fresh press every other tick, turned toward it, rather than running into it or leaping it.
+  const foe = escaping ? null : near;
+  if (foe) {
+    const toward = centerX(foe) < cx ? -1 : 1;
+    input.left = toward < 0;
+    input.right = toward > 0;
+    input.action = tick % 2 === 0;
   }
 
   const facing = dir !== 0 ? dir : p.facing;
@@ -236,6 +288,18 @@ export const route: BotPolicy = (sim, tick, mem) => {
   };
   const edgeAhead = dir !== 0 && !groundAt(front + facing * 2);
 
+  // A foe coming over the way ahead as the hero is about to leap a pit: wait for it on solid ground (it comes into reach,
+  // or falls into the pit) rather than leap into it; for a while at most, as one that keeps its place would hold the
+  // way forever.
+  const wait = p.grounded && !foe && pitNext && foeComing(sim, p, facing);
+  if (!wait) mem['waitFrom'] = -1;
+  else if ((mem['waitFrom'] ?? -1) < 0) mem['waitFrom'] = tick;
+  const waiting = wait && tick - (mem['waitFrom'] ?? tick) < WAIT_TICKS;
+  if (waiting) {
+    input.left = false;
+    input.right = false;
+  }
+
   if (p.grounded) {
     mem[PHASE] = 0;
     mem['groundTick'] = tick;
@@ -251,7 +315,7 @@ export const route: BotPolicy = (sim, tick, mem) => {
   const released = mem['jumpPrev'] !== 1;
   if (phase === 0) {
     // Over a pit, the last step (the longest jump); off any other edge the way jumps from, at the edge.
-    if (released && (escaping || wallAhead || (pitNext && lastStep) || targetAbove || threat || (jumpMove && edgeAhead && !pitNext))) {
+    if (released && !foe && !waiting && (escaping || wallAhead || (pitNext && lastStep) || targetAbove || threat || (jumpMove && edgeAhead && !pitNext))) {
       input.jump = true;
       mem[PHASE] = 1;
       const needAir = jumpMove && hasDouble && !reaches({ doubleJump: false, dash: false });

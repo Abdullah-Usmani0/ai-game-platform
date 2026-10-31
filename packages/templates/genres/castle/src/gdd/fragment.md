@@ -1,8 +1,13 @@
 # Castle GDD fragment
 
 The castle tier: a tall hero (14x42 px, three tiles of 16 px) in a 480x270 view. Verbs: run, jump (variable height,
-coyote time, buffer), stomp, rest, and two earned abilities: the wings relic grants one air jump (double jump), the
+coyote time, buffer), cut, rest, and two earned abilities: the wings relic grants one air jump (double jump), the
 boots relic the dash (one per airtime). Abilities last: through deaths, rests and into the next region.
+The sword follows the game's frame data (content/moves.json): on the ground a chain of three cuts (a rising cut, a low
+sweep, a lunging thrust), each pressed in the last one's window; in the air an overhead cut; with down in the air a
+plunge that bounces off what it strikes. A cut roots the hero but for its own step, strikes each foe once, throws it
+back, staggers it and holds the world a moment; a dash cuts a cut short late in it. A blow throws the hero back,
+reeling. Foes take cuts to fell: a ghoul three, a hound two, a gargoyle four.
 Level grammar: a level is a region of rooms, each a screen (30x17 tiles), on a grid: doorways join neighbours on a row,
 and a shaft of one-way ledges joins the rows. The wings lie in a room behind the start (the player goes back for them);
 along the top row halls lead to a save altar and a 4-tile ledge only a double jump climbs, then more halls and the
@@ -16,5 +21,6 @@ enemies back, what the player found and opened kept. A fall returns the player t
 same way, keeping what they found since. Enemies sleep until the player enters their room and keep to it.
 Enemies: ghoul (shambles, lurches within 96 px), hound (crouches, bounds), gargoyle (spits embers within 192 px).
 Feel presets: castle-agile (default), castle-weighty. Every gate is sized to hold under both.
-Feedback table must bind: jump, land, dash, hit, death, pickup, checkpoint, level_complete.
+Feedback table must bind: jump, land, dash, hit, death, pickup, checkpoint, level_complete, custom:swing,
+custom:finisher.
 Scope tiers: small = 1 region, 1-2 enemy types; medium = 1 region, 2-3 enemy types; large = 1 region, 3 enemy types + 1 boss.

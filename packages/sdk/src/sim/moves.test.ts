@@ -1,8 +1,11 @@
 import { MoveSet, type BehaviourFsm, type LevelJson } from '@gg/schemas';
-import { CELESTE_CLASS, createSim, defineSystem, emptyInput, type Entity, type InputState, type Sim, type SimCtx } from '@gg/sdk';
+import { CELESTE_CLASS } from './feel.js';
+import { emptyInput, type InputState } from './input.js';
+import { createSim, type Sim } from './sim.js';
+import { defineSystem, type SimCtx } from './system.js';
+import type { Entity } from './world.js';
 import { describe, expect, it } from 'vitest';
 import { cancelInto, cancelOpensWithin, hitboxesAt, moveMap, moveOf, movePhase, moveTick, POISE, POISE_MAX, startMove, stepMove, type Strike } from './moves.js';
-import { level } from './test-games.js';
 
 const SET = MoveSet.parse({
   version: 1,
@@ -32,8 +35,9 @@ const PACE: BehaviourFsm = {
 
 /** A hall 40 tiles long of 8 px tiles, the player at tile 4, dummies on the floor at the given tiles. */
 function hall(dummies: number[], spawnY = 14): LevelJson {
-  const rows = Array.from({ length: 16 }, (_, y) => Array.from({ length: 40 }, (_, x) => (y === 15 || x === 0 || x === 39 ? '#' : y === spawnY && x === 4 ? 'S' : '.')).join(''));
-  return { ...level(rows), entities: dummies.map((x) => ({ type: 'dummy', x, y: 14, props: {} })) };
+  const rows = Array.from({ length: 16 }, (_, y) => Array.from({ length: 40 }, (_, x) => (y === 15 || x === 0 || x === 39 ? '#' : '.')).join(''));
+  const spawn = { x: 4, y: spawnY };
+  return { version: 1, id: 'hall', name: 'Hall', tileSize: 8, width: 40, height: 16, legend: { '.': 'air', '#': 'solid' }, rows, entities: dummies.map((x) => ({ type: 'dummy', x, y: 14, props: {} })), spawn, goal: spawn };
 }
 
 /** A sim whose one system runs `drive` each tick, with the player's body under gravity; strikes are kept by tick. */

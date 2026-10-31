@@ -1,0 +1,101 @@
+import { MoveSet } from '@gg/schemas';
+
+/**
+ * The hero's moves at the castle's scale, frame data in ticks of a 60 Hz step. The knight's body is 14x42; its blade
+ * reaches about 38 px ahead of its middle, so the boxes stand there, from the knees to over the helm.
+ * - The chain on the attack key: a rising cut, a low sweep back, then a lunging thrust that throws a foe away. Each
+ *   cut opens the next from its last active tick to its end, and a dash cuts a swing short partway through recovery.
+ * - In the air the attack is an overhead cut; with down held it is the plunge, which falls blade first and bounces the
+ *   hero off what it strikes.
+ * Every cut roots the hero where it stands, but for its own step forward.
+ */
+export const DEFAULT_MOVES: MoveSet = MoveSet.parse({
+  version: 1,
+  moves: [
+    {
+      id: 'cut',
+      owner: 'player',
+      anim: 'attack1',
+      input: 'attack',
+      startup: 6,
+      active: 4,
+      recovery: 14,
+      hitboxes: [{ from: 0, to: 3, x: 2, y: -46, w: 36, h: 44 }],
+      damage: 1,
+      knockback: { x: 140, y: -80 },
+      hitstun: 16,
+      hitstop: 3,
+      poise: 10,
+      motion: [{ from: 4, to: 9, vx: 40 }],
+      cancels: [{ into: ['sweep'], from: 9, to: 23 }],
+      dashCancel: 12,
+    },
+    {
+      id: 'sweep',
+      owner: 'player',
+      anim: 'attack2',
+      input: 'attack',
+      startup: 5,
+      active: 4,
+      recovery: 14,
+      hitboxes: [{ from: 0, to: 3, x: 0, y: -34, w: 38, h: 34 }],
+      damage: 1,
+      knockback: { x: 160, y: -100 },
+      hitstun: 18,
+      hitstop: 3,
+      poise: 10,
+      motion: [{ from: 3, to: 8, vx: 50 }],
+      cancels: [{ into: ['thrust'], from: 8, to: 22 }],
+      dashCancel: 11,
+    },
+    {
+      id: 'thrust',
+      owner: 'player',
+      anim: 'attack3',
+      input: 'attack',
+      startup: 9,
+      active: 5,
+      recovery: 20,
+      hitboxes: [{ from: 0, to: 4, x: 4, y: -32, w: 46, h: 18 }],
+      damage: 2,
+      knockback: { x: 280, y: -160 },
+      hitstun: 26,
+      hitstop: 5,
+      poise: 30,
+      motion: [{ from: 6, to: 13, vx: 160 }],
+      dashCancel: 18,
+    },
+    {
+      id: 'aircut',
+      owner: 'player',
+      anim: 'airslash',
+      input: 'air',
+      startup: 4,
+      active: 4,
+      recovery: 10,
+      hitboxes: [{ from: 0, to: 3, x: -10, y: -64, w: 50, h: 58 }],
+      damage: 1,
+      knockback: { x: 120, y: -60 },
+      hitstun: 14,
+      hitstop: 2,
+      poise: 10,
+    },
+    {
+      id: 'plunge',
+      owner: 'player',
+      anim: 'plunge',
+      input: 'plunge',
+      startup: 6,
+      active: 30,
+      recovery: 12,
+      hitboxes: [{ from: 0, to: 29, x: -8, y: -6, w: 16, h: 20 }],
+      damage: 2,
+      knockback: { x: 100, y: -200 },
+      hitstun: 20,
+      hitstop: 4,
+      poise: 25,
+      motion: [{ from: 6, to: 6, vx: 0, vy: 420 }],
+      endsOnLanding: true,
+    },
+  ],
+});

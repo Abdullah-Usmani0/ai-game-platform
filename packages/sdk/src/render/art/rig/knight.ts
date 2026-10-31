@@ -99,6 +99,14 @@ const DASH_A: Pose = { dx: 5, lift: 0, lean: 30, head: -18, armN: [150, 25], arm
 const DASH_B: Pose = { ...DASH_A, lean: 32, legN: [44, 34], legF: [136, 18] };
 const HURT_A: Pose = { dx: -4, lift: 0, lean: -24, head: 20, armN: [160, 30], armF: [215, 25], legN: [68, 26], legF: [114, 30], blade: 20 };
 const HURT_B: Pose = { ...HURT_A, lean: -20, head: 16, armN: [154, 34] };
+// In the air: a cut drawn up behind the shoulder with the knees tucked, swept over and down in front; and the plunge, the
+// blade lifted in both hands, then driven straight down beneath, the knight riding it.
+const AIR_UP: Pose = { dx: 0, lift: 7, lean: -6, head: -4, armN: [240, 30], armF: [175, 40], legN: [58, 96], legF: [102, 74], blade: -25 };
+const AIR_HIT: Pose = { dx: 3, lift: 7, lean: 18, head: -10, armN: [380, 8], armF: [75, 30], legN: [64, 84], legF: [110, 62], blade: 12 };
+const AIR_END: Pose = { dx: 3, lift: 6, lean: 12, head: -6, armN: [415, 24], armF: [95, 35], legN: [66, 74], legF: [108, 56], blade: 20 };
+const PLUNGE_UP: Pose = { dx: 0, lift: 9, lean: -2, head: -10, armN: [262, 20], armF: [250, 25], legN: [50, 104], legF: [98, 86], blade: -6 };
+const PLUNGE_DOWN: Pose = { dx: 0, lift: 8, lean: 2, head: 10, armN: [96, 4], armF: [86, 12], legN: [56, 88], legF: [104, 70], blade: 0 };
+const PLUNGE_HELD: Pose = { ...PLUNGE_DOWN, lift: 9, head: 12, legN: [54, 92], legF: [102, 74] };
 
 export const KNIGHT_CLIPS: readonly Clip[] = [
   { name: 'idle', frames: 8, loop: true, keys: [{ at: 0, pose: IDLE_A }, { at: 0.5, pose: IDLE_B }], wind: 0 },
@@ -110,6 +118,8 @@ export const KNIGHT_CLIPS: readonly Clip[] = [
   { name: 'fall', frames: 2, loop: true, air: true, wind: -0.25, keys: [{ at: 0, pose: FALL_A }, { at: 0.5, pose: FALL_B }] },
   { name: 'dash', frames: 2, loop: true, wind: -1.1, keys: [{ at: 0, pose: DASH_A }, { at: 0.5, pose: DASH_B }] },
   { name: 'hurt', frames: 2, loop: true, wind: 0.35, keys: [{ at: 0, pose: HURT_A }, { at: 0.5, pose: HURT_B }] },
+  { name: 'airslash', frames: 7, loop: false, air: true, active: [2, 3], swing: 1, wind: -0.2, keys: [{ at: 0, pose: JUMP_A }, { at: at(1, 7), pose: AIR_UP }, { at: at(3, 7), pose: AIR_HIT }, { at: at(6, 7), pose: AIR_END }] },
+  { name: 'plunge', frames: 4, loop: false, air: true, active: [2, 3], swing: 0, wind: 0.4, keys: [{ at: 0, pose: PLUNGE_UP }, { at: at(1, 4), pose: PLUNGE_UP }, { at: at(2, 4), pose: PLUNGE_DOWN }, { at: at(3, 4), pose: PLUNGE_HELD }] },
 ];
 
 /** The knight's parts in one frame, back to front: cape, far limbs, body and tabard, near leg, helm and plume, near arm and sword. */

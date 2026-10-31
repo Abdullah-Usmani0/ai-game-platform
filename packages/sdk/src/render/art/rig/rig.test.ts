@@ -25,8 +25,8 @@ describe('rigs', () => {
       expect(own.length, clip.name).toBe(clip.frames);
       for (const f of own) expect(f.parts.some((p) => p.id === 'smear'), `${clip.name} ${f.frame}`).toBe((clip.active ?? []).includes(f.frame) && f.frame > 0);
     }
-    // idle 8, run 8, the chain 9 + 8 + 11, and jump, fall, dash and hurt 2 each.
-    expect(frames.length).toBe(52);
+    // idle 8, run 8, the chain 9 + 8 + 11, jump, fall, dash and hurt 2 each, the air cut 7 and the plunge 4.
+    expect(frames.length).toBe(63);
   }, 60_000);
 
   it('write a normal map that faces the viewer where the colour is opaque', () => {

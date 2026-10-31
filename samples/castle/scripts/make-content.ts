@@ -9,7 +9,9 @@ import { levelTicksOf, runBot, simOptionsFor, systemsJsonFor } from '@gg/templat
 import { castle } from '@gg/template-castle/node';
 
 const dir = fileURLToPath(new URL('../content/', import.meta.url));
-const options = simOptionsFor(castle, systemsJsonFor(castle), { behaviours: castle.defaultBehaviours });
+// The content every castle game ships (its moves), which the run plays with as the game does.
+const shipped = castle.shippedContent ?? {};
+const options = simOptionsFor(castle, systemsJsonFor(castle), { behaviours: castle.defaultBehaviours, content: { ...shipped } });
 let chosen: { level: LevelJson; proof: LevelProof } | null = null;
 for (let seed = 1; seed <= 20 && !chosen; seed++) {
   const level: LevelJson = { ...castle.levelGrammar.generate({ seed, difficulty: 0.5 }), id: 'salt-chapel', name: 'The Salt Chapel' };
@@ -24,4 +26,5 @@ for (const sub of ['levels', 'behaviour', 'proofs']) mkdirSync(`${dir}${sub}`, {
 writeFileSync(`${dir}levels/R01-salt-chapel.json`, JSON.stringify(chosen.level, null, 2) + '\n');
 for (const b of castle.defaultBehaviours) writeFileSync(`${dir}behaviour/${b.id}.fsm.json`, JSON.stringify(b, null, 2) + '\n');
 writeFileSync(`${dir}proofs/salt-chapel.json`, JSON.stringify(chosen.proof, null, 2) + '\n');
-console.log(`wrote levels/R01-salt-chapel.json, behaviour/{${castle.defaultBehaviours.map((b) => b.id).join(',')}}.fsm.json, proofs/salt-chapel.json`);
+for (const [key, value] of Object.entries(shipped)) writeFileSync(`${dir}${key}.json`, JSON.stringify(value, null, 2) + '\n');
+console.log(`wrote levels/R01-salt-chapel.json, behaviour/{${castle.defaultBehaviours.map((b) => b.id).join(',')}}.fsm.json, proofs/salt-chapel.json, ${Object.keys(shipped).map((k) => `${k}.json`).join(', ')}`);

@@ -62,9 +62,11 @@ once a player wins the level and the worker, replaying that run on the version, 
 - `game/content/` levels/*.json, behaviour/*.fsm.json, rules/*.eca.json, waves.json, dialogue.json (data, validated on write);
   a farm has crops.json (written from the idea after the systems and held to their rules by validate:systems); every
   game may have sprites.json (its cast's own look: per type a shipped sprite of its build, ramp colours and overlays,
-  held to the art rules by validate:sprites; a type without one draws as it ships); a freeform game also has
-  entities.json, objectives.json, proofs/*.json (recorded winning runs, written by the worker) and hints/*.json (the
-  way through a level for the explorer, kept beside the run it found)
+  held to the art rules by validate:sprites; a type without one draws as it ships); a castle game ships moves.json
+  (frame data for its sword and later its cast: startup, active and recovery ticks, the boxes that strike, knockback,
+  stagger and hitstop; held to the moves' rules, every foe's blow winding up for 150 ms or more); a freeform game also
+  has entities.json, objectives.json, proofs/*.json (recorded winning runs, written by the worker) and hints/*.json
+  (the way through a level for the explorer, kept beside the run it found)
 - `game/src/systems/` bespoke simulation systems in GlueTS (see rules), each with its contract in design/mechanics.json;
   a freeform game records its runs with them (`pnpm -C game prove`); `game/src/main.ts` is scaffolded, do not edit
 - `game/src/bots/` a freeform game's own bots (GAME_BOTS in index.ts), GlueTS too, which may use `@gg/template-core`'s

@@ -7,3 +7,4 @@ export * from './bridge-guest.js';
 export * from './phaser-view.js';
 export * from './game.js';
 export * from './saves.js';
+export * from './move-frames.js';

@@ -1,10 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { ARTIFACT_SCHEMAS, parseAnyGdd, parseSystemsFile, type AnyGddFrontmatter, type ArtifactName, type BehaviourFsm, type LevelJson, type SystemsFile } from '@gg/schemas';
+import { ARTIFACT_SCHEMAS, parseAnyGdd, parseSystemsFile, type AnyGddFrontmatter, type ArtifactName, type BehaviourFsm, type LevelJson, type MoveSet, type SystemsFile } from '@gg/schemas';
 import { CELESTE_CLASS } from '@gg/sdk';
+import { RIGS } from '@gg/sdk/art';
 import { checkGameSprites, manifestFor, resolveGame } from '@gg/templates/node';
 import type { GenreManifest } from '@gg/template-core';
-import { checkGdd, parseFrontmatter, report, validateBehaviour, validateLevel, type ValidationReport } from '@gg/validators';
+import { checkGdd, parseFrontmatter, report, validateBehaviour, validateLevel, validateMoves, type ValidationReport } from '@gg/validators';
 
 /**
  * Picks the schema for a design/content artifact by its path, validates it, then runs the semantic
@@ -21,6 +22,7 @@ function schemaFor(file: string): ArtifactName | null {
   if (/\/content\/entities\.json$/.test(f)) return 'EntityRoster';
   if (/\/content\/crops\.json$/.test(f)) return 'CropTable';
   if (/\/content\/sprites\.json$/.test(f)) return 'SpriteSheet';
+  if (/\/content\/moves\.json$/.test(f)) return 'MoveSet';
   if (/\/content\/proofs\/[^/]+\.json$/.test(f)) return 'LevelProof';
   if (/\/content\/hints\/[^/]+\.json$/.test(f)) return 'LevelHints';
   if (name === 'systems.json') return 'SystemsFile';
@@ -121,6 +123,10 @@ for (const file of files) {
     if (!printReport(file, `level (${g?.id ?? 'generic'})`, r)) failed++;
   } else if (name === 'BehaviourFsm') {
     if (!printReport(file, 'behaviour', validateBehaviour(result.data as BehaviourFsm, g?.behaviourVocab, g?.entityDefs.map((e) => e.type)))) failed++;
+  } else if (name === 'MoveSet') {
+    // Frame data, held to the moves' rules: every foe's blow telegraphs, the castle hero's cuts are the knight's clips.
+    const clips = g?.tier === 'castle' ? { player: RIGS['knight']!.clips.map((c) => c.name) } : undefined;
+    if (!printReport(file, 'moves', validateMoves(result.data as MoveSet, { types: g?.entityDefs.map((e) => e.type), clips }))) failed++;
   } else if (name === 'SpriteSheet') {
     // The cast's look, held to the art rules in the game's palette (design/style.json).
     if (!printReport(file, 'sprites', checkGameSprites(gameRoot))) failed++;

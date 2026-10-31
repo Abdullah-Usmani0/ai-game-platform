@@ -205,7 +205,7 @@ export function checkGameSystems(gameDir: string): ValidationReport {
   const own = parsed.data.genre === 'freeform' ? manifestFor(files) : GENRES[parsed.data.genre];
   const dir = join(gameDir, 'content');
   const written = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')) : [];
-  const toCome = (m: GenreManifest) => Object.keys(m.extraContent?.({ seed: 1, difficulty: 0.3 }) ?? {});
+  const toCome = (m: GenreManifest) => [...Object.keys(m.extraContent?.({ seed: 1, difficulty: 0.3 }) ?? {}), ...Object.keys(m.shippedContent ?? {})];
   if (parsed.data.genre === 'freeform') {
     const m = own!;
     const composed = existsSync(join(dir, 'entities.json'));
