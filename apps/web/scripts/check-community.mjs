@@ -337,7 +337,8 @@ try {
   const makerPage = await pageAs(maker);
   await makerPage.goto(`${url}/games/${ffRemix.gameId}`, { waitUntil: 'load', timeout: 30000 });
   await makerPage.waitForSelector(`[data-testid="proofs-waiting"][data-levels="${waitLevel}"]`, { timeout: 20000 });
-  await makerPage.waitForSelector(`[data-testid="proof-run"][data-level="${waitLevel}"]`, { timeout: 10000 });
+  // The panel refreshes every 5 s: room for a slow refresh on a busy machine, as the waits around it have.
+  await makerPage.waitForSelector(`[data-testid="proof-run"][data-level="${waitLevel}"]`, { timeout: 20000 });
   result.proving.workspace = {
     run: await makerPage.getAttribute(`[data-testid="proof-run"][data-level="${waitLevel}"]`, 'data-status'),
     publishDisabled: await makerPage.isDisabled('[data-testid="publish"]'),

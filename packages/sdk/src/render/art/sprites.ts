@@ -1,6 +1,7 @@
 import { mix, ramp, type RGB } from './color.js';
 import type { ArtPalette } from './palette.js';
 import { hash2, PixelCanvas, type Legend, type Template } from './pixels.js';
+import { CAST_RECIPES } from './rig/cast.js';
 
 /**
  * Entity sprites: hand-made pixel templates per animation, recoloured from the game's palette and outlined in the
@@ -620,6 +621,8 @@ export const RECIPES: Record<string, Recipe> = {
   table: TABLE,
   lamp: LAMP,
   ...Object.fromEntries(CROP_SHAPE_NAMES.map((shape) => [`crop-${shape}`, cropRecipe(shape)])),
+  // The castle tier's cast, drawn by the rig's rasterizer and baked into templates.
+  ...CAST_RECIPES,
 };
 
 /** Entity types of the shipped genres and the recipe each draws with; anything else falls back by role. */
@@ -662,12 +665,12 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   cargo: 'parcel',
   source: 'counter',
   dropoff: 'table',
-  // The castle's cast, on the side view's sprites until the castle tier draws its own.
-  ghoul: 'walker',
-  hound: 'brute',
-  gargoyle: 'turret',
-  soul: 'crystal',
-  altar: 'door',
+  // The castle tier's cast at its own scale.
+  ghoul: 'ghoul',
+  hound: 'hound',
+  gargoyle: 'gargoyle',
+  soul: 'soul',
+  altar: 'altar',
 };
 
 /** The recipe an entity type draws with: its own, or that of the shipped type it is drawn as (a renamed type). */

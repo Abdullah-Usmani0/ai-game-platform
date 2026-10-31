@@ -749,6 +749,8 @@ export class MainScene extends Phaser.Scene {
       return Math.abs(e.vx) > 0.15 ? 'run' : 'idle';
     }
     if (has('lit') && (e.flags['onTarget'] || e.flags['lit'] || e.anim === 'lit')) return 'lit';
+    // A sprite's own animation first (a ghoul's walk is not its run), then what it stands for.
+    if (e.anim && has(e.anim)) return e.anim;
     const asked = ANIM_ALIASES[e.anim] ?? e.anim;
     if (asked && has(asked)) return asked;
     if (e.gravity && !e.grounded && has('jump')) return 'jump';

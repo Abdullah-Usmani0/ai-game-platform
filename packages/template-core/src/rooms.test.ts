@@ -91,6 +91,17 @@ describe('rooms', () => {
     expect(s.world.entities.find((e) => e.type === 'pacer')!.dormant).toBe(true);
   });
 
+  it('keeps an enemy in its room: one that chases the player stops at the doorway', () => {
+    const chase: BehaviourFsm = { version: 1, id: 'chase', designNotes: '', initial: 'go', states: { go: { onEnter: [], update: [{ kind: 'move_toward_player', speed: 60 }], transitions: [] } } };
+    const s = createSim({ feel: CELESTE_CLASS, systems: [stroll, rooms], level: hall(), seed: 1, entityDefs: [{ type: 'pacer', w: 8, h: 8, hp: 2, fsm: 'chase', gravity: false }], behaviours: [chase], player: { w: 6, h: 8, hp: 3 } });
+    // Through the nave, where the chaser wakes and follows, and on into the altar room.
+    walk(s, 150);
+    expect(s.world.hud['_room']).toBe('altar');
+    const chaser = s.world.entities.find((e) => e.type === 'pacer')!;
+    expect(chaser.x).toBeLessThanOrEqual(20 * 8 - chaser.w);
+    expect(chaser.x).toBeGreaterThan(14 * 8);
+  });
+
   it('plays the same every time, and saves and loads its state', () => {
     const a = sim();
     const b = sim();

@@ -45,6 +45,28 @@ function enter(s: RoomsState, ctx: SimCtx): void {
   ctx.emit('custom:room_enter', { room: room.id, kind: room.kind });
 }
 
+/** An awake enemy stays in the room it started in: at the room's edge it stops and turns back (a doorway holds it). */
+function keepHome(s: RoomsState, ctx: SimCtx): void {
+  const list = ctx.map.level.rooms ?? [];
+  const ts = ctx.map.level.tileSize;
+  for (const e of ctx.world.entities) {
+    const home = s.home[e.id];
+    if (e.isPlayer || e.isProjectile || e.dormant === true || home === undefined || home < 0) continue;
+    const r = list[home]!;
+    const left = r.x * ts;
+    const right = (r.x + r.w) * ts - e.w;
+    if (e.x < left) {
+      e.x = left;
+      e.vx = Math.max(0, e.vx);
+      e.facing = 1;
+    } else if (e.x > right) {
+      e.x = right;
+      e.vx = Math.min(0, e.vx);
+      e.facing = -1;
+    }
+  }
+}
+
 /**
  * A region's rooms: the player is always in one. Entering a room wakes the enemies that started there (their behaviour
  * from the start) and puts every other room's to sleep, marks it on the player's map and announces it. Enemies a
@@ -62,6 +84,7 @@ export const rooms = defineSystem<RoomsState>({
   },
   fixedUpdate(s, _input, ctx) {
     if (ctx.world.player.alive) enter(s, ctx);
+    keepHome(s, ctx);
   },
   levelTicks: () => REGION_TICKS,
 });
@@ -70,7 +93,7 @@ export const meta = {
   id: 'rooms',
   genres: ['castle'],
   summary:
-    "A region's rooms: entering one wakes the enemies that started there (their behaviour from the start) and puts the other rooms' to sleep, marks it on the player's map (seen rooms carry with the player's props) and announces it.",
+    "A region's rooms: entering one wakes the enemies that started there (their behaviour from the start) and puts the other rooms' to sleep, marks it on the player's map (seen rooms carry with the player's props) and announces it. Enemies keep to the room they started in.",
   params: {},
   emits: ['custom:room_enter'],
   feedbackFor: [],
