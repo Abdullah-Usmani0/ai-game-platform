@@ -1,5 +1,5 @@
 {
-  "$comment": "Benchmark prompts for every genre and scope tier, round-robin by genre so --limit 7 covers each genre once (--limit 2: platformer and survivors). Freeform ideas follow (--genre freeform), by tier: F0 an idea a curated genre covers, F1 systems from several genres, F2 a mechanic no system has yet, F3 an idea of its own; the dry run builds each on the base genre its words point at. Each row is graded by the full gate set. Reference-tier ideas come last (--tier R): the castle slice and two contrasts in look, graded by the rubric (src/rubric.ts) against the bar; they build on metroidvania until the castle base exists.",
+  "$comment": "Benchmark prompts for every genre and scope tier, round-robin by genre so --limit 8 covers each curated genre once (--limit 2: platformer and survivors). Freeform ideas follow (--genre freeform), by tier: F0 an idea a curated genre covers, F1 systems from several genres, F2 a mechanic no system has yet, F3 an idea of its own; the dry run builds each on the base genre its words point at. Each row is graded by the full gate set. Reference-tier ideas come last (--tier R): the castle slice and two contrasts in look, built on the castle and graded by the rubric (src/rubric.ts) against the bar.",
   "prompts": [
     {
       "id": "p01",
@@ -44,6 +44,12 @@
       "prompt": "A cosy hillside farm where a fox tends turnips and lettuce, ships the harvest from a little red box and sleeps under a patchwork quilt."
     },
     {
+      "id": "c01",
+      "genre": "castle",
+      "scopeTier": "small",
+      "prompt": "A pilgrim in dented armour climbs a chapel cut into a sea cliff: wings from the crypt reach the high galleries, altars keep the way, and ghouls shamble through the cloister."
+    },
+    {
       "id": "p02",
       "genre": "platformer",
       "scopeTier": "small",
@@ -84,6 +90,12 @@
       "genre": "lifesim",
       "scopeTier": "medium",
       "prompt": "Three seasons on a windswept island farm: quick radishes keep the purse alive, slow pumpkins pay off if you plan the days right."
+    },
+    {
+      "id": "c02",
+      "genre": "castle",
+      "scopeTier": "medium",
+      "prompt": "A lamplighter explores a moonlit keep overrun by crypt hounds: boots carry her over the spike chasm, every altar holds her place, and stone gargoyles spit embers down the halls."
     },
     {
       "id": "p03",
@@ -379,21 +391,21 @@
     },
     {
       "id": "r01",
-      "genre": "metroidvania",
+      "genre": "castle",
       "tier": "R",
       "scopeTier": "large",
       "prompt": "A mute bell-ringer climbs a drowned abbey to silence the bell that wakes the dead: heavy sword combat with parries, candlelit ruins under the moon, and a choir of wraiths as the boss."
     },
     {
       "id": "r02",
-      "genre": "metroidvania",
+      "genre": "castle",
       "tier": "R",
       "scopeTier": "large",
       "prompt": "A young diver explores a sunlit coral kingdom with a harpoon to wake the sleeping tide-whale: bright reefs, kelp forests, and an eel queen who fights in three phases."
     },
     {
       "id": "r03",
-      "genre": "metroidvania",
+      "genre": "castle",
       "tier": "R",
       "scopeTier": "large",
       "prompt": "An exiled lantern-maker descends through a frozen clockwork city to restart its heart, hammering through brass automatons under an aurora."

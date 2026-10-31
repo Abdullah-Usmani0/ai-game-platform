@@ -1,5 +1,1029 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`scaffold output is pinned for curated genres > castle files are unchanged 1`] = `
+{
+  "assets/manifest.json": "{ "version": 1, "assets": [] }
+",
+  "assets/requests.json": "{ "version": 1, "requests": [] }
+",
+  "content/behaviour/gargoyle.fsm.json": "{
+  "version": 1,
+  "id": "gargoyle",
+  "designNotes": "A stone watcher; wakes when the player comes into range and spits an ember at them every second and a half.",
+  "initial": "stone",
+  "states": {
+    "stone": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "spit",
+          "when": {
+            "kind": "player_within",
+            "px": 192
+          }
+        }
+      ]
+    },
+    "spit": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "shoot",
+          "projectile": "ember",
+          "speed": 150,
+          "cooldownMs": 1500
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stone",
+          "when": {
+            "kind": "player_beyond",
+            "px": 256
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/ghoul.fsm.json": "{
+  "version": 1,
+  "id": "ghoul",
+  "designNotes": "Shambles along its floor; lurches at the player who comes close and loses interest when they get away.",
+  "initial": "shamble",
+  "states": {
+    "shamble": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "walk"
+        }
+      ],
+      "update": [
+        {
+          "kind": "patrol",
+          "speed": 40
+        }
+      ],
+      "transitions": [
+        {
+          "to": "lurch",
+          "when": {
+            "kind": "player_within",
+            "px": 96
+          }
+        }
+      ]
+    },
+    "lurch": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 76
+        }
+      ],
+      "transitions": [
+        {
+          "to": "shamble",
+          "when": {
+            "kind": "player_beyond",
+            "px": 192
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/behaviour/hound.fsm.json": "{
+  "version": 1,
+  "id": "hound",
+  "designNotes": "Crouches, then bounds at the player in low leaps.",
+  "initial": "crouch",
+  "states": {
+    "crouch": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "bound",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 800
+              },
+              {
+                "kind": "grounded"
+              },
+              {
+                "kind": "player_within",
+                "px": 160
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "bound": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 120
+        },
+        {
+          "kind": "jump",
+          "vy": -200
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "crouch",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 300
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+",
+  "content/levels/L01-l01.json": "{
+  "version": 1,
+  "id": "l01",
+  "name": "Level 1",
+  "tileSize": 16,
+  "width": 210,
+  "height": 17,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    "##################################################################################################################################################################################################################",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.........................................------..........................................#",
+    "#............................#.............................#.............................#.............................#.........................................................................................#",
+    "#............................#.............................#.............................#.............................#.........................................................................................#",
+    "#............................#.............................#.............................#.............................#.....................................................................................G...#",
+    "#..........................................................................----........................................................###########################################################################",
+    "#......................................................................................................................................###########################################################################",
+    "#......................................................................................................................................###########################################################################",
+    "#.............##......................S................................................................................................###########################################################################",
+    "##################################################################################################################################################################################################################",
+    "##################################################################################################################################################################################################################"
+  ],
+  "entities": [
+    {
+      "type": "wings",
+      "x": 14,
+      "y": 12,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 7,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 22,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 45,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 49,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "ghoul",
+      "x": 66,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 72,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 77,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "altar",
+      "x": 104,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 136,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "ghoul",
+      "x": 156,
+      "y": 10,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 164,
+      "y": 5,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 171,
+      "y": 9,
+      "props": {}
+    }
+  ],
+  "rooms": [
+    {
+      "id": "relic-wings",
+      "x": 0,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "start",
+      "x": 30,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "hall-1",
+      "x": 60,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "altar-1",
+      "x": 90,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "save"
+    },
+    {
+      "id": "ledge",
+      "x": 120,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "hall-2",
+      "x": 150,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "exit",
+      "x": 180,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "exit"
+    }
+  ],
+  "spawn": {
+    "x": 38,
+    "y": 14
+  },
+  "goal": {
+    "x": 205,
+    "y": 10
+  },
+  "ramp": {
+    "segment": 0,
+    "difficulty": 0.15
+  }
+}
+",
+  "content/levels/L02-l02.json": "{
+  "version": 1,
+  "id": "l02",
+  "name": "Level 2",
+  "tileSize": 16,
+  "width": 360,
+  "height": 17,
+  "legend": {
+    ".": "air",
+    "#": "solid",
+    "^": "hazard",
+    "-": "oneway",
+    "G": "goal",
+    "S": "spawn"
+  },
+  "rows": [
+    "########################################################################################################################################################################################################################################################################################################################################################################",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#................................................-----................................................................................................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.....................................................................................................................................................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.........................................##..........................................................................................................#.............................#.............................#.............................#",
+    "#............................#.............................#.............................#.............................#.........................................##...............................##.........................................................................#.............................#.............................#.............................#",
+    "#......................................................................................................................................######################################################################################################################..........................................................................................................#",
+    "#......................................................................................................................................######################################################################################################################..........................................................................................................#",
+    "#.............................................................................##.......................................................######################################################################################################################..........................................................................................................#",
+    "#.............##......................S.......................................##.......................................................######################################################################################################################......................................................................................................G...#",
+    "#######################################################################################################################################################################################################################################################################################..........###############..############..########################################",
+    "#######################################################################################################################################################################################################################################################################################^^^^^^^^^^###############^^############^^########################################"
+  ],
+  "entities": [
+    {
+      "type": "wings",
+      "x": 14,
+      "y": 12,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 7,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 22,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 45,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 49,
+      "y": 13,
+      "props": {}
+    },
+    {
+      "type": "ghoul",
+      "x": 66,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "ghoul",
+      "x": 73,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "altar",
+      "x": 104,
+      "y": 14,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 136,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "ghoul",
+      "x": 143,
+      "y": 10,
+      "props": {}
+    },
+    {
+      "type": "ghoul",
+      "x": 156,
+      "y": 10,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 170,
+      "y": 5,
+      "props": {}
+    },
+    {
+      "type": "boots",
+      "x": 194,
+      "y": 8,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 187,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 202,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "altar",
+      "x": 224,
+      "y": 10,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 281,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 284,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "soul",
+      "x": 287,
+      "y": 9,
+      "props": {}
+    },
+    {
+      "type": "ghoul",
+      "x": 313,
+      "y": 14,
+      "props": {}
+    }
+  ],
+  "rooms": [
+    {
+      "id": "relic-wings",
+      "x": 0,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "start",
+      "x": 30,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "hall-1",
+      "x": 60,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "altar-1",
+      "x": 90,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "save"
+    },
+    {
+      "id": "ledge",
+      "x": 120,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "hall-2",
+      "x": 150,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "relic-boots",
+      "x": 180,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "altar-2",
+      "x": 210,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "save"
+    },
+    {
+      "id": "descent",
+      "x": 240,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "chasm",
+      "x": 270,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "hall-3",
+      "x": 300,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "room"
+    },
+    {
+      "id": "exit",
+      "x": 330,
+      "y": 0,
+      "w": 30,
+      "h": 17,
+      "kind": "exit"
+    }
+  ],
+  "spawn": {
+    "x": 38,
+    "y": 14
+  },
+  "goal": {
+    "x": 355,
+    "y": 14
+  },
+  "ramp": {
+    "segment": 1,
+    "difficulty": 0.35
+  }
+}
+",
+  "design/deviations.md": "# Deviations from the GDD
+
+Append-only. One entry per deviation: what, why, date.
+",
+  "design/feedback.json": "[
+  {
+    "event": "jump",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "land",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "dash",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "hit",
+    "channels": [
+      "shake",
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "death",
+    "channels": [
+      "flash",
+      "sfx"
+    ]
+  },
+  {
+    "event": "pickup",
+    "channels": [
+      "sfx",
+      "particle",
+      "flash"
+    ]
+  },
+  {
+    "event": "checkpoint",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "level_complete",
+    "channels": [
+      "sfx",
+      "particle"
+    ]
+  },
+  {
+    "event": "custom:rest",
+    "channels": [
+      "sfx",
+      "flash"
+    ]
+  }
+]
+",
+  "design/gdd.md": "---
+{"title":"The Salt Chapel","genre":"castle","scopeTier":"medium","pillars":["every hall hides a way back","a relic reopens the castle","rest is earned at the altar"],"scope":{"levels":1,"enemies":3,"items":3,"bosses":0},"targets":{"sessionMin":10,"levelTimeS":240,"deathsPerLevel":4},"verbs":["run","jump","dash","stomp","explore","rest"],"feedbackEvents":[{"event":"jump","channels":["sfx"]},{"event":"land","channels":["sfx"]},{"event":"dash","channels":["sfx","particle"]},{"event":"hit","channels":["shake","flash","sfx"]},{"event":"death","channels":["flash","sfx"]},{"event":"pickup","channels":["sfx","particle","flash"]},{"event":"checkpoint","channels":["sfx"]},{"event":"level_complete","channels":["sfx","particle"]}]}
+---
+## Concept
+A chapel cut into a sea cliff, its halls crusted white with salt and its dead restless. A pilgrim in dented armour wakes below the nave with nothing but a jump. The way up is a step of stone too tall to climb, so the pilgrim turns back into the dark behind the first hall and finds a pair of wings. With the double jump the step falls; past the cloister wait the boots, and beyond the crypt a chasm of spikes that only a double jump and a dash can cross. The chapel's door opens on the cliff path out.
+
+## Pillars
+1. Every hall hides a way back: each wall the pilgrim cannot pass yet is seen before the relic that beats it, and the wings lie behind the start.
+2. A relic reopens the castle: the wings turn the tall step into a path, and the boots turn the chasm into a bridge.
+3. Rest is earned at the altar: two altars refill the pilgrim and wake the dead again; a fall returns the pilgrim to the last one, with everything found kept.
+
+## Core loop
+30 seconds: walk the first hall, meet the tall step, turn back for the wings. 5 minutes: climb, stomp the ghouls of the cloister, take the boots, rest at the second altar, descend past the hounds and cross the chasm. Session: a few runs chasing a crossing with no falls.
+
+## Progression
+The wings, then the first altar and the tall step, then the boots and the second altar, then the descent and the chasm. Abilities last through falls and rests; no stretch between altars runs past four rooms.
+
+## Scope
+1 region of 13 rooms, 3 enemy types (ghoul, hound, gargoyle), 3 item types (wings, boots, souls), no bosses.
+
+## Feedback
+Jumps and landings sound, the dash trails particles, hits shake and flash, relic and soul pickups flash and sparkle, checkpoints chime, a rest rings a bell over a low fifth and flashes, reaching the way out celebrates. See the front-matter table.
+",
+  "design/mechanics.json": "{ "version": 1, "mechanics": [] }
+",
+  "design/style.json": "{
+  "version": 1,
+  "name": "default-16bit",
+  "family": "16bit",
+  "canvas": {
+    "w": 320,
+    "h": 180
+  },
+  "scale": "integer",
+  "pixelArt": true,
+  "palette": {
+    "background": "#1b1b2f",
+    "mid": "#4f5d75",
+    "foreground": "#f2f2f2",
+    "accent": "#ffd166",
+    "danger": "#ef476f",
+    "ui": "#ffffff",
+    "extra": []
+  },
+  "outline": "dark",
+  "animationFps": {
+    "character": 10,
+    "effects": 15
+  },
+  "camera": {
+    "follow": "lerp",
+    "lerp": 0.12,
+    "deadzone": {
+      "w": 48,
+      "h": 24
+    },
+    "maxShake": 0.5,
+    "zoom": 1
+  },
+  "typography": {
+    "font": "press-start-2p",
+    "size": 8
+  },
+  "audioMood": [
+    "chiptune"
+  ],
+  "postFx": {
+    "vignette": true,
+    "bloom": true,
+    "crt": false
+  },
+  "references": [],
+  "negative": []
+}
+",
+  "design/systems.json": "{
+  "version": 1,
+  "genre": "castle",
+  "feelPreset": "castle-agile",
+  "systems": [
+    {
+      "id": "movement-castle",
+      "params": {}
+    },
+    {
+      "id": "relics",
+      "params": {
+        "relicScore": 25
+      }
+    },
+    {
+      "id": "abilities",
+      "params": {}
+    },
+    {
+      "id": "rooms",
+      "params": {}
+    },
+    {
+      "id": "rest",
+      "params": {
+        "altar": "altar",
+        "reach": 8,
+        "reloadDelayTicks": 60
+      }
+    },
+    {
+      "id": "hazards",
+      "params": {
+        "respawnDelayTicks": 30
+      }
+    },
+    {
+      "id": "goal",
+      "params": {
+        "bonus": 10
+      }
+    },
+    {
+      "id": "pickups",
+      "params": {
+        "value": 1
+      }
+    },
+    {
+      "id": "combat-stomp",
+      "params": {
+        "bounceVy": -140,
+        "stompScore": 5
+      }
+    }
+  ]
+}
+",
+  "eslint.config.js": "import { baseConfig } from '@gg/config/eslint';
+export default baseConfig({ browser: true, gluets: ['src/systems/**/*.ts'] });
+",
+  "index.html": "<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pin castle</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0b14; overflow: hidden; }
+      #game { width: 100%; height: 100%; }
+      canvas { image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="./engine.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
+",
+  "package.json": "{
+  "name": "game-pin-castle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build && node scripts/finish-build.mjs"
+  }
+}
+",
+  "scripts/finish-build.mjs": "// Copies index.html and the shared engine chunk next to the built game.js so dist/ is a servable bundle.
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const here = fileURLToPath(new URL('..', import.meta.url));
+const require = createRequire(import.meta.url);
+const enginePkg = require.resolve('@gg/engine/package.json');
+const engineDist = fileURLToPath(new URL('./dist/engine.js', \`file://\${enginePkg}\`));
+if (!existsSync(engineDist)) throw new Error(\`engine chunk missing: \${engineDist} (run pnpm --filter @gg/engine build)\`);
+mkdirSync(\`\${here}dist\`, { recursive: true });
+copyFileSync(\`\${here}index.html\`, \`\${here}dist/index.html\`);
+copyFileSync(engineDist, \`\${here}dist/engine.js\`);
+const engineMeta = engineDist.replace(/engine\\.js$/, 'engine.json');
+if (existsSync(engineMeta)) copyFileSync(engineMeta, \`\${here}dist/engine.json\`);
+console.log('bundle ready in', \`\${here}dist\`);
+",
+  "src/game.ts": "import type { BehaviourFsm, EcaRule, LevelJson, SystemsJson } from '@gg/schemas';
+import { feedbackBinder, type FeedbackBinding, type SimOptions, type SystemDef } from '@gg/sdk';
+import { castleRuntime } from '@gg/template-castle';
+import feedbackJson from '../design/feedback.json';
+import systemsJson from '../design/systems.json';
+import { BESPOKE } from './systems/index.js';
+
+const SYSTEMS = systemsJson as unknown as SystemsJson;
+const runtime = castleRuntime;
+
+function sorted<T>(mods: Record<string, T>): T[] {
+  return Object.keys(mods)
+    .sort()
+    .map((k) => mods[k] as T);
+}
+
+const levelFiles = import.meta.glob('../content/levels/*.json', { eager: true, import: 'default' }) as Record<string, LevelJson>;
+const behaviourFiles = import.meta.glob('../content/behaviour/*.fsm.json', { eager: true, import: 'default' }) as Record<string, BehaviourFsm>;
+const ruleFiles = import.meta.glob('../content/rules/*.eca.json', { eager: true, import: 'default' }) as Record<string, EcaRule>;
+const extraContent = import.meta.glob('../content/*.json', { eager: true, import: 'default' }) as Record<string, unknown>;
+
+export const LEVELS: LevelJson[] = sorted(levelFiles);
+export const BEHAVIOURS: BehaviourFsm[] = [...runtime.defaultBehaviours.filter((b) => !Object.values(behaviourFiles).some((f) => f.id === b.id)), ...sorted(behaviourFiles)];
+export const RULES: EcaRule[] = [...runtime.defaultRules, ...sorted(ruleFiles)];
+export const FEEDBACK = feedbackJson as FeedbackBinding[];
+export const CONTENT: Record<string, unknown> = Object.fromEntries(Object.entries(extraContent).map(([k, v]) => [k.replace(/^.*\\/([^/]+)\\.json$/, '$1'), v]));
+
+/** Template systems selected in design/systems.json (in that order), then bespoke systems, then the feedback binder. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const templateSystems: SystemDef<any>[] = SYSTEMS.systems.map((s) => {
+  const mod = runtime.systems[s.id];
+  if (!mod) throw new Error(\`systems.json names unknown system '\${s.id}' for genre castle\`);
+  return mod.create();
+});
+
+export const SIM_OPTIONS: Omit<SimOptions, 'level' | 'seed'> = {
+  feel: runtime.feelPresets[SYSTEMS.feelPreset] ?? runtime.feelPresets[runtime.defaultFeel]!,
+  systems: [...templateSystems, ...BESPOKE, feedbackBinder(FEEDBACK)],
+  entityDefs: runtime.entityDefs,
+  player: runtime.player,
+  behaviours: BEHAVIOURS,
+  rules: RULES,
+  params: Object.fromEntries(SYSTEMS.systems.map((s) => [s.id, { ...s.params, ...runtime.composedParams?.[s.id] }])),
+  content: CONTENT,
+  movementMode: runtime.movementMode,
+};
+",
+  "src/main.ts": "import type { StyleCard } from '@gg/schemas';
+import { createGame } from '@gg/sdk/render';
+import styleJson from '../design/style.json';
+import { LEVELS, SIM_OPTIONS } from './game.js';
+
+const style = styleJson as unknown as StyleCard;
+
+void createGame({
+  levels: LEVELS,
+  sim: SIM_OPTIONS,
+  build: { gameId: 'pin-castle', versionId: 'dev', engine: 'phaser-4.2.1/sdk-0.1.0' },
+  style: {
+    canvas: style.canvas,
+    pixelArt: style.pixelArt,
+    palette: { background: style.palette.background, mid: style.palette.mid, foreground: style.palette.foreground, accent: style.palette.accent, danger: style.palette.danger, ui: style.palette.ui },
+    camera: { lerp: style.camera.lerp, maxShake: style.camera.maxShake, deadzone: style.camera.deadzone },
+    outline: style.outline,
+    postFx: style.postFx,
+    animationFps: style.animationFps,
+    genre: 'castle',
+    title: 'Pin castle',
+  },
+  parent: 'game',
+  defaultSeed: 1,
+});
+",
+  "src/systems/index.ts": "import type { SystemDef } from '@gg/sdk';
+
+/**
+ * Bespoke simulation systems for this game. Add a file per system under src/systems/, written in GlueTS
+ * with \`defineSystem\` from '@gg/sdk', list it here, and write its contract in design/mechanics.json: the game's
+ * test holds the code to it. Template systems come from systems.json instead.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BESPOKE: SystemDef<any>[] = [];
+",
+  "tests/unit/bots.ts": "import { castle } from '@gg/template-castle/node';
+export const BOTS = castle.bots;
+export const SOLVER_BOT = castle.solverBot;
+",
+  "tests/unit/game.test.ts": "import { MechanicsFile } from '@gg/schemas';
+import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
+import { conformance, levelTicksOf, runBot, type BotPolicy } from '@gg/template-core';
+import { describe, expect, it } from 'vitest';
+import mechanicsJson from '../../design/mechanics.json';
+import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
+import { BESPOKE } from '../../src/systems/index.js';
+import { BOTS, SOLVER_BOT } from './bots.js';
+
+const MECHANICS = MechanicsFile.parse(mechanicsJson).mechanics;
+
+describe('castle game', () => {
+  it('every level is completable by the solver bot, at the seed the level is played with', () => {
+    const solver = BOTS[SOLVER_BOT]! as BotPolicy & { has?: (level: string) => boolean };
+    for (const [i, level] of LEVELS.entries()) {
+      // A freeform level with no recorded run yet waits for one (the game is not listed until then): nothing to replay.
+      if (solver.has && !solver.has(level.id)) continue;
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), solver, levelTicksOf(SIM_OPTIONS));
+      expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('is deterministic', () => {
+    const level = LEVELS[0]!;
+    const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
+    expect(a.finalHash).toBe(b.finalHash);
+  });
+  // The game's own systems (src/systems) do what their contracts (design/mechanics.json) say, and keep the game sound.
+  it.runIf(BESPOKE.length > 0 || MECHANICS.length > 0)('its own systems keep to their contracts', () => {
+    const levels = LEVELS.map((level, i) => ({ level, seed: levelSeed(DEFAULT_SEED, i) }));
+    const bots = { [SOLVER_BOT]: BOTS[SOLVER_BOT]!, chaos: BOTS['chaos']! };
+    const r = conformance({ options: SIM_OPTIONS, levels, contracts: MECHANICS, bespoke: BESPOKE.map((s) => s.id), bots, ticks: levelTicksOf(SIM_OPTIONS) });
+    expect(r.issues.filter((i) => i.severity === 'error')).toEqual([]);
+  });
+});
+",
+  "tsconfig.json": "{ "extends": "@gg/config/tsconfig.browser.json", "compilerOptions": { "types": ["node", "vite/client"] }, "include": ["src", "tests"] }
+",
+  "vite.config.ts": "import { fileURLToPath } from 'node:url';
+import { gameViteConfig } from '@gg/config/vite-game';
+const root = fileURLToPath(new URL('.', import.meta.url));
+export default gameViteConfig({ root, entry: 'src/main.ts' });
+",
+  "vitest.config.ts": "import { defineConfig } from 'vitest/config';
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+",
+}
+`;
+
 exports[`scaffold output is pinned for curated genres > lifesim files are unchanged 1`] = `
 {
   "assets/manifest.json": "{ "version": 1, "assets": [] }

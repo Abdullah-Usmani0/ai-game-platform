@@ -1,0 +1,807 @@
+{
+  "version": 1,
+  "level": "salt-chapel",
+  "seed": 1,
+  "ticks": 3708,
+  "by": "solver",
+  "script": [
+    {
+      "from": 0,
+      "to": 1,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1,
+      "to": 197,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 197,
+      "to": 223,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 223,
+      "to": 224,
+      "input": {
+        "left": false,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 224,
+      "to": 226,
+      "input": {
+        "left": false,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 226,
+      "to": 232,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 232,
+      "to": 233,
+      "input": {
+        "left": false,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 233,
+      "to": 751,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 751,
+      "to": 778,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 778,
+      "to": 834,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 834,
+      "to": 861,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 861,
+      "to": 873,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 873,
+      "to": 900,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 900,
+      "to": 1069,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1069,
+      "to": 1070,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": true,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1070,
+      "to": 1354,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1354,
+      "to": 1374,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1374,
+      "to": 1375,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1375,
+      "to": 1402,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1402,
+      "to": 1453,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1453,
+      "to": 1480,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1480,
+      "to": 1562,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1562,
+      "to": 1589,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1589,
+      "to": 1620,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1620,
+      "to": 1647,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1647,
+      "to": 1765,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1765,
+      "to": 1792,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1792,
+      "to": 1849,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1849,
+      "to": 1876,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1876,
+      "to": 1927,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1927,
+      "to": 1954,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1954,
+      "to": 1991,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 1991,
+      "to": 2018,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 2018,
+      "to": 2206,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 2206,
+      "to": 2232,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 2232,
+      "to": 2233,
+      "input": {
+        "left": false,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 2233,
+      "to": 2234,
+      "input": {
+        "left": false,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 2234,
+      "to": 2242,
+      "input": {
+        "left": true,
+        "right": false,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 2242,
+      "to": 2517,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 2517,
+      "to": 2518,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": true,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 2518,
+      "to": 2822,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 2822,
+      "to": 2849,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 2849,
+      "to": 3030,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3030,
+      "to": 3050,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3050,
+      "to": 3051,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3051,
+      "to": 3077,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3077,
+      "to": 3078,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": true,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3078,
+      "to": 3094,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3094,
+      "to": 3214,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3214,
+      "to": 3241,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3241,
+      "to": 3423,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3423,
+      "to": 3450,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3450,
+      "to": 3513,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3513,
+      "to": 3540,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3540,
+      "to": 3571,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3571,
+      "to": 3598,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": true,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    },
+    {
+      "from": 3598,
+      "to": 3708,
+      "input": {
+        "left": false,
+        "right": true,
+        "up": false,
+        "down": false,
+        "jump": false,
+        "dash": false,
+        "action": false,
+        "pause": false
+      }
+    }
+  ]
+}

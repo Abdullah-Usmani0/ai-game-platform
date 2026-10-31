@@ -9,8 +9,9 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 // The tick each frame is taken at: late enough for the level banner to be gone and something to be happening. A sample
-// that keeps a recorded run of its first level (content/proofs) plays it to that tick: a farm's sixth morning, the field green.
-const FRAMES = { platformer: 230, survivors: 420, 'topdown-action': 200, shmup: 330, metroidvania: 200, puzzle: 170, lifesim: 5300 };
+// that keeps a recorded run of its first level (content/proofs) plays it to that tick: a farm's sixth morning, the field
+// green; the castle's pilgrim on the wings' double jump over a spike pit, a ghoul below.
+const FRAMES = { platformer: 230, survivors: 420, 'topdown-action': 200, shmup: 330, metroidvania: 200, puzzle: 170, lifesim: 5300, castle: 900 };
 let failed = 0;
 for (const [genre, tick] of Object.entries(FRAMES)) {
   const proofs = `${root}/samples/${genre}/content/proofs`;

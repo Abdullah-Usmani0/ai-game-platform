@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "id": "ghoul",
+  "designNotes": "Shambles along its floor; lurches at the player who comes close and loses interest when they get away.",
+  "initial": "shamble",
+  "states": {
+    "shamble": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "walk"
+        }
+      ],
+      "update": [
+        {
+          "kind": "patrol",
+          "speed": 40
+        }
+      ],
+      "transitions": [
+        {
+          "to": "lurch",
+          "when": {
+            "kind": "player_within",
+            "px": 96
+          }
+        }
+      ]
+    },
+    "lurch": {
+      "onEnter": [
+        {
+          "kind": "play_anim",
+          "anim": "run"
+        }
+      ],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 76
+        }
+      ],
+      "transitions": [
+        {
+          "to": "shamble",
+          "when": {
+            "kind": "player_beyond",
+            "px": 192
+          }
+        }
+      ]
+    }
+  }
+}

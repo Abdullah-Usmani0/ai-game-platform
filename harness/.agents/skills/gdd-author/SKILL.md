@@ -12,4 +12,8 @@ description: Write or revise game/design/gdd.md from the concept, with machine-r
 4. Required sections: `## Concept`, `## Pillars`, `## Core loop` (30 s / 5 min / session), `## Progression`, `## Scope`, `## Feedback`.
 5. Validate: `pnpm validate game/design/gdd.md`. Scope must fit the tier budget printed by `scripts/scope-budget.ts <genre> <tier>`.
 
+For a castle game, a level is a region of rooms: `scope.levels` counts regions, the Concept names the relics that
+reopen the castle and the altars the player rests at (a rest refills health and reloads the region; a fall returns the
+player to the last altar), and the Progression orders the gates (the wings' ledge, then the boots' chasm).
+
 Rules: one idea per pillar; verbs are the player's actions (run, jump, dash, stomp, move, attack); every feedback event names at least one channel; keep the body under 1,500 words.

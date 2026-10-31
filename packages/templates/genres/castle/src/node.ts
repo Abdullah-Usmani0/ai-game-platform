@@ -41,7 +41,7 @@ export const castle: GenreManifest = {
   },
   panels: PANELS,
   exemplars: EXEMPLARS,
-  samples: [],
+  samples: ['samples/castle'],
 };
 export * from './index.js';
 export * from './check.js';

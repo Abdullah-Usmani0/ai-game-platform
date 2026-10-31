@@ -72,6 +72,25 @@ const freeform = {
   sprites: ffHead?.bundlePath && existsSync(join(bucketPath(ffHead.bundlePath), 'content', 'sprites.json')) ? JSON.parse(readFileSync(join(bucketPath(ffHead.bundlePath), 'content', 'sprites.json'), 'utf8')).sprites.length : 0,
 };
 
+// The castle tier: a region of rooms with altars and a cast of its own, at 480x270; every rest leaves a save, which the
+// published game declares so the play page can offer it back as Continue.
+const castleCreate = spawnSync(process.execPath, ['--import', 'tsx', worker, 'create', '--prompt', 'A pilgrim in dented armour climbs a chapel cut into a sea cliff: wings from the crypt reach the high galleries, altars keep the way, and ghouls shamble through the cloister.', '--genre', 'castle', '--tier', 'small', '--seed', '1', '--dry-run'], { cwd: join(root, 'workers', 'generator'), env, encoding: 'utf8' });
+const { gameId: castleGameId, jobId: castleJobId } = JSON.parse(castleCreate.stdout.trim().split('\n').pop());
+const castleRun = spawnSync(process.execPath, ['--import', 'tsx', worker, 'run', '--once'], { cwd: join(root, 'workers', 'generator'), env, stdio: 'inherit' });
+const storeCastle = JSON.parse(readFileSync(join(storeDir, 'store.json'), 'utf8'));
+const castleGame = storeCastle.games.find((g) => g.id === castleGameId);
+const castleHead = storeCastle.versions.find((v) => v.id === castleGame?.headVersionId);
+const castleManifest = castleHead?.bundlePath && existsSync(join(bucketPath(castleHead.bundlePath), 'manifest.json')) ? JSON.parse(readFileSync(join(bucketPath(castleHead.bundlePath), 'manifest.json'), 'utf8')) : null;
+const castle = {
+  gameId: castleGameId,
+  runStatus: castleRun.status,
+  jobStatus: storeCastle.jobs.find((j) => j.id === castleJobId)?.status,
+  state: castleGame?.state,
+  stages: storeCastle.trajectories.filter((t) => t.jobId === castleJobId).map((t) => `${t.stage}:${t.passed ? 'pass' : 'fail'}@${t.attempt}`),
+  canvas: castleManifest?.canvas ?? null,
+  saves: castleManifest?.capabilities?.saves ?? false,
+};
+
 // The level editor path: an authored level (a coin on the spawn tile) runs apply-content -> playtest -> budget ->
 // publish. The validator and the solver bot accept or reject it; no model is called.
 let edit = null;
@@ -114,6 +133,7 @@ console.log(JSON.stringify({
   create: { gameId, slug: game?.slug, state: game?.state, jobStatus: createJob?.status, stages: createStages, bundlePath: head?.bundlePath, evidence: head?.design?.evidence ? { gates: head.design.evidence.gates.map((g) => `${g.stage}:${g.passed ? 'pass' : 'fail'}`), playtest: head.design.evidence.playtest, thumbnail: head.design.evidence.thumbnail } : null },
   edit,
   freeform,
+  castle,
 }, null, 2));
-const ok = gate.status === 0 && run.status === 0 && job?.status === 'succeeded' && version?.isHead === true && createRun.status === 0 && createJob?.status === 'succeeded' && game?.state === 'playable' && Boolean(head?.bundlePath) && edit?.kind === 'edit_content' && edit.status === 'succeeded' && edit.newHead && edit.coinOnSpawn && freeform.runStatus === 0 && freeform.jobStatus === 'succeeded' && freeform.state === 'playable' && freeform.base === 'platformer' && Array.isArray(freeform.controls) && freeform.controls.length > 1 && freeform.sprites > 0;
+const ok = gate.status === 0 && run.status === 0 && job?.status === 'succeeded' && version?.isHead === true && createRun.status === 0 && createJob?.status === 'succeeded' && game?.state === 'playable' && Boolean(head?.bundlePath) && edit?.kind === 'edit_content' && edit.status === 'succeeded' && edit.newHead && edit.coinOnSpawn && freeform.runStatus === 0 && freeform.jobStatus === 'succeeded' && freeform.state === 'playable' && freeform.base === 'platformer' && Array.isArray(freeform.controls) && freeform.controls.length > 1 && freeform.sprites > 0 && castle.runStatus === 0 && castle.jobStatus === 'succeeded' && castle.state === 'playable' && castle.saves === true;
 process.exit(ok ? 0 : 1);

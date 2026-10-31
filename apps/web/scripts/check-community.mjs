@@ -318,7 +318,8 @@ try {
 
   const prover = await pageAs('player-b');
   await prover.goto(`${url}/play/${ffRemix.gameId}`, { waitUntil: 'load', timeout: 30000 });
-  await prover.waitForSelector(`[data-testid="waiting-levels"][data-levels="${waitLevel}"]`, { timeout: 15000 });
+  // As long as the game's own start below: the frame starting beside it can hold the page up on a busy machine.
+  await prover.waitForSelector(`[data-testid="waiting-levels"][data-levels="${waitLevel}"]`, { timeout: 30000 });
   await prover.waitForSelector('[data-testid="status"]:has-text("ready")', { timeout: 30000 });
   const gameFrame = prover.frames().find((f) => /\/index\.html/.test(f.url()));
   // The bundle still has the bot's run (the frame, sandboxed, cannot fetch it: the check hands it over).

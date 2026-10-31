@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PlayableGenre } from './common';
+import { PLAYABLE_GENRES, PlayableGenre } from './common';
 
 /** One-tag ratings: a player picks the single word that fits best. Broken games never stay in the feed. */
 export const RATING_TAGS = ['fun', 'confusing', 'broken', 'ugly'] as const;
@@ -134,7 +134,7 @@ export const JamInput = z
     title: z.string().min(3).max(80),
     theme: z.string().min(2).max(80),
     description: z.string().max(2000).default(''),
-    genres: z.array(PlayableGenre).max(9).default([]),
+    genres: z.array(PlayableGenre).max(PLAYABLE_GENRES.length).default([]),
     startsAt: z.iso.datetime({ offset: true }),
     submissionsClose: z.iso.datetime({ offset: true }),
     votingClose: z.iso.datetime({ offset: true }),

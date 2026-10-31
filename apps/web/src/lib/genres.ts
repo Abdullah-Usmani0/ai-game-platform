@@ -79,6 +79,17 @@ export const GENRES: GenreInfo[] = [
     examples: ['A hillside farm of moon melons and starfruit: three seasons, each buyer greedier than the last.', 'A tiny allotment by the sea where kale grows fast and pumpkins pay best, if you can wait.'],
   },
   {
+    id: 'castle',
+    label: 'Castle explorer',
+    hint: 'A gothic castle of rooms: relics reopen its halls, altars keep your place, and a fall returns you to the last one.',
+    image: '/genres/castle.png',
+    controls: [['← →', 'run'], ['Z / Space', 'jump'], ['X / Shift', 'dash (after the boots)'], ['↑', 'rest at an altar'], PAUSE],
+    examples: [
+      'A chapel cut into a sea cliff: find the wings to climb past the tall step, rest at its altars, and outrun the hounds of the crypt.',
+      'A moonlit keep overrun by ghouls, where a pair of boots carries a lone pilgrim over the spike chasm to the way out.',
+    ],
+  },
+  {
     id: 'freeform',
     label: 'Anything else',
     short: 'Freeform',

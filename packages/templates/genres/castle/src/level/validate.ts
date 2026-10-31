@@ -76,6 +76,8 @@ export function validateRegion(level: LevelJson, feel: FeelPreset): ValidationRe
   return report(issues, {
     progression: order || 'none',
     gated: w.gated,
+    // The relics the way out needs, one gate each (none when the goal is reachable without them).
+    abilityGates: w.gated ? w.steps.length : 0,
     goalReachable: w.goalReachable,
     rooms: rooms.length,
     saves: rooms.filter((r) => r.kind === 'save').length,

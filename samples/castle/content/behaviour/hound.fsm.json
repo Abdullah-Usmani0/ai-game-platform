@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "id": "hound",
+  "designNotes": "Crouches, then bounds at the player in low leaps.",
+  "initial": "crouch",
+  "states": {
+    "crouch": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "bound",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 800
+              },
+              {
+                "kind": "grounded"
+              },
+              {
+                "kind": "player_within",
+                "px": 160
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "bound": {
+      "onEnter": [
+        {
+          "kind": "move_toward_player",
+          "speed": 120
+        },
+        {
+          "kind": "jump",
+          "vy": -200
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "crouch",
+          "when": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "timer_elapsed",
+                "ms": 300
+              },
+              {
+                "kind": "grounded"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

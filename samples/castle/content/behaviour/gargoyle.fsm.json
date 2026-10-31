@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "id": "gargoyle",
+  "designNotes": "A stone watcher; wakes when the player comes into range and spits an ember at them every second and a half.",
+  "initial": "stone",
+  "states": {
+    "stone": {
+      "onEnter": [
+        {
+          "kind": "idle"
+        }
+      ],
+      "update": [],
+      "transitions": [
+        {
+          "to": "spit",
+          "when": {
+            "kind": "player_within",
+            "px": 192
+          }
+        }
+      ]
+    },
+    "spit": {
+      "onEnter": [],
+      "update": [
+        {
+          "kind": "move_toward_player",
+          "speed": 0
+        },
+        {
+          "kind": "shoot",
+          "projectile": "ember",
+          "speed": 150,
+          "cooldownMs": 1500
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stone",
+          "when": {
+            "kind": "player_beyond",
+            "px": 256
+          }
+        }
+      ]
+    }
+  }
+}

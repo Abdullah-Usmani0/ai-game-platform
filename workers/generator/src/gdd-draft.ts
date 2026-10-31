@@ -70,8 +70,42 @@ function draftFarmBody(req: CreateRequest, g: GenreManifest, fm: AnyGddFrontmatt
 }
 
 /** A GDD body with every required section, written from the concept and the front matter. */
+/**
+ * A castle GDD's body: regions of rooms that relics open, altars to rest at, and falls that return the player to the
+ * last one (the genre's fragment says how its regions are laid out).
+ */
+function draftRegionBody(req: CreateRequest, g: GenreManifest, fm: AnyGddFrontmatter): string {
+  const enemies = g.entityDefs.filter((e) => e.fsm && !e.boss).map((e) => e.type).slice(0, fm.scope.enemies);
+  const items = g.collectibleTypes.slice(0, fm.scope.items);
+  const feedback = fm.feedbackEvents.map((f) => `${f.event}: ${f.channels.join(', ')}`).join('; ');
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  return [
+    '## Concept',
+    req.prompt.trim(),
+    '',
+    `A ${fm.scopeTier} ${g.name.toLowerCase()} built on the fixed runtime: ${plural(fm.scope.levels, 'region')} of rooms a screen wide, ${plural(enemies.length, 'enemy type')} (${enemies.join(', ')}), ${plural(items.length, 'item type')} (${items.join(', ')}). The player's verbs are ${fm.verbs.join(', ')}.`,
+    '',
+    '## Pillars',
+    ...fm.pillars.map((p, i) => `${i + 1}. ${p[0]!.toUpperCase()}${p.slice(1)}: every room and every gate is judged against this.`),
+    '',
+    '## Core loop',
+    `30 seconds: cross the first hall, meet a ledge too tall to climb, and turn back for the relic behind the start. 5 minutes: each relic opens the way it was hidden from, each altar refills health and keeps the way, and a fall returns the player to the last altar with everything found kept. Session (${fm.targets.sessionMin} min): cross the region to the way out, chasing a crossing with no falls.`,
+    '',
+    '## Progression',
+    `The wings open the ledge only a double jump climbs; the boots open the spike chasm only the double jump with the dash crosses. Abilities last through falls, rests and into the next region, and no stretch between altars runs past four rooms. Target ${fm.targets.levelTimeS} seconds per region.`,
+    '',
+    '## Scope',
+    `${plural(fm.scope.levels, 'region')}, ${plural(fm.scope.enemies, 'enemy type')}, ${plural(fm.scope.items, 'item type')}, ${fm.scope.bosses} boss${fm.scope.bosses === 1 ? '' : 'es'} (tier ${fm.scopeTier}).`,
+    '',
+    '## Feedback',
+    `Every listed event produces its channels at runtime through the feedback binder and the juice linter proves it: ${feedback}; a rest rings a bell over a low fifth and flashes. Hit pause and shake stay inside the clamps; no silent first ten seconds.`,
+    '',
+  ].join('\n');
+}
+
 export function draftBody(req: CreateRequest, g: GenreManifest, fm: AnyGddFrontmatter): string {
   if (g.levelGrammar.kind === 'farm') return draftFarmBody(req, g, fm);
+  if (g.tier === 'castle') return draftRegionBody(req, g, fm);
   const enemies = g.entityDefs.filter((e) => e.fsm && !e.boss).map((e) => e.type).slice(0, fm.scope.enemies);
   const bosses = g.entityDefs.filter((e) => e.boss).map((e) => e.type).slice(0, fm.scope.bosses);
   const items = g.collectibleTypes.slice(0, fm.scope.items);
