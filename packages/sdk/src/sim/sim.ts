@@ -4,7 +4,7 @@ import type { FeelPreset } from './feel.js';
 import { fireRule, stepFsm } from './fsm.js';
 import { hashValue } from './hash.js';
 import { emptyInput, inputAtTick, inputEquals, logToScript, type InputFrame, type InputSegment, type InputState } from './input.js';
-import { moveBody, overlaps } from './physics.js';
+import { approach, moveBody, overlaps } from './physics.js';
 import { Rng } from './rng.js';
 import type { MenuSpec, SimCtx, SystemDef } from './system.js';
 import { Tilemap } from './tilemap.js';
@@ -12,6 +12,8 @@ import { makeEntity, staysGone, type Entity, type EntityDef, type Menu, type Wor
 
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
+/** How fast a staggered body slides to a stop, in px/s². */
+const STUN_FRICTION = 720;
 /** A menu ignores picks for this many ticks after it opens (0.3 s), so a held or mashed key never chooses unread. */
 export const MENU_GRACE_TICKS = 18;
 /** Options a menu shows at most (four cards fit the smallest canvas). */
@@ -419,6 +421,13 @@ class SimImpl implements Sim {
       this.tick++;
       return;
     }
+    // A blow landing holds the world still for a moment: nothing steps, timers hold, the clock and the log go on.
+    if ((w.hitstop ?? 0) > 0) {
+      w.hitstop = (w.hitstop ?? 0) - 1;
+      this.holdTimers();
+      this.endStep();
+      return;
+    }
     for (const s of this.options.systems) s.fixedUpdate(this.states.get(s.id), input, this.ctx(s.id));
     this.stepEntities();
     this.dispatchEvents();
@@ -441,7 +450,12 @@ class SimImpl implements Sim {
     const feel = this.options.feel;
     for (const e of this.world.entities) {
       if (!e.alive || e.isPlayer || e.dormant) continue;
-      if (e.fsm) {
+      if ((e.stunTicks ?? 0) > 0) {
+        // Staggered: the behaviour holds and the body slides to a stop (a flier drifts to a stop in the air too).
+        e.stunTicks = (e.stunTicks ?? 0) - 1;
+        e.vx = approach(e.vx, 0, STUN_FRICTION * DT);
+        if (!e.gravity) e.vy = approach(e.vy, 0, STUN_FRICTION * DT);
+      } else if (e.fsm) {
         const fsm = this.behaviours.get(e.fsm.id);
         if (fsm) stepFsm(fsm, e, ctx);
       }

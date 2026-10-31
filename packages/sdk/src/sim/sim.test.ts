@@ -344,6 +344,76 @@ describe('in-game menus', () => {
   });
 });
 
+describe('blows', () => {
+  // A walker in the open, and a system that, at tick `at`, either holds the world for a hitstop or staggers the walker.
+  const open: LevelJson = { ...level, entities: [{ type: 'walker', x: 20, y: 5, props: {} }] };
+  const blow = (at: number, kind: 'hitstop' | 'stagger') =>
+    defineSystem<null>({
+      id: 'blow',
+      init: () => null,
+      fixedUpdate(_s, _input, ctx) {
+        if (ctx.tick !== at) return;
+        if (kind === 'hitstop') ctx.world.hitstop = 6;
+        else {
+          const w = ctx.world.entities.find((e) => e.type === 'walker')!;
+          w.stunTicks = 20;
+          w.vx = 120;
+        }
+      },
+    });
+  const make = (at: number, kind: 'hitstop' | 'stagger') => createSim({ ...options, level: open, systems: [mover, blow(at, kind)] });
+
+  it('a hitstop holds every body and every behaviour still, while the clock and the inputs go on', () => {
+    const plain = make(-1, 'hitstop');
+    const held = make(10, 'hitstop');
+    for (let i = 0; i < 11; i++) {
+      plain.step(emptyInput());
+      held.step(emptyInput());
+    }
+    expect(held.world.hitstop).toBe(6);
+    const walkerOf = (sim: typeof plain) => sim.world.entities.find((e) => e.type === 'walker')!;
+    const at = { x: walkerOf(held).x, px: held.world.player.x, entered: walkerOf(held).fsm!.enteredTick };
+    for (let i = 0; i < 6; i++) held.step({ ...emptyInput(), right: true });
+    expect([walkerOf(held).x, held.world.player.x, held.tick, held.world.hitstop]).toEqual([at.x, at.px, 17, 0]);
+    expect(walkerOf(held).fsm!.enteredTick).toBe(at.entered + 6);
+    expect(held.inputLog().some((f) => f.tick === 11 && f.input.right)).toBe(true);
+    // Afterwards the world goes on exactly six ticks behind the one that was never held.
+    for (let i = 0; i < 20; i++) {
+      plain.step(emptyInput());
+      held.step(emptyInput());
+    }
+    expect([walkerOf(held).x, walkerOf(held).fsm!.state]).toEqual([walkerOf(plain).x, walkerOf(plain).fsm!.state]);
+    expect(held.tick - plain.tick).toBe(6);
+  });
+
+  it('a staggered body holds its behaviour and slides to a stop, then goes on', () => {
+    const sim = make(5, 'stagger');
+    for (let i = 0; i < 6; i++) sim.step(emptyInput());
+    const w = sim.world.entities.find((e) => e.type === 'walker')!;
+    const state = { ...w.fsm! };
+    expect(w.stunTicks).toBe(19);
+    const speeds: number[] = [];
+    for (let i = 0; i < 19; i++) {
+      sim.step(emptyInput());
+      speeds.push(w.vx);
+      expect(w.fsm!.state).toBe(state.state);
+    }
+    expect(speeds[0]).toBeLessThan(120);
+    expect(speeds.at(-1)).toBe(0);
+    expect(w.stunTicks).toBe(0);
+    // Steady again, its behaviour runs: it patrols at its own pace.
+    sim.step(emptyInput());
+    expect(Math.abs(w.vx)).toBe(30);
+  });
+
+  it('an entity no blow touches has neither field, so no state of any game today changes', () => {
+    const sim = make(-1, 'stagger');
+    for (let i = 0; i < 30; i++) sim.step(emptyInput());
+    expect(sim.world.hitstop).toBeUndefined();
+    expect(sim.world.entities.every((e) => e.stunTicks === undefined)).toBe(true);
+  });
+});
+
 describe('behaviour conditions', () => {
   it('took_damage is false for an entity never hit, even on the first tick', () => {
     const sentry: BehaviourFsm = {

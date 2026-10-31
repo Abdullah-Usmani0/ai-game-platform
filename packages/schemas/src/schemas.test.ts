@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { AnyGddFrontmatter, parseAnyGdd, parseSystemsFile, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, EntityRoster, FreeformGddFrontmatter, GameToHost, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, Objectives, PLAYABLE_GENRES, ProofSubmission, SaveBlob, SystemsFile, SystemsJson, toJsonSchema } from './index';
+import { AnyGddFrontmatter, parseAnyGdd, parseSystemsFile, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, EntityRoster, FreeformGddFrontmatter, GameToHost, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, moveLength, MoveSet, Objectives, PLAYABLE_GENRES, ProofSubmission, SaveBlob, SystemsFile, SystemsJson, toJsonSchema } from './index';
 
 describe('LevelJson', () => {
   const base = {
@@ -208,5 +208,41 @@ describe('SaveBlob', () => {
     expect(SaveBlob.safeParse({ ...blob, save: { ...blob.save, facing: 0 } }).success).toBe(false);
     expect(SaveBlob.safeParse({ ...blob, save: { ...blob.save, tiles: [[4, 5, 'lava']] } }).success).toBe(false);
     expect(SaveBlob.safeParse({ ...blob, save: { ...blob.save, removed: [-1] } }).success).toBe(false);
+  });
+});
+
+describe('MoveSet', () => {
+  const cut = { id: 'cut', owner: 'player', anim: 'attack1', input: 'attack', startup: 6, active: 3, recovery: 10, hitboxes: [{ from: 0, to: 2, x: 4, y: -36, w: 30, h: 28 }], damage: 1, knockback: { x: 140, y: -60 }, hitstun: 12, hitstop: 3 };
+  const claw = { id: 'claw', owner: 'ghoul', anim: 'claw', startup: 18, active: 4, recovery: 16, hitboxes: [{ from: 0, to: 3, x: 6, y: -24, w: 20, h: 16 }], damage: 1, knockback: { x: 160, y: -80 }, hitstun: 20, hitstop: 4 };
+  const issues = (moves: unknown[]) => {
+    const r = MoveSet.safeParse({ version: 1, moves });
+    return r.success ? [] : r.error.issues.map((i) => i.message);
+  };
+
+  it('parses frame data, filling in what a move leaves out', () => {
+    const set = MoveSet.parse({ version: 1, moves: [cut, { ...claw, cancels: [] }] });
+    expect(set.moves[0]).toMatchObject({ poise: 0, motion: [], cancels: [], endsOnLanding: false, parryable: false, mp: 0 });
+    expect(moveLength(set.moves[1]!)).toBe(38);
+  });
+
+  it('keeps every tick a move names inside it, and its cancels to moves of the same owner', () => {
+    expect(issues([cut, cut])).toContain('move ids must be unique');
+    expect(issues([{ ...cut, hitboxes: [{ from: 1, to: 3, x: 0, y: -8, w: 8, h: 8 }] }])[0]).toMatch(/inside the 3 active ticks/);
+    expect(issues([{ ...cut, motion: [{ from: 0, to: 19, vx: 60 }] }])[0]).toMatch(/outside the move's 19/);
+    expect(issues([{ ...cut, cancels: [{ into: ['claw'], from: 9, to: 12 }] }, claw])[0]).toMatch(/not a move of player/);
+    expect(issues([{ ...cut, dashCancel: 19 }])[0]).toMatch(/dash cancel/);
+    expect(issues([{ ...cut, iframes: { from: 4, to: 2 } }])[0]).toMatch(/i-frames/);
+    expect(issues([{ ...claw, projectile: { type: 'ember', at: 40, speed: 100 } }])[0]).toMatch(/shot at 40/);
+  });
+
+  it("says which input starts each of the hero's moves, and takes none from a foe's", () => {
+    const { input: _, ...noInput } = cut;
+    expect(issues([noInput])[0]).toMatch(/says which input/);
+    expect(issues([{ ...claw, input: 'attack' }])[0]).toMatch(/only the hero/);
+  });
+
+  it('is an artifact a structured call can ask for', () => {
+    expect(ARTIFACT_SCHEMAS.MoveSet).toBe(MoveSet);
+    expect(toJsonSchema('MoveSet')).toMatchObject({ type: 'object' });
   });
 });

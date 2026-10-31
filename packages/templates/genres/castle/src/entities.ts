@@ -7,7 +7,7 @@ export const SOUL_TYPE = 'soul';
 export const GHOUL_TYPE = 'ghoul';
 export const HOUND_TYPE = 'hound';
 export const GARGOYLE_TYPE = 'gargoyle';
-/** A grate in a floor that opens from below (the shortcuts system): four tiles wide, two deep. */
+/** A grate in a floor that opens from below (the shortcuts system): four tiles wide, one deep (the floor's top row). */
 export const GATE_TYPE = 'gate';
 
 /**

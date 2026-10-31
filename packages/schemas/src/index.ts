@@ -17,6 +17,7 @@ import { EntityRoster } from './roster';
 import { CropTable } from './farm';
 import { MechanicsFile } from './mechanics';
 import { SpriteSheet } from './sprites';
+import { MoveSet } from './moves';
 
 export * from './common';
 export * from './events';
@@ -32,6 +33,7 @@ export * from './proof';
 export * from './farm';
 export * from './mechanics';
 export * from './sprites';
+export * from './moves';
 export * from './playtest';
 export * from './bundle';
 export * from './bridge';
@@ -60,6 +62,7 @@ export const ARTIFACT_SCHEMAS = {
   CropTable,
   MechanicsFile,
   SpriteSheet,
+  MoveSet,
   PlaytestReport,
   GateReport,
   BundleManifest,

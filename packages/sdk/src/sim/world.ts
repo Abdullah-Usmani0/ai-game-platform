@@ -33,6 +33,11 @@ export interface Entity extends Body {
   dormant?: boolean;
   /** Its place in the level's entity list, for one the level placed: a save names the ones gone for good by it. */
   levelIndex?: number;
+  /**
+   * Staggered by a blow: while above zero its behaviour holds (no transition, no update) and its body slides to a stop.
+   * Set by a combat system, counted down by the sim; absent means steady.
+   */
+  stunTicks?: number;
   /** Visual-only squash/stretch scale, written by systems, read by the renderer. */
   scaleX: number;
   scaleY: number;
@@ -115,6 +120,11 @@ export interface World {
    * returns them to their last rest) or not (a rest). Absent until it first does. The view settles on it.
    */
   reloaded?: { tick: number; fromDeath: boolean };
+  /**
+   * Ticks the world holds still as a heavy blow lands (set by a combat system): no system or body steps and timers hold,
+   * while the inputs are still logged. Absent means none.
+   */
+  hitstop?: number;
 }
 
 /**
