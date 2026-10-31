@@ -550,7 +550,8 @@ const publish: StageFn = async (ctx) => {
     genre: gddInfo.fm.genre,
     canvas: { w: style.canvas.w, h: style.canvas.h, scale: 'integer' },
     inputs: ['keyboard'],
-    capabilities: { saves: false, multiplayer: false, testSeam: true },
+    // A game that rests leaves a save at each rest, which the play page offers back as a Continue.
+    capabilities: { saves: sys?.systems.some((s) => s.id === 'rest') ?? false, multiplayer: false, testSeam: true },
     assets: [],
     contentHash,
     lineage,

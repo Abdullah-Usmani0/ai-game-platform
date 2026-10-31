@@ -106,3 +106,18 @@ describe('GameController level sequencing', () => {
     expect(c.carry).toEqual({ kept: true });
   });
 });
+
+describe('GameController saves', () => {
+  it('picks a level up from a save, and starts it at its start for a script or a retry', () => {
+    const c = make(grant);
+    c.loadLevel(1, 1, { power: 3 }, { at: { x: 40, y: 16 }, facing: -1, props: { power: 5 }, removed: [], tiles: [] });
+    const p = c.sim.world.player;
+    expect([c.level.id, p.x, p.y, p.facing]).toEqual(['b', 40, 16, -1]);
+    // The save's props over what the level began with (and the level's own grant on top).
+    expect(power(c)).toBe(6);
+    // The determinism oracle replays the level from its start, as the proofs play it.
+    void c.runScript([], 3);
+    expect(c.resume).toBeNull();
+    expect([c.sim.world.player.x, power(c)]).toEqual([16, 4]);
+  });
+});

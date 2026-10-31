@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { AnyGddFrontmatter, parseAnyGdd, parseSystemsFile, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, EntityRoster, FreeformGddFrontmatter, GameToHost, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, Objectives, PLAYABLE_GENRES, ProofSubmission, SystemsFile, SystemsJson, toJsonSchema } from './index';
+import { AnyGddFrontmatter, parseAnyGdd, parseSystemsFile, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, EntityRoster, FreeformGddFrontmatter, GameToHost, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, Objectives, PLAYABLE_GENRES, ProofSubmission, SaveBlob, SystemsFile, SystemsJson, toJsonSchema } from './index';
 
 describe('LevelJson', () => {
   const base = {
@@ -197,5 +197,16 @@ describe('freeform', () => {
     expect(ProofSubmission.parse({ versionId: 'v1', proof }).proof.level).toBe('l02');
     expect(ProofSubmission.safeParse({ versionId: 'v1', proof: { ...proof, by: 'explorer' } }).success).toBe(false);
     expect(ProofSubmission.safeParse({ versionId: '', proof }).success).toBe(false);
+  });
+});
+
+describe('SaveBlob', () => {
+  it('keeps the level, the save in it and what the level began with, and turns away what is not one', () => {
+    const blob = { v: 1, level: 1, levelId: 'r01', save: { at: { x: 40, y: 37 }, facing: -1, props: { 'ab:dash': true, '_map:r01': '1'.repeat(140) }, removed: [0, 3], tiles: [[4, 5, 'air']] } };
+    expect(SaveBlob.parse(blob)).toEqual({ ...blob, carry: {} });
+    expect(SaveBlob.safeParse({ ...blob, v: 2 }).success).toBe(false);
+    expect(SaveBlob.safeParse({ ...blob, save: { ...blob.save, facing: 0 } }).success).toBe(false);
+    expect(SaveBlob.safeParse({ ...blob, save: { ...blob.save, tiles: [[4, 5, 'lava']] } }).success).toBe(false);
+    expect(SaveBlob.safeParse({ ...blob, save: { ...blob.save, removed: [-1] } }).success).toBe(false);
   });
 });

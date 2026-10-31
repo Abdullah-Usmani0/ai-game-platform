@@ -35,6 +35,7 @@ export * from './sprites';
 export * from './playtest';
 export * from './bundle';
 export * from './bridge';
+export * from './saves';
 export * from './policy';
 export * from './trajectory';
 export * from './jobs';

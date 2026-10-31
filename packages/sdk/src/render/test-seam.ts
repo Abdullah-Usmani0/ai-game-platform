@@ -1,6 +1,6 @@
 import type { StateSnapshot } from '@gg/schemas';
 import type { InputSegment, InputState } from '../sim/input.js';
-import { replay } from '../sim/sim.js';
+import { replay, type ProgressSave } from '../sim/sim.js';
 import type { DrawStats, GameBuild, GameController, SceneKey } from './controller.js';
 import type { RunMode } from './driver.js';
 
@@ -17,7 +17,8 @@ export interface TestSeam {
   runScript(segments: InputSegment[], until: number): Promise<void>;
   /** Fresh in-page sim for the current level under a script; the replay oracle. */
   replay(segments: InputSegment[], ticks: number, seed?: number): StateSnapshot;
-  goto(scene: SceneKey, params?: { level?: number }): void;
+  /** A scene; with a level, that level from its start, or from a save when one is given (a Continue). */
+  goto(scene: SceneKey, params?: { level?: number; resume?: ProgressSave }): void;
   setSeed(seed: number): void;
   reset(): void;
   events: { history(): ReadonlyArray<{ tick: number; name: string; payload: Record<string, unknown> }>; count(name: string): number };
@@ -68,10 +69,10 @@ export function installTestSeam(
     inputLog: () => controller.sim.inputLog(),
     runScript: (segments, until) => controller.runScript(segments, until),
     replay: (segments, ticks, seed) =>
-      replay({ ...controller.options.simOptions, level: controller.level, seed: seed ?? controller.sim.rng.seed, carry: controller.carry }, segments, ticks),
+      replay({ ...controller.options.simOptions, level: controller.level, seed: seed ?? controller.sim.rng.seed, carry: controller.carry, ...(controller.resume ? { resume: controller.resume } : {}) }, segments, ticks),
     goto: (scene, params) => {
-      // A level reached by goto starts fresh, as the node-side bots and gates play it.
-      if (params?.level !== undefined) controller.loadLevel(params.level, controller.seed, {});
+      // A level reached by goto starts fresh, as the node-side bots and gates play it, or from the save given.
+      if (params?.level !== undefined || params?.resume) controller.loadLevel(params.level ?? controller.levelIndex, controller.seed, {}, params.resume ?? null);
       controller.setScene(scene);
     },
     setSeed: (seed) => controller.reset(seed),

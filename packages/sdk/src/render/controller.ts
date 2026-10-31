@@ -1,6 +1,6 @@
 import type { LevelJson, ParamValue, StateSnapshot } from '@gg/schemas';
 import { emptyInput, inputAtTick, type InputSegment, type InputState } from '../sim/input.js';
-import { createSim, levelSeed, type Sim, type SimOptions } from '../sim/sim.js';
+import { createSim, levelSeed, type ProgressSave, type Sim, type SimOptions } from '../sim/sim.js';
 import { Driver, type RunMode } from './driver.js';
 import { Keyboard } from './keyboard.js';
 import { Metrics } from './metrics.js';
@@ -48,6 +48,8 @@ export class GameController {
   seed: number;
   /** Player props the current level started with: carried from the level before it, empty after a reset. */
   carry: Record<string, ParamValue> = {};
+  /** The save the current level was picked up from (a Continue), or null when it started at its start. */
+  resume: ProgressSave | null = null;
   private held: InputState = emptyInput();
   private script: { segments: InputSegment[]; until: number; resolve: () => void } | null = null;
   /** Set when a script has run to its target tick: the sim holds there until a step, script or reset. */
@@ -76,7 +78,7 @@ export class GameController {
   private makeSim(levelIndex: number, seed: number): Sim {
     const level = this.options.levels[levelIndex];
     if (!level) throw new Error(`level index ${levelIndex} out of range`);
-    return createSim({ ...this.options.simOptions, level, seed: levelSeed(seed, levelIndex), carry: this.carry });
+    return createSim({ ...this.options.simOptions, level, seed: levelSeed(seed, levelIndex), carry: this.carry, ...(this.resume ? { resume: this.resume } : {}) });
   }
 
   private provideInput(tick: number): InputState {
@@ -151,11 +153,15 @@ export class GameController {
     else this.setScene('results');
   }
 
-  /** Load a level. `carry` is the player props it starts with (by default what the current level started with, so a retry keeps them). */
-  loadLevel(index: number, seed = this.seed, carry: Record<string, ParamValue> = this.carry): void {
+  /**
+   * Load a level. `carry` is the player props it starts with (by default what the current level started with, so a retry
+   * keeps them); `resume` a save to pick it up from instead of its start (a Continue). A retry starts it at its start.
+   */
+  loadLevel(index: number, seed = this.seed, carry: Record<string, ParamValue> = this.carry, resume: ProgressSave | null = null): void {
     this.levelIndex = index;
     this.seed = seed;
     this.carry = carry;
+    this.resume = resume;
     this.sim = this.makeSim(index, seed);
     this.driver = new Driver(this.sim, this.driver.mode, (tick) => this.provideInput(tick));
     this.winTick = -1;

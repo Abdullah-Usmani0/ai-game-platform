@@ -4,6 +4,7 @@ import { BridgeGuest } from './bridge-guest.js';
 import { GameController, type GameBuild } from './controller.js';
 import type { RunMode } from './driver.js';
 import { createPhaserGame, type MainScene, type ViewStyle } from './phaser-view.js';
+import { readSaveBlob, saveBlob } from './saves.js';
 import { installTestSeam, type TestSeam } from './test-seam.js';
 
 export interface GameOptions {
@@ -40,6 +41,9 @@ export async function createGame(opts: GameOptions): Promise<GameHandle> {
   const mode: RunMode = init ? (init.mode === 'test' ? 'manual' : 'realtime') : (query.mode ?? opts.defaultMode ?? 'realtime');
   const seed = init?.seed ?? query.seed ?? opts.defaultSeed ?? DEFAULT_SEED;
   const controller = new GameController({ levels: opts.levels, simOptions: opts.sim, seed, mode, build: opts.build });
+  // A Continue: the host gave back the save the game left at the player's last rest, and play picks the level up there.
+  const start = readSaveBlob(init?.save, opts.levels);
+  if (start) controller.loadLevel(start.level, seed, start.carry, start.save);
   controller.keyboard.attach(window);
 
   let phaser: Phaser.Game | null = null;
@@ -57,7 +61,7 @@ export async function createGame(opts: GameOptions): Promise<GameHandle> {
     const style = init?.prefs.reduceShake ? { ...opts.style, camera: { ...opts.style.camera, maxShake: 0 } } : opts.style;
     ({ game: phaser, scene: view } = createPhaserGame(controller, style, opts.parent, () => {
       if (init?.prefs.mute && view) view.sfx.muted = true;
-      if (mode === 'manual' || query.autoplay || init?.mode === 'preview') controller.setScene('play');
+      if (mode === 'manual' || query.autoplay || init?.mode === 'preview' || start) controller.setScene('play');
       else controller.setScene('title');
       markReady();
       bridge.send({ type: 'ready', scenes: ['title', 'play', 'results'], levels: opts.levels.map((l) => l.id) });
@@ -90,14 +94,21 @@ export async function createGame(opts: GameOptions): Promise<GameHandle> {
     }
   });
 
+  const saveBytes = init?.limits.saveBytes ?? 65536;
   const forward = () =>
     controller.sim.events.on('*', (ev) => {
       if (['death', 'level_complete', 'pickup', 'checkpoint'].includes(ev.name)) {
         bridge.send({ type: 'event', name: ev.name, payload: ev.payload, tick: ev.tick });
       }
+      // A rest leaves its save with the host, which offers it back as a Continue.
+      if (ev.name === 'custom:rest') {
+        const blob = saveBlob(controller.levelIndex, controller.level.id, ev.payload['save'], controller.carry, saveBytes);
+        if (blob) bridge.send({ type: 'save', blob });
+      }
       // A level a player won is evidence it can be won: the run from the level's start goes to the host, which keeps it
-      // when the level waits for a winning run. Bots that drive the game (manual mode) record their own.
-      if (ev.name === 'level_complete' && controller.mode === 'realtime') bridge.send({ type: 'proof', proof: winningRun(controller.sim, ev.tick) });
+      // when the level waits for a winning run. Bots that drive the game (manual mode) record their own, and a run picked
+      // up from a save did not start at the level's start.
+      if (ev.name === 'level_complete' && controller.mode === 'realtime' && !controller.resume) bridge.send({ type: 'proof', proof: winningRun(controller.sim, ev.tick) });
     });
   let unsubForward = forward();
   controller.onLevelChange(() => {

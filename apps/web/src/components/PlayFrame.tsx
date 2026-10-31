@@ -17,11 +17,31 @@ export interface PlayFrameProps {
 
 type Status = 'loading' | 'hello' | 'ready' | 'error';
 
+/** Saves a game leaves in this browser, one per bundle (so per version: another version's levels may differ). */
+const SAVE_PREFIX = 'gg-save:';
+
+function readSave(bundleUrl: string): string | null {
+  try {
+    return window.localStorage.getItem(SAVE_PREFIX + bundleUrl);
+  } catch {
+    return null;
+  }
+}
+
+function writeSave(bundleUrl: string, blob: string): void {
+  try {
+    window.localStorage.setItem(SAVE_PREFIX + bundleUrl, blob);
+  } catch {
+    // Storage full or blocked: the game plays on, without a Continue next time.
+  }
+}
+
 const STATUS_TONE: Record<Status, string> = { loading: 'neutral', hello: 'info', ready: 'ok', error: 'err' };
 
 /**
- * A game in its sandboxed frame, with the player's controls under it (pause, sound, full screen). Preview and test
- * modes add the developer tools: the game's state, a screenshot, frame timing and the event log.
+ * A game in its sandboxed frame, with the player's controls under it (pause, sound, full screen). In play mode the
+ * frame keeps the save a game leaves at each rest (in this browser) and offers Continue, which starts the game over from
+ * it. Preview and test modes add the developer tools: the game's state, a screenshot, frame timing and the event log.
  */
 export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: PlayFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -35,6 +55,15 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: P
   const [metrics, setMetrics] = useState<{ fps: number; frameMsP95: number } | null>(null);
   const [shot, setShot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const keepsSaves = mode === 'play';
+  // The save this browser holds for the game, the one the frame was started from (a Continue), and the run: a Continue
+  // starts a new frame.
+  const [saved, setSaved] = useState<string | null>(null);
+  const [resumeFrom, setResumeFrom] = useState<string | undefined>(undefined);
+  const [run, setRun] = useState(0);
+  useEffect(() => {
+    setSaved(keepsSaves ? readSave(bundleUrl) : null);
+  }, [bundleUrl, keepsSaves]);
   const onMessageRef = useRef(onMessage);
   useEffect(() => {
     onMessageRef.current = onMessage;
@@ -50,6 +79,7 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: P
       prefs: { reduceShake: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false, colorblind: false, mute: false },
       player: { nickname: 'player' },
       limits: { saveBytes: 65536 },
+      save: resumeFrom,
     });
     hostRef.current = host;
     let sampler: number | undefined;
@@ -84,6 +114,11 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: P
         case 'screenshot':
           setShot(msg.png);
           return;
+        case 'save':
+          if (!keepsSaves) return;
+          writeSave(bundleUrl, msg.blob);
+          setSaved(msg.blob);
+          return;
         default:
           return;
       }
@@ -95,7 +130,7 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: P
       detach();
       hostRef.current = null;
     };
-  }, [mode, seed, bundleUrl, sampleStateMs]);
+  }, [mode, seed, bundleUrl, sampleStateMs, keepsSaves, resumeFrom, run]);
 
   const send = (msg: Parameters<BridgeHost['send']>[0]) => hostRef.current?.send(msg);
   const dev = mode !== 'play';
@@ -110,11 +145,17 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: P
     iframeRef.current?.focus();
   };
   const fullscreen = () => void wrapRef.current?.requestFullscreen?.().catch(() => undefined);
+  const continueGame = () => {
+    if (!saved) return;
+    setResumeFrom(saved);
+    setStatus('loading');
+    setRun((r) => r + 1);
+  };
 
   return (
     <div className="stage">
       <div className="frame-wrap" ref={wrapRef}>
-        <iframe ref={iframeRef} title="game" src={bundleUrl} sandbox="allow-scripts" allow="autoplay; fullscreen" referrerPolicy="no-referrer" />
+        <iframe key={run} ref={iframeRef} title="game" src={bundleUrl} sandbox="allow-scripts" allow="autoplay; fullscreen" referrerPolicy="no-referrer" />
         <div className="loading" data-hidden={status === 'ready' ? 'true' : 'false'} aria-hidden="true">
           {status === 'error' ? 'The game stopped with an error.' : 'Loading the game…'}
         </div>
@@ -125,6 +166,11 @@ export function PlayFrame({ bundleUrl, mode, seed, onMessage, sampleStateMs }: P
         </span>
         {error ? <span className="err small">{error}</span> : null}
         <span className="spacer" />
+        {saved ? (
+          <button className="btn-sm" onClick={continueGame} title="Start again from the altar you last rested at" data-testid="continue">
+            Continue
+          </button>
+        ) : null}
         <button className="btn-sm btn-ghost" onClick={togglePause} disabled={status !== 'ready'} aria-pressed={paused}>
           {paused ? 'Resume' : 'Pause'}
         </button>

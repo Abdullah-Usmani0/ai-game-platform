@@ -30,8 +30,27 @@ try {
   await page.waitForSelector('[data-testid="state"]', { timeout: 5000 });
   const stateText = await page.textContent('[data-testid="state"]');
   const tick = Number(/tick (\d+)/.exec(stateText ?? '')?.[1] ?? 0);
-  ok = tick > 30 && errors.length === 0;
-  console.log(JSON.stringify({ ok, stateText, errors }, null, 2));
+  // Saves: one this browser holds for the game is offered as Continue, and the game picks its level up there.
+  const game = () => page.frames().find((f) => f !== page.mainFrame());
+  const levelId = await game().evaluate(() => window.__game.levels()[0]);
+  const save = { v: 1, level: 0, levelId, save: { at: { x: 64, y: 40 }, facing: -1, props: {}, removed: [], tiles: [] }, carry: {} };
+  await page.evaluate(([k, v]) => localStorage.setItem(k, v), ['gg-save:/bundles/sample/index.html', JSON.stringify(save)]);
+  await page.goto(`${url}/play/sample?seed=7`, { waitUntil: 'load', timeout: 30000 });
+  await page.waitForSelector('[data-testid="status"]:has-text("ready")', { timeout: 20000 });
+  await page.click('[data-testid="continue"]');
+  // The frame starts over from the save (the one before it sits at its title): wait for the new game to be playing.
+  let continued = null;
+  for (const until = Date.now() + 20000; Date.now() < until && continued?.scene !== 'play'; await page.waitForTimeout(250)) {
+    continued = await game()
+      ?.evaluate(() => {
+        if (!window.__TEST__?.ready) return null;
+        const s = window.__game.state();
+        return { scene: s.scene, x: s.player.x, facing: s.player.facing };
+      })
+      .catch(() => null);
+  }
+  ok = tick > 30 && continued?.scene === 'play' && continued.x === 64 && continued.facing === -1 && errors.length === 0;
+  console.log(JSON.stringify({ ok, stateText, continued, errors }, null, 2));
 } catch (e) {
   console.error('check-bridge failed:', e.message);
   try { console.error('status text:', await page.textContent('[data-testid="status"]')); } catch {}
