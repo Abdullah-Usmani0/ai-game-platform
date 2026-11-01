@@ -69,6 +69,12 @@
       "props": {}
     },
     {
+      "type": "hermit",
+      "x": 34,
+      "y": 14,
+      "props": {}
+    },
+    {
       "type": "soul",
       "x": 45,
       "y": 13,
@@ -149,6 +155,12 @@
     {
       "type": "altar",
       "x": 225,
+      "y": 31,
+      "props": {}
+    },
+    {
+      "type": "keeper",
+      "x": 234,
       "y": 31,
       "props": {}
     },

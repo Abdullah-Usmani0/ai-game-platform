@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { MoveSet, SpriteSheet, type Move } from '@gg/schemas';
 import { MOVE, MOVE_TICK } from '../sim/moves.js';
-import type { Entity, Menu } from '../sim/world.js';
+import type { DialogueState, Entity, Menu } from '../sim/world.js';
 import { sfxFor } from './art/audio.js';
 import { mix, parseHex, toInt, type RGB } from './art/color.js';
 import { fitRow, textImage, wrapText } from './art/font.js';
@@ -161,6 +161,10 @@ export class MainScene extends Phaser.Scene {
   private overlaySig = '';
   /** The open menu's id and highlight when last drawn, to click on a highlight change. */
   private menuSeen = '';
+  /** The talk's node, line and letters shown when last drawn: a soft blip as letters appear. */
+  private talkSeen = '';
+  /** Portraits by speaker: the head and shoulders of their own sprite (null: nobody to show, as for the narrator). */
+  private portraits = new Map<string, PixelCanvas | null>();
   private fadeImg!: Phaser.GameObjects.Image;
   /** A farm's light through the day (multiplied over the world), the dark of a night's sleep, the faced tile's cursor. */
   private dayImg!: Phaser.GameObjects.Image;
@@ -389,6 +393,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   private buildSheets(): void {
+    // Portraits are painted in the palette the sheets are.
+    this.portraits.clear();
     for (const [name, recipe] of Object.entries(RECIPES)) this.sheetFromRecipe(name, recipe);
     // The castle tier's hero is drawn by its rig.
     if (this.setting === 'castle') this.sheetFromRig('rig:knight', RIGS['knight']!);
@@ -1614,6 +1620,12 @@ export class MainScene extends Phaser.Scene {
   private drawOverlay(): void {
     const scene = this.controller.scene;
     const w = this.controller.sim.world;
+    // A talk draws its own answers, in its box.
+    if (scene === 'play' && w.dialogue) {
+      this.drawDialogue(w.dialogue, w.menu?.id.startsWith('dialogue:') ? w.menu : null);
+      return;
+    }
+    this.talkSeen = '';
     if (scene === 'play' && w.menu) {
       this.drawMenu(w.menu);
       return;
@@ -1676,6 +1688,113 @@ export class MainScene extends Phaser.Scene {
     this.paintMenu(pc, menu);
     this.repaint(this.overlayTex, pc);
     this.overlayImg.setVisible(true);
+  }
+
+  /**
+   * The talk being read: a panel along the foot of the view over the play, dimmed a little; the speaker's name on a
+   * plate over its edge and their portrait in a frame at its left; the line typed out as the sim types it (wrapped
+   * first, so a word never jumps lines as it appears); a marker once the line is done; the answers listed under it
+   * when the node asks, the highlighted one pointed at.
+   */
+  private drawDialogue(d: DialogueState, menu: Menu | null): void {
+    const seen = `${d.node}|${d.line}`;
+    const was = this.talkSeen.startsWith(`${seen}|`) ? Number(this.talkSeen.slice(seen.length + 1)) : 0;
+    const text = d.lines[d.line] ?? '';
+    // A blip for every few letters that appear (none for spaces), and a click as the highlight moves.
+    if (d.shown > was && Math.floor(d.shown / 3) > Math.floor(was / 3) && text[d.shown - 1] !== ' ') this.sfx.play('type');
+    this.talkSeen = `${seen}|${d.shown}`;
+    if (menu) {
+      const sel = `${menu.id}|${menu.openedTick}`;
+      if (this.menuSeen.startsWith(`${sel}|`) && this.menuSeen !== `${sel}|${menu.selected}`) this.sfx.play('select');
+      this.menuSeen = `${sel}|${menu.selected}`;
+    } else this.menuSeen = '';
+    const blink = Math.floor(performance.now() / 400) % 2 === 0;
+    const sig = JSON.stringify(['talk', d.node, d.line, d.shown, menu ? [menu.selected, menu.options.map((o) => o.id)] : null, d.shown >= text.length && blink]);
+    if (sig === this.overlaySig) return;
+    this.overlaySig = sig;
+    const { w: cw, h: ch } = this.style.canvas;
+    const pal = this.pal;
+    const pc = new PixelCanvas(cw, ch);
+    pc.fillRect(0, 0, cw, ch, pal.ink, 60);
+    const portrait = this.portraitOf(d.speaker);
+    const pad = 9;
+    const x = 12;
+    const bw = cw - 24;
+    const size = 56;
+    const tx = x + pad + (portrait ? size + 10 : 0);
+    const width = x + bw - pad - tx;
+    const wrapped = wrapText(text.toUpperCase(), width);
+    const answers = menu?.options ?? [];
+    const textH = wrapped.length * 10 + (answers.length > 0 ? 4 + answers.length * 10 : 0);
+    const boxH = Math.max(portrait ? size + 2 * pad : 0, textH + 2 * pad, 40);
+    // Along the foot of the view, or along its top when the speaker stands in its lower half (the box would hide them).
+    const speaker = this.controller.sim.world.entities.find((e) => e.flags['npc'] === true && (typeof e.props['speaker'] === 'string' ? e.props['speaker'] : e.type) === d.speaker);
+    const view = this.cameras.main.worldView;
+    const low = speaker !== undefined && view.height > 0 && (speaker.y + speaker.h / 2 - view.y) / view.height > 0.45;
+    const y = low ? HUD_H + 12 : ch - boxH - 10;
+    // The panel: the menu's cards' tones, a gold edge, a lit top.
+    const top = mix(pal.ink, pal.terrain[1], 0.5);
+    const bottom = mix(pal.ink, pal.terrain[1], 0.25);
+    for (let r = 0; r < boxH; r++) pc.fillRect(x, y + r, bw, 1, mix(top, bottom, r / boxH), 240);
+    const edge = mix(pal.accent[1], pal.accent[3], 0.5);
+    pc.fillRect(x, y, bw, 1, edge);
+    pc.fillRect(x, y + boxH - 1, bw, 1, edge);
+    pc.fillRect(x, y, 1, boxH, edge);
+    pc.fillRect(x + bw - 1, y, 1, boxH, edge);
+    pc.fillRect(x + 1, y + 1, bw - 2, 1, mix(pal.ink, pal.terrain[3], 0.55));
+    if (portrait) {
+      // The portrait in an ink well ringed in gold, the speaker's head and shoulders at twice their size.
+      const px = x + pad;
+      const py = y + pad;
+      pc.fillRect(px, py, size, size, mix(pal.ink, pal.terrain[0], 0.4));
+      pc.blitScaled(portrait, px + Math.round((size - portrait.w * 2) / 2), py + size - portrait.h * 2, 2);
+      for (const [rx, ry, rw, rh] of [[px - 1, py - 1, size + 2, 1], [px - 1, py + size, size + 2, 1], [px - 1, py, 1, size], [px + size, py, 1, size]] as const) pc.fillRect(rx, ry, rw, rh, pal.accent[2]);
+    }
+    if (d.name) {
+      // The name on a plate over the panel's top edge.
+      const name = this.text(d.name.toUpperCase(), pal.accent[4]);
+      const nx = x + pad;
+      pc.fillRect(nx - 4, y - 7, name.w + 8, 13, pal.ink, 235);
+      pc.fillRect(nx - 4, y - 7, name.w + 8, 1, edge);
+      pc.blit(name, nx, y - 4);
+    }
+    // The line as far as it has typed out.
+    let left = d.shown;
+    let ty = y + pad + 1;
+    for (const line of wrapped) {
+      if (left > 0) pc.blit(this.text(line.slice(0, left), pal.white), tx, ty);
+      left -= line.length + 1;
+      ty += 10;
+    }
+    if (answers.length > 0 && menu) {
+      ty += 4;
+      answers.forEach((o, i) => {
+        const sel = i === menu.selected;
+        if (sel) pc.fillRect(tx - 2, ty - 2, width + 4, 11, pal.accent[1], 120);
+        pc.blit(this.text(`${sel ? '>' : ' '} ${o.label.toUpperCase()}`, sel ? pal.accent[4] : pal.ui[3]), tx, ty);
+        ty += 10;
+      });
+    } else if (d.shown >= text.length && blink) {
+      // The line done: a small gold arrowhead in the panel's corner.
+      const ax = x + bw - pad - 7;
+      const ay = y + boxH - pad - 4;
+      for (let r = 0; r < 4; r++) pc.fillRect(ax + r, ay + r, 7 - 2 * r, 1, pal.accent[4]);
+    }
+    this.repaint(this.overlayTex, pc);
+    this.overlayImg.setVisible(true);
+  }
+
+  /** A speaker's portrait: the head and shoulders of the sprite of whoever in the world talks as them. */
+  private portraitOf(speaker: string): PixelCanvas | null {
+    const known = this.portraits.get(speaker);
+    if (known !== undefined) return known;
+    const npc = this.controller.sim.world.entities.find((e) => e.flags['npc'] === true && (typeof e.props['speaker'] === 'string' ? e.props['speaker'] : e.type) === speaker);
+    const name = npc ? this.recipeName(npc) : null;
+    const recipe = name ? (name.startsWith('game:') ? this.designs.get(name.slice('game:'.length)) : RECIPES[name]) : undefined;
+    const frame = recipe ? paintFrames(recipe, this.pal)[0]?.pc : undefined;
+    const portrait = frame ? headOf(frame, 28, 28) : null;
+    this.portraits.set(speaker, portrait);
+    return portrait;
   }
 
   /** An in-game choice (boons, upgrades, a shop): the title, one card per option, the highlighted card lifted and lit. */
@@ -1906,6 +2025,23 @@ export function createPhaserGame(controller: GameController, style: ViewStyle, p
 }
 
 /** The first row of a canvas with anything painted on it (its height when it is empty). */
+/** A sprite's head and shoulders, for a portrait: its top `rows` painted rows, `cols` wide about its middle. */
+function headOf(pc: PixelCanvas, rows: number, cols: number): PixelCanvas {
+  const top = firstPaintedRow(pc);
+  const out = new PixelCanvas(cols, rows);
+  const x0 = Math.round((pc.w - cols) / 2);
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const sx = x0 + x;
+      const sy = top + y;
+      if (sx < 0 || sy < 0 || sx >= pc.w || sy >= pc.h) continue;
+      const i = (sy * pc.w + sx) * 4;
+      if ((pc.data[i + 3] ?? 0) > 0) out.set(x, y, [pc.data[i]!, pc.data[i + 1]!, pc.data[i + 2]!]);
+    }
+  }
+  return out;
+}
+
 function firstPaintedRow(pc: PixelCanvas): number {
   for (let y = 0; y < pc.h; y++) for (let x = 0; x < pc.w; x++) if (pc.alpha(x, y) > 0) return y;
   return pc.h;

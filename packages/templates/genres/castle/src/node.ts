@@ -6,6 +6,7 @@ import { castleCheck } from './check.js';
 import { EXEMPLARS } from './exemplars.js';
 import { castleRuntime } from './index.js';
 import { generateRegion } from './level/generate.js';
+import { DEFAULT_DIALOGUE } from './dialogue.js';
 import { DEFAULT_MOVES } from './moves.js';
 import { PANELS } from './panels.js';
 
@@ -46,7 +47,8 @@ export const castle: GenreManifest = {
   panels: PANELS,
   exemplars: EXEMPLARS,
   // The hero's frame data: the combat system strikes by it and the view draws each cut by its clock.
-  shippedContent: { moves: DEFAULT_MOVES },
+  // Its frame data, and the talk its people have until a game's own story writes theirs.
+  shippedContent: { moves: DEFAULT_MOVES, dialogue: DEFAULT_DIALOGUE },
   samples: ['samples/castle'],
 };
 export * from './index.js';

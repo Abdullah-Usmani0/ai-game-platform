@@ -683,6 +683,8 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   wave: 'wave',
   soul: 'soul',
   altar: 'altar',
+  hermit: 'hermit',
+  'candle-keeper': 'candle-keeper',
   gate: 'gate',
 };
 

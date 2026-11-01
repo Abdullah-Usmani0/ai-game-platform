@@ -1,7 +1,7 @@
 import type { LevelJson, LevelRoom } from '@gg/schemas';
 import { Rng } from '@gg/sdk';
 import type { LevelGenParams } from '@gg/template-core';
-import { ALTAR_TYPE, ARCHER_TYPE, BOOTS_TYPE, ENTITY_DEFS, GARGOYLE_TYPE, GATE_TYPE, GHOUL_TYPE, HEADSMAN_TYPE, HOUND_TYPE, PLAYER, SENTINEL_TYPE, SOUL_TYPE, WINGS_TYPE, WRAITH_TYPE } from '../entities.js';
+import { ALTAR_TYPE, ARCHER_TYPE, BOOTS_TYPE, ENTITY_DEFS, GARGOYLE_TYPE, GATE_TYPE, GHOUL_TYPE, HEADSMAN_TYPE, HOUND_TYPE, KEEPER_TYPE, HERMIT_TYPE, PLAYER, SENTINEL_TYPE, SOUL_TYPE, WINGS_TYPE, WRAITH_TYPE } from '../entities.js';
 
 /** One screen of the castle view (480x270 at 16 px tiles): no room is narrower, so the camera never shows two. */
 export const SCREEN_TILES = 30;
@@ -82,13 +82,15 @@ const START: RoomPlan = {
   w: SCREEN_TILES,
   build(r, walk) {
     r.floor(0, r.w - 2, walk);
+    // A hermit kneels between the spawn and the way back to the wings: the first thing to ask.
+    r.put(HERMIT_TYPE, 4, walk);
     r.put(SOUL_TYPE, 15, walk - 1);
     r.put(SOUL_TYPE, 19, walk - 1);
     return walk;
   },
 };
 
-/** A save room: an altar in the middle and nothing else. */
+/** A save room: an altar in the middle, and in the second a candle-keeper well clear of it (up rests at one, talks to the other). */
 function altarRoom(n: number): RoomPlan {
   return {
     id: `altar-${n}`,
@@ -97,6 +99,7 @@ function altarRoom(n: number): RoomPlan {
     build(r, walk) {
       r.floor(0, r.w - 2, walk);
       r.put(ALTAR_TYPE, Math.floor(r.w / 2) - 1, walk);
+      if (n === 2) r.put(KEEPER_TYPE, 5, walk);
       return walk;
     },
   };

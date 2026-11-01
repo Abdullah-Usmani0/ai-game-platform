@@ -582,6 +582,89 @@ export function altar(t: number): Part[] {
   ];
 }
 
+// ---------------------------------------------------------------- people: a kneeling hermit (30 x 32), a candle-keeper (28 x 46)
+
+export const HERMIT_W = 30, HERMIT_H = 32;
+/** Kneels on one knee, a staff upright in the near hand, a lantern at its foot; breathes, the flame flickers. */
+export function hermit(t: number): Part[] {
+  const [s, c] = sinCosDeg(t * 360);
+  const robe = R('kOspq'), hood = R('kOOsp'), staff = R('kpqQr'), rope = R('pqQrR'), face = R('ktTuU'), iron = R('kkOsq'), glow = R('aAbBw');
+  const breath = s * 0.35;
+  const knee = v(17, 27), heel = v(9, 29), footN = v(19.5, 29);
+  const hip = v(11, 22);
+  const chest = v(13.5, 13 + breath);
+  const head = plus(chest, polar(-70, 5.5));
+  const parts: Part[] = [
+    // The far leg kneeling: thigh to the knee on the floor, the shin back along it.
+    cap('thighF', hip, knee, 3, 2.4, robe, 1),
+    cap('shinF', knee, heel, 2.2, 1.8, robe, 0.9),
+    // The robe's skirt pooled on the floor, the body bowed forward over it.
+    poly('skirt', [v(5, 30), v(18, 30), v(17, 24), v(9, 20), v(5, 24)], 1, robe, 1.2),
+    poly('body', [plus(hip, v(-3.5, 1)), plus(hip, v(3, 1)), plus(chest, v(3.2, 0)), plus(chest, v(-2, -2.5)), plus(chest, v(-4, 1))], 1.2, robe, 2),
+    cap('belt', plus(hip, v(-3, -1.5)), plus(hip, v(3, -1)), 0.6, 0.6, rope, 2.2),
+    // The near knee up, the foot flat on the floor.
+    cap('thighN', plus(hip, v(1, 0)), v(20, 21.5), 2.6, 2.2, robe, 3),
+    cap('shinN', v(20, 21.5), footN, 2, 1.6, robe, 3.05),
+    // A bedroll tied across the back.
+    cap('bedroll', plus(chest, v(-4.5, -0.5)), plus(chest, v(-3, 5)), 2.2, 2, R('kpqQr'), 1.9),
+    // The hood, deep, the face in its shadow: a nose and a grey beard catch the lantern's light.
+    cap('hood', plus(head, v(-1.4, -0.6)), plus(head, v(0.6, 0.2)), 3.6, 3.2, hood, 4),
+    cap('face', plus(head, v(1.6, 0.8)), plus(head, v(2.1, 1.6)), 1.3, 1.1, face, 4.1),
+    cap('beard', plus(head, v(1.6, 2.4)), plus(head, v(1.2, 4.2)), 1.1, 0.6, R('tTuUw'), 4.15),
+    // The staff upright in the near hand, its top hooked; the arm reaching to it.
+    cap('staff', v(23.5, 30), v(23, 3), 0.7, 0.6, staff, 5),
+    cap('hook', v(23, 3), v(21.4, 1.6), 0.6, 0.5, staff, 5.01),
+    cap('arm', plus(chest, v(1.5, 1)), v(22.6, 14 + breath), 1.5, 1.2, robe, 5.1),
+    cap('hand', v(22.6, 14 + breath), v(23.4, 14.5 + breath), 1.1, 1, face, 5.2),
+    // The lantern on the floor before the knee: an iron cage, the flame alive in it.
+    poly('lantern', [v(25, 30), v(29, 30), v(28.6, 24.5), v(25.4, 24.5)], 0.3, iron, 6),
+    cap('lanternTop', v(25.6, 24), v(28.4, 24), 0.6, 0.6, iron, 6.05),
+    cap('flame', v(27, 28.6), v(27 + c * 0.3, 25.6 - s * 0.4), 1.4, 0.6, glow, 6.1),
+    cap('flameCore', v(27, 28.4), v(27, 27.4), 0.6, 0.4, R('Bwwww'), 6.15),
+  ];
+  return stand(parts, [heel, footN, v(27, 30)], HERMIT_H - 1);
+}
+
+export const CANDLE_KEEPER_W = 28, CANDLE_KEEPER_H = 46;
+/**
+ * A candle-keeper: a nun in a dark grey habit, a pale wimple round her face under a rounded black veil, a three-branched
+ * candlestick held before her; the flames move, the hem stirs.
+ */
+export function candleKeeper(t: number): Part[] {
+  const [s, c] = sinCosDeg(t * 360);
+  const habit = R('kttTu'), veil = R('kkOsO'), wimple = R('tiIww'), face = R('pQrRw'), sash = R('xdDeE'), brass = R('kaAbB'), wax = R('iIwww'), flame = R('aAbBw'), eye = R('kkkkk');
+  const sway = s * 0.4;
+  const head = v(13.5, 8.5);
+  const parts: Part[] = [
+    // The veil falling behind to the waist, the habit to the floor (its hem stirring), a crimson cord at the waist.
+    poly('veilBack', [v(7.5, 26), v(13, 27), v(13, 9), v(9, 6)], 1.2, veil, 0.8),
+    poly('habit', [v(6 - sway, 45.6), v(21 + sway, 45.6), v(18.5, 22), v(16.5, 14), v(10, 14), v(8, 22)], 1.2, habit, 2),
+    cap('hem', v(6.6 - sway, 45.6), v(20.4 + sway, 45.6), 0.9, 0.9, habit, 2.05),
+    cap('cord', v(9.5, 25), v(17, 25.5), 0.6, 0.6, sash, 2.2),
+    cap('cordTail', v(16, 25.5), v(16.5 + sway, 32), 0.5, 0.4, sash, 2.25),
+    // The wimple framing the face, white at the throat; the veil over the crown, rounded.
+    cap('wimple', plus(head, v(0, 1)), plus(head, v(0.4, 4.5)), 3.4, 3, wimple, 3),
+    cap('face', plus(head, v(1, 0.6)), plus(head, v(1.3, 2.2)), 1.8, 1.6, face, 3.1),
+    cap('eyeN', plus(head, v(2.2, 0.4)), plus(head, v(2.2, 0.4)), 0.4, 0.4, eye, 3.15),
+    cap('veilTop', plus(head, v(-1.8, -1.2)), plus(head, v(0.8, -2.4)), 3.2, 2.4, veil, 3.2),
+    // The hands before the chest round the candlestick's stem, the sleeves wide.
+    cap('sleeve', v(15.5, 15.5), v(17.5, 22.5), 2, 1.8, habit, 4),
+    cap('hands', v(16.8, 23.5), v(18.8, 23.5), 1.1, 1.1, face, 4.1),
+    cap('stem', v(18, 28), v(18, 18), 0.5, 0.5, brass, 5),
+    cap('arms', v(15, 19), v(21, 19), 0.5, 0.5, brass, 5.01),
+    cap('cupL', v(15, 18.5), v(15, 18.5), 0.8, 0.8, brass, 5.02),
+    cap('cupM', v(18, 17.5), v(18, 17.5), 0.8, 0.8, brass, 5.02),
+    cap('cupR', v(21, 18.5), v(21, 18.5), 0.8, 0.8, brass, 5.02),
+    cap('waxL', v(15, 18), v(15, 15.5), 0.6, 0.6, wax, 5.1),
+    cap('waxM', v(18, 17), v(18, 13.5), 0.6, 0.6, wax, 5.1),
+    cap('waxR', v(21, 18), v(21, 15.5), 0.6, 0.6, wax, 5.1),
+    cap('flameL', v(15, 15), v(15 + c * 0.3, 13.2 - s * 0.3), 0.8, 0.3, flame, 5.2),
+    cap('flameM', v(18, 13), v(18 - c * 0.3, 11 + s * 0.3), 0.8, 0.3, flame, 5.2),
+    cap('flameR', v(21, 15), v(21 + s * 0.3, 13.2 - c * 0.3), 0.8, 0.3, flame, 5.2),
+  ];
+  return stand(parts, [v(6.6, 45.6), v(20.4, 45.6)], CANDLE_KEEPER_H - 1);
+}
+
 // ---------------------------------------------------------------- soul: a wisp (10 x 12)
 
 export const SOUL_W = 10, SOUL_H = 12;
@@ -705,6 +788,9 @@ export const CAST_RECIPES: Readonly<Record<string, Recipe>> = {
   // The bone archer's arrow: crimson fletching, a dark shaft, a steel head.
   shaft: { anchor: 'center', noShadow: true, anims: { run: [['.d..........U.', 'dDdqqqqqqqqqTw', '.d..........U.']] } },
   altar: { anchor: 'feet', anims: { idle: frames(3, altar, ALTAR_W, ALTAR_H) } },
+  // The castle's people: they breathe, their flames move.
+  hermit: { anchor: 'feet', anims: { idle: frames(3, hermit, HERMIT_W, HERMIT_H) } },
+  'candle-keeper': { anchor: 'feet', anims: { idle: frames(3, candleKeeper, CANDLE_KEEPER_W, CANDLE_KEEPER_H) } },
   soul: { anchor: 'center', anims: { idle: frames(3, soul, SOUL_W, SOUL_H) } },
   gate: { anchor: 'center', noShadow: true, anims: { idle: [bake(gate(), GATE_W, GATE_H)] } },
 };

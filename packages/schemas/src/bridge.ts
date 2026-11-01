@@ -15,6 +15,8 @@ export const StateSnapshot = z.object({
   flags: z.object({ paused: z.boolean(), gameOver: z.boolean(), won: z.boolean() }),
   /** Present only while an in-game menu is open: its id, the highlighted option and the option ids. */
   menu: z.object({ id: z.string(), selected: z.int(), options: z.array(z.string()) }).optional(),
+  /** Present only while a talk is being read: its node, the line and how much of it shows. */
+  dialogue: z.object({ node: z.string(), line: z.int().nonnegative(), shown: z.int().nonnegative() }).optional(),
   hash: z.string(),
 });
 export type StateSnapshot = z.infer<typeof StateSnapshot>;

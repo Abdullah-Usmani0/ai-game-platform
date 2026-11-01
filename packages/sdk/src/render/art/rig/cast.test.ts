@@ -52,6 +52,8 @@ describe('the castle cast', () => {
     expect(boss.active).toEqual({ rise: [2, 3], chop: [2, 3], leap: [2, 3], drag: [2], roar: [1], combo: [1, 2, 3, 4] });
     expect([boss.anims.kneel![0]![0]!.length, boss.anims.kneel![0]!.length]).toEqual([168, 112]);
     expect([CAST_RECIPES.wave!.anchor, Object.keys(CAST_RECIPES.wave!.anims)]).toEqual(['center', ['run']]);
+    // The people: they only breathe, their flames move.
+    for (const who of ['hermit', 'candle-keeper']) expect([who, Object.keys(CAST_RECIPES[who]!.anims), CAST_RECIPES[who]!.anims['idle']!.length]).toEqual([who, ['idle'], 3]);
     for (const recipe of Object.values(CAST_RECIPES)) {
       const a = paintFrames(recipe, pal);
       const b = paintFrames(recipe, pal);

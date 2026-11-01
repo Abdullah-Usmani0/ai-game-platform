@@ -46,6 +46,8 @@ export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
   level_start: arp([523, 784], 0.07, 0.1, 0.07, 'triangle'),
   level_complete: arp([523, 659, 784, 1047], 0.09, 0.16, 0.1),
   select: [{ wave: 'square', from: 660, to: 660, dur: 0.04, vol: 0.06 }],
+  // A letter of dialogue typing out: a very short soft blip.
+  type: [{ wave: 'triangle', from: 520, to: 470, dur: 0.025, vol: 0.035 }],
   // A finisher: the hit, a heavier crunch and a low thump under it.
   finisher: [
     { wave: 'noise', from: 2600, to: 220, dur: 0.14, vol: 0.18 },
@@ -56,6 +58,11 @@ export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
   slam: [
     { wave: 'triangle', from: 110, to: 32, dur: 0.42, vol: 0.24 },
     { wave: 'noise', from: 900, to: 80, dur: 0.38, vol: 0.14 },
+  ],
+  // Someone spoken to: a soft low chime as they turn to listen.
+  talk: [
+    { wave: 'sine', from: 392, to: 392, dur: 0.18, vol: 0.06 },
+    { wave: 'sine', from: 587, to: 587, dur: 0.22, vol: 0.04, delay: 0.06 },
   ],
   // A boss rises: a great bell tolled once, low and long, its hum and its minor third under the strike.
   toll: [
@@ -182,6 +189,8 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return 'roar';
     case 'custom:boss':
       return 'toll';
+    case 'custom:talk':
+      return 'talk';
     case 'custom:arena_shut':
       return 'slam';
     case 'custom:arena_open':

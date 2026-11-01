@@ -23,6 +23,7 @@ function schemaFor(file: string): ArtifactName | null {
   if (/\/content\/crops\.json$/.test(f)) return 'CropTable';
   if (/\/content\/sprites\.json$/.test(f)) return 'SpriteSheet';
   if (/\/content\/moves\.json$/.test(f)) return 'MoveSet';
+  if (/\/content\/dialogue\.json$/.test(f)) return 'DialogueFile';
   if (/\/content\/proofs\/[^/]+\.json$/.test(f)) return 'LevelProof';
   if (/\/content\/hints\/[^/]+\.json$/.test(f)) return 'LevelHints';
   if (name === 'systems.json') return 'SystemsFile';

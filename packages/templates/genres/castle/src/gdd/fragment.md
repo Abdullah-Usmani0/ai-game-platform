@@ -44,9 +44,15 @@ the cleaver brought down as it lands), and drags its cleaver to send a wave of s
 it); at half health it roars, untouchable (custom:enrage), and fights faster, a two-blow combo (a low sweep, then an
 overhead: parryable) in place of the chop. Its poise shrugs off cuts without flinching until two chains or a riposte
 break it, and its bulk keeps the hero out of its body.
+People: a hermit kneels by the start (between the spawn and the way back to the wings) and, from difficulty 0.2, a
+candle-keeper stands in the second altar's room, well clear of the altar. Up beside one talks (the talk system; up
+beside an altar still rests): the world holds still while the player reads, each line typing out, and their answers
+can set the story's flags (`f:` props on the player, kept by saves). Their words are content/dialogue.json: every castle
+game ships a default (the hermit points the way back, the keeper warns of the headsman and how his cleaver is turned),
+which a game's own story replaces.
 Feel presets: castle-agile (default), castle-weighty. Every gate is sized to hold under both.
 Feedback table must bind: jump, land, dash, hit, death, pickup, checkpoint, level_complete, custom:swing,
 custom:finisher, custom:block, custom:guard_break, custom:parry, custom:drink, custom:heal, custom:dodge, custom:boss,
-custom:enrage, custom:arena_shut, custom:arena_open.
+custom:enrage, custom:arena_shut, custom:arena_open, custom:talk.
 Scope tiers: small = 1 region at difficulty 0.3, up to 3 enemy types and the boss; medium = 1 region at 0.5, up to 6
 enemy types and the boss; large = 1 region at 0.75, up to 6 enemy types and the boss.

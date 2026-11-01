@@ -96,6 +96,11 @@ export interface CatalogSystem {
   /** When a key is in use: a game whose parameters switch it off does not use the key (movement-topdown's dash). */
   controlGates?: Partial<Record<ControlKey, ControlGate>>;
   /**
+   * Keys the system reads only beside something of its own (an altar to rest at, someone to talk to): other systems that
+   * do the same may read them too, as the thing at hand decides which answers. They still clash with any other use.
+   */
+  sharedControls?: readonly ControlKey[];
+  /**
    * Keys the system takes from the others: they do nothing in its game (a runner runs on its own, so left and right).
    * The play page leaves them out and bots that explore never press them.
    */

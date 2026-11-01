@@ -69,11 +69,20 @@ export function checkComposition(systems: ReadonlyArray<CatalogSystem>, ctx: Com
     for (const other of s.conflicts ?? []) if (ids.has(other)) issues.push(err('conflict', `${s.id} cannot share a game with ${other}`, { path: s.id }));
   }
 
-  const uses = new Map<string, Array<{ system: string; use: string }>>();
-  for (const s of systems) for (const [key, use] of Object.entries(controlsInUse(s, ctx.params?.[s.id]))) if (use) uses.set(key, [...(uses.get(key) ?? []), { system: s.id, use }]);
+  const uses = new Map<string, Array<{ system: string; use: string; beside: boolean }>>();
+  for (const s of systems) {
+    for (const [key, use] of Object.entries(controlsInUse(s, ctx.params?.[s.id]))) {
+      if (use) uses.set(key, [...(uses.get(key) ?? []), { system: s.id, use, beside: (s.sharedControls as readonly string[] | undefined)?.includes(key) === true }]);
+    }
+  }
   for (const [key, all] of uses) {
-    const own = all.filter((u) => !SHARED_USES.has(u.use));
-    if (new Set(own.map((u) => u.use)).size > 1) issues.push(err('key_twice', `the ${key} key would ${own.map((u) => `${u.use} (${u.system})`).join(' and ')}`, { path: key }));
+    // Uses beside something of their own (an altar, a person) share a key among themselves, never with another use.
+    const own = all.filter((u) => !SHARED_USES.has(u.use) && !u.beside);
+    const beside = all.filter((u) => u.beside);
+    if (new Set(own.map((u) => u.use)).size > 1 || (own.length > 0 && beside.length > 0)) {
+      const clash = [...own, ...beside];
+      issues.push(err('key_twice', `the ${key} key would ${clash.map((u) => `${u.use} (${u.system})`).join(' and ')}`, { path: key }));
+    }
   }
   return report(issues, { systems: systems.length, movement: movement ?? 'none' });
 }

@@ -56,6 +56,11 @@ export interface SimCtx {
    */
   openMenu(menu: MenuSpec): void;
   /**
+   * Open a talk at a node of the game's dialogue (content/dialogue.json). The world holds still while the player reads,
+   * as for a menu; flags the talk sets land on the player as `f:<flag>` props. False when there is no such node.
+   */
+  openDialogue(node: string): boolean;
+  /**
    * Load the level again from a save as this step ends: the world as the level begins, picked up where the save left it
    * (the player where it says with its props, what it names gone for good gone, the tiles it changed), and every system
    * started over. The run goes on: the tick, the input log, the rng, the events and their listeners, the score and the

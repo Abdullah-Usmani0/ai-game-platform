@@ -146,5 +146,11 @@
     "channels": [
       "sfx"
     ]
+  },
+  {
+    "event": "custom:talk",
+    "channels": [
+      "sfx"
+    ]
   }
 ]

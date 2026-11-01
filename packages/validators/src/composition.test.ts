@@ -70,6 +70,18 @@ describe('checkComposition', () => {
     expect(both.issues[0]!.message).toBe('the action key would attack (sword) and shoot (gun)');
   });
 
+  it('lets keys read only beside something (an altar, a person) be shared by such systems alone', () => {
+    // Up rests beside an altar and talks beside someone: the thing at hand decides.
+    const altar = sys('altar', { controls: { up: 'rest at an altar' }, sharedControls: ['up'] });
+    const people = sys('people', { controls: { up: 'talk to someone' }, sharedControls: ['up'] });
+    expect(codes([run, goal, spikes, altar, people])).toEqual([]);
+    // Up for anything else still clashes, with either.
+    const ladder = sys('ladder', { controls: { up: 'climb' } });
+    const clash = checkComposition([run, goal, spikes, altar, ladder], ok);
+    expect(clash.issues.map((i) => i.code)).toEqual(['key_twice']);
+    expect(clash.issues[0]!.message).toBe('the up key would climb (ladder) and rest at an altar (altar)');
+  });
+
   it('judges keys with the parameters the game gives each system: a courier on jump leaves action to the sword', () => {
     const courier = sys('courier', {
       params: { key: { type: 'string', values: ['action', 'jump'], default: 'action', affects: 'none' } },

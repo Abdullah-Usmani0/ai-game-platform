@@ -69,6 +69,8 @@ export const meta = {
   emits: ['custom:rest'],
   feedbackFor: ['custom:rest'],
   controls: { up: 'rest at an altar' },
+  // Up rests only beside an altar, so it shares the key with a talk beside someone.
+  sharedControls: ['up'],
   provides: { death: 'reload' },
   requires: { roles: ['altar'] },
   hud: [],

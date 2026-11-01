@@ -14,6 +14,9 @@ export const ARCHER_TYPE = 'bone-archer';
 export const HEADSMAN_TYPE = 'headsman';
 /** A grate in a floor that opens from below (the shortcuts system): four tiles wide, one deep (the floor's top row). */
 export const GATE_TYPE = 'gate';
+/** The castle's people, to talk to (the talk system): a hermit kneeling by the start, a candle-keeper by the second altar. */
+export const HERMIT_TYPE = 'hermit';
+export const KEEPER_TYPE = 'candle-keeper';
 
 /**
  * The castle tier's hero: a 14x42 body (2.6 tiles of 16 px), drawn by the rig in larger frames around it. Five hearts:
@@ -46,6 +49,8 @@ export const ENTITY_DEFS: EntityDef[] = [
   { type: BOOTS_TYPE, w: 12, h: 12, gravity: false, tint: 'accent' },
   { type: ALTAR_TYPE, w: 16, h: 32, gravity: false, tint: 'ui' },
   { type: GATE_TYPE, w: 64, h: 16, gravity: false, tint: 'mid' },
+  { type: HERMIT_TYPE, w: 16, h: 28, gravity: true, npc: true },
+  { type: KEEPER_TYPE, w: 14, h: 42, gravity: true, npc: true },
 ];
 
 /**

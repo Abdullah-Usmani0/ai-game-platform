@@ -1,4 +1,4 @@
-import { pickups, pickupsMeta, rest, restMeta, rooms, roomsMeta, type GenreRuntime, type SystemModule } from '@gg/template-core';
+import { pickups, pickupsMeta, rest, restMeta, rooms, roomsMeta, talk, talkMeta, type GenreRuntime, type SystemModule } from '@gg/template-core';
 import { metroidvaniaRuntime } from '@gg/template-metroidvania';
 import { platformerRuntime } from '@gg/template-platformer';
 import { DEFAULT_BEHAVIOURS, VOCAB } from './behaviours.js';
@@ -14,6 +14,7 @@ export * from './feel.js';
 export * from './entities.js';
 export * from './behaviours.js';
 export * from './moves.js';
+export * from './dialogue.js';
 export { movement, abilities, shortcuts, combat, arena };
 export { BLOCK_TICKS, BOSS_POISE, BUFFER_TICKS, FLASKS, GUARD, GUARD_AT, GUARD_BREAK_TICKS, GUARD_REFILL_TICKS, guardUp, HURT_AIR_TICKS, HURT_TICKS, LOCK, OPEN_UNTIL, PARRY_STAGGER_TICKS, PLUNGE_BOUNCE } from './systems/combat.js';
 
@@ -38,12 +39,13 @@ export const castleRuntime: GenreRuntime = {
     [arenaMeta.id]: { meta: arenaMeta, create: () => arena },
     [roomsMeta.id]: { meta: roomsMeta, create: () => rooms },
     [restMeta.id]: { meta: restMeta, create: () => rest },
+    [talkMeta.id]: { meta: talkMeta, create: () => talk },
     hazards: forCastle(platformerRuntime.systems['hazards']),
     goal: forCastle(platformerRuntime.systems['goal']),
     [pickupsMeta.id]: forCastle({ meta: pickupsMeta, create: () => pickups }),
   },
   // The sword before the movement: a cut pressed this tick roots the hero this tick.
-  requiredSystems: ['combat', 'movement-castle', 'relics', 'abilities', 'rooms', 'rest', 'shortcuts', 'arena', 'hazards', 'goal'],
+  requiredSystems: ['combat', 'movement-castle', 'relics', 'abilities', 'rooms', 'rest', 'talk', 'shortcuts', 'arena', 'hazards', 'goal'],
   optionalSystems: ['pickups'],
   feelPresets: FEEL,
   defaultFeel: DEFAULT_FEEL,
@@ -68,6 +70,7 @@ export const castleRuntime: GenreRuntime = {
     { event: 'custom:enrage', channels: ['sfx', 'shake'] },
     { event: 'custom:arena_shut', channels: ['sfx', 'shake'] },
     { event: 'custom:arena_open', channels: ['sfx'] },
+    { event: 'custom:talk', channels: ['sfx'] },
   ],
   // A fall returns the player to their last rest (the rest system's death rule): hazards only hurt.
   composedParams: { hazards: { respawn: false } },

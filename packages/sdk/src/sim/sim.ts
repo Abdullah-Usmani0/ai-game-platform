@@ -1,4 +1,4 @@
-import type { BehaviourFsm, EcaRule, GameEventRecord, LevelJson, LevelProof, ParamValue, StateSnapshot, TileKind } from '@gg/schemas';
+import { DialogueFile, flagsHold, type BehaviourFsm, type DialogueNode, type EcaRule, type GameEventRecord, type LevelJson, type LevelProof, type ParamValue, type StateSnapshot, type TileKind } from '@gg/schemas';
 import { EventBus } from './events.js';
 import type { FeelPreset } from './feel.js';
 import { fireRule, stepFsm } from './fsm.js';
@@ -8,7 +8,7 @@ import { approach, moveBody, overlaps } from './physics.js';
 import { Rng } from './rng.js';
 import type { MenuSpec, SimCtx, SystemDef } from './system.js';
 import { Tilemap } from './tilemap.js';
-import { makeEntity, staysGone, type Entity, type EntityDef, type Menu, type World } from './world.js';
+import { makeEntity, staysGone, type DialogueState, type Entity, type EntityDef, type Menu, type World } from './world.js';
 
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
@@ -18,6 +18,8 @@ const STUN_FRICTION = 720;
 export const MENU_GRACE_TICKS = 18;
 /** Options a menu shows at most (four cards fit the smallest canvas). */
 export const MENU_MAX_OPTIONS = 4;
+/** Characters a line of dialogue types out a tick (120 a second). */
+export const DIALOGUE_CHARS_PER_TICK = 2;
 
 export interface SimOptions {
   level: LevelJson;
@@ -121,8 +123,12 @@ class SimImpl implements Sim {
   private pendingEvents: GameEventRecord[] = [];
   /** A save to load the level again from as the step ends (ctx.reloadFrom), or null. */
   private reloadTo: ProgressSave | null = null;
+  /** The game's dialogue (content/dialogue.json), or null when it has none. */
+  private dialogue: DialogueFile | null = null;
 
   constructor(public readonly options: SimOptions) {
+    const talk = DialogueFile.safeParse(options.content?.['dialogue']);
+    this.dialogue = talk.success ? talk.data : null;
     for (const b of options.behaviours ?? []) this.behaviours.set(b.id, b);
     for (const d of options.entityDefs) this.defs.set(d.type, d);
     this.reset(options.seed);
@@ -256,6 +262,7 @@ class SimImpl implements Sim {
       respawnPlayer: () => this.respawnPlayer(),
       move: (e, dx, dy) => moveBody(this.map, e, dx, dy),
       openMenu: (menu) => this.openMenu(menu),
+      openDialogue: (node) => this.openDialogue(node, true),
       reloadFrom: (save) => {
         this.reloadTo = save;
       },
@@ -298,6 +305,7 @@ class SimImpl implements Sim {
       respawnPlayer: deny('respawn the player'),
       move: deny('move bodies'),
       openMenu: deny('open menus'),
+      openDialogue: deny('open a dialogue'),
       reloadFrom: deny('reload the level'),
     };
   }
@@ -333,10 +341,73 @@ class SimImpl implements Sim {
     if ((pressed('action') || pressed('jump')) && opt && !opt.disabled) {
       this.world.menu = null;
       this.events.emit(this.tick, 'menu_choose', { menu: menu.id, option: opt.id, index: menu.selected });
+      // An answer in a talk: its flags, then the node it leads to.
+      if (menu.id.startsWith('dialogue:') && this.world.dialogue) this.chooseDialogue(menu.id.slice('dialogue:'.length), opt.id);
     } else if (menu.cancellable && pressed('dash')) {
       this.world.menu = null;
       this.events.emit(this.tick, 'menu_choose', { menu: menu.id, option: null, index: -1 });
     }
+  }
+
+  private dialogueNode(id: string): DialogueNode | undefined {
+    return this.dialogue?.nodes.find((n) => n.id === id);
+  }
+
+  /** A node of the game's dialogue read from its first line; `start` begins a talk (ui_open). False for no such node. */
+  private openDialogue(id: string, start: boolean): boolean {
+    const node = this.dialogueNode(id);
+    if (!node) return false;
+    const name = this.dialogue?.names[node.speaker] ?? '';
+    this.world.dialogue = { node: node.id, speaker: node.speaker, name, lines: [...node.lines], line: 0, shown: 0, openedTick: this.tick };
+    if (start) this.events.emit(this.tick, 'ui_open', { ui: 'dialogue', node: node.id, speaker: node.speaker });
+    this.events.emit(this.tick, 'custom:dialogue', { node: node.id, speaker: node.speaker });
+    return true;
+  }
+
+  /**
+   * The typewriter runs; action or jump shows the whole line, then goes on to the next line, and after the last one to
+   * the node's answers (a menu), else its next node, else the end of the talk. Presses are ignored for MENU_GRACE_TICKS
+   * after a node opens, so a mashed key never skips one unread.
+   */
+  private stepDialogue(d: DialogueState, input: InputState, prev: InputState): void {
+    const pressed = (k: keyof InputState) => input[k] && !prev[k];
+    const text = d.lines[d.line] ?? '';
+    if (d.shown < text.length) d.shown = Math.min(text.length, d.shown + DIALOGUE_CHARS_PER_TICK);
+    if (this.tick - d.openedTick < MENU_GRACE_TICKS || !(pressed('action') || pressed('jump'))) return;
+    if (d.shown < text.length) {
+      d.shown = text.length;
+      return;
+    }
+    if (d.line + 1 < d.lines.length) {
+      d.line++;
+      d.shown = 0;
+      return;
+    }
+    const node = this.dialogueNode(d.node);
+    const p = this.world.player;
+    for (const [flag, value] of Object.entries(node?.set ?? {})) p.props[`f:${flag}`] = value;
+    const answers = (node?.choices ?? []).flatMap((c, i) => (flagsHold(c.when, p.props) ? [{ id: String(i), label: c.label }] : []));
+    if (node && answers.length > 0) {
+      this.openMenu({ id: `dialogue:${node.id}`, title: d.name, options: answers });
+      return;
+    }
+    if (node?.next && this.openDialogue(node.next, false)) return;
+    this.endDialogue(d.node);
+  }
+
+  /** An answer picked from a node's menu: the flags it sets, then the node it leads to (or the end of the talk). */
+  private chooseDialogue(nodeId: string, option: string): void {
+    const choice = this.dialogueNode(nodeId)?.choices[Number(option)];
+    const p = this.world.player;
+    for (const [flag, value] of Object.entries(choice?.set ?? {})) p.props[`f:${flag}`] = value;
+    this.events.emit(this.tick, 'custom:dialogue_choice', { node: nodeId, choice: Number(option) });
+    if (choice && this.openDialogue(choice.to, false)) return;
+    this.endDialogue(nodeId);
+  }
+
+  private endDialogue(nodeId: string): void {
+    this.world.dialogue = null;
+    this.events.emit(this.tick, 'ui_close', { ui: 'dialogue', node: nodeId });
   }
 
   /** While the world is frozen (paused, or a menu is open) behaviour timers, cooldowns and hurt flashes hold still. */
@@ -406,6 +477,14 @@ class SimImpl implements Sim {
     // An open menu holds the world still, even on a won level: a boon picked as the floor ends still carries over.
     if (w.menu) {
       this.stepMenu(w.menu, input, prev);
+      this.dispatchEvents();
+      this.holdTimers();
+      this.endStep();
+      return;
+    }
+    // A talk holds it still too, while the player reads.
+    if (w.dialogue) {
+      this.stepDialogue(w.dialogue, input, prev);
       this.dispatchEvents();
       this.holdTimers();
       this.endStep();
@@ -514,6 +593,8 @@ class SimImpl implements Sim {
       flags: { ...w.flags },
       // Only while a menu is open, so the hash of every state without one is what it always was.
       ...(w.menu ? { menu: { id: w.menu.id, selected: w.menu.selected, options: w.menu.options.map((o) => o.id) } } : {}),
+      // Likewise a talk being read.
+      ...(w.dialogue ? { dialogue: { node: w.dialogue.node, line: w.dialogue.line, shown: w.dialogue.shown } } : {}),
     };
     return { ...body, hash: hashValue(body) };
   }

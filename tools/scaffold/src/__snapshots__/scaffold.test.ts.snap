@@ -899,6 +899,149 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
   }
 }
 ",
+  "content/dialogue.json": "{
+  "version": 1,
+  "names": {
+    "hermit": "The Hermit",
+    "candle-keeper": "The Candle-Keeper"
+  },
+  "nodes": [
+    {
+      "id": "hermit-hello",
+      "speaker": "hermit",
+      "lines": [
+        "Another one wakes in the dark.",
+        "The way on climbs a wall too tall for you. Turn back first: something waits behind you."
+      ],
+      "choices": [
+        {
+          "label": "Who are you?",
+          "to": "hermit-who"
+        },
+        {
+          "label": "What waits?",
+          "to": "hermit-wings"
+        }
+      ]
+    },
+    {
+      "id": "hermit-who",
+      "speaker": "hermit",
+      "lines": [
+        "Only a hermit. I came for the bell and stayed for the dark.",
+        "Rest at the altars. They keep your place when you fall."
+      ],
+      "choices": [],
+      "set": {
+        "met-hermit": true
+      }
+    },
+    {
+      "id": "hermit-wings",
+      "speaker": "hermit",
+      "lines": [
+        "Wings, of a sort. The dead took them down and forgot them.",
+        "With them, that tall step is nothing."
+      ],
+      "choices": [],
+      "set": {
+        "met-hermit": true
+      }
+    },
+    {
+      "id": "hermit-again",
+      "speaker": "hermit",
+      "lines": [
+        "Still here. The dark is patient, and so am I."
+      ],
+      "choices": []
+    },
+    {
+      "id": "keeper-hello",
+      "speaker": "candle-keeper",
+      "lines": [
+        "I keep the candles for those who pass.",
+        "Past the chasm the Headsman kneels over his cleaver. He waits for anyone who would leave."
+      ],
+      "choices": [
+        {
+          "label": "How is he beaten?",
+          "to": "keeper-how"
+        },
+        {
+          "label": "Pray for me.",
+          "to": "keeper-pray",
+          "set": {
+            "prayed": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "keeper-how",
+      "speaker": "candle-keeper",
+      "lines": [
+        "Watch the cleaver rise. Turn it aside as it falls, then strike while he reels.",
+        "When he roars he is half beaten, and angrier for it."
+      ],
+      "choices": [],
+      "set": {
+        "met-keeper": true
+      }
+    },
+    {
+      "id": "keeper-pray",
+      "speaker": "candle-keeper",
+      "lines": [
+        "Then go with the light.",
+        "A candle burns for you now."
+      ],
+      "choices": [],
+      "set": {
+        "met-keeper": true
+      }
+    },
+    {
+      "id": "keeper-again",
+      "speaker": "candle-keeper",
+      "lines": [
+        "Your candle still burns."
+      ],
+      "choices": []
+    }
+  ],
+  "starts": [
+    {
+      "speaker": "hermit",
+      "node": "hermit-again",
+      "when": [
+        {
+          "flag": "met-hermit",
+          "is": true
+        }
+      ]
+    },
+    {
+      "speaker": "hermit",
+      "node": "hermit-hello"
+    },
+    {
+      "speaker": "candle-keeper",
+      "node": "keeper-again",
+      "when": [
+        {
+          "flag": "met-keeper",
+          "is": true
+        }
+      ]
+    },
+    {
+      "speaker": "candle-keeper",
+      "node": "keeper-hello"
+    }
+  ]
+}
+",
   "content/levels/L01-l01.json": "{
   "version": 1,
   "id": "l01",
@@ -950,6 +1093,12 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
       "type": "soul",
       "x": 22,
       "y": 13,
+      "props": {}
+    },
+    {
+      "type": "hermit",
+      "x": 34,
+      "y": 14,
       "props": {}
     },
     {
@@ -1156,6 +1305,12 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
       "props": {}
     },
     {
+      "type": "hermit",
+      "x": 34,
+      "y": 14,
+      "props": {}
+    },
+    {
       "type": "soul",
       "x": 45,
       "y": 13,
@@ -1230,6 +1385,12 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
     {
       "type": "altar",
       "x": 195,
+      "y": 31,
+      "props": {}
+    },
+    {
+      "type": "candle-keeper",
+      "x": 204,
       "y": 31,
       "props": {}
     },
@@ -2279,6 +2440,12 @@ Append-only. One entry per deviation: what, why, date.
     "channels": [
       "sfx"
     ]
+  },
+  {
+    "event": "custom:talk",
+    "channels": [
+      "sfx"
+    ]
   }
 ]
 ",
@@ -2392,6 +2559,12 @@ Jumps and landings sound, the dash trails particles, hits shake and flash, relic
         "altar": "altar",
         "reach": 8,
         "reloadDelayTicks": 60
+      }
+    },
+    {
+      "id": "talk",
+      "params": {
+        "reach": 10
       }
     },
     {

@@ -70,6 +70,8 @@ export interface EntityDef {
   boss?: boolean;
   /** The shipped type whose art it is drawn with: a type a game renamed (a freeform game's wasp) keeps its archetype's look. */
   drawAs?: string;
+  /** Someone to talk to: no behaviour and no harm (sets flags.npc; a talk system opens their dialogue). */
+  npc?: boolean;
 }
 
 export interface WorldFlags {
@@ -90,6 +92,22 @@ export interface MenuOption {
   cost?: number;
   /** Shown greyed out; the selection skips it and it cannot be chosen. */
   disabled?: boolean;
+}
+
+/**
+ * The talk being read (opened by a system through ctx.openDialogue). While one is open the world holds still, as for a
+ * menu: action or jump shows the whole line, then goes on to the next; a node's answers open as a menu.
+ */
+export interface DialogueState {
+  /** The node being read, who says it (a cast id, or `narrator`) and their name as shown. */
+  node: string;
+  speaker: string;
+  name: string;
+  lines: string[];
+  /** The line being read, and how many of its characters show so far (the typewriter, counted in the sim). */
+  line: number;
+  shown: number;
+  openedTick: number;
 }
 
 /** An open menu. While one is open the world holds still: no system, entity or timer advances. */
@@ -115,6 +133,8 @@ export interface World {
   checkpoint: { x: number; y: number };
   /** The open menu, if any (opened by a system through ctx.openMenu). */
   menu: Menu | null;
+  /** The talk being read, if any (opened by a system through ctx.openDialogue). Absent until one first opens. */
+  dialogue?: DialogueState | null;
   /**
    * The entities the level placed that are gone for good, by levelIndex (picked up, opened, a boss beaten: see staysGone).
    * Kept after the sim drops them, and given back by a resume, so every save names them all.
@@ -177,7 +197,7 @@ export function makeEntity(id: number, def: EntityDef, x: number, y: number): En
     contactDamage: def.contactDamage ?? 0,
     pickup: def.pickup ?? false,
     anim: 'idle',
-    flags: def.boss ? { boss: true } : {},
+    flags: { ...(def.boss ? { boss: true } : {}), ...(def.npc ? { npc: true } : {}) },
     props: {},
     fsm: def.fsm ? { id: def.fsm, state: '', enteredTick: 0, cooldowns: {} } : null,
     invulnTicks: 0,
