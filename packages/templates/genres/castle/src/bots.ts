@@ -191,6 +191,41 @@ const SHOT_WATCH = 200;
 const DRINK_AT = 2;
 const CLEAR_REACH = 160;
 
+/**
+ * How a player sees and acts: a foe's wind-up, a shot loosed or a foe reeling registers only `reaction` ticks after it
+ * begins (none: at once), and the guard goes up as much as `jitter` ticks early or late, a different amount each blow.
+ */
+export interface Fighter {
+  reaction: number;
+  jitter: number;
+}
+/** The route bot's: it sees everything at once and parries on the tick. */
+export const EXACT: Fighter = { reaction: 0, jitter: 0 };
+/** A person's: a fifth of a second to react, and a parry up to four ticks early or late (now and then too late). */
+export const HUMAN: Fighter = { reaction: 12, jitter: 4 };
+
+/** Two numbers scattered into one: the fighter's own dice (a hash), apart from the game's. */
+const scatter = (a: number, b: number) => (Math.imul(a + 1, 0x9e3779b1) ^ Math.imul(b + 7, 0x85ebca6b)) >>> 0;
+
+/**
+ * Ticks early (or late, below zero) the fighter's guard goes up for the blow `e` winds up: drawn as the fighter first
+ * sees the blow (a clock lower than the last one seen begins a new blow), kept until it lands.
+ */
+function guardOffset(f: Fighter, e: Entity, t: number, tick: number, mem: Record<string, number>): number {
+  if (f.jitter <= 0) return 0;
+  const was = mem[`clk${e.id}`];
+  mem[`clk${e.id}`] = t;
+  if (was === undefined || t < was) mem[`jit${e.id}`] = (scatter(e.id, tick) % (2 * f.jitter + 1)) - f.jitter;
+  return mem[`jit${e.id}`] ?? 0;
+}
+
+/** Whether the fighter has seen a shot yet: `reaction` ticks after it first came into view. */
+function seenShot(f: Fighter, e: Entity, tick: number, mem: Record<string, number>): boolean {
+  if (f.reaction <= 0) return true;
+  const since = (mem[`shot${e.id}`] ??= tick);
+  return tick - since >= f.reaction;
+}
+
 /** The game's moves (its content/moves.json, else the castle's own): what the cast's wind-ups will do. */
 function movesOf(sim: Sim): readonly Move[] {
   const set = sim.options.content?.['moves'] as { moves?: Move[] } | undefined;
@@ -203,21 +238,26 @@ function makingOf(e: Entity, moves: readonly Move[]): Move | undefined {
   return typeof id === 'string' && id !== '' ? moves.find((m) => m.id === id) : undefined;
 }
 
-/** The ticks until the soonest parryable blow winding up that will reach the hero where it stands (null: none). */
-function parryable(sim: Sim, p: Entity, moves: readonly Move[]): number | null {
+/**
+ * The soonest parryable blow winding up that will reach the hero where it stands, as the fighter sees it (null: none):
+ * the ticks until it lands, how many ticks before it the fighter's guard goes up, and whether the fighter only now sees
+ * it (too late for that, the guard goes up at once).
+ */
+function parryable(sim: Sim, p: Entity, moves: readonly Move[], f: Fighter, tick: number, mem: Record<string, number>): { left: number; lead: number; fresh: boolean } | null {
   const cx = centerX(p);
-  let soonest: number | null = null;
+  let soonest: { left: number; lead: number; fresh: boolean } | null = null;
   for (const e of sim.world.entities) {
     if (!e.alive || e.isPlayer || e.dormant === true || (e.stunTicks ?? 0) > 0) continue;
     const m = makingOf(e, moves);
     if (!m?.parryable) continue;
     const t = Number(e.props[MOVE_TICK] ?? 0);
-    if (t >= m.startup) continue;
+    if (t >= m.startup || t < f.reaction) continue;
     const step = m.motion.reduce((a, x) => a + (Math.abs(x.vx) * (x.to - x.from + 1)) / 60, 0);
     const reach = Math.max(0, ...m.hitboxes.map((b) => b.x + b.w)) + step + p.w / 2 + 4;
     const ahead = (cx - centerX(e)) * (e.facing < 0 ? -1 : 1);
     if (ahead <= 0 || ahead > reach || Math.abs(centerY(e) - centerY(p)) > 48) continue;
-    if (soonest === null || m.startup - t < soonest) soonest = m.startup - t;
+    const lead = PARRY_LEAD + guardOffset(f, e, t, tick, mem);
+    if (soonest === null || m.startup - t < soonest.left) soonest = { left: m.startup - t, lead, fresh: t === f.reaction };
   }
   return soonest;
 }
@@ -238,8 +278,8 @@ function blowFrom(sim: Sim, p: Entity, moves: readonly Move[]): number {
   return best && centerX(best) < centerX(p) ? -1 : 1;
 }
 
-/** A foe winding up a shot within SHOT_WATCH, or a low shot already coming at the hero within `near` px. */
-function shotsComing(sim: Sim, p: Entity, moves: readonly Move[], near: number): { winding: boolean; low: boolean } {
+/** A foe winding up a shot within SHOT_WATCH, or a low shot already coming at the hero within `near` px, as the fighter sees them. */
+function shotsComing(sim: Sim, p: Entity, moves: readonly Move[], near: number, f: Fighter, tick: number, mem: Record<string, number>): { winding: boolean; low: boolean } {
   const cx = centerX(p);
   const feet = p.y + p.h;
   let winding = false;
@@ -248,11 +288,12 @@ function shotsComing(sim: Sim, p: Entity, moves: readonly Move[], near: number):
     if (!e.alive || e.isPlayer || e.dormant === true) continue;
     if (e.isProjectile) {
       const dx = centerX(e) - cx;
-      if (e.contactDamage > 0 && dx * e.vx < 0 && Math.abs(dx) < near && e.y + e.h > feet - 18 && e.y < feet) low = true;
+      if (e.contactDamage > 0 && dx * e.vx < 0 && Math.abs(dx) < near && e.y + e.h > feet - 18 && e.y < feet && seenShot(f, e, tick, mem)) low = true;
       continue;
     }
     const m = makingOf(e, moves);
-    if (m?.projectile && Number(e.props[MOVE_TICK] ?? 0) < m.projectile.at && Math.abs(centerX(e) - cx) < SHOT_WATCH && Math.abs(centerY(e) - centerY(p)) < 64) winding = true;
+    const t = Number(e.props[MOVE_TICK] ?? 0);
+    if (m?.projectile && t >= f.reaction && t < m.projectile.at && Math.abs(centerX(e) - cx) < SHOT_WATCH && Math.abs(centerY(e) - centerY(p)) < 64) winding = true;
   }
   return { winding, low };
 }
@@ -261,10 +302,17 @@ function shotsComing(sim: Sim, p: Entity, moves: readonly Move[], near: number):
  * Whether a cut on a foe tells: any foe but a boss, and a boss only reeling or past its own blow (recovering). A boss
  * shrugs off cuts with its poise as it waits or winds up, and its next blow comes through them.
  */
-function opening(e: Entity, moves: readonly Move[]): boolean {
-  if (e.flags['boss'] !== true || (e.stunTicks ?? 0) > 0) return true;
+function opening(e: Entity, moves: readonly Move[], f: Fighter, tick: number, mem: Record<string, number>): boolean {
+  if (e.flags['boss'] !== true) return true;
+  // Reeling: seen `reaction` ticks after it began.
+  if ((e.stunTicks ?? 0) > 0) {
+    if (f.reaction <= 0) return true;
+    if ((mem[`reel${e.id}`] ?? -1) < 0) mem[`reel${e.id}`] = tick;
+    return tick - (mem[`reel${e.id}`] ?? tick) >= f.reaction;
+  }
+  if (f.reaction > 0) mem[`reel${e.id}`] = -1;
   const m = makingOf(e, moves);
-  return m !== undefined && !m.iframes && Number(e.props[MOVE_TICK] ?? 0) >= m.startup + m.active;
+  return m !== undefined && !m.iframes && Number(e.props[MOVE_TICK] ?? 0) >= m.startup + m.active + f.reaction;
 }
 
 /** An awake boss (its behaviour past its first state) in reach of the hero's room: the arena is shut, so it is the way. */
@@ -289,13 +337,13 @@ function shieldAhead(sim: Sim, p: Entity, way: number): Entity | null {
 }
 
 /** A shot coming at the hero that a cut would strike from where it stands (null: none): cut out of the air. */
-function shotInReach(sim: Sim, p: Entity): Entity | null {
+function shotInReach(sim: Sim, p: Entity, f: Fighter, tick: number, mem: Record<string, number>): Entity | null {
   const cx = centerX(p);
   const feet = p.y + p.h;
   for (const e of sim.world.entities) {
     if (!e.alive || !e.isProjectile || e.contactDamage <= 0) continue;
     const dx = centerX(e) - cx;
-    if (Math.abs(dx) > CUT_REACH || dx * e.vx >= 0 || e.y + e.h < feet - CUT_HIGH || e.y > feet) continue;
+    if (Math.abs(dx) > CUT_REACH || dx * e.vx >= 0 || e.y + e.h < feet - CUT_HIGH || e.y > feet || !seenShot(f, e, tick, mem)) continue;
     return e;
   }
   return null;
@@ -313,246 +361,261 @@ function hostileAhead(sim: Sim, p: Entity, facing: number, k: number): boolean {
 }
 
 /**
- * The castle's route bot: heads for the nearest relic it can reach, else the goal, re-planning when an ability or a
- * relic changes. It runs at its target and jumps at walls, pits, enemies and shots, takes the air jump at the apex
- * while a wall is still ahead, the target is above or a wide pit is under it, and dashes after that apex over a wide
- * pit; it leaves the ground at the last moment before a pit. It rests at every altar it passes. A stall of 1.5 s turns
- * it back for a moment with a jump. Its state is its memory only (GlueTS).
+ * A castle bot that finds its way and fights: heads for the nearest relic it can reach, else the goal, re-planning when
+ * an ability or a relic changes. It runs at its target and jumps at walls, pits, enemies and shots, takes the air jump
+ * at the apex while a wall is still ahead, the target is above or a wide pit is under it, and dashes after that apex
+ * over a wide pit; it leaves the ground at the last moment before a pit. It rests at every altar it passes. A stall of
+ * 1.5 s turns it back for a moment with a jump. It fights as `f` sees and times things: the route bot at once and on
+ * the tick, the human-like fighter late and sometimes off. Its state is its memory only (GlueTS).
  */
-export const route: BotPolicy = (sim, tick, mem) => {
-  const p = sim.world.player;
-  const input: InputState = emptyInput();
-  if (!p.alive) {
-    mem[PHASE] = 0;
-    return input;
-  }
-  const ts = sim.map.tileSize;
-  const k = ts / 8;
-  const sig = signature(sim, mem);
-  if (p.grounded) {
-    // On the ground: where on the way the player stands; a new plan when an ability or a relic changed, or when they
-    // stand off the way (a jump that landed short, a knock back, the region loaded again at an altar).
-    const here = tileOf(sim, p);
-    let at = mem[PLAN_SIG] === sig ? placeOnPath(mem, here) : -1;
-    if (at < 0) {
-      plan(sim, mem);
-      mem[PLAN_SIG] = sig;
-      at = 0;
+export function fighterBot(f: Fighter): BotPolicy {
+  return (sim, tick, mem) => {
+    const p = sim.world.player;
+    const input: InputState = emptyInput();
+    if (!p.alive) {
+      mem[PHASE] = 0;
+      return input;
     }
-    mem[AT] = at;
-    const w = waypoint(mem, at);
-    mem[WX] = w.x;
-    mem[WY] = w.y;
-  }
-  const tx = mem[WX] ?? sim.options.level.goal.x;
-  const ty = mem[WY] ?? sim.options.level.goal.y;
-  const hasDouble = p.flags[ABILITY_DOUBLE_JUMP] === true;
-  const hasDash = p.flags[ABILITY_DASH] === true;
-  const cx = centerX(p);
-  const dxPx = tx * ts + ts / 2 - cx;
-
-  // A foe within a cut's reach, met on the ground: the hero stands and cuts it down (below), which is no stall.
-  const near = p.grounded ? foeInReach(sim, p) : null;
-  // A shield-bearer ahead on the hero's floor: fought as below (baited while its shield is raised toward the hero), which
-  // is no stall either.
-  const shield = p.grounded ? shieldAhead(sim, p, dxPx === 0 ? p.facing : Math.sign(dxPx)) : null;
-  const shut = shield !== null && shield.flags['guarding'] === true && (cx - centerX(shield)) * shield.facing > 0;
-  // Stall breaker: standing still on the ground for 90 ticks (longer than any wait for a foe) turns back for 24 ticks
-  // with a jump.
-  if (p.grounded && !near && !shield && Math.abs(p.x - (mem['lastX'] ?? -1)) < 0.5) mem['still'] = (mem['still'] ?? 0) + 1;
-  else mem['still'] = 0;
-  mem['lastX'] = p.x;
-  if ((mem['still'] ?? 0) > 90) {
-    mem['still'] = 0;
-    mem['escapeUntil'] = tick + 24;
-    mem['escapeDir'] = dxPx >= 0 ? -1 : 1;
-  }
-  const escaping = (mem['escapeUntil'] ?? 0) > tick;
-  let dir = Math.abs(dxPx) > 2 ? Math.sign(dxPx) : 0;
-  // An awake boss is the way: the hero goes at it (its doorways are shut until it falls).
-  const boss = bossAwake(sim, p);
-  if (boss && Math.abs(centerX(boss) - cx) > 4) dir = centerX(boss) < cx ? -1 : 1;
-  if (escaping) dir = mem['escapeDir'] ?? -1;
-  if (dir > 0) input.right = true;
-  else if (dir < 0) input.left = true;
-
-  // Rest at an altar within reach, once each: known by its place in the level, as a rest reloads the region and the
-  // altar comes back with a new id.
-  for (const e of sim.world.entities) {
-    const rested = restKey(e);
-    if (!e.alive || e.type !== ALTAR_TYPE || mem[rested] === 1) continue;
-    if (Math.abs(centerX(e) - cx) <= e.w / 2 + 4 && Math.abs(centerY(e) - centerY(p)) <= e.h / 2 + 4) {
-      mem[rested] = 1;
-      input.up = true;
+    const ts = sim.map.tileSize;
+    const k = ts / 8;
+    const sig = signature(sim, mem);
+    if (p.grounded) {
+      // On the ground: where on the way the player stands; a new plan when an ability or a relic changed, or when they
+      // stand off the way (a jump that landed short, a knock back, the region loaded again at an altar).
+      const here = tileOf(sim, p);
+      let at = mem[PLAN_SIG] === sig ? placeOnPath(mem, here) : -1;
+      if (at < 0) {
+        plan(sim, mem);
+        mem[PLAN_SIG] = sig;
+        at = 0;
+      }
+      mem[AT] = at;
+      const w = waypoint(mem, at);
+      mem[WX] = w.x;
+      mem[WY] = w.y;
     }
-  }
+    const tx = mem[WX] ?? sim.options.level.goal.x;
+    const ty = mem[WY] ?? sim.options.level.goal.y;
+    const hasDouble = p.flags[ABILITY_DOUBLE_JUMP] === true;
+    const hasDash = p.flags[ABILITY_DASH] === true;
+    const cx = centerX(p);
+    const dxPx = tx * ts + ts / 2 - cx;
 
-  // Cut it down: the chain, a fresh press every other tick, turned toward it, rather than running into it or leaping it;
-  // but never a raised shield.
-  const moves = movesOf(sim);
-  const foe = escaping || (shut && near === shield) || (near && !opening(near, moves)) ? null : near;
-  // A boss closed up (waiting, winding up): the hero stands at the edge of its reach, turned to it, ready to parry.
-  if (near && !foe && !escaping && near.flags['boss'] === true) {
-    const toward = centerX(near) < cx ? -1 : 1;
-    input.left = toward < 0 && p.facing > 0;
-    input.right = toward > 0 && p.facing < 0;
-  }
-  if (foe) {
-    // Turned toward it (and closing in), but never walking into its body.
-    const toward = centerX(foe) < cx ? -1 : 1;
-    const gap = toward > 0 ? foe.x - (p.x + p.w) : p.x - (foe.x + foe.w);
-    input.left = toward < 0 && (gap > 6 || p.facing > 0);
-    input.right = toward > 0 && (gap > 6 || p.facing < 0);
-    input.action = tick % 2 === 0;
-  }
-  // A shot coming at the hero within a cut's reach (a low one is jumped before it gets there): cut out of the air.
-  const shot = p.grounded && !foe && !escaping ? shotInReach(sim, p) : null;
-  if (shot) {
-    const toward = centerX(shot) < cx ? -1 : 1;
-    input.left = toward < 0;
-    input.right = toward > 0;
-    input.action = tick % 2 === 0;
-  }
-  // Bait a raised shield: in to just outside its thrust's trigger, then out of its reach as the thrust winds up; once the
-  // thrust swings the shield open (or the bearer turns or reels) it is cut down as above.
-  if (shut && shield && !escaping && !foe && !shot) {
-    const d = Math.abs(centerX(shield) - cx);
-    const toward = centerX(shield) < cx ? -1 : 1;
-    const winding = typeof shield.props[MOVE] === 'string' && shield.props[MOVE] !== '';
-    // Out of the thrust's reach as it winds up (within it, the hero stands and parries: below).
-    const step = winding ? (d < BAIT_SAFE ? -toward : 0) : d > BAIT_NEAR ? toward : 0;
-    input.left = step < 0;
-    input.right = step > 0;
-  }
-  // A parryable blow that will reach the hero: no new cut while it winds up, the hero stands, and the guard goes up
-  // PARRY_LEAD ticks before it lands.
-  const blow = p.grounded ? parryable(sim, p, moves) : null;
-  const busy = typeof p.props[MOVE] === 'string' && p.props[MOVE] !== '';
-  if (blow !== null) {
-    input.action = false;
-    input.left = false;
-    input.right = false;
-    if (blow === PARRY_LEAD) input.guard = true;
-    // Caught in a cut of its own as the blow comes: the dash cuts the cut short and slips the blow, through the foe.
-    if (busy && hasDash && blow <= 4 && p.props[LOCK_PROP] === 2) {
-      const toward = blowFrom(sim, p, moves);
+    // A foe within a cut's reach, met on the ground: the hero stands and cuts it down (below), which is no stall.
+    const near = p.grounded ? foeInReach(sim, p) : null;
+    // A shield-bearer ahead on the hero's floor: fought as below (baited while its shield is raised toward the hero), which
+    // is no stall either.
+    const shield = p.grounded ? shieldAhead(sim, p, dxPx === 0 ? p.facing : Math.sign(dxPx)) : null;
+    const shut = shield !== null && shield.flags['guarding'] === true && (cx - centerX(shield)) * shield.facing > 0;
+    // Stall breaker: standing still on the ground for 90 ticks (longer than any wait for a foe) turns back for 24 ticks
+    // with a jump.
+    if (p.grounded && !near && !shield && Math.abs(p.x - (mem['lastX'] ?? -1)) < 0.5) mem['still'] = (mem['still'] ?? 0) + 1;
+    else mem['still'] = 0;
+    mem['lastX'] = p.x;
+    if ((mem['still'] ?? 0) > 90) {
+      mem['still'] = 0;
+      mem['escapeUntil'] = tick + 24;
+      mem['escapeDir'] = dxPx >= 0 ? -1 : 1;
+    }
+    const escaping = (mem['escapeUntil'] ?? 0) > tick;
+    let dir = Math.abs(dxPx) > 2 ? Math.sign(dxPx) : 0;
+    // An awake boss is the way: the hero goes at it (its doorways are shut until it falls).
+    const boss = bossAwake(sim, p);
+    if (boss && Math.abs(centerX(boss) - cx) > 4) dir = centerX(boss) < cx ? -1 : 1;
+    if (escaping) dir = mem['escapeDir'] ?? -1;
+    if (dir > 0) input.right = true;
+    else if (dir < 0) input.left = true;
+
+    // Rest at an altar within reach, once each: known by its place in the level, as a rest reloads the region and the
+    // altar comes back with a new id.
+    for (const e of sim.world.entities) {
+      const rested = restKey(e);
+      if (!e.alive || e.type !== ALTAR_TYPE || mem[rested] === 1) continue;
+      if (Math.abs(centerX(e) - cx) <= e.w / 2 + 4 && Math.abs(centerY(e) - centerY(p)) <= e.h / 2 + 4) {
+        mem[rested] = 1;
+        input.up = true;
+      }
+    }
+
+    // Cut it down: the chain, a fresh press every other tick, turned toward it, rather than running into it or leaping it;
+    // but never a raised shield.
+    const moves = movesOf(sim);
+    const foe = escaping || (shut && near === shield) || (near && !opening(near, moves, f, tick, mem)) ? null : near;
+    // A boss closed up (waiting, winding up): the hero stands at the edge of its reach, turned to it, ready to parry.
+    if (near && !foe && !escaping && near.flags['boss'] === true) {
+      const toward = centerX(near) < cx ? -1 : 1;
+      input.left = toward < 0 && p.facing > 0;
+      input.right = toward > 0 && p.facing < 0;
+    }
+    if (foe) {
+      // Turned toward it (and closing in), but never walking into its body.
+      const toward = centerX(foe) < cx ? -1 : 1;
+      const gap = toward > 0 ? foe.x - (p.x + p.w) : p.x - (foe.x + foe.w);
+      input.left = toward < 0 && (gap > 6 || p.facing > 0);
+      input.right = toward > 0 && (gap > 6 || p.facing < 0);
+      input.action = tick % 2 === 0;
+    }
+    // A shot coming at the hero within a cut's reach (a low one is jumped before it gets there): cut out of the air.
+    const shot = p.grounded && !foe && !escaping ? shotInReach(sim, p, f, tick, mem) : null;
+    if (shot) {
+      const toward = centerX(shot) < cx ? -1 : 1;
       input.left = toward < 0;
       input.right = toward > 0;
+      input.action = tick % 2 === 0;
+    }
+    // Bait a raised shield: in to just outside its thrust's trigger, then out of its reach as the thrust winds up; once the
+    // thrust swings the shield open (or the bearer turns or reels) it is cut down as above.
+    if (shut && shield && !escaping && !foe && !shot) {
+      const d = Math.abs(centerX(shield) - cx);
+      const toward = centerX(shield) < cx ? -1 : 1;
+      const winding = typeof shield.props[MOVE] === 'string' && shield.props[MOVE] !== '';
+      // Out of the thrust's reach as it winds up (within it, the hero stands and parries: below).
+      const step = winding ? (d < BAIT_SAFE ? -toward : 0) : d > BAIT_NEAR ? toward : 0;
+      input.left = step < 0;
+      input.right = step > 0;
+    }
+    // A parryable blow that will reach the hero: no new cut while it winds up, the hero stands, and the guard goes up
+    // PARRY_LEAD ticks before it lands.
+    const blow = p.grounded ? parryable(sim, p, moves, f, tick, mem) : null;
+    const busy = typeof p.props[MOVE] === 'string' && p.props[MOVE] !== '';
+    if (blow !== null) {
+      input.action = false;
+      input.left = false;
+      input.right = false;
+      // The guard up `lead` ticks before the blow lands; at once if the blow is only now seen and that is already past.
+      if (blow.left === blow.lead || (blow.fresh && blow.left < blow.lead)) input.guard = true;
+      // Caught in a cut of its own as the blow comes: the dash cuts the cut short and slips the blow, through the foe.
+      if (busy && hasDash && blow.left <= 4 && p.props[LOCK_PROP] === 2) {
+        const toward = blowFrom(sim, p, moves);
+        input.left = toward < 0;
+        input.right = toward > 0;
+        input.dash = true;
+      }
+    }
+    // A shot winding up or a low one coming: no new cut, so the hero is free to jump it (below).
+    const shots = shotsComing(sim, p, moves, 64, f, tick, mem);
+    if (shots.winding || shots.low) input.action = false;
+    // A boss leaping at the hero: slip under it with the dash (or run under it), to come down behind it.
+    const leaping = boss && !boss.grounded && makingOf(boss, moves)?.endsOnLanding === true && Number(boss.props[MOVE_TICK] ?? 0) >= f.reaction && Math.abs(centerX(boss) - cx) < 140;
+    if (leaping && boss) {
+      const toward = centerX(boss) < cx ? -1 : 1;
+      input.left = toward < 0;
+      input.right = toward > 0;
+      input.dash = hasDash && p.grounded && tick % 2 === 0;
+    }
+    // Low on hearts with a flask in hand and nothing hostile near: stand and drink.
+    const clear = !sim.world.entities.some((e) => isHostile(e) && e.dormant !== true && Math.abs(centerX(e) - cx) < CLEAR_REACH && Math.abs(centerY(e) - centerY(p)) < CLEAR_REACH);
+    if (p.grounded && !foe && !shot && p.hp <= DRINK_AT && Number(p.props['flasks'] ?? 0) > 0 && clear) {
+      input.left = false;
+      input.right = false;
+      input.item = tick % 4 === 0;
+    }
+
+    const facing = dir !== 0 ? dir : p.facing;
+    const feet = p.y + p.h;
+    const front = facing > 0 ? p.x + p.w + 1 : p.x - 1;
+    const back = facing > 0 ? p.x + 2 : p.x + p.w - 2;
+    const solidAt = (px: number, py: number) => sim.map.kindAtPx(px, py) === 'solid';
+    const wallAhead = dir !== 0 && (solidAt(front, feet - 1) || solidAt(front, p.y + p.h / 2) || solidAt(front, p.y + 1));
+    const pitNext = dir !== 0 && pitColumn(sim, front + facing * 4 * k, feet);
+    // Over a pit, take off when the floor ends just past the back foot: the longest jump the feel allows.
+    const lastStep = pitColumn(sim, back + facing * 3, feet);
+    const targetAbove = ty * ts + ts <= feet - 4 * k && Math.abs(dxPx) < ts * 3;
+    const threat = dir !== 0 && hostileAhead(sim, p, facing, k);
+    // The next move on the way is a jump when it lands higher up, two tiles or more along the same row, or further down
+    // than a run off the edge drifts (DRIFT_TILES): taken where the ground ends under the front foot. A move down closer in
+    // is a drop off the edge (a jump would rise and come down on the ledge above).
+    const here = tileOf(sim, p);
+    const nx = mem[`px${(mem[AT] ?? 0) + 1}`];
+    const ny = mem[`py${(mem[AT] ?? 0) + 1}`];
+    const jumpMove = nx !== undefined && ny !== undefined && (ny < here.y || Math.abs(nx - here.x) > (ny > here.y ? DRIFT_TILES : 1));
+    // What the move needs: the plain jump's reach at its height with a tile to spare (a short run-up falls short of the
+    // envelope's best), else the wings', else the dash as well.
+    const reaches = (a: { doubleJump: boolean; dash: boolean }) => {
+      if (nx === undefined || ny === undefined) return true;
+      const env = envelopeFor(sim.options.feel, ts, a);
+      const dy = ny - here.y;
+      return (env.maxDx.get(dy) ?? (dy < 0 ? 0 : (env.maxDx.get(env.maxDropTiles) ?? 0))) >= Math.abs(nx - here.x) + 1;
+    };
+    const groundAt = (px: number) => {
+      const kind = sim.map.kindAtPx(px, feet + 1);
+      return kind === 'solid' || kind === 'oneway';
+    };
+    const edgeAhead = dir !== 0 && !groundAt(front + facing * 2);
+
+    // A foe coming over the way ahead as the hero is about to leap a pit: wait for it on solid ground (it comes into reach,
+    // or falls into the pit) rather than leap into it; for a while at most, as one that keeps its place would hold the
+    // way forever.
+    const wait = p.grounded && !foe && pitNext && foeComing(sim, p, facing);
+    if (!wait) mem['waitFrom'] = -1;
+    else if ((mem['waitFrom'] ?? -1) < 0) mem['waitFrom'] = tick;
+    const waiting = wait && tick - (mem['waitFrom'] ?? tick) < WAIT_TICKS;
+    if (waiting) {
+      input.left = false;
+      input.right = false;
+    }
+
+    if (p.grounded) {
+      mem[PHASE] = 0;
+      mem['groundTick'] = tick;
+      mem['airJumped'] = 0;
+      mem['dashed'] = 0;
+      mem['wide'] = 0;
+      mem['apexTick'] = -1;
+    }
+    // Off the ground with no jump made (walked off a ledge): a jump is still on within the coyote time, else falling.
+    const coyote = tick - (mem['groundTick'] ?? -99) <= 4;
+    if (!p.grounded && (mem[PHASE] ?? 0) === 0 && !coyote) mem[PHASE] = 4;
+    const phase = mem[PHASE] ?? 0;
+    const released = mem['jumpPrev'] !== 1;
+    if (phase === 0) {
+      // Over a pit, the last step (the longest jump); off any other edge the way jumps from, at the edge.
+      const wayJump = wallAhead || (pitNext && lastStep) || targetAbove || (jumpMove && edgeAhead && !pitNext);
+      if (released && !waiting && ((shots.low && !leaping) || (!foe && !shield && (escaping || wayJump || threat)))) {
+        input.jump = true;
+        mem[PHASE] = 1;
+        // The air jump and the dash are kept for the way's own jump, taken where it takes off (or at a pit): a hop over a
+        // shot or a foe on open floor short of it is a plain jump, which comes down on the floor still ahead.
+        const atTakeoff = wayJump || pitNext;
+        const needAir = atTakeoff && jumpMove && hasDouble && !reaches({ doubleJump: false, dash: false });
+        const needDash = atTakeoff && jumpMove && hasDash && !reaches({ doubleJump: hasDouble, dash: false });
+        mem['needAir'] = needAir ? 1 : 0;
+        mem['wide'] = needDash || (pitNext && pitWidth(sim, front + facing * 4 * k, feet, facing) >= WIDE_PIT) ? 1 : 0;
+      }
+    } else if (phase === 1 || phase === 3) {
+      // Hold through the rise and the float at the apex; at the first apex, the air jump if one is wanted.
+      const atApex = p.vy >= -12 * k;
+      if (atApex && (mem['apexTick'] ?? -1) < 0) mem['apexTick'] = tick;
+      const wantAir = phase === 1 && hasDouble && mem['airJumped'] !== 1 && (wallAhead || targetAbove || mem['wide'] === 1 || mem['needAir'] === 1);
+      if (atApex && wantAir) mem[PHASE] = 2;
+      else if (p.vy > sim.options.feel.halfGravThreshold) mem[PHASE] = 4;
+      else input.jump = true;
+    } else if (phase === 2) {
+      // Let go for one tick before it, so the air jump is a fresh press.
+      input.jump = true;
+      mem[PHASE] = 3;
+      mem['airJumped'] = 1;
+      mem['apexTick'] = -1;
+    }
+    // The dash over a wide pit: a beat after the last apex, where it carries furthest.
+    const apexTick = mem['apexTick'] ?? -1;
+    const lastApex = mem['airJumped'] === 1 || !hasDouble;
+    if (!p.grounded && hasDash && mem['dashed'] !== 1 && mem['wide'] === 1 && lastApex && apexTick >= 0 && tick - apexTick >= 6) {
+      mem['dashed'] = 1;
       input.dash = true;
     }
-  }
-  // A shot winding up or a low one coming: no new cut, so the hero is free to jump it (below).
-  const shots = shotsComing(sim, p, moves, 64);
-  if (shots.winding || shots.low) input.action = false;
-  // A boss leaping at the hero: slip under it with the dash (or run under it), to come down behind it.
-  const leaping = boss && !boss.grounded && makingOf(boss, moves)?.endsOnLanding === true && Math.abs(centerX(boss) - cx) < 140;
-  if (leaping && boss) {
-    const toward = centerX(boss) < cx ? -1 : 1;
-    input.left = toward < 0;
-    input.right = toward > 0;
-    input.dash = hasDash && p.grounded && tick % 2 === 0;
-  }
-  // Low on hearts with a flask in hand and nothing hostile near: stand and drink.
-  const clear = !sim.world.entities.some((e) => isHostile(e) && e.dormant !== true && Math.abs(centerX(e) - cx) < CLEAR_REACH && Math.abs(centerY(e) - centerY(p)) < CLEAR_REACH);
-  if (p.grounded && !foe && !shot && p.hp <= DRINK_AT && Number(p.props['flasks'] ?? 0) > 0 && clear) {
-    input.left = false;
-    input.right = false;
-    input.item = tick % 4 === 0;
-  }
-
-  const facing = dir !== 0 ? dir : p.facing;
-  const feet = p.y + p.h;
-  const front = facing > 0 ? p.x + p.w + 1 : p.x - 1;
-  const back = facing > 0 ? p.x + 2 : p.x + p.w - 2;
-  const solidAt = (px: number, py: number) => sim.map.kindAtPx(px, py) === 'solid';
-  const wallAhead = dir !== 0 && (solidAt(front, feet - 1) || solidAt(front, p.y + p.h / 2) || solidAt(front, p.y + 1));
-  const pitNext = dir !== 0 && pitColumn(sim, front + facing * 4 * k, feet);
-  // Over a pit, take off when the floor ends just past the back foot: the longest jump the feel allows.
-  const lastStep = pitColumn(sim, back + facing * 3, feet);
-  const targetAbove = ty * ts + ts <= feet - 4 * k && Math.abs(dxPx) < ts * 3;
-  const threat = dir !== 0 && hostileAhead(sim, p, facing, k);
-  // The next move on the way is a jump when it lands higher up, two tiles or more along the same row, or further down
-  // than a run off the edge drifts (DRIFT_TILES): taken where the ground ends under the front foot. A move down closer in
-  // is a drop off the edge (a jump would rise and come down on the ledge above).
-  const here = tileOf(sim, p);
-  const nx = mem[`px${(mem[AT] ?? 0) + 1}`];
-  const ny = mem[`py${(mem[AT] ?? 0) + 1}`];
-  const jumpMove = nx !== undefined && ny !== undefined && (ny < here.y || Math.abs(nx - here.x) > (ny > here.y ? DRIFT_TILES : 1));
-  // What the move needs: the plain jump's reach at its height with a tile to spare (a short run-up falls short of the
-  // envelope's best), else the wings', else the dash as well.
-  const reaches = (a: { doubleJump: boolean; dash: boolean }) => {
-    if (nx === undefined || ny === undefined) return true;
-    const env = envelopeFor(sim.options.feel, ts, a);
-    const dy = ny - here.y;
-    return (env.maxDx.get(dy) ?? (dy < 0 ? 0 : (env.maxDx.get(env.maxDropTiles) ?? 0))) >= Math.abs(nx - here.x) + 1;
+    mem['jumpPrev'] = input.jump ? 1 : 0;
+    return input;
   };
-  const groundAt = (px: number) => {
-    const kind = sim.map.kindAtPx(px, feet + 1);
-    return kind === 'solid' || kind === 'oneway';
-  };
-  const edgeAhead = dir !== 0 && !groundAt(front + facing * 2);
+}
 
-  // A foe coming over the way ahead as the hero is about to leap a pit: wait for it on solid ground (it comes into reach,
-  // or falls into the pit) rather than leap into it; for a while at most, as one that keeps its place would hold the
-  // way forever.
-  const wait = p.grounded && !foe && pitNext && foeComing(sim, p, facing);
-  if (!wait) mem['waitFrom'] = -1;
-  else if ((mem['waitFrom'] ?? -1) < 0) mem['waitFrom'] = tick;
-  const waiting = wait && tick - (mem['waitFrom'] ?? tick) < WAIT_TICKS;
-  if (waiting) {
-    input.left = false;
-    input.right = false;
-  }
-
-  if (p.grounded) {
-    mem[PHASE] = 0;
-    mem['groundTick'] = tick;
-    mem['airJumped'] = 0;
-    mem['dashed'] = 0;
-    mem['wide'] = 0;
-    mem['apexTick'] = -1;
-  }
-  // Off the ground with no jump made (walked off a ledge): a jump is still on within the coyote time, else falling.
-  const coyote = tick - (mem['groundTick'] ?? -99) <= 4;
-  if (!p.grounded && (mem[PHASE] ?? 0) === 0 && !coyote) mem[PHASE] = 4;
-  const phase = mem[PHASE] ?? 0;
-  const released = mem['jumpPrev'] !== 1;
-  if (phase === 0) {
-    // Over a pit, the last step (the longest jump); off any other edge the way jumps from, at the edge.
-    const wayJump = wallAhead || (pitNext && lastStep) || targetAbove || (jumpMove && edgeAhead && !pitNext);
-    if (released && !waiting && ((shots.low && !leaping) || (!foe && !shield && (escaping || wayJump || threat)))) {
-      input.jump = true;
-      mem[PHASE] = 1;
-      // The air jump and the dash are kept for the way's own jump, taken where it takes off (or at a pit): a hop over a
-      // shot or a foe on open floor short of it is a plain jump, which comes down on the floor still ahead.
-      const atTakeoff = wayJump || pitNext;
-      const needAir = atTakeoff && jumpMove && hasDouble && !reaches({ doubleJump: false, dash: false });
-      const needDash = atTakeoff && jumpMove && hasDash && !reaches({ doubleJump: hasDouble, dash: false });
-      mem['needAir'] = needAir ? 1 : 0;
-      mem['wide'] = needDash || (pitNext && pitWidth(sim, front + facing * 4 * k, feet, facing) >= WIDE_PIT) ? 1 : 0;
-    }
-  } else if (phase === 1 || phase === 3) {
-    // Hold through the rise and the float at the apex; at the first apex, the air jump if one is wanted.
-    const atApex = p.vy >= -12 * k;
-    if (atApex && (mem['apexTick'] ?? -1) < 0) mem['apexTick'] = tick;
-    const wantAir = phase === 1 && hasDouble && mem['airJumped'] !== 1 && (wallAhead || targetAbove || mem['wide'] === 1 || mem['needAir'] === 1);
-    if (atApex && wantAir) mem[PHASE] = 2;
-    else if (p.vy > sim.options.feel.halfGravThreshold) mem[PHASE] = 4;
-    else input.jump = true;
-  } else if (phase === 2) {
-    // Let go for one tick before it, so the air jump is a fresh press.
-    input.jump = true;
-    mem[PHASE] = 3;
-    mem['airJumped'] = 1;
-    mem['apexTick'] = -1;
-  }
-  // The dash over a wide pit: a beat after the last apex, where it carries furthest.
-  const apexTick = mem['apexTick'] ?? -1;
-  const lastApex = mem['airJumped'] === 1 || !hasDouble;
-  if (!p.grounded && hasDash && mem['dashed'] !== 1 && mem['wide'] === 1 && lastApex && apexTick >= 0 && tick - apexTick >= 6) {
-    mem['dashed'] = 1;
-    input.dash = true;
-  }
-  mem['jumpPrev'] = input.jump ? 1 : 0;
-  return input;
-};
+/**
+ * The castle's route bot: the solver. It sees every wind-up at once and parries on the tick (EXACT): the best a player
+ * could do, which proves a region can be finished.
+ */
+export const route: BotPolicy = fighterBot(EXACT);
+/**
+ * The same way through, played as a person would (HUMAN): late to see a wind-up, a parry that is sometimes off. A fight
+ * it cannot win asks too much of a player.
+ */
+export const human: BotPolicy = fighterBot(HUMAN);

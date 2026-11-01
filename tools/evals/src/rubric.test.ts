@@ -1,4 +1,4 @@
-import type { BehaviourFsm, LevelJson } from '@gg/schemas';
+import { MoveSet, type BehaviourFsm, type LevelJson } from '@gg/schemas';
 import { GENRES } from '@gg/templates/node';
 import { describe, expect, it } from 'vitest';
 import { CASTLE_RUBRIC, grade, measure, type RubricInputs } from './rubric.js';
@@ -53,14 +53,17 @@ describe('the castle rubric', () => {
   it('measures the castle tier by its own hero and halls: the knight rig, a region of rooms, three layers behind the play', () => {
     const castle = GENRES['castle']!;
     const region = castle.levelGrammar.generate({ seed: 1, difficulty: 0.5 });
-    const v = measure({ genre: 'castle', entityDefs: castle.entityDefs, player: castle.player, behaviours: castle.defaultBehaviours, levels: [region], assets: [] });
-    // The knight's eleven clips: idle, run, the chain's three, jump, fall, dash, hurt, the air cut and the plunge.
-    expect(v).toMatchObject({ hero_height: 42, hero_clips: 14, parallax_layers: 3, ability_gates: 2, shortcut_loops: 1 });
+    const moves = MoveSet.parse(castle.shippedContent!['moves']).moves;
+    const v = measure({ genre: 'castle', entityDefs: castle.entityDefs, player: castle.player, behaviours: castle.defaultBehaviours, levels: [region], assets: [], moves });
+    // The knight's clips: idle, run, the chain's three, jump, fall, dash, hurt, the air cut, the plunge, the parry, the
+    // riposte and the flask. The headsman roars at half health: two phases. The ghoul's claw is the quickest blow.
+    expect(v).toMatchObject({ hero_height: 42, hero_clips: 14, parallax_layers: 3, ability_gates: 2, shortcut_loops: 1, boss_phases: 2, telegraph_ms: 300, idle_loses: 1 });
     expect(v['rooms']).toBeGreaterThanOrEqual(12);
     expect(v['altar_spacing']).toBeLessThanOrEqual(4);
     const g = grade(CASTLE_RUBRIC, v);
-    for (const id of ['hero_height', 'hero_clips', 'rooms', 'ability_gates', 'shortcut_loops', 'altar_spacing', 'parallax_layers']) expect(g.results.find((r) => r.id === id)?.pass, id).toBe(true);
-  });
+    for (const id of ['hero_height', 'hero_clips', 'telegraph_ms', 'boss_phases', 'rooms', 'ability_gates', 'shortcut_loops', 'altar_spacing', 'parallax_layers', 'idle_loses']) expect(g.results.find((r) => r.id === id)?.pass, id).toBe(true);
+    // It stands through the whole region, as long as the game lets a level last: slow on a busy machine.
+  }, 60_000);
 
   it('holds a ceiling line to at most its target', () => {
     const g = grade([{ id: 'altar_spacing', area: 'world', text: '', target: 4, most: true }], { altar_spacing: 5 });

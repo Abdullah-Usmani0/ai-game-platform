@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { LevelJson, type BehaviourFsm, type Condition } from '@gg/schemas';
-import type { EntityDef } from '@gg/sdk';
+import { LevelJson, MoveSet, type BehaviourFsm, type Condition, type Move } from '@gg/schemas';
+import { createSim, type EntityDef } from '@gg/sdk';
+import { afkWins, levelTicksOf, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { frameSize, playerRecipe, RECIPES, RIGS, SETTING_BY_GENRE, type Setting } from '@gg/sdk/art';
 import { GENRES, readGameInputs, resolveGame } from '@gg/templates/node';
 
@@ -45,6 +46,8 @@ export interface RubricInputs {
   assets: ReadonlyArray<{ kind: string }>;
   /** How many endings the story writes (absent: the one fixed ending screen). */
   endings?: number;
+  /** The game's moves (content/moves.json, else the genre's own): a foe's blow winds up over its move's startup. */
+  moves?: readonly Move[];
 }
 
 /** Parallax layers the view draws behind the play in each setting (phaser-view's scenery). */
@@ -59,8 +62,13 @@ export function measure(g: RubricInputs): Record<string, number | null> {
   const recipe = RECIPES[playerRecipe(setting, g.player.w)];
   // The castle tier draws its hero with the knight's rig: its body and its clips are the hero's.
   const rig = setting === 'castle' ? RIGS['knight'] : undefined;
-  // The shortest wait in a state that leads into an instant hit: what the player has to see it coming.
+  // The shortest wait in a state that leads into an instant hit, or the shortest wind-up of a foe's harmful move: what the
+  // player has to see it coming.
   let telegraph: number | null = null;
+  for (const m of g.moves ?? []) {
+    if (m.owner === 'player' || m.damage <= 0 || (m.hitboxes.length === 0 && !m.projectile)) continue;
+    telegraph = Math.min(telegraph ?? Infinity, Math.round((m.startup * 1000) / 60));
+  }
   for (const fsm of g.behaviours) {
     for (const [n, s] of Object.entries(fsm.states)) {
       if (![...s.onEnter, ...s.update].some((a) => a.kind === 'damage_player')) continue;
@@ -81,6 +89,10 @@ export function measure(g: RubricInputs): Record<string, number | null> {
     const vs = metrics.map((m) => m[key]).filter((v): v is number => typeof v === 'number');
     return vs.length ? Math.max(...vs) : null;
   };
+  // Standing still through each region for as long as the game lets a level last, with its foes, its boss and its rules:
+  // it must win none.
+  const options = manifest ? simOptionsFor(manifest, systemsJsonFor(manifest), { behaviours: [...g.behaviours], ...(g.moves ? { content: { moves: { version: 1, moves: [...g.moves] } } } : {}) }) : null;
+  const idleLoses = options && regions.length ? (regions.every((l) => !afkWins(() => createSim({ ...options, level: l, seed: 1 }), levelTicksOf(options))) ? 1 : 0) : null;
   return {
     hero_height: rig ? rig.body.h : recipe ? frameSize(recipe).h - 2 : null,
     hero_clips: rig ? rig.clips.length : recipe ? Object.keys(recipe.anims).length : null,
@@ -94,7 +106,7 @@ export function measure(g: RubricInputs): Record<string, number | null> {
     npcs: g.entityDefs.filter((d) => (d as { npc?: boolean }).npc).length,
     endings: g.endings ?? 1,
     music_cues: g.assets.filter((a) => a.kind === 'music').length,
-    idle_loses: null,
+    idle_loses: idleLoses,
   };
 }
 
@@ -119,12 +131,13 @@ export function grade(lines: readonly RubricLine[], values: Record<string, numbe
 /** The rubric's inputs read from a built game's directory. */
 export function rubricInputsOf(gameDir: string): RubricInputs {
   const g = resolveGame(gameDir);
-  const { behaviours } = readGameInputs(gameDir);
+  const { behaviours, content } = readGameInputs(gameDir);
   const dir = join(gameDir, 'content', 'levels');
   const levels = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).sort().map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as LevelJson) : [];
   const manifest = join(gameDir, 'assets', 'manifest.json');
   const assets = existsSync(manifest) ? ((JSON.parse(readFileSync(manifest, 'utf8')) as { assets?: Array<{ kind: string }> }).assets ?? []) : [];
-  // The game's own behaviours over the template's, as the sim takes them.
+  // The game's own behaviours over the template's, as the sim takes them; its moves, else the ones its genre ships.
   const all = [...g.defaultBehaviours.filter((b) => !behaviours.some((f) => f.id === b.id)), ...behaviours];
-  return { genre: g.id, entityDefs: g.entityDefs, player: g.player, behaviours: all, levels, assets };
+  const moves = MoveSet.safeParse(content['moves'] ?? g.shippedContent?.['moves']);
+  return { genre: g.id, entityDefs: g.entityDefs, player: g.player, behaviours: all, levels, assets, ...(moves.success ? { moves: moves.data.moves } : {}) };
 }

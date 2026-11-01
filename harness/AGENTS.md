@@ -37,6 +37,10 @@ from `stage.json`. Do not guess them; read the injected summary.
 
 Edit jobs run one route (parameter, style, behaviour, content, code) and then the regression skill before the gate.
 
+The `solver` check runs the game's own test: every level finished by the genre's solver bot, and in a genre with a fair
+bot by that one too (the castle's human-like fighter: it sees a wind-up 12 ticks late and parries up to 4 ticks off), so
+a fight only a frame-perfect bot can win fails the gate, however readable its wind-ups look.
+
 ## Freeform games
 
 A game whose `gdd.md` and `systems.json` say `genre: freeform` builds on one curated base genre (`base` in the GDD,

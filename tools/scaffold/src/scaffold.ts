@@ -128,8 +128,10 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   write(files, out, 'src/game.ts', freeform ? F.FREEFORM_GAME_TS(freeform.composition.base) : F.GAME_TS(g.id, runtimeImport, runtimeName));
   write(files, out, 'src/systems/index.ts', F.SYSTEMS_INDEX);
   if (freeform) write(files, out, 'src/bots/index.ts', F.BOTS_INDEX);
-  write(files, out, 'tests/unit/bots.ts', freeform ? F.FREEFORM_BOTS_TS : F.BOTS_TS(`${runtimeImport}/node`, manifestName));
-  write(files, out, 'tests/unit/game.test.ts', F.GAME_TEST(g.id));
+  // A genre with a fair bot (a person's timing) holds every level to it as well as to its solver.
+  const fairBot = !freeform && g.fairBot !== undefined;
+  write(files, out, 'tests/unit/bots.ts', freeform ? F.FREEFORM_BOTS_TS : F.BOTS_TS(`${runtimeImport}/node`, manifestName, fairBot));
+  write(files, out, 'tests/unit/game.test.ts', F.GAME_TEST(g.id, fairBot));
   if (freeform) write(files, out, 'tests/unit/prove.test.ts', F.FREEFORM_PROVE_TEST);
   write(files, out, 'design/gdd.md', opts.gddMarkdown.endsWith('\n') ? opts.gddMarkdown : `${opts.gddMarkdown}\n`);
   write(files, out, 'design/systems.json', JSON.stringify(opts.systems, null, 2) + '\n');
@@ -158,6 +160,9 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   // does not win either is sound but unproven: the slot ships the first such level when no seed gets a winning run.
   const solver = freeform ? BASE_MANIFESTS[freeform.composition.base].bots[BASE_MANIFESTS[freeform.composition.base].solverBot] : g.bots[g.solverBot];
   if (!solver) throw new Error(`genre ${g.id} names unknown solver bot '${g.solverBot}'`);
+  // The genre's fair bot, playing as a person would, has to win a curated level too (the game's test holds it to that).
+  const fair = !freeform && g.fairBot ? g.bots[g.fairBot] : undefined;
+  if (!freeform && g.fairBot && !fair) throw new Error(`genre ${g.id} names unknown fair bot '${g.fairBot}'`);
   const proofs: LevelProof[] = [];
   const judge = (level: LevelJson, content: Record<string, unknown>, index: number, playSeed: number): { won: boolean; sound: boolean; proof?: LevelProof } => {
     if (!g.levelGrammar.validate(level, feel).ok) return { won: false, sound: false };
@@ -171,7 +176,7 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
       return idleWins(level, index, inputs, r.proof.ticks) ? { won: false, sound: false } : { won: true, sound: true, proof: r.proof };
     }
     const so = simOptionsFor(g, systems, { behaviours: g.defaultBehaviours, content: all, feedback });
-    const won = runBot(createSim({ ...so, level, seed: playSeed }), solver, levelTicksOf(so)).completed;
+    const won = runBot(createSim({ ...so, level, seed: playSeed }), solver, levelTicksOf(so)).completed && (!fair || runBot(createSim({ ...so, level, seed: playSeed }), fair, levelTicksOf(so)).completed);
     return { won, sound: won };
   };
   const arena = g.levelGrammar.kind === 'arena';
@@ -202,7 +207,7 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
           ({ level, content } = waiting);
           break;
         }
-        throw new Error(`no seed from ${s - tries + 1} to ${s} gives ${slot.id} a level that passes the validator and ${freeform ? 'gets a winning run' : `the ${g.solverBot} bot`} at difficulty ${slot.difficulty}`);
+        throw new Error(`no seed from ${s - tries + 1} to ${s} gives ${slot.id} a level that passes the validator and ${freeform ? 'gets a winning run' : `the ${g.fairBot ? `${g.solverBot} and ${g.fairBot} bots` : `${g.solverBot} bot`}`} at difficulty ${slot.difficulty}`);
       }
       params = paramsAt(++s);
       level = named(g.levelGrammar.generate(params));

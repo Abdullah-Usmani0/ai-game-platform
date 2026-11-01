@@ -2561,6 +2561,7 @@ export const BESPOKE: SystemDef<any>[] = [];
   "tests/unit/bots.ts": "import { castle } from '@gg/template-castle/node';
 export const BOTS = castle.bots;
 export const SOLVER_BOT = castle.solverBot;
+export const FAIR_BOT = castle.fairBot!;
 ",
   "tests/unit/game.test.ts": "import { MechanicsFile } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
@@ -2569,7 +2570,7 @@ import { describe, expect, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
 import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
-import { BOTS, SOLVER_BOT } from './bots.js';
+import { BOTS, FAIR_BOT, SOLVER_BOT } from './bots.js';
 
 const MECHANICS = MechanicsFile.parse(mechanicsJson).mechanics;
 
@@ -2581,6 +2582,12 @@ describe('castle game', () => {
       if (solver.has && !solver.has(level.id)) continue;
       const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), solver, levelTicksOf(SIM_OPTIONS));
       expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+  it('every level is completable by the fair bot too: a player who sees a wind-up late and parries a little off', () => {
+    for (const [i, level] of LEVELS.entries()) {
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), BOTS[FAIR_BOT]!, levelTicksOf(SIM_OPTIONS));
+      expect(result.completed, \`level \${level.id} is beyond a player's timing (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
     }
   });
   it('is deterministic', () => {

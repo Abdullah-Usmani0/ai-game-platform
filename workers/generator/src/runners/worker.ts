@@ -387,7 +387,10 @@ const levels: StageFn = async (ctx) => {
     }
     const so = simOptionsFor(g, sys, { behaviours, rules, content, feedback });
     const r = runBot(createSim({ ...so, level, seed: playSeed }), solver, levelTicksOf(so));
-    return { ok: r.completed, ticks: r.ticks };
+    // A level only the solver finishes asks too much of a player: the genre's fair bot has to finish it as well.
+    const fair = g.fairBot ? g.bots[g.fairBot] : undefined;
+    const ok = r.completed && (!fair || runBot(createSim({ ...so, level, seed: playSeed }), fair, levelTicksOf(so)).completed);
+    return { ok, ticks: r.ticks };
   };
   const proofsDir = join(ctx.gameDir, 'content', 'proofs');
   const hintsDir = join(ctx.gameDir, 'content', 'hints');
@@ -689,7 +692,7 @@ const applyContent: StageFn = async (ctx) => {
   const g = genreOfGame(ctx);
   const sys = readSystems(ctx.gameDir);
   if (!sys) return fail('design/systems.json missing', 'spec_violation');
-  const kit = { runtime: g, validate: g.levelGrammar.validate, bots: g.bots, solverBot: g.solverBot };
+  const kit = { runtime: g, validate: g.levelGrammar.validate, bots: g.bots, solverBot: g.solverBot, ...(g.fairBot ? { fairBot: g.fairBot } : {}) };
   const inputs = readGameInputs(ctx.gameDir);
   const levelsDir = join(ctx.gameDir, 'content', 'levels');
   const files = listJson(levelsDir);

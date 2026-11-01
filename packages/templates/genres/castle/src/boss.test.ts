@@ -1,4 +1,4 @@
-import { SystemsJson, type BehaviourFsm, type LevelJson } from '@gg/schemas';
+import { MoveSet, SystemsJson, type BehaviourFsm, type LevelJson } from '@gg/schemas';
 import {
   centerX,
   createSim,
@@ -59,7 +59,7 @@ function bossLevel(altars: number[] = []): LevelJson {
 
 /** The castle with its own behaviours (or the boss's given one), the hero standing at column `at`. */
 function fight(
-  opts: { at?: number; altars?: number[]; feel?: string; behaviours?: BehaviourFsm[] } = {},
+  opts: { at?: number; altars?: number[]; feel?: string; behaviours?: BehaviourFsm[]; moves?: MoveSet } = {},
 ): Sim {
   const options = simOptionsFor(
     castle,
@@ -69,6 +69,7 @@ function fight(
         ...castle.defaultBehaviours.filter((b) => !opts.behaviours?.some((o) => o.id === b.id)),
         ...(opts.behaviours ?? []),
       ],
+      ...(opts.moves ? { content: { moves: opts.moves } } : {}),
     },
   );
   const level = bossLevel(opts.altars);
@@ -273,12 +274,41 @@ describe('the headsman', () => {
     expect(log.filter((e) => e === 'enrage')).toHaveLength(1);
   });
 
-  it('is beaten by the route bot under both feels: parried, riposted and cut in its openings', () => {
+  it('is beaten under both feels by the route bot and by the human-like fighter: parried, riposted and cut in its openings', () => {
     for (const feelId of Object.keys(castle.feelPresets)) {
-      const sim = fight({ feel: feelId });
-      const r = runBot(sim, castle.bots['route']!, 60 * 120);
-      expect([feelId, r.completed, r.deaths, boss(sim)]).toEqual([feelId, true, 0, undefined]);
+      for (const bot of ['route', 'human']) {
+        const sim = fight({ feel: feelId });
+        const r = runBot(sim, castle.bots[bot]!, 60 * 120);
+        expect([feelId, bot, r.completed, r.deaths, boss(sim)]).toEqual([feelId, bot, true, 0, undefined]);
+      }
     }
+  });
+
+  it('is beyond a person when its blows come quicker than they can see: a 12-tick chop the route bot still parries', () => {
+    // The chop and the combo wound up in 12 ticks, a fifth of a second: as long as the human-like fighter takes to see one.
+    const quick = MoveSet.parse({ ...DEFAULT_MOVES, moves: DEFAULT_MOVES.moves.map((m) => (m.id === 'chop' || m.id === 'combo' ? { ...m, startup: 12 } : m)) });
+    const parries = (sim: Sim) => {
+      let n = 0;
+      sim.events.on('custom:parry', () => n++);
+      return () => n;
+    };
+    const exact = fight({ moves: quick });
+    const exactParries = parries(exact);
+    expect(runBot(exact, castle.bots['route']!, 60 * 120).completed).toBe(true);
+    expect(exactParries()).toBeGreaterThan(0);
+    const person = fight({ moves: quick });
+    const personParries = parries(person);
+    const r = runBot(person, castle.bots['human']!, 60 * 60);
+    expect([r.completed, personParries(), r.deaths > 0]).toEqual([false, 0, true]);
+  });
+
+  it('outlasts a player who stands still, and one who mashes the keys', () => {
+    const idle = fight({ at: 40 });
+    for (let i = 0; i < 60 * 40; i++) step(idle, {});
+    expect([idle.world.deaths > 0, boss(idle)?.hp]).toEqual([true, 36]);
+    const masher = fight();
+    const r = runBot(masher, castle.bots['chaos']!, 60 * 60);
+    expect([r.completed, boss(masher)?.alive]).toEqual([false, true]);
   });
 });
 

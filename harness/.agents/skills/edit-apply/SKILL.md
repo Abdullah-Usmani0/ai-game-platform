@@ -12,6 +12,8 @@ If impact says `levels`, re-validate every level and re-run the solver bot befor
 
 Levels the user edits arrive on the edit request as `content.levels`. The worker's `apply-content` stage replaces the file with
 the same level id only after the schema, the genre validator under the game's feel preset and the solver bot (with this
-game's systems, behaviours and content) accept it; an unknown id or any rejection fails the stage and nothing is written.
+game's systems, behaviours and content) accept it, and the genre's fair bot where it has one (the castle's human-like
+fighter, which sees a wind-up late and parries a little off); an unknown id or any rejection fails the stage and nothing
+is written.
 The level's ramp is kept from the previous file when the edit omits it. The gate then re-runs `validate:levels`,
 `validate:ramp` and the game's own solver test, and the job continues with playtest, budget and publish.

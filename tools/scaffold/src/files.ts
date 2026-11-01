@@ -155,14 +155,23 @@ void createGame({
 });
 `;
 
-export const GAME_TEST = (genre: string) => `import { MechanicsFile } from '@gg/schemas';
+/** The game test's check that a person could finish every level: for a genre with a fair bot. */
+const FAIR_TEST = `  it('every level is completable by the fair bot too: a player who sees a wind-up late and parries a little off', () => {
+    for (const [i, level] of LEVELS.entries()) {
+      const result = runBot(createSim({ ...SIM_OPTIONS, level, seed: levelSeed(DEFAULT_SEED, i) }), BOTS[FAIR_BOT]!, levelTicksOf(SIM_OPTIONS));
+      expect(result.completed, \`level \${level.id} is beyond a player's timing (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
+    }
+  });
+`;
+
+export const GAME_TEST = (genre: string, fair = false) => `import { MechanicsFile } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import { conformance, levelTicksOf, runBot, type BotPolicy } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
 import mechanicsJson from '../../design/mechanics.json';
 import { LEVELS, SIM_OPTIONS } from '../../src/game.js';
 import { BESPOKE } from '../../src/systems/index.js';
-import { BOTS, SOLVER_BOT } from './bots.js';
+import { BOTS, ${fair ? 'FAIR_BOT, ' : ''}SOLVER_BOT } from './bots.js';
 
 const MECHANICS = MechanicsFile.parse(mechanicsJson).mechanics;
 
@@ -176,7 +185,7 @@ describe('${genre} game', () => {
       expect(result.completed, \`level \${level.id} not completed (ticks=\${result.ticks} deaths=\${result.deaths})\`).toBe(true);
     }
   });
-  it('is deterministic', () => {
+${fair ? FAIR_TEST : ''}  it('is deterministic', () => {
     const level = LEVELS[0]!;
     const a = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
     const b = runBot(createSim({ ...SIM_OPTIONS, level, seed: 3 }), BOTS['chaos']!, 600);
@@ -287,10 +296,10 @@ describe.runIf(process.env['GG_PROVE'] === '1')('winning runs', () => {
 export const MECHANICS_JSON = `{ "version": 1, "mechanics": [] }
 `;
 
-export const BOTS_TS = (nodeImport: string, manifestName: string) => `import { ${manifestName} } from '${nodeImport}';
+export const BOTS_TS = (nodeImport: string, manifestName: string, fair = false) => `import { ${manifestName} } from '${nodeImport}';
 export const BOTS = ${manifestName}.bots;
 export const SOLVER_BOT = ${manifestName}.solverBot;
-`;
+${fair ? `export const FAIR_BOT = ${manifestName}.fairBot!;\n` : ''}`;
 
 export const DEVIATIONS_MD = `# Deviations from the GDD
 

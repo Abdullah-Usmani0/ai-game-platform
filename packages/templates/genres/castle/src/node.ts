@@ -16,6 +16,7 @@ export const castle: GenreManifest = {
   levelGrammar: { kind: 'graph', generate: generateRegion, validate: castleCheck.validate },
   bots: castleCheck.bots,
   solverBot: castleCheck.solverBot,
+  fairBot: castleCheck.fairBot,
   gddFragment: read('./gdd/fragment.md'),
   interviewFragment: read('./gdd/interview.md'),
   // The tier's view; a moonlit gothic palette until the art direction draws one from the idea; the rig's quicker frames.

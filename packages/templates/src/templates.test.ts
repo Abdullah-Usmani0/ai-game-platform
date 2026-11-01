@@ -2,11 +2,11 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ARTIFACT_SCHEMAS, CURATED_GENRES, MoveSet, PLAYABLE_GENRES } from '@gg/schemas';
-import { createSim } from '@gg/sdk';
+import { createSim, emptyInput } from '@gg/sdk';
 import { SETTING_BY_GENRE, TYPE_RECIPES } from '@gg/sdk/art';
 import { checkSystems, movesOfBehaviour, validateBehaviour } from '@gg/validators';
 import { describe, expect, it } from 'vitest';
-import { levelTicksOf, runBot } from '@gg/template-core';
+import { levelTicksOf, runBot, systemsJsonFor } from '@gg/template-core';
 import { CHECKS, checkKit, checkLevel } from './check.js';
 import { CATALOG, GENRES } from './node.js';
 
@@ -91,6 +91,7 @@ describe('check kits (the level editor runs the gate in the page)', () => {
       expect(kit.validate).toBe(g.levelGrammar.validate);
       expect(kit.bots).toBe(g.bots);
       expect(kit.solverBot).toBe(g.solverBot);
+      expect(kit.fairBot).toBe(g.fairBot);
       expect(kit.runtime.id).toBe(g.id);
       const systems = ARTIFACT_SCHEMAS.SystemsJson.parse({ version: 1, genre: g.id, feelPreset: g.defaultFeel, systems: Object.keys(g.systems).map((s) => ({ id: s, params: s === 'survival' ? { winAtS: 30 } : {} })) });
       let ok = false;
@@ -101,6 +102,17 @@ describe('check kits (the level editor runs the gate in the page)', () => {
       expect(ok).toBe(true);
     });
   }
+  it("holds a level to the genre's fair bot as well: the castle's must finish it as a person would", () => {
+    const g = GENRES['castle']!;
+    const kit = checkKit('castle');
+    const level = g.levelGrammar.generate({ seed: 1, difficulty: 0.3 });
+    const r = checkLevel(kit, level, systemsJsonFor(g));
+    expect([kit.fairBot, r.ok, r.fair?.completed]).toEqual(['human', true, true]);
+    // A fair bot that stands still finishes nothing: the level fails, though the solver finishes it.
+    const idle = checkLevel({ ...kit, bots: { ...kit.bots, human: () => emptyInput() } }, level, systemsJsonFor(g));
+    expect([idle.solver?.completed, idle.fair?.completed, idle.ok]).toEqual([true, false, false]);
+  });
+
   it('reports the validator rejection without running the solver', () => {
     const g = GENRES['platformer']!;
     const level = g.levelGrammar.generate({ seed: 1, difficulty: 0.2 });

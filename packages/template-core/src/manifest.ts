@@ -147,6 +147,11 @@ export interface GenreCheck {
   bots: Record<string, BotPolicy>;
   /** Bot that must complete a valid level (the solvability oracle). */
   solverBot: string;
+  /**
+   * Bot that must complete it too, playing as a person would (late to see a wind-up, its timing a little off): a level
+   * only the solver can finish asks too much of a player. Absent: the solver alone.
+   */
+  fairBot?: string;
 }
 
 /**
@@ -196,6 +201,8 @@ export interface GenreManifest extends GenreRuntime {
   bots: Record<string, BotPolicy>;
   /** Bot that must complete a valid level (the solvability oracle at playtest time). */
   solverBot: string;
+  /** Bot that must complete it too, as a person would play it (GenreCheck.fairBot). */
+  fairBot?: string;
   gddFragment: string;
   interviewFragment: string;
   /**

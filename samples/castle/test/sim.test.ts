@@ -27,6 +27,11 @@ describe('castle sample', () => {
     expect(walker.completed).toBe(false);
   });
 
+  it('is finished as well by a player who sees a wind-up late and parries a little off', () => {
+    const r = runBot(createSim({ ...SIM_OPTIONS, level: LEVELS[0]!, seed: 1 }), castle.bots['human']!, levelTicksOf(SIM_OPTIONS));
+    expect([r.completed, r.deaths]).toEqual([true, 0]);
+  });
+
   it('its recorded run wins again, rests and all, and the game is deterministic', () => {
     const proof = LevelProof.parse(proofJson);
     const sim = createSim({ ...SIM_OPTIONS, level: LEVELS[0]!, seed: proof.seed });

@@ -495,3 +495,17 @@ describe('defence and healing', () => {
     expect([hero(sim).hp, dodges.length > 0]).toEqual([5, true]);
   });
 });
+
+describe('played as a person would', () => {
+  it('gets past every foe of the cast, late to see a wind-up and its parry sometimes off, under both feels', () => {
+    for (const feelId of Object.keys(castle.feelPresets)) {
+      const options = simOptionsFor(castle, SystemsJson.parse({ ...systemsJsonFor(castle), feelPreset: feelId }), { behaviours: castle.defaultBehaviours });
+      for (const type of ['ghoul', 'hound', 'gargoyle', 'sentinel', 'wraith', 'bone-archer']) {
+        // The wraith hovers a tile over the floor.
+        const sim = createSim({ ...options, level: room([{ type, x: 16, y: type === 'wraith' ? 13 : 14, props: {} }]), seed: 1 });
+        const r = runBot(sim, castle.bots['human']!, 60 * 30);
+        expect([feelId, type, r.completed, r.deaths]).toEqual([feelId, type, true, 0]);
+      }
+    }
+  });
+});
