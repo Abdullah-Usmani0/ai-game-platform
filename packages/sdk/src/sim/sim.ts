@@ -1,4 +1,4 @@
-import { DialogueFile, flagsHold, type BehaviourFsm, type DialogueNode, type EcaRule, type GameEventRecord, type LevelJson, type LevelProof, type ParamValue, type StateSnapshot, type TileKind } from '@gg/schemas';
+import { DialogueFile, endingFor, flagsHold, questState, type BehaviourFsm, type DialogueNode, type EcaRule, type GameEventRecord, type LevelJson, type LevelProof, type ParamValue, type StateSnapshot, type TileKind } from '@gg/schemas';
 import { EventBus } from './events.js';
 import type { FeelPreset } from './feel.js';
 import { fireRule, stepFsm } from './fsm.js';
@@ -8,7 +8,7 @@ import { approach, moveBody, overlaps } from './physics.js';
 import { Rng } from './rng.js';
 import type { MenuSpec, SimCtx, SystemDef } from './system.js';
 import { Tilemap } from './tilemap.js';
-import { makeEntity, staysGone, type DialogueState, type Entity, type EntityDef, type Menu, type World } from './world.js';
+import { makeEntity, staysGone, type DialogueState, type Entity, type EntityDef, type Menu, type World, type WorldEnding } from './world.js';
 
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
@@ -104,6 +104,13 @@ export interface Sim {
    * when set), or the closeness to the goal tile when none reports.
    */
   progress(): number;
+  /**
+   * The game is over (its last level won): the ending the player's flags reach is theirs (world.ending and
+   * `custom:ending`), and its epilogue opens as a talk the world holds still for. The controller calls it in free play;
+   * tests and the story prover call it to see where a run ends. Null, changing nothing, for a game with no endings; the
+   * same ending again, changing nothing, once it has ended.
+   */
+  end(): WorldEnding | null;
 }
 
 class SimImpl implements Sim {
@@ -595,12 +602,30 @@ class SimImpl implements Sim {
       ...(w.menu ? { menu: { id: w.menu.id, selected: w.menu.selected, options: w.menu.options.map((o) => o.id) } } : {}),
       // Likewise a talk being read.
       ...(w.dialogue ? { dialogue: { node: w.dialogue.node, line: w.dialogue.line, shown: w.dialogue.shown } } : {}),
+      // And the ending, once the game has ended.
+      ...(w.ending ? { ending: w.ending.id } : {}),
     };
     return { ...body, hash: hashValue(body) };
   }
 
   hash(): string {
     return this.snapshot().hash;
+  }
+
+  end(): WorldEnding | null {
+    const w = this.world;
+    if (w.ending) return w.ending;
+    const file = this.dialogue;
+    const ending = file ? endingFor(file, w.player.props) : null;
+    if (!file || !ending) return null;
+    const endings = file.endings ?? [];
+    const quests = file.quests ?? [];
+    const done = quests.filter((q) => questState(q, w.player.props) === 'done').length;
+    w.ending = { id: ending.id, title: ending.title, index: endings.indexOf(ending) + 1, count: endings.length, quests: { done, total: quests.length } };
+    this.events.emit(this.tick, 'custom:ending', { ending: ending.id, title: ending.title });
+    // The epilogue, read as any talk is.
+    this.openDialogue(ending.node, true);
+    return w.ending;
   }
 
   inputLog(): readonly InputFrame[] {

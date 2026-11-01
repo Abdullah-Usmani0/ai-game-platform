@@ -1,4 +1,4 @@
-import { pickups, pickupsMeta, rest, restMeta, rooms, roomsMeta, talk, talkMeta, type GenreRuntime, type SystemModule } from '@gg/template-core';
+import { pickups, pickupsMeta, rest, restMeta, rooms, roomsMeta, story, storyMeta, talk, talkMeta, type GenreRuntime, type SystemModule } from '@gg/template-core';
 import { metroidvaniaRuntime } from '@gg/template-metroidvania';
 import { platformerRuntime } from '@gg/template-platformer';
 import { DEFAULT_BEHAVIOURS, VOCAB } from './behaviours.js';
@@ -23,7 +23,8 @@ const forCastle = (mod: SystemModule | undefined): SystemModule => ({ meta: { ..
 
 /**
  * Browser-safe runtime description of the castle genre, the tier of large heroes on 16 px tiles: a region of rooms
- * with save altars, the metroidvania's relics, the platformer's hazards and goal, and a sword whose moves are data.
+ * with save altars, the metroidvania's relics, the platformer's hazards and goal, a sword whose moves are data, and
+ * people to talk to in a story whose flags pick its ending.
  */
 export const castleRuntime: GenreRuntime = {
   id: 'castle',
@@ -40,12 +41,13 @@ export const castleRuntime: GenreRuntime = {
     [roomsMeta.id]: { meta: roomsMeta, create: () => rooms },
     [restMeta.id]: { meta: restMeta, create: () => rest },
     [talkMeta.id]: { meta: talkMeta, create: () => talk },
+    [storyMeta.id]: { meta: storyMeta, create: () => story },
     hazards: forCastle(platformerRuntime.systems['hazards']),
     goal: forCastle(platformerRuntime.systems['goal']),
     [pickupsMeta.id]: forCastle({ meta: pickupsMeta, create: () => pickups }),
   },
   // The sword before the movement: a cut pressed this tick roots the hero this tick.
-  requiredSystems: ['combat', 'movement-castle', 'relics', 'abilities', 'rooms', 'rest', 'talk', 'shortcuts', 'arena', 'hazards', 'goal'],
+  requiredSystems: ['combat', 'movement-castle', 'relics', 'abilities', 'rooms', 'rest', 'talk', 'story', 'shortcuts', 'arena', 'hazards', 'goal'],
   optionalSystems: ['pickups'],
   feelPresets: FEEL,
   defaultFeel: DEFAULT_FEEL,
@@ -71,6 +73,8 @@ export const castleRuntime: GenreRuntime = {
     { event: 'custom:arena_shut', channels: ['sfx', 'shake'] },
     { event: 'custom:arena_open', channels: ['sfx'] },
     { event: 'custom:talk', channels: ['sfx'] },
+    { event: 'custom:quest', channels: ['sfx'] },
+    { event: 'custom:ending', channels: ['sfx'] },
   ],
   // A fall returns the player to their last rest (the rest system's death rule): hazards only hurt.
   composedParams: { hazards: { respawn: false } },

@@ -17,6 +17,8 @@ export const StateSnapshot = z.object({
   menu: z.object({ id: z.string(), selected: z.int(), options: z.array(z.string()) }).optional(),
   /** Present only while a talk is being read: its node, the line and how much of it shows. */
   dialogue: z.object({ node: z.string(), line: z.int().nonnegative(), shown: z.int().nonnegative() }).optional(),
+  /** Present once the game has ended: the ending the story reached. */
+  ending: z.string().optional(),
   hash: z.string(),
 });
 export type StateSnapshot = z.infer<typeof StateSnapshot>;

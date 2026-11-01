@@ -123,6 +123,45 @@ describe('dialogue', () => {
     expect([names.at(-1), none.world.dialogue ?? null]).toEqual(['false', null]);
   });
 
+  it('ends the story on the first ending its flags reach, and reads its epilogue as a talk', () => {
+    const story: DialogueFile = {
+      ...TALK,
+      nodes: [...TALK.nodes, { id: 'bell-end', speaker: 'narrator', lines: ['The bell rang.'], choices: [] }, { id: 'quiet-end', speaker: 'narrator', lines: ['It never rang.'], choices: [] }],
+      endings: [
+        { id: 'rung', title: 'The Bell Rung', when: [{ flag: 'agreed', is: true }], node: 'bell-end' },
+        { id: 'quiet', title: 'The Quiet Bell', node: 'quiet-end' },
+      ],
+      quests: [
+        { id: 'ring', title: 'Ring the Bell', start: [{ flag: 'agreed', is: true }], done: [{ flag: 'thanked', is: true }] },
+        { id: 'name', title: 'Its Name', start: [{ flag: 'knows', is: true }], done: [{ flag: 'named', is: true }] },
+      ],
+    };
+    const make = (props: Record<string, boolean>) => {
+      const sim = createSim({ feel: CELESTE_CLASS, systems: [], level: hall(), seed: 1, entityDefs: [], player: { w: 6, h: 8, hp: 3 }, content: { dialogue: story } });
+      Object.assign(sim.world.player.props, props);
+      return sim;
+    };
+    // Without endings a game just ends.
+    const plain = createSim({ feel: CELESTE_CLASS, systems: [], level: hall(), seed: 1, entityDefs: [], player: { w: 6, h: 8, hp: 3 }, content: { dialogue: TALK } });
+    expect([plain.end(), plain.world.dialogue ?? null, plain.snapshot()]).toEqual([null, null, expect.not.objectContaining({ ending: expect.anything() })]);
+    expect(make({}).end()).toEqual({ id: 'quiet', title: 'The Quiet Bell', index: 2, count: 2, quests: { done: 0, total: 2 } });
+    const sim = make({ 'f:agreed': true, 'f:thanked': true });
+    const heard: string[] = [];
+    sim.events.on('*', (ev) => {
+      if (ev.name === 'custom:ending' || ev.name === 'ui_open') heard.push(`${ev.name}:${String(ev.payload['ending'] ?? ev.payload['node'])}`);
+    });
+    expect(sim.end()).toEqual({ id: 'rung', title: 'The Bell Rung', index: 1, count: 2, quests: { done: 1, total: 2 } });
+    expect([heard, sim.world.dialogue?.node, sim.world.dialogue?.speaker, sim.snapshot().ending]).toEqual([['custom:ending:rung', 'ui_open:bell-end'], 'bell-end', 'narrator', 'rung']);
+    // Ended once: the same ending again, nothing said twice.
+    expect(sim.end()?.id).toBe('rung');
+    expect(heard).toHaveLength(2);
+    // The epilogue is read like any talk, and closes.
+    step(sim, {}, MENU_GRACE_TICKS + 8);
+    press(sim);
+    expect(sim.world.dialogue ?? null).toBeNull();
+    expect(sim.world.ending?.id).toBe('rung');
+  });
+
   it('keeps a talk in the save: a sim loaded mid-line reads on exactly as before', () => {
     const sim = talking();
     step(sim, {}, 3 + MENU_GRACE_TICKS);

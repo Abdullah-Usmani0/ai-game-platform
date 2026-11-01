@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { AnyGddFrontmatter, parseAnyGdd, parseSystemsFile, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, EntityRoster, FreeformGddFrontmatter, GameToHost, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, moveLength, MoveSet, Objectives, PLAYABLE_GENRES, ProofSubmission, SaveBlob, SystemsFile, SystemsJson, toJsonSchema } from './index';
+import { AnyGddFrontmatter, parseAnyGdd, parseSystemsFile, ARTIFACT_SCHEMAS, BehaviourFsm, CreateRequest, CURATED_GENRES, DialogueFile, endingFor, EntityRoster, FreeformGddFrontmatter, GameToHost, GddFrontmatter, GENRES, JamInput, LevelJson, LevelProof, moveLength, MoveSet, Objectives, PLAYABLE_GENRES, ProofSubmission, questState, SaveBlob, SystemsFile, SystemsJson, toJsonSchema } from './index';
 
 describe('LevelJson', () => {
   const base = {
@@ -244,5 +244,43 @@ describe('MoveSet', () => {
   it('is an artifact a structured call can ask for', () => {
     expect(ARTIFACT_SCHEMAS.MoveSet).toBe(MoveSet);
     expect(toJsonSchema('MoveSet')).toMatchObject({ type: 'object' });
+  });
+});
+
+describe('DialogueFile', () => {
+  const talk = { version: 1, nodes: [{ id: 'hello', speaker: 'keeper', lines: ['Hello.'] }], starts: [{ speaker: 'keeper', node: 'hello' }] };
+
+  it('reads a talk without endings, quests or deeds, and one with them', () => {
+    expect(DialogueFile.parse(talk)).toEqual({ ...talk, names: {}, nodes: [{ ...talk.nodes[0], choices: [] }] });
+    const story = {
+      ...talk,
+      endings: [{ id: 'light', title: 'The Light Kept', when: [{ flag: 'lit', is: true }], node: 'hello' }, { id: 'dark', title: 'The Long Dark', node: 'hello' }],
+      quests: [{ id: 'candle', title: 'The Last Candle', start: [{ flag: 'asked', is: true }], done: [{ flag: 'lit', is: true }] }],
+      deeds: [{ on: 'death', type: 'warden', set: { 'warden-down': true } }, { on: 'custom:door_open', set: { opened: true } }],
+    };
+    expect(DialogueFile.parse(story)).toMatchObject(story);
+    // A deed's event is one of the fixed table or the game's own.
+    expect(DialogueFile.safeParse({ ...story, deeds: [{ on: 'opened', set: { opened: true } }] }).success).toBe(false);
+    expect(DialogueFile.safeParse({ ...story, quests: [{ ...story.quests[0], done: [] }] }).success).toBe(false);
+  });
+
+  it('ends on the first ending whose flags hold, the last being every other player\'s', () => {
+    const file = DialogueFile.parse({
+      ...talk,
+      endings: [
+        { id: 'both', title: 'Both', when: [{ flag: 'a', is: true }, { flag: 'b', is: true }], node: 'hello' },
+        { id: 'a', title: 'A', when: [{ flag: 'a', is: true }], node: 'hello' },
+        { id: 'none', title: 'None', node: 'hello' },
+      ],
+    });
+    expect(endingFor(file, {})?.id).toBe('none');
+    expect(endingFor(file, { 'f:a': true })?.id).toBe('a');
+    expect(endingFor(file, { 'f:a': true, 'f:b': true })?.id).toBe('both');
+    expect(endingFor(DialogueFile.parse(talk), { 'f:a': true })).toBeNull();
+  });
+
+  it('tells a quest not begun from one under way and one done, and never done before it began', () => {
+    const quest = { id: 'candle', title: 'The Last Candle', start: [{ flag: 'asked', is: true }], done: [{ flag: 'lit', is: true }] };
+    expect([questState(quest, {}), questState(quest, { 'f:asked': true }), questState(quest, { 'f:asked': true, 'f:lit': true }), questState(quest, { 'f:lit': true })]).toEqual(['none', 'on', 'done', 'none']);
   });
 });

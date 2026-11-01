@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { LevelJson, MoveSet, type BehaviourFsm, type Condition, type Move } from '@gg/schemas';
+import { DialogueFile, LevelJson, MoveSet, type BehaviourFsm, type Condition, type Move } from '@gg/schemas';
 import { createSim, type EntityDef } from '@gg/sdk';
 import { afkWins, levelTicksOf, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { frameSize, playerRecipe, RECIPES, RIGS, SETTING_BY_GENRE, type Setting } from '@gg/sdk/art';
@@ -139,5 +139,8 @@ export function rubricInputsOf(gameDir: string): RubricInputs {
   // The game's own behaviours over the template's, as the sim takes them; its moves, else the ones its genre ships.
   const all = [...g.defaultBehaviours.filter((b) => !behaviours.some((f) => f.id === b.id)), ...behaviours];
   const moves = MoveSet.safeParse(content['moves'] ?? g.shippedContent?.['moves']);
-  return { genre: g.id, entityDefs: g.entityDefs, player: g.player, behaviours: all, levels, assets, ...(moves.success ? { moves: moves.data.moves } : {}) };
+  // Its story's endings, likewise (none: the one fixed end screen).
+  const talk = DialogueFile.safeParse(content['dialogue'] ?? g.shippedContent?.['dialogue']);
+  const endings = talk.success ? (talk.data.endings ?? []).length : 0;
+  return { genre: g.id, entityDefs: g.entityDefs, player: g.player, behaviours: all, levels, assets, ...(moves.success ? { moves: moves.data.moves } : {}), ...(endings > 0 ? { endings } : {}) };
 }

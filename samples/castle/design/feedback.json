@@ -152,5 +152,17 @@
     "channels": [
       "sfx"
     ]
+  },
+  {
+    "event": "custom:quest",
+    "channels": [
+      "sfx"
+    ]
+  },
+  {
+    "event": "custom:ending",
+    "channels": [
+      "sfx"
+    ]
   }
 ]

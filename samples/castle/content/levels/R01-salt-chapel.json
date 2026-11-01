@@ -159,7 +159,7 @@
       "props": {}
     },
     {
-      "type": "keeper",
+      "type": "candle-keeper",
       "x": 234,
       "y": 31,
       "props": {}

@@ -15,6 +15,9 @@ A chapel cut into a sea cliff, its halls crusted white with salt and its dead re
 ## Progression
 The wings, then the first altar and the tall step, then the boots, the shaft down and the second altar, then the chasm and the Headsman's hall on the way back: its doorways shut behind the pilgrim until the Headsman falls. Abilities last through falls and rests; no stretch between altars runs past four rooms.
 
+## Story
+A hermit kneels by the first hall and knows where the wings lie; once the pilgrim has them he tells of the cracked bell above the nave, said to ring again for whoever leaves the way open. A candle-keeper tends the second altar: she warns of the Headsman, prays for the pilgrim if asked, and asks them to open the old grate under the first altar, shut from below, so the way back is short for those who wake after (its shaft climbs from the door out). The chapel ends three ways: the grate left open, the Headsman slain, or neither.
+
 ## Scope
 1 region of 13 rooms on two floors, 6 enemy types (ghoul, hound, gargoyle, sentinel, wraith, bone archer), 3 item types (wings, boots, souls), 1 boss (the Headsman, in two phases).
 

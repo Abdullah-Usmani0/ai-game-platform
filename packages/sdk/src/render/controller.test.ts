@@ -107,6 +107,56 @@ describe('GameController level sequencing', () => {
   });
 });
 
+describe('GameController ending', () => {
+  const story = {
+    version: 1,
+    nodes: [{ id: 'epilogue', speaker: 'narrator', lines: ['And so it ended.'] }],
+    starts: [{ speaker: 'nobody', node: 'epilogue' }],
+    endings: [{ id: 'only', title: 'The End', node: 'epilogue' }],
+  };
+  const winsAt10 = defineSystem<null>({
+    id: 'wins',
+    init: () => null,
+    fixedUpdate(_s, _input, ctx) {
+      if (ctx.tick === 10) ctx.world.flags.won = true;
+    },
+  });
+  const game = (levels: LevelJson[]) =>
+    new GameController({
+      levels,
+      simOptions: { feel: CELESTE_CLASS, systems: [winsAt10], entityDefs: [], player: { w: 8, h: 8, hp: 3 }, movementMode: 'topdown', content: { dialogue: story } },
+      seed: 1,
+      mode: 'manual',
+      build: { gameId: 'test', versionId: 'v', engine: 'test' },
+    });
+
+  it('ends the game as its last level is won: the ending the flags reach, its epilogue read before the results', () => {
+    const c = game([room('a'), room('b')]);
+    c.setScene('play');
+    // The first level is not the last: no ending there (it is won at tick 10, and the next starts 90 ticks later).
+    c.step(120);
+    expect([c.levelIndex, c.sim.world.ending ?? null]).toEqual([1, null]);
+    c.step(60);
+    expect([c.sim.world.ending?.id, c.sim.world.dialogue?.node]).toEqual(['only', 'epilogue']);
+    // Unread, it waits.
+    c.step(300);
+    expect([c.scene, c.sim.world.dialogue?.node]).toEqual(['play', 'epilogue']);
+    play(c, 2);
+    expect(c.sim.world.dialogue ?? null).toBeNull();
+    c.step(30);
+    expect(c.scene).toBe('play');
+    c.step(30);
+    expect([c.scene, c.sim.world.ending?.title]).toEqual(['results', 'The End']);
+  });
+
+  it('never ends a scripted run: the determinism oracle holds the won level as it always has', async () => {
+    const c = game([room('a')]);
+    c.setScene('play');
+    await c.runScript([{ from: 0, to: 200, input: {} }], 200);
+    expect([c.sim.world.flags.won, c.sim.world.ending ?? null, c.sim.world.dialogue ?? null]).toEqual([true, null, null]);
+  });
+});
+
 describe('GameController saves', () => {
   it('picks a level up from a save, and starts it at its start for a script or a retry', () => {
     const c = make(grant);

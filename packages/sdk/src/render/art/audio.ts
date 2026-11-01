@@ -107,6 +107,28 @@ export const SFX_PRESETS: Readonly<Record<string, readonly Voice[]>> = {
     { wave: 'sine', from: 330, to: 330, dur: 0.8, vol: 0.06, delay: 0.04 },
     { wave: 'triangle', from: 880, to: 880, dur: 0.5, vol: 0.03, delay: 0.12 },
   ],
+  // A quest begun: two soft notes rising, an open question. Done: a low root under three notes that resolve.
+  quest: [
+    { wave: 'sine', from: 784, to: 784, dur: 0.18, vol: 0.07 },
+    { wave: 'sine', from: 1047, to: 1047, dur: 0.36, vol: 0.07, delay: 0.12 },
+    { wave: 'triangle', from: 2094, to: 2094, dur: 0.2, vol: 0.015, delay: 0.12 },
+  ],
+  questDone: [
+    { wave: 'sine', from: 523, to: 523, dur: 0.7, vol: 0.05 },
+    { wave: 'sine', from: 1047, to: 1047, dur: 0.16, vol: 0.06 },
+    { wave: 'sine', from: 1319, to: 1319, dur: 0.16, vol: 0.06, delay: 0.1 },
+    { wave: 'sine', from: 1568, to: 1568, dur: 0.5, vol: 0.06, delay: 0.2 },
+  ],
+  // The story ends: one great bell, struck once, its major third ringing on (the boss's toll has a minor one).
+  ending: [
+    { wave: 'noise', from: 2400, to: 600, dur: 0.06, vol: 0.05 },
+    { wave: 'sine', from: 98, to: 98, dur: 3.4, vol: 0.12 },
+    { wave: 'sine', from: 196, to: 196, dur: 2.8, vol: 0.09 },
+    { wave: 'sine', from: 247, to: 247, dur: 2.2, vol: 0.05 },
+    { wave: 'sine', from: 294, to: 294, dur: 1.8, vol: 0.04 },
+    { wave: 'sine', from: 392, to: 392, dur: 1.4, vol: 0.04 },
+    { wave: 'triangle', from: 784, to: 784, dur: 0.7, vol: 0.015 },
+  ],
   // A parry: a blade caught clean, a high bright ring that hangs, over a short knock.
   parry: [
     { wave: 'triangle', from: 2350, to: 2350, dur: 0.38, vol: 0.07 },
@@ -191,6 +213,10 @@ export function sfxFor(event: string, payload: Record<string, unknown>, isPlayer
       return 'toll';
     case 'custom:talk':
       return 'talk';
+    case 'custom:quest':
+      return payload['state'] === 'done' ? 'questDone' : 'quest';
+    case 'custom:ending':
+      return 'ending';
     case 'custom:arena_shut':
       return 'slam';
     case 'custom:arena_open':

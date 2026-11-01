@@ -1,7 +1,8 @@
+import { fileURLToPath } from 'node:url';
 import { MoveSet, type BehaviourFsm, type LevelJson } from '@gg/schemas';
 import { GENRES } from '@gg/templates/node';
 import { describe, expect, it } from 'vitest';
-import { CASTLE_RUBRIC, grade, measure, type RubricInputs } from './rubric.js';
+import { CASTLE_RUBRIC, grade, measure, rubricInputsOf, type RubricInputs } from './rubric.js';
 
 const mv = GENRES['metroidvania']!;
 const caverns = [{}, {}, {}] as unknown as LevelJson[];
@@ -64,6 +65,12 @@ describe('the castle rubric', () => {
     for (const id of ['hero_height', 'hero_clips', 'telegraph_ms', 'boss_phases', 'rooms', 'ability_gates', 'shortcut_loops', 'altar_spacing', 'parallax_layers', 'idle_loses']) expect(g.results.find((r) => r.id === id)?.pass, id).toBe(true);
     // It stands through the whole region, as long as the game lets a level last: slow on a busy machine.
   }, 60_000);
+
+  it("counts a game's endings from its story: the castle sample's three", () => {
+    const inputs = rubricInputsOf(fileURLToPath(new URL('../../../samples/castle', import.meta.url)));
+    expect(inputs.endings).toBe(3);
+    expect(grade(CASTLE_RUBRIC.filter((l) => l.id === 'endings'), { endings: inputs.endings ?? null }).passed).toBe(1);
+  });
 
   it('holds a ceiling line to at most its target', () => {
     const g = grade([{ id: 'altar_spacing', area: 'world', text: '', target: 4, most: true }], { altar_spacing: 5 });

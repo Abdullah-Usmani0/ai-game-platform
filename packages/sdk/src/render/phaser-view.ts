@@ -61,6 +61,8 @@ const HUD_H = 14;
 const BANNER_TICKS = 110;
 /** How long a boss's name stands across the view as it wakes, in ticks: through its rise, gone as its first blow winds up. */
 const BOSS_CARD_TICKS = 100;
+/** How long a quest's card stays at the top of the view as it begins or ends. */
+const QUEST_CARD_TICKS = 200;
 /** Feedback sources that hit harder than an ordinary hit: a longer hitstop and a bigger shake. */
 const HEAVY_SOURCES = new Set(['custom:finisher', 'custom:slam', 'custom:enrage']);
 /** Height of the boss health band at the bottom of the screen. */
@@ -181,6 +183,7 @@ export class MainScene extends Phaser.Scene {
   private bannerImg: Phaser.GameObjects.Image | null = null;
   /** A boss's name across the middle of the view as it wakes (custom:boss), from the tick it woke. */
   private bossCard: { img: Phaser.GameObjects.Image; from: number } | null = null;
+  private questCard: { img: Phaser.GameObjects.Image; from: number } | null = null;
   private followTarget = { x: 0, y: 0 };
   /** A level of rooms holds the view to the room the player is in; a new room slides it across from where it was. */
   private room = { index: -1, fromX: 0, fromY: 0, at: 0, seen: -1, reload: -1 };
@@ -562,6 +565,8 @@ export class MainScene extends Phaser.Scene {
     this.blockedAt.clear();
     this.bossCard?.img.destroy();
     this.bossCard = null;
+    this.questCard?.img.destroy();
+    this.questCard = null;
     for (const b of this.bubbles.values()) for (const img of [b.back, b.ring, b.icon, b.pointer]) img.destroy();
     this.bubbles.clear();
     this.liftedTick = -100;
@@ -1102,6 +1107,29 @@ export class MainScene extends Phaser.Scene {
         this.bossCard = { img, from: sim.tick };
         break;
       }
+      case 'custom:quest': {
+        // A quest begins or ends: its name on a small card at the top of the view, fading after a few seconds.
+        const title = String(payload['title'] ?? '').toUpperCase();
+        if (!title) break;
+        const done = payload['state'] === 'done';
+        this.questCard?.img.destroy();
+        const head = this.text(done ? 'QUEST COMPLETE' : 'NEW QUEST', done ? this.pal.accent[4] : this.pal.ui[3]);
+        const name = this.text(title, this.pal.white);
+        const pc = new PixelCanvas(Math.max(head.w, name.w) + 20, head.h + name.h + 10);
+        pc.fillRect(0, 0, pc.w, pc.h, this.pal.ink, 190);
+        for (let x = 0; x < pc.w; x++) {
+          const edge = Math.min(x, pc.w - 1 - x);
+          if (edge < 2 || (edge < 6 && (x & 1) === 1)) continue;
+          pc.set(x, 0, this.pal.accent[3]);
+          pc.set(x, pc.h - 1, this.pal.accent[3]);
+        }
+        pc.blit(head, Math.round((pc.w - head.w) / 2), 3);
+        pc.blit(name, Math.round((pc.w - name.w) / 2), head.h + 6);
+        this.addCanvasTexture('gg-quest-card', pc);
+        const img = this.add.image(Math.round(this.style.canvas.w / 2), 18, 'gg-quest-card').setOrigin(0.5, 0).setScrollFactor(0).setDepth(10_450).setAlpha(0);
+        this.questCard = { img, from: sim.tick };
+        break;
+      }
       case 'custom:arena_shut':
       case 'custom:arena_open': {
         // The doorways slam shut (or grind open): dust along the floor at the hero's feet, the room shuddering.
@@ -1598,6 +1626,17 @@ export class MainScene extends Phaser.Scene {
         this.bossCard = null;
       }
     }
+    if (this.questCard) {
+      const t = tick - this.questCard.from;
+      const a = t < 0 || t >= QUEST_CARD_TICKS ? 0 : t < 12 ? t / 12 : t > QUEST_CARD_TICKS - 30 ? (QUEST_CARD_TICKS - t) / 30 : 1;
+      // Under the level's name while it shows, else at the top.
+      const top = this.bannerImg && tick < BANNER_TICKS ? 36 : 18;
+      this.questCard.img.setAlpha(this.controller.scene === 'play' ? a : 0).setY(Math.round(top - 3 * (1 - Math.min(1, Math.max(0, t) / 12))));
+      if (t >= QUEST_CARD_TICKS) {
+        this.questCard.img.destroy();
+        this.questCard = null;
+      }
+    }
     this.fadeImg.setAlpha(this.controller.scene === 'play' ? Math.max(0, 1 - tick / 16, this.fallFade(tick)) : 0);
     if (!this.bannerImg) return;
     const shown = this.controller.scene === 'play' && tick < BANNER_TICKS;
@@ -1633,6 +1672,8 @@ export class MainScene extends Phaser.Scene {
     this.menuSeen = '';
     const blink = Math.floor(performance.now() / 500) % 2 === 0;
     const title = (this.style.title ?? '').toUpperCase();
+    // The last level of a game with a story ends in its ending, not in a "level clear".
+    const endsInStory = this.controller.storied && this.controller.levelIndex + 1 >= this.controller.options.levels.length;
     const lines: Array<{ text: string; scale: number; color: RGB; gap?: number }> = [];
     let dim = 0;
     if (scene === 'title') {
@@ -1641,10 +1682,17 @@ export class MainScene extends Phaser.Scene {
       lines.push({ text: blink ? 'PRESS ENTER' : '', scale: 1, color: this.pal.white });
     } else if (scene === 'results') {
       dim = 0.6;
-      lines.push({ text: 'ALL CLEAR!', scale: 2, color: this.pal.accent[4], gap: 8 });
+      // A story's ending names itself, and says how many there are to find; a game without one is simply cleared.
+      const end = w.ending;
+      if (end) {
+        const name = end.title.toUpperCase();
+        lines.push({ text: name, scale: name.length > 18 ? 1 : 2, color: this.pal.accent[4], gap: 6 });
+        lines.push({ text: `ENDING ${end.index} OF ${end.count}`, scale: 1, color: this.pal.ui[3], gap: end.quests.total > 0 ? 4 : 10 });
+        if (end.quests.total > 0) lines.push({ text: `QUESTS ${end.quests.done} OF ${end.quests.total}`, scale: 1, color: this.pal.ui[3], gap: 10 });
+      } else lines.push({ text: 'ALL CLEAR!', scale: 2, color: this.pal.accent[4], gap: 8 });
       lines.push({ text: `SCORE ${w.score}${w.deaths ? ` · DEATHS ${w.deaths}` : ''}`, scale: 1, color: this.pal.white, gap: 10 });
       lines.push({ text: blink ? 'PRESS ENTER TO PLAY AGAIN' : '', scale: 1, color: this.pal.ui[3] });
-    } else if (w.flags.won) {
+    } else if (w.flags.won && !endsInStory) {
       lines.push({ text: this.setting === 'farm' ? 'QUOTA MET!' : 'LEVEL CLEAR', scale: 2, color: this.pal.accent[4] });
     } else if (w.flags.gameOver) {
       dim = 0.5;

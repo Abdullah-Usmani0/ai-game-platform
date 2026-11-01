@@ -10,6 +10,7 @@
       "rooms",
       "rest",
       "talk",
+      "story",
       "shortcuts",
       "arena",
       "hazards",
@@ -31,12 +32,12 @@
     "collectibleTypes": [
       "soul"
     ],
-    "feedbackExtras": "818b2a0b7fcae950",
+    "feedbackExtras": "97c5df641e8d16f3",
     "paramDefaults": "08f44b07b5901a25",
-    "systemsMeta": "5694571356ca39af",
+    "systemsMeta": "c7dbde19a6edb152",
     "scopeBudget": "68badbb13d6937b9",
     "gddDefaults": "512160cf35ab4731",
-    "gddFragment": "33ca6b8826381739",
+    "gddFragment": "c16f786903c7f463",
     "interviewFragment": "b96990cd0ad1ef88",
     "panels": "c9e94c8a4c73ff9c",
     "exemplars": "237fb9cd566b0412",

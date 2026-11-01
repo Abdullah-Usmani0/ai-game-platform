@@ -50,9 +50,16 @@ beside an altar still rests): the world holds still while the player reads, each
 can set the story's flags (`f:` props on the player, kept by saves). Their words are content/dialogue.json: every castle
 game ships a default (the hermit points the way back, the keeper warns of the headsman and how his cleaver is turned),
 which a game's own story replaces.
+Story: the same file holds what the flags decide (the story system). Deeds set flags from what the player does (a foe
+of a type beaten, a relic found, a grate opened). Quests are named side goals, told as they begin and end
+(custom:quest), each a test of flags to begin and one to be done. Endings (up to four) are tried in order as the game
+ends, the last having no tests: the first whose flags hold is the player's, its epilogue read as a talk
+(custom:ending), and the results name it ("ending 2 of 3"). The default story: the keeper's quest to open the grate
+under the first altar, shut from below, so the way back is short for those who wake later (its shaft climbs from the
+way out), and three endings: the way left open, the headsman slain, or neither.
 Feel presets: castle-agile (default), castle-weighty. Every gate is sized to hold under both.
 Feedback table must bind: jump, land, dash, hit, death, pickup, checkpoint, level_complete, custom:swing,
 custom:finisher, custom:block, custom:guard_break, custom:parry, custom:drink, custom:heal, custom:dodge, custom:boss,
-custom:enrage, custom:arena_shut, custom:arena_open, custom:talk.
+custom:enrage, custom:arena_shut, custom:arena_open, custom:talk, custom:quest, custom:ending.
 Scope tiers: small = 1 region at difficulty 0.3, up to 3 enemy types and the boss; medium = 1 region at 0.5, up to 6
 enemy types and the boss; large = 1 region at 0.75, up to 6 enemy types and the boss.

@@ -1,4 +1,4 @@
-import type { LevelJson, ParamValue, StateSnapshot } from '@gg/schemas';
+import { DialogueFile, type LevelJson, type ParamValue, type StateSnapshot } from '@gg/schemas';
 import { emptyInput, inputAtTick, type InputSegment, type InputState } from '../sim/input.js';
 import { createSim, levelSeed, type ProgressSave, type Sim, type SimOptions } from '../sim/sim.js';
 import { Driver, type RunMode } from './driver.js';
@@ -6,6 +6,10 @@ import { Keyboard } from './keyboard.js';
 import { Metrics } from './metrics.js';
 
 export type SceneKey = 'boot' | 'title' | 'play' | 'results';
+
+/** How long after the last level is won the story's ending opens, and how long after its epilogue the results follow. */
+const ENDING_DELAY_TICKS = 40;
+const AFTER_EPILOGUE_TICKS = 50;
 
 export interface GameBuild {
   gameId: string;
@@ -58,8 +62,14 @@ export class GameController {
   private levelListeners = new Set<Listener>();
   /** Tick at which the level was won (-1 while playing); results follow 90 ticks later. */
   private winTick = -1;
+  /** Whether the game's end has been played on this level (Sim.end, once the last level is won). */
+  private ended = false;
+
+  /** Whether the game's story has endings (content/dialogue.json): its last level won plays one, instead of a "clear". */
+  readonly storied: boolean;
 
   constructor(public readonly options: ControllerOptions) {
+    this.storied = (DialogueFile.safeParse(options.simOptions.content?.['dialogue']).data?.endings ?? []).length > 0;
     this.seed = options.seed;
     this.sim = this.makeSim(0, this.seed);
     this.driver = new Driver(this.sim, options.mode, (tick) => this.provideInput(tick));
@@ -138,12 +148,18 @@ export class GameController {
   private afterSteps(): void {
     const w = this.sim.world;
     if (!w.flags.won) return;
-    // The wait for the next level starts once no menu is open (a choice made as the level ends still carries).
-    if (this.winTick < 0 || w.menu) this.winTick = this.sim.tick;
+    // The wait for the next level starts once no menu or talk is open (a choice made as the level ends still carries,
+    // and an epilogue is read to its end).
+    if (this.winTick < 0 || w.menu || w.dialogue) this.winTick = this.sim.tick;
     // Level sequencing is free-play only: a scripted run (the determinism oracle) and a frozen sim hold the won
     // level and keep ticking it, so manual, realtime and in-page replay hashes agree whatever the level count.
     if (this.script || this.frozen) return;
-    if (this.sim.tick - this.winTick > 90 && this.scene === 'play') this.nextLevel();
+    // The last level won ends the game, a moment after: the story's ending, its epilogue read before the results.
+    if (!this.ended && this.levelIndex + 1 >= this.options.levels.length && this.sim.tick - this.winTick >= ENDING_DELAY_TICKS) {
+      this.ended = true;
+      if (this.sim.end()) return;
+    }
+    if (this.sim.tick - this.winTick > (w.ending ? AFTER_EPILOGUE_TICKS : 90) && this.scene === 'play') this.nextLevel();
   }
 
   nextLevel(): void {
@@ -165,6 +181,7 @@ export class GameController {
     this.sim = this.makeSim(index, seed);
     this.driver = new Driver(this.sim, this.driver.mode, (tick) => this.provideInput(tick));
     this.winTick = -1;
+    this.ended = false;
     this.frozen = false;
     for (const l of this.levelListeners) l();
     this.setScene('play');

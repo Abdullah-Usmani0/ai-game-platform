@@ -1,11 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
-import { ARTIFACT_SCHEMAS, parseAnyGdd, parseSystemsFile, type AnyGddFrontmatter, type ArtifactName, type BehaviourFsm, type LevelJson, type MoveSet, type SystemsFile } from '@gg/schemas';
+import { ARTIFACT_SCHEMAS, parseAnyGdd, parseSystemsFile, type AnyGddFrontmatter, type ArtifactName, type BehaviourFsm, type DialogueFile, type LevelJson, type MoveSet, type SystemsFile } from '@gg/schemas';
 import { CELESTE_CLASS } from '@gg/sdk';
 import { RIGS } from '@gg/sdk/art';
 import { checkGameSprites, manifestFor, resolveGame } from '@gg/templates/node';
 import type { GenreManifest } from '@gg/template-core';
-import { checkGdd, movesOfBehaviour, parseFrontmatter, report, validateBehaviour, validateLevel, validateMoves, type ValidationReport } from '@gg/validators';
+import { checkGdd, movesOfBehaviour, parseFrontmatter, report, validateBehaviour, validateDialogue, validateLevel, validateMoves, type ValidationReport } from '@gg/validators';
 
 /**
  * Picks the schema for a design/content artifact by its path, validates it, then runs the semantic
@@ -132,6 +132,10 @@ for (const file of files) {
     // Frame data, held to the moves' rules: every foe's blow telegraphs, the castle hero's cuts are the knight's clips.
     const clips = g?.tier === 'castle' ? { player: RIGS['knight']!.clips.map((c) => c.name) } : undefined;
     if (!printReport(file, 'moves', validateMoves(result.data as MoveSet, { types: g?.entityDefs.map((e) => e.type), clips }))) failed++;
+  } else if (name === 'DialogueFile') {
+    // The talk, held together: every node it names exists, one default ending and last, no flag tested that nothing sets.
+    const speakers = g?.entityDefs.filter((d) => d.npc).map((d) => d.type);
+    if (!printReport(file, 'dialogue', validateDialogue(result.data as DialogueFile, { speakers }))) failed++;
   } else if (name === 'SpriteSheet') {
     // The cast's look, held to the art rules in the game's palette (design/style.json).
     if (!printReport(file, 'sprites', checkGameSprites(gameRoot))) failed++;

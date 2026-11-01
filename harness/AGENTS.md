@@ -65,7 +65,10 @@ once a player wins the level and the worker, replaying that run on the version, 
   which its test holds them to), deviations.md (the spec; machine-read front matter)
 - `game/content/` levels/*.json, behaviour/*.fsm.json, rules/*.eca.json, waves.json, dialogue.json (data, validated on write;
   dialogue.json is what the game's people say: nodes of up to six lines, up to four answers that set the story's flags,
-  and where each person's talk starts, by the flags that hold);
+  and where each person's talk starts, by the flags that hold; and what the flags decide: deeds (an event of the game,
+  about a type, sets flags), quests (named side goals, begun and done by flags) and endings (tried in order as the game
+  ends, the last with no tests; the first that holds is the player's and its node is the epilogue). Held together on
+  write: every node named exists, one default ending and last, no flag tested set that nothing sets);
   a farm has crops.json (written from the idea after the systems and held to their rules by validate:systems); every
   game may have sprites.json (its cast's own look: per type a shipped sprite of its build, ramp colours and overlays,
   held to the art rules by validate:sprites; a type without one draws as it ships); a castle game ships moves.json

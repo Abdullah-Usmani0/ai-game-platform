@@ -121,6 +121,16 @@ export interface Menu {
   cancellable: boolean;
 }
 
+/** How the story ended (Sim.end): the ending reached, its place among the game's endings, and the quests done. */
+export interface WorldEnding {
+  id: string;
+  title: string;
+  /** Its place among the game's endings, from 1, and how many there are. */
+  index: number;
+  count: number;
+  quests: { done: number; total: number };
+}
+
 export interface World {
   levelId: string;
   entities: Entity[];
@@ -150,6 +160,8 @@ export interface World {
    * while the inputs are still logged. Absent means none.
    */
   hitstop?: number;
+  /** The ending the game closed on (Sim.end), for the results. Absent until the game ends. */
+  ending?: WorldEnding | null;
 }
 
 /**
