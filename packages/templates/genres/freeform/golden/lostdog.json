@@ -1,0 +1,57 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-topdown",
+      "melee-attack",
+      "room-clear",
+      "pickups",
+      "talk"
+    ],
+    "entityDefs": "891b02f478f846e0",
+    "types": [
+      "wolf<grunt",
+      "crow<archer",
+      "boar<brute",
+      "warden",
+      "burr<arrow",
+      "ember",
+      "biscuit<gem",
+      "villager<person"
+    ],
+    "behaviours": "59f105ed81e387da",
+    "vocab": "3c23db6356fb1f7f",
+    "composedParams": {
+      "room-clear": {
+        "healType": "biscuit"
+      },
+      "talk": {
+        "personType": "villager"
+      }
+    },
+    "feedbackExtras": [
+      "custom:finisher",
+      "custom:slam",
+      "custom:enrage",
+      "custom:talk"
+    ],
+    "player": {
+      "w": 8,
+      "h": 10,
+      "hp": 7
+    }
+  },
+  "l01": {
+    "level": "a36cf26cd5813666",
+    "content": "38b3ccddd40d70d3",
+    "by": "solver",
+    "ticks": 343,
+    "script": "e36ec2309ab9be76"
+  },
+  "l02": {
+    "level": "d3c48529674bd30b",
+    "content": "38b3ccddd40d70d3",
+    "by": "solver",
+    "ticks": 600,
+    "script": "01769cb69cab703d"
+  }
+}

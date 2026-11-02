@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { hashValue } from '@gg/sdk';
 import { levelPlan } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
-import { EXAMPLES } from './examples.js';
+import { EXAMPLES, exampleStory } from './examples.js';
 import { generatorParams } from './levels.js';
 import { BASE_MANIFESTS, freeformManifest } from './node.js';
 import { proveLevel } from './prove.js';
@@ -20,7 +20,7 @@ const UPDATE = process.env['GOLDEN_UPDATE'] === '1';
 describe('golden lock: freeform examples', () => {
   for (const ex of EXAMPLES) {
     it(`${ex.id} composes, generates and proves as it did`, () => {
-      const m = freeformManifest(ex.systems, ex.roster);
+      const m = freeformManifest(ex.systems, ex.roster, [], exampleStory(ex));
       const base = BASE_MANIFESTS[ex.systems.composition.base];
       const golden: Record<string, unknown> = {
         runtime: {
@@ -36,7 +36,7 @@ describe('golden lock: freeform examples', () => {
       };
       const plan = levelPlan(m.levelGrammar.kind, { levels: ex.gdd.scope.levels, bosses: ex.gdd.scope.bosses, tier: ex.gdd.scopeTier });
       for (const slot of plan) {
-        const params = { seed: slot.index + 1, difficulty: slot.difficulty, ...(slot.boss ? { boss: 1 } : {}), ...generatorParams(ex.systems, ex.gdd.targets.levelTimeS) };
+        const params = { seed: slot.index + 1, difficulty: slot.difficulty, ...(slot.boss ? { boss: 1 } : {}), ...generatorParams(ex.systems, ex.gdd.targets.levelTimeS), level: slot.index };
         const level = { ...m.levelGrammar.generate(params), id: slot.id };
         const content = { ...(m.extraContent?.(params) ?? {}), ...(ex.objectives ? { objectives: ex.objectives } : {}), ...ex.content };
         const r = proveLevel(level, slot.index, { file: ex.systems, roster: ex.roster, content, solver: base.bots[base.solverBot], budget: 20_000 });

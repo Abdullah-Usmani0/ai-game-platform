@@ -1,4 +1,4 @@
-import type { EntityRoster, FreeformGddFrontmatter, FreeformSystemsJson, Objectives } from '@gg/schemas';
+import { DialogueFile, type EntityRoster, type FreeformGddFrontmatter, type FreeformSystemsJson, type Objectives } from '@gg/schemas';
 
 /** A hand-made freeform game: what a player asked for, and the design, systems, roster and rules that answer it. */
 export interface FreeformExample {
@@ -641,4 +641,122 @@ export const LIGHTHOUSE: FreeformExample = {
   },
 };
 
-export const EXAMPLES: readonly FreeformExample[] = [HIVE, HEIST, LANTERN, MOON, ROOFTOP, GNOME, TEAROOM, LIGHTHOUSE];
+/**
+ * A lost dog on the top-down action base, told by the people of a village: in the first wood the baker saw which way it
+ * ran and an elder warns of wolves; by the stream a child saw it cross and a traveller found it asleep under his cart.
+ * Asking starts the search (a quest); a wolf beaten is remembered (a deed, which the elder hears of); the dog found or
+ * not decides how the day ends.
+ */
+export const LOSTDOG: FreeformExample = {
+  id: 'lostdog',
+  prompt: 'A kid searching the woods for their lost dog before dark: ask the villagers which way it went, clear the wolves off the path with a wooden sword, and bring it home.',
+  gdd: {
+    title: "Bramble's Trail",
+    genre: 'freeform',
+    base: 'topdown-action',
+    scopeTier: 'small',
+    pillars: ['ask everyone you meet', 'the woods bite back', 'bring Bramble home before dark'],
+    scope: { levels: 2, enemies: 2, items: 1, bosses: 0 },
+    targets: { sessionMin: 8, levelTimeS: 90, deathsPerLevel: 2 },
+    verbs: ['move', 'dash', 'attack', 'talk'],
+    feedbackEvents: [
+      { event: 'dash', channels: ['sfx'] },
+      { event: 'hit', channels: ['hitstop', 'shake', 'sfx'] },
+      { event: 'death', channels: ['flash', 'sfx'] },
+      { event: 'pickup', channels: ['sfx'] },
+      { event: 'level_complete', channels: ['sfx', 'particle'] },
+    ],
+  },
+  systems: {
+    version: 1,
+    genre: 'freeform',
+    composition: { base: 'topdown-action' },
+    feelPreset: 'room-melee',
+    systems: [
+      { id: 'movement-topdown', params: {} },
+      { id: 'melee-attack', params: {} },
+      { id: 'room-clear', params: {} },
+      { id: 'pickups', params: {} },
+      // The stick swings on action and dash dodges: jump is free to talk with.
+      { id: 'talk', params: { key: 'jump' } },
+    ],
+  },
+  roster: {
+    version: 1,
+    designNotes: 'Grunts are wolves, archers are crows throwing burrs, brutes are boars; gems are biscuits that mend a scrape; the people are villagers.',
+    player: {},
+    types: [
+      { type: 'wolf', archetype: 'topdown-action:grunt', hp: 1 },
+      { type: 'crow', archetype: 'topdown-action:archer', hp: 1 },
+      { type: 'burr', archetype: 'topdown-action:arrow', hp: 1 },
+      { type: 'boar', archetype: 'topdown-action:brute', hp: 1 },
+      { type: 'biscuit', archetype: 'topdown-action:gem', hp: 1 },
+      { type: 'villager', archetype: 'talk:person', hp: 1 },
+    ],
+  },
+  content: {
+    dialogue: {
+      version: 1,
+      names: { baker: 'Mrs. Hollin', elder: 'Old Ansel', child: 'Pip', traveller: 'The Tinker' },
+      nodes: [
+        { id: 'prologue', speaker: 'narrator', lines: ['The gate was open. The lead hung on its hook.', 'Bramble was gone, and the sun was already low.'] },
+        { id: 'baker', speaker: 'baker', lines: ['Bramble? Shot past my window after a crow, ears flapping.', 'Off toward the old orchard, I think. Will you go after her?'], choices: [{ label: "I'll find her", to: 'baker-go', set: { searching: true } }, { label: 'She always comes back', to: 'baker-wait' }] },
+        { id: 'baker-go', speaker: 'baker', lines: ['Take a biscuit, then. Dogs never say no to one.'] },
+        { id: 'baker-wait', speaker: 'baker', lines: ['Not in the dark, she won\'t. Wolves come down this time of year.'], next: 'baker-ask' },
+        { id: 'baker-ask', speaker: 'baker', lines: ['Go on. I\'ll keep a lamp in the window.'], set: { searching: true } },
+        { id: 'baker-again', speaker: 'baker', lines: ['Still looking? The orchard, love. Past the crows.'] },
+        { id: 'elder', speaker: 'elder', lines: ['Wolves in the orchard, child. Keep your stick up and your feet quick.'] },
+        { id: 'elder-brave', speaker: 'elder', lines: ['You stood up to a wolf? Ha! Your gran did the same, once.', 'The stream is that way. Dogs go for water when they are lost.'] },
+        { id: 'child', speaker: 'child', lines: ['A brown dog with one white ear? She went over the stepping stones!', 'She looked muddy. And happy.'] },
+        { id: 'traveller', speaker: 'traveller', lines: ['A dog? There is one asleep under my cart, snoring like a kettle.', 'One white ear. Yours, is she?'], choices: [{ label: 'Bramble!', to: 'found', set: { found: true } }] },
+        { id: 'found', speaker: 'traveller', lines: ['Go on home, the both of you. It is nearly dark.'] },
+        { id: 'end-home', speaker: 'narrator', lines: ['Bramble trotted home at your heels, tail high, as the lamps came on.', 'Mrs. Hollin had kept a biscuit back. Of course she had.'] },
+        { id: 'end-alone', speaker: 'narrator', lines: ['You came home at dusk with an empty lead.', 'In the morning there was a muddy dog asleep on the step.'] },
+      ],
+      starts: [
+        { speaker: 'baker', node: 'baker-again', when: [{ flag: 'searching', is: true }] },
+        { speaker: 'baker', node: 'baker' },
+        { speaker: 'elder', node: 'elder-brave', when: [{ flag: 'brave', is: true }] },
+        { speaker: 'elder', node: 'elder' },
+        { speaker: 'child', node: 'child' },
+        { speaker: 'traveller', node: 'traveller' },
+      ],
+      chapters: [
+        { level: 1, title: 'The Open Gate', node: 'prologue' },
+        { level: 2, title: 'The Stepping Stones' },
+      ],
+      endings: [
+        { id: 'home', title: 'Home Together', when: [{ flag: 'found', is: true }], node: 'end-home' },
+        { id: 'alone', title: 'An Empty Lead', node: 'end-alone' },
+      ],
+      quests: [{ id: 'bramble', title: 'Find Bramble', start: [{ flag: 'searching', is: true }], done: [{ flag: 'found', is: true }] }],
+      deeds: [{ on: 'death', type: 'wolf', set: { brave: true } }],
+      people: [
+        { speaker: 'baker', level: 1, near: 'start', look: 0 },
+        { speaker: 'elder', level: 1, near: 'end', look: 1 },
+        { speaker: 'child', level: 2, near: 'start', look: 2 },
+        { speaker: 'traveller', level: 2, near: 'end', look: 3 },
+      ],
+    },
+    // A brown-haired kid in a blue scarf; grey wolves, black crows with green burrs, golden biscuits; the boar as it
+    // ships, in the danger colours (no foe in the kid's colours, nor the kid in the warden's embers').
+    sprites: {
+      version: 1,
+      sprites: [
+        { type: '@player', base: 'hero-topdown', recolor: { accent: '#7a4a2a', garment: '#3d6fc4' } },
+        { type: 'wolf', base: 'grunt', recolor: { secondary: '#6f7480' } },
+        { type: 'crow', base: 'archer', recolor: { danger: '#2a2633', wood: '#3a3f58' } },
+        { type: 'burr', base: 'arrow', recolor: { wood: '#7bd389' } },
+        { type: 'biscuit', base: 'gem', recolor: { accent: '#e0a84a' } },
+      ],
+    },
+  },
+};
+
+export const EXAMPLES: readonly FreeformExample[] = [HIVE, HEIST, LANTERN, MOON, ROOFTOP, GNOME, TEAROOM, LIGHTHOUSE, LOSTDOG];
+
+/** An example's talk (content/dialogue.json), if it tells a story: who its levels place, among the rest. */
+export function exampleStory(ex: FreeformExample): DialogueFile | null {
+  const d = DialogueFile.safeParse(ex.content?.['dialogue']);
+  return d.success ? d.data : null;
+}

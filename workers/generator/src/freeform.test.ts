@@ -4,9 +4,9 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FileStore, waitingLevels, type Store } from '@gg/db';
 import { registerProvider } from '@gg/llm';
-import { ARTIFACT_SCHEMAS, CreateRequest, FREEFORM_BASES, LevelJson, Objectives, SpriteSheet, type BehaviourFsm, type LevelHints } from '@gg/schemas';
-import { BASE_MANIFESTS, EXAMPLES, freeformManifest, HEIST, LANTERN, type FreeformExample } from '@gg/template-freeform/node';
-import { checkGameSprites, checkProofs, readGameFiles, readGameLevels } from '@gg/templates/node';
+import { ARTIFACT_SCHEMAS, CreateRequest, DialogueFile, FREEFORM_BASES, LevelJson, Objectives, peopleOn, SpriteSheet, type BehaviourFsm, type LevelHints } from '@gg/schemas';
+import { BASE_MANIFESTS, EXAMPLES, exampleStory, freeformManifest, HEIST, LANTERN, type FreeformExample } from '@gg/template-freeform/node';
+import { checkGameSprites, checkGameStory, checkProofs, readGameFiles, readGameLevels } from '@gg/templates/node';
 import { validateBehaviour } from '@gg/validators';
 import { afterAll, describe, expect, it } from 'vitest';
 import { checkpoint } from './checkpoint.js';
@@ -184,7 +184,7 @@ async function build(ex: FreeformExample): Promise<string> {
   registerProvider('fake', new FakeProvider({ genre: BASE_MANIFESTS[guessBase(request.prompt)], request }));
   const gameDir = mkdtempSync(join(tmpdir(), `gg-freeform-stages-${ex.id}-`));
   dirs.push(gameDir);
-  for (const stage of ['gdd', 'systems', 'composition', 'sprites', 'scaffold', 'behaviour', 'levels', 'prove']) {
+  for (const stage of ['gdd', 'systems', 'composition', 'sprites', 'scaffold', 'behaviour', 'story', 'levels', 'prove']) {
     const out = await new WorkerRunner().run({ ...ctxFor(gameDir, { request }), spec: { stage, gate: [] } });
     expect(out.ok, `${stage}: ${out.summary}`).toBe(true);
   }
@@ -201,7 +201,9 @@ describe('freeform stages, end to end with the dry-run provider', () => {
       expect(files.roster).toEqual(ex.roster);
       if (ex.objectives) expect(JSON.parse(readFileSync(join(gameDir, 'content', 'objectives.json'), 'utf8'))).toEqual(ex.objectives);
       // The content its idea decides (the moon garden's crops) and its cast's look, as the example has them.
-      for (const [key, value] of Object.entries(ex.content ?? {})) expect(JSON.parse(readFileSync(join(gameDir, 'content', `${key}.json`), 'utf8')), key).toEqual(key === 'sprites' ? SpriteSheet.parse(value) : value);
+      // (Its talk, as the story stage writes it: parsed, with the schema's defaults.)
+      const asWritten = (key: string, value: unknown) => (key === 'sprites' ? SpriteSheet.parse(value) : key === 'dialogue' ? DialogueFile.parse(value) : value);
+      for (const [key, value] of Object.entries(ex.content ?? {})) expect(JSON.parse(readFileSync(join(gameDir, 'content', `${key}.json`), 'utf8')), key).toEqual(asWritten(key, value));
       expect(checkGameSprites(gameDir).issues).toEqual([]);
       expect(readFileSync(join(gameDir, 'design', 'concept.md'), 'utf8')).toMatch(/- Genre: freeform, built on /);
       // Every behaviour the game runs fires only the entities it has (a renamed projectile under its new name).
@@ -213,6 +215,14 @@ describe('freeform stages, end to end with the dry-run provider', () => {
       const proofs = checkProofs(gameDir);
       expect(proofs.issues).toEqual([]);
       expect(proofs.metrics).toMatchObject({ proven: ex.gdd.scope.levels, replayed: true });
+      // A story with people: each level holds the people the talk places in it, and the gate holds the story to the game.
+      const story = exampleStory(ex);
+      if (story?.people) {
+        for (const { level, index } of readGameLevels(gameDir)) {
+          expect(level.entities.filter((e) => typeof e.props['speaker'] === 'string').map((e) => e.props['speaker']).sort(), `${ex.id} ${level.id}`).toEqual(peopleOn(story, index).map((p) => p.speaker).sort());
+        }
+        expect(checkGameStory(gameDir)).toMatchObject({ ok: true, issues: [] });
+      }
     }, 120_000);
   }
 });

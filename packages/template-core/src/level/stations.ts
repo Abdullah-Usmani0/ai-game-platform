@@ -31,13 +31,13 @@ export const SERVICE_WINDOW = { dx: 10, dy: 5 } as const;
 /** Side view: how far past the source a dropoff may stand, in tiles (a trip there and back stays short). */
 export const SIDE_REACH = { min: 8, max: 40 } as const;
 
-interface Tile {
+export interface Tile {
   x: number;
   y: number;
 }
 
-const key = (t: Tile) => `${t.x},${t.y}`;
-const tileOf = (k: string): Tile => {
+export const key = (t: Tile) => `${t.x},${t.y}`;
+export const tileOf = (k: string): Tile => {
   const [x, y] = k.split(',').map(Number) as [number, number];
   return { x, y };
 };
@@ -49,7 +49,7 @@ const NEIGHBOURS: ReadonlyArray<readonly [number, number]> = [
 ];
 
 /** A station's tiles: its anchor is its bottom-left tile (where a level places an entity), and it stands up from there. */
-function footprint(anchor: Tile, size: { w: number; h: number }, ts: number): Tile[] {
+export function footprint(anchor: Tile, size: { w: number; h: number }, ts: number): Tile[] {
   const fw = Math.max(1, Math.ceil(size.w / ts));
   const fh = Math.max(1, Math.ceil(size.h / ts));
   const out: Tile[] = [];
@@ -58,14 +58,14 @@ function footprint(anchor: Tile, size: { w: number; h: number }, ts: number): Ti
 }
 
 /** Floor a top-down player can walk: inside the level, neither solid nor a hazard. */
-function floorAt(map: Tilemap, t: Tile): boolean {
+export function floorAt(map: Tilemap, t: Tile): boolean {
   if (t.x < 0 || t.y < 0 || t.x >= map.width || t.y >= map.height) return false;
   const k = map.kindAt(t.x, t.y);
   return k !== 'solid' && k !== 'hazard';
 }
 
 /** The floor tiles reachable from a tile by walking (four neighbours), with their distances. */
-function walkable(map: Tilemap, from: Tile): Map<string, number> {
+export function walkable(map: Tilemap, from: Tile): Map<string, number> {
   const dist = new Map<string, number>([[key(from), 0]]);
   const queue: Tile[] = [from];
   for (let i = 0; i < queue.length; i++) {
@@ -82,7 +82,7 @@ function walkable(map: Tilemap, from: Tile): Map<string, number> {
 }
 
 /** The tiles beside a footprint (four neighbours of its tiles, outside it). */
-function beside(tiles: readonly Tile[]): Tile[] {
+export function beside(tiles: readonly Tile[]): Tile[] {
   const inside = new Set(tiles.map(key));
   const out = new Map<string, Tile>();
   for (const t of tiles) {
@@ -95,7 +95,7 @@ function beside(tiles: readonly Tile[]): Tile[] {
 }
 
 /** The tiles round a footprint, one tile out, corners included. */
-function ring(tiles: readonly Tile[]): Tile[] {
+export function ring(tiles: readonly Tile[]): Tile[] {
   const inside = new Set(tiles.map(key));
   const out = new Map<string, Tile>();
   for (const t of tiles) {
@@ -109,16 +109,16 @@ function ring(tiles: readonly Tile[]): Tile[] {
   return [...out.values()];
 }
 
-const solidChar = (level: LevelJson): string | null => Object.entries(level.legend).find(([, k]) => k === 'solid')?.[0] ?? null;
+export const solidChar = (level: LevelJson): string | null => Object.entries(level.legend).find(([, k]) => k === 'solid')?.[0] ?? null;
 
 /** The level with these tiles made solid. */
-function stamp(level: LevelJson, tiles: readonly Tile[], ch: string): LevelJson {
+export function stamp(level: LevelJson, tiles: readonly Tile[], ch: string): LevelJson {
   const rows = level.rows.map((r) => [...r]);
   for (const t of tiles) if (rows[t.y]?.[t.x] !== undefined) rows[t.y]![t.x] = ch;
   return { ...level, rows: rows.map((r) => r.join('')) };
 }
 
-const chebyshev = (a: Tile, b: Tile) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+export const chebyshev = (a: Tile, b: Tile) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
 /** Candidates by how far each is from the nearest of some tiles, farthest first (ties keep the given order). */
 function farthestFirst(candidates: readonly Tile[], from: readonly Tile[]): Tile[] {
@@ -178,7 +178,7 @@ function dressTopdown(level: LevelJson, seed: number, ctx: StationsCtx): LevelJs
   return { ...current, entities: [...current.entities, ...placed.map((p) => ({ type: p.type, x: p.anchor.x, y: p.anchor.y, props: {} }))] };
 }
 
-const tallTiles = (ts: number) => Math.max(1, Math.ceil(11 / ts));
+export const tallTiles = (ts: number) => Math.max(1, Math.ceil(11 / ts));
 
 /** Side view: the player walks in front of stations; each on a two-tile ledge, reachable from the source and back. */
 function dressSide(level: LevelJson, seed: number, ctx: StationsCtx): LevelJson {

@@ -7,6 +7,16 @@ export function pickHighlighted(sim: Sim): InputState {
   return { ...emptyInput(), action: menu !== null && sim.tick - menu.openedTick >= MENU_GRACE_TICKS && sim.tick % 2 === 0 };
 }
 
+/**
+ * Reads on through a talk a bot opened by chance (it walked up beside someone and pressed the talk's key): action every
+ * other tick once the grace is over, each a fresh press that shows a line whole or goes on to the next. Its answers
+ * open as a menu, which pickHighlighted answers.
+ */
+export function readOn(sim: Sim): InputState {
+  const d = sim.world.dialogue;
+  return { ...emptyInput(), action: !!d && sim.tick - d.openedTick >= MENU_GRACE_TICKS && sim.tick % 2 === 0 };
+}
+
 /** Run a bot policy over a sim for up to maxTicks; stops early on win or game over (once no menu is open). */
 export function runBot(sim: Sim, policy: BotPolicy, maxTicks: number): BotResult {
   const memory: Record<string, number> = {};
@@ -16,10 +26,11 @@ export function runBot(sim: Sim, policy: BotPolicy, maxTicks: number): BotResult
   let stuckMax = 0;
   for (let t = 0; t < maxTicks; t++) {
     const menu = sim.world.menu;
-    sim.step(menu && !policy.menus ? pickHighlighted(sim) : policy(sim, sim.tick, memory));
+    const talk = sim.world.dialogue;
+    sim.step(menu && !policy.menus ? pickHighlighted(sim) : talk && !policy.menus ? readOn(sim) : policy(sim, sim.tick, memory));
     const p = sim.world.player;
-    // A menu holds the player still on purpose: that is never being stuck.
-    if (Math.abs(p.x - lastX) < 0.01 && Math.abs(p.y - lastY) < 0.01 && p.alive && !menu && !sim.world.menu) stuck++;
+    // A menu or a talk holds the player still on purpose: that is never being stuck.
+    if (Math.abs(p.x - lastX) < 0.01 && Math.abs(p.y - lastY) < 0.01 && p.alive && !menu && !sim.world.menu && !talk && !sim.world.dialogue) stuck++;
     else stuck = 0;
     stuckMax = Math.max(stuckMax, stuck);
     lastX = p.x;

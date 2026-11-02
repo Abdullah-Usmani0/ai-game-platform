@@ -1,6 +1,7 @@
 import type { DialogueFile, LevelJson } from '@gg/schemas';
 import { CELESTE_CLASS, createSim, defineSystem, emptyInput, type InputState, type Sim, type SimOptions } from '@gg/sdk';
 import { describe, expect, it } from 'vitest';
+import { readOn, runBot } from './bots.js';
 import { talk } from './systems/talk.js';
 import { level } from './test-games.js';
 
@@ -35,7 +36,18 @@ const walker = defineSystem<null>({
   },
 });
 
-const optionsWith = (content: Record<string, unknown>): SimOptions => ({
+/** Rings a bell at tick 120 (once the player has walked over): a menu with one answer, whose key may also be the talk's. */
+const bell = defineSystem<{ rung: boolean }>({
+  id: 'bell',
+  init: () => ({ rung: false }),
+  fixedUpdate(s, _input, ctx) {
+    if (s.rung || ctx.tick < 120) return;
+    s.rung = true;
+    ctx.openMenu({ id: 'bell', title: 'A bell', options: [{ id: 'ok', label: 'Listen' }] });
+  },
+});
+
+const optionsWith = (content: Record<string, unknown>, more: Partial<SimOptions> = {}): SimOptions => ({
   feel: CELESTE_CLASS,
   systems: [walker, talk],
   level: corridor(),
@@ -46,6 +58,7 @@ const optionsWith = (content: Record<string, unknown>): SimOptions => ({
   ],
   player: { w: 6, h: 8, hp: 5 },
   content,
+  ...more,
 });
 const step = (sim: Sim, input: Partial<InputState> = {}, ticks = 1) => {
   for (let i = 0; i < ticks; i++) sim.step({ ...emptyInput(), ...input });
@@ -91,5 +104,44 @@ describe('talk', () => {
     const mute = createSim(optionsWith({}));
     walkTo(mute, 10 * 8 - 6);
     expect(talkTo(mute)).toBeNull();
+  });
+});
+
+describe('the talk key', () => {
+  it("is the game's to choose: on another key, up opens nothing and that key opens the talk", () => {
+    const sim = createSim(optionsWith({ dialogue: TALK }, { params: { talk: { key: 'action' } } }));
+    walkTo(sim, 10 * 8 - 6);
+    expect(talkTo(sim)).toBeNull();
+    step(sim, { action: true });
+    expect(sim.world.dialogue?.node).toBe('hello');
+  });
+
+  it('opens nothing on a key still held from a menu just closed: it takes a fresh press', () => {
+    const sim = createSim(optionsWith({ dialogue: TALK }, { systems: [walker, talk, bell], params: { talk: { key: 'action' } } }));
+    walkTo(sim, 10 * 8 - 6);
+    for (let i = 0; i < 200 && !sim.world.menu; i++) step(sim);
+    expect(sim.world.menu?.id).toBe('bell');
+    // The answer is taken with action, held on after the menu closes: beside the keeper, and no talk opens.
+    step(sim, {}, 20);
+    step(sim, { action: true }, 10);
+    expect([sim.world.menu ?? null, sim.world.dialogue ?? null]).toEqual([null, null]);
+    // Let go and pressed again, it does.
+    step(sim);
+    step(sim, { action: true });
+    expect(sim.world.dialogue?.node).toBe('hello');
+  });
+
+  it('a bot that opens a talk by chance reads on through it, and is never counted stuck while it reads', () => {
+    const sim = createSim(optionsWith({ dialogue: TALK }));
+    walkTo(sim, 10 * 8 - 6);
+    // A bot that only ever taps up beside the keeper: each talk it opens, the runner reads to the end.
+    const tapper = Object.assign((_s: Sim, tick: number) => ({ ...emptyInput(), up: tick % 3 === 0 }), {});
+    const talks: string[] = [];
+    sim.events.on('custom:talk', (ev) => talks.push(String(ev.payload['node'])));
+    const r = runBot(sim, tapper, 400);
+    expect(talks.slice(0, 2)).toEqual(['hello', 'again']);
+    expect(r.stuckMaxTicks).toBeLessThan(60);
+    // Reading presses action on alternate ticks once the grace is over, and nothing while no talk is open.
+    expect(readOn(sim).action).toBe(sim.world.dialogue ? sim.tick % 2 === 0 && sim.tick - sim.world.dialogue.openedTick >= 18 : false);
   });
 });

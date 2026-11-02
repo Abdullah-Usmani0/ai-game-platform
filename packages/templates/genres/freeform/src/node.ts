@@ -1,4 +1,4 @@
-import type { FreeformBase, EntityRoster, FreeformSystemsJson, LevelProof, Objectives } from '@gg/schemas';
+import type { DialogueFile, FreeformBase, EntityRoster, FreeformSystemsJson, LevelProof, Objectives } from '@gg/schemas';
 import { grammarHasGoal, rolesOf, type DesignContent, type GenreManifest, type PanelSpec } from '@gg/template-core';
 import { checkObjectives, type ValidationReport } from '@gg/validators';
 import { lifesim } from '@gg/template-lifesim/node';
@@ -32,12 +32,13 @@ export function designContentFor(systemIds: readonly string[]): DesignContent[] 
 
 /**
  * A freeform game's manifest, the same shape as a genre's: its composed runtime and check kit, and its base genre's
- * level grammar and content generators, which now generate under the game's names. Budgets, defaults and prompts
- * are the base's; panels are those of the selected systems, from whichever genre ships them.
+ * level grammar and content generators, which now generate under the game's names, with what its blocks place (the
+ * people its talk puts in each level: `story`). Budgets, defaults and prompts are the base's; panels are those of the
+ * selected systems, from whichever genre ships them.
  */
-export function freeformManifest(file: FreeformSystemsJson, roster: EntityRoster = IDENTITY_ROSTER, proofs: readonly LevelProof[] = []): GenreManifest {
+export function freeformManifest(file: FreeformSystemsJson, roster: EntityRoster = IDENTITY_ROSTER, proofs: readonly LevelProof[] = [], story: DialogueFile | null = null): GenreManifest {
   const base = BASE_MANIFESTS[file.composition.base];
-  const kit = freeformCheck(file, roster, proofs);
+  const kit = freeformCheck(file, roster, proofs, story);
   const { rename } = kit.composed.roster;
   const panels: PanelSpec[] = [];
   for (const m of [base, ...Object.values(BASE_MANIFESTS)]) {
@@ -48,8 +49,9 @@ export function freeformManifest(file: FreeformSystemsJson, roster: EntityRoster
   return {
     ...base,
     ...kit.runtime,
-    // The base genre's level under the game's names, with what its blocks place on it (a courier's stations).
-    levelGrammar: { kind: base.levelGrammar.kind, generate: (params) => dressLevel(retypeLevel(base.levelGrammar.generate(params), rename), params.seed, file, kit.composed, feel), validate: kit.validate },
+    // The base genre's level under the game's names, with what its blocks place on it (a courier's stations, the people
+    // its story puts in the level).
+    levelGrammar: { kind: base.levelGrammar.kind, generate: (params) => dressLevel(retypeLevel(base.levelGrammar.generate(params), rename), params.seed, file, kit.composed, feel, { level: params.level ?? 0, story }), validate: kit.validate },
     extraContent: extra ? (params) => retypeContent(extra(params), rename) : undefined,
     designContent: designContentFor(file.systems.map((s) => s.id)),
     bots: kit.bots,

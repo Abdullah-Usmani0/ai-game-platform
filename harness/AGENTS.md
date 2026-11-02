@@ -69,7 +69,9 @@ once a player wins the level and the worker, replaying that run on the version, 
   and where each person's talk starts, by the flags that hold; and what the flags decide: deeds (an event of the game,
   about a type, sets flags), quests (named side goals, begun and done by flags) and endings (tried in order as the game
   ends, the last with no tests; the first that holds is the player's and its node is the epilogue), and chapters (a
-  level's title, and narration read before it begins: chapter 1's is the prologue; words only, no answers or flags).
+  level's title, and narration read before it begins: chapter 1's is the prologue; words only, no answers or flags),
+  and in a composed game that runs the talk block, people (who the story places: a speaker, a level, near its start,
+  middle or end, and one of four looks; the levels stage puts each where they can be met, validate:levels holds it).
   Narration shows only to a person playing in real time: manual stepping, scripts, bots and the test seam never see
   it, so check it in a realtime page. The sim keeps the story in any game that has one, of any genre, with no system
   to choose. The story stage plans it from the idea (design/story.json: depth none, light or rich; none writes no talk)

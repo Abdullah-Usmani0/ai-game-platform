@@ -3,8 +3,11 @@ import { join } from 'node:path';
 import { blockedTermsFor, mentions, referencesForRequest } from '@gg/catalog';
 import { generateArtifact, providerFor } from '@gg/llm';
 import { DialogueFile, StoryBible } from '@gg/schemas';
+import { LOSTDOG } from '@gg/template-freeform';
+import { storyFeedback } from '@gg/template-core';
 import { manifestFor, readGameFiles, storyFactsOf } from '@gg/templates/node';
 import { checkStory, type StoryFacts } from '@gg/validators';
+import { exampleFor } from '../freeform.js';
 import { draftStory } from '../story-draft.js';
 import { add, fail, ok, readGdd, readJson, writeJson, ZERO } from './stage-kit.js';
 import type { PairDraft, StageContext, StageOutcome } from './types.js';
@@ -23,6 +26,7 @@ const DIALOGUE_RULES = [
   'Rules (checked; an answer that breaks one is sent back):',
   '- node ids are used once; every node an answer, a next, a start, a chapter or an ending names exists;',
   "- talks start only with the game's people (their speaker ids below); narration is spoken by `narrator`;",
+  '- a person the talk places (people) stands once in a level, in a level the game has, and has a start;',
   '- a chapter is for one of the levels, one each; its narration (the node and those its next leads to) gives no answers and sets no flags;',
   '- the last ending has no tests and is the only one without; endings, quests, answers and starts test only flags something sets;',
   "- a deed hears one of the game's events below, about one of its types if it names one;",
@@ -38,12 +42,32 @@ function bibleText(b: StoryBible): string {
   return [b.premise, b.setting, b.protagonist, b.tone, ...b.cast.flatMap((c) => [c.name, c.role]), ...b.chapters.flatMap((c) => [c.title, c.beat]), ...b.endings.flatMap((e) => [e.title, e.how])].join('\n');
 }
 
-/** The people a game places, as the prompt names them: who they are by speaker id, or that it has none. */
+/** The looks a person placed from the talk can wear (people[].look), as the prompt describes them. */
+const LOOKS = '0 a villager in an apron, 1 an elder in a hooded cloak with a staff, 2 a child, 3 a traveller in a wide hat with a pack';
+
+/**
+ * The people a game places, as the prompt names them: who they are by speaker id; in a game that places people from
+ * its talk, that the story places its own; or that it has none.
+ */
 function peopleLine(facts: StoryFacts): string {
+  if (facts.people) {
+    const own = facts.speakers.length > 0 ? ` Its own people talk too, by speaker id: ${facts.speakers.join(', ')}.` : '';
+    return `Its people are the story's own: place each you want met in a level with people [{ speaker, level, near: start | middle | end, look }] (look: ${LOOKS}), give each a name, a voice and a start, and talk only with those you place.${own} Two to five people suit a short game; one a level at least where the story turns.`;
+  }
   return facts.speakers.length > 0
     ? `Its people (the only ones a talk can start with), by speaker id: ${facts.speakers.join(', ')}. Give each a name and a voice of your own.`
-    : 'It has no people to talk to: tell the story in narration (chapters and an ending), with no starts.';
+    : 'It has no people to talk to: tell the story in narration (chapters and an ending), with no starts and no people.';
 }
+
+/**
+ * A talk told well, shown for its craft only: lines short and in each speaker's own voice, answers that set flags the
+ * story later reads (a start, an ending, a quest), a deed that remembers what the player did, endings that follow from
+ * it. Another game's: its names and lines are never to be reused.
+ */
+const CRAFT = (() => {
+  const d = LOSTDOG.content?.['dialogue'];
+  return d ? `A well-told talk from another game, for its craft only (short lines in each speaker's voice, answers whose flags the story reads later, a deed, endings that follow from what was done); never reuse its names, places or lines:\n${JSON.stringify(d)}` : '';
+})();
 
 /** The events and types a deed may hear, as the prompt lists them. */
 function deedsLine(facts: StoryFacts): string {
@@ -54,14 +78,9 @@ function deedsLine(facts: StoryFacts): string {
 function bindStoryFeedback(gameDir: string, d: DialogueFile): string[] {
   const path = join(gameDir, 'design', 'feedback.json');
   const table = existsSync(path) ? readJson<Array<{ event: string; channels: string[] }>>(path) : [];
-  const want: Array<[boolean, string]> = [
-    [d.starts.length > 0, 'custom:talk'],
-    [(d.quests ?? []).length > 0, 'custom:quest'],
-    [(d.endings ?? []).length > 0, 'custom:ending'],
-  ];
-  const added = want.flatMap(([needed, event]) => (needed && !table.some((b) => b.event === event) ? [event] : []));
-  if (added.length > 0) writeJson(path, [...table, ...added.map((event) => ({ event, channels: ['sfx'] }))]);
-  return added;
+  const added = storyFeedback(d).filter((b) => !table.some((t) => t.event === b.event));
+  if (added.length > 0) writeJson(path, [...table, ...added]);
+  return added.map((b) => b.event);
 }
 
 /**
@@ -91,7 +110,10 @@ export async function story(ctx: StageContext): Promise<StageOutcome> {
   const req = ctx.request;
   const refs = req ? referencesForRequest(req.prompt, req.referenceTitles) : { matched: [], unmatched: [] };
   const blocked = blockedTermsFor(refs.matched, refs.unmatched);
-  const draft = draftStory({ genre: g, gdd: gddInfo.fm, levels: facts.levels, idea: req?.prompt ?? '' });
+  // A composed game with people to talk to drafts from the hand-made game it was composed after, where that one tells a story.
+  const after = facts.people && files.systems?.genre === 'freeform' ? exampleFor(files.systems.composition.base, req?.prompt ?? '') : null;
+  const example = after?.systems.systems.some((s) => s.id === 'talk') ? DialogueFile.safeParse(after.content?.['dialogue']) : null;
+  const draft = draftStory({ genre: g, gdd: gddInfo.fm, levels: facts.levels, idea: req?.prompt ?? '', example: example?.success ? example.data : null });
   const gdd = gddInfo.fm;
   const provider = providerFor(ctx.provider);
   const k = ctx.policy?.k ?? 1;
@@ -138,7 +160,8 @@ export async function story(ctx: StageContext): Promise<StageOutcome> {
     peopleLine(facts),
     deedsLine(facts),
     DIALOGUE_RULES,
-    'Write content/dialogue.json: version 1, names { speaker: name }, nodes [{ id, speaker, lines, choices [{ label, to, set?, when? }], next?, set? }], starts [{ speaker, node, when? }], chapters [{ level, title?, node? }] (chapter 1\'s node is the prologue), endings [{ id, title, when?, node }], quests [{ id, title, start, done }], deeds [{ on, type?, set }].',
+    `Write content/dialogue.json: version 1, names { speaker: name }, nodes [{ id, speaker, lines, choices [{ label, to, set?, when? }], next?, set? }], starts [{ speaker, node, when? }], chapters [{ level, title?, node? }] (chapter 1's node is the prologue), endings [{ id, title, when?, node }], quests [{ id, title, start, done }], deeds [{ on, type?, set }]${facts.people ? ', people [{ speaker, level, near?, look? }]' : ''}.`,
+    CRAFT,
     `Example (a talk's shape: write the game's own from its story):\n${JSON.stringify(draft.dialogue ?? (keptTalk?.success ? keptTalk.data : null) ?? draftStory({ genre: g, gdd, levels: facts.levels, idea: 'a story' }).dialogue)}`,
   ].join('\n\n');
   const talkRes = await generateArtifact<DialogueFile>({

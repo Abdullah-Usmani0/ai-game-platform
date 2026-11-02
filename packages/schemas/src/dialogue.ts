@@ -99,6 +99,25 @@ export const DialogueChapter = z.object({
 });
 export type DialogueChapter = z.infer<typeof DialogueChapter>;
 
+/** How many looks a person placed from the talk can have (a game's people tell apart by them). */
+export const PERSON_LOOKS = 4;
+
+/**
+ * Someone the talk places in a level, in a game whose people are placed from its story (a composed game that runs the
+ * talk block): who they talk as, the level they stand in, and where along it (near its start, partway, or near its
+ * end). A game whose people are its own types (the castle's hermit) places them in its levels itself.
+ */
+export const DialoguePerson = z.object({
+  /** The speaker they talk as: their talks are the starts for this speaker. */
+  speaker: Id,
+  /** The level, counted from 1. */
+  level: z.int().min(1).max(20),
+  near: z.enum(['start', 'middle', 'end']).default('start'),
+  /** Which of the person's looks they wear (absent: one by their place in the list). */
+  look: z.int().min(0).max(PERSON_LOOKS - 1).optional(),
+});
+export type DialoguePerson = z.infer<typeof DialoguePerson>;
+
 export const DialogueFile = z.object({
   version: z.literal(1),
   /** The cast's names as shown over their lines, by speaker id. */
@@ -111,6 +130,8 @@ export const DialogueFile = z.object({
   endings: z.array(DialogueEnding).max(4).optional(),
   quests: z.array(Quest).max(8).optional(),
   deeds: z.array(Deed).max(16).optional(),
+  /** The people the talk places in the game's levels, where the game places people from its story. */
+  people: z.array(DialoguePerson).max(16).optional(),
 });
 export type DialogueFile = z.infer<typeof DialogueFile>;
 
@@ -131,6 +152,11 @@ export const UNSTABLE_DEED_EVENTS: readonly string[] = ['ui_open', 'ui_close', '
 /** The chapter of a level (counted from 0, as the game counts them), if the story gives it one. */
 export function chapterOf(file: Pick<DialogueFile, 'chapters'> | null | undefined, levelIndex: number): DialogueChapter | null {
   return (file?.chapters ?? []).find((c) => c.level === levelIndex + 1) ?? null;
+}
+
+/** The people the talk places in a level (counted from 0, as the game counts them), each with the look they wear. */
+export function peopleOn(file: Pick<DialogueFile, 'people'> | null | undefined, levelIndex: number): Array<DialoguePerson & { look: number }> {
+  return (file?.people ?? []).flatMap((p, i) => (p.level === levelIndex + 1 ? [{ ...p, look: p.look ?? i % PERSON_LOOKS }] : []));
 }
 
 /** The ending a player's flags reach: the first whose tests hold (null for a game with no endings). */

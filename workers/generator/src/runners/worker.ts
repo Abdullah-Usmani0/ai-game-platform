@@ -405,7 +405,7 @@ const levels: StageFn = async (ctx) => {
     let best: { level: LevelJson; content: Record<string, unknown>; dist: number; proof?: LevelProof } | null = null;
     let waiting: { level: LevelJson; content: Record<string, unknown>; dist: number } | null = null;
     for (let s = baseSeed; s < baseSeed + kSeeds * 2 && !best; s++) {
-      const params: LevelGenParams = { seed: s, difficulty };
+      const params: LevelGenParams = { seed: s, difficulty, level: 0 };
       const level: LevelJson = { ...g.levelGrammar.generate(params), id: 'arena', name: 'Arena', ramp: { segment: 0, difficulty } };
       const content = g.extraContent?.(params) ?? {};
       // The game's other content (a freeform game's objectives) plays along with the arena's own waves.
@@ -437,7 +437,7 @@ const levels: StageFn = async (ctx) => {
       for (let round = 0; round < 4 && !best; round++) {
         const from = baseSeed + i * 50 + round * kSeeds;
         for (let s = from; s < from + kSeeds; s++) {
-          const level: LevelJson = { ...g.levelGrammar.generate({ seed: s, difficulty, boss, ...genParams }), id, name: `Level ${i + 1}`, ramp: { segment: i, difficulty } };
+          const level: LevelJson = { ...g.levelGrammar.generate({ seed: s, difficulty, boss, ...genParams, level: i }), id, name: `Level ${i + 1}`, ramp: { segment: i, difficulty } };
           const r = oracle(level, gameContent, playSeed, i);
           tried.push(`${id}@${s}:${r.ok ? r.ticks : r.idle ? 'idle' : r.unproven ? 'unproven' : 'x'}`);
           if (r.unproven) waiting ??= level;

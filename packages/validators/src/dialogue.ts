@@ -17,7 +17,9 @@ export interface DialogueCast {
  * - each start's speaker is someone in the game (a warning: a level may name its people as it likes);
  * - no deed listens to an event only the page emits (ui_open, ui_close, feedback, audio_play);
  * - a level has one chapter at most, and its narration (the node and those its `next` leads to) exists, asks for no
- *   answer and sets no flag.
+ *   answer and sets no flag;
+ * - a person the talk places stands once in a level, and has a talk to start (someone placed with nothing to say is
+ *   never heard).
  * Whether each ending can actually be reached in play is the story prover's.
  */
 export function validateDialogue(file: DialogueFile, cast: DialogueCast = {}): ValidationReport {
@@ -97,6 +99,16 @@ export function validateDialogue(file: DialogueFile, cast: DialogueCast = {}): V
     read(q.done, `quests.${q.id}.done`, `quest '${q.id}' to be done`);
   }
 
+  // The people the talk places: once a level each, and each with something to say.
+  const placed = new Set<string>();
+  const talks = new Set(file.starts.map((x) => x.speaker));
+  (file.people ?? []).forEach((p, i) => {
+    const at = `${p.speaker}@${p.level}`;
+    if (placed.has(at)) issues.push(err('person_duplicate', `'${p.speaker}' stands in level ${p.level} twice`, { path: `people.${i}` }));
+    placed.add(at);
+    if (!talks.has(p.speaker)) issues.push(err('person_silent', `'${p.speaker}' is placed in level ${p.level}, but no talk starts with them: give them a start`, { path: `people.${i}` }));
+  });
+
   if (cast.speakers) {
     const people = new Set(cast.speakers);
     for (const s of new Set(file.starts.map((x) => x.speaker))) {
@@ -116,16 +128,22 @@ export interface StoryFacts {
   types: readonly string[];
   /** How many levels the game has: a chapter is for one of them. */
   levels: number;
+  /**
+   * Whether the game places people from its talk (a composed game that runs the talk block): then the speakers its
+   * `people` name are the game's people too, each standing where the talk puts them.
+   */
+  people?: boolean;
 }
 
 /**
  * A story held to the game it is written for, beyond validateDialogue's rules: its talks start only with people the
- * game places (an error here, not a warning: a talk with nobody is never heard); its deeds hear events the game emits,
- * about types it has (a deed on anything else never happens, so what tests its flags is dead); its chapters are for
- * levels it has.
+ * game places (an error here, not a warning: a talk with nobody is never heard), its own types or, in a game that
+ * places people from its talk, those its `people` name; its deeds hear events the game emits, about types it has (a
+ * deed on anything else never happens, so what tests its flags is dead); its chapters and people are for levels it has.
  */
 export function checkStory(file: DialogueFile, facts: StoryFacts): ValidationReport {
-  const base = validateDialogue(file, { speakers: facts.speakers });
+  const people = file.people ?? [];
+  const base = validateDialogue(file, { speakers: [...facts.speakers, ...(facts.people ? people.map((p) => p.speaker) : [])] });
   const issues: Issue[] = base.issues.map((i) => (i.code === 'start_nobody' ? { ...i, code: 'speaker_unplaced', severity: 'error' } : i));
   const events = new Set(facts.events);
   const types = new Set(facts.types);
@@ -136,5 +154,9 @@ export function checkStory(file: DialogueFile, facts: StoryFacts): ValidationRep
   for (const c of file.chapters ?? []) {
     if (c.level > facts.levels) issues.push(err('chapter_beyond', `chapter ${c.level} is for a level the game does not have (it has ${facts.levels})`, { path: `chapters.${c.level}` }));
   }
-  return report(issues, base.metrics);
+  if (people.length > 0 && !facts.people) issues.push(err('people_unplaced', "the talk places people, but this game places none from its talk: its people are its own (talk only with them, and leave people out)", { path: 'people' }));
+  people.forEach((p, i) => {
+    if (facts.people && p.level > facts.levels) issues.push(err('person_beyond', `'${p.speaker}' is placed in level ${p.level}, which the game does not have (it has ${facts.levels})`, { path: `people.${i}` }));
+  });
+  return report(issues, { ...base.metrics, people: people.length });
 }

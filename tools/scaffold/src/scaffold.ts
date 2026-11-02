@@ -1,9 +1,9 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import { Objectives, parseAnyGdd, type EntityRoster, type LevelJson, type LevelProof, type StyleCard, type SystemsFile, type SystemsJson } from '@gg/schemas';
+import { DialogueFile, Objectives, parseAnyGdd, type EntityRoster, type LevelJson, type LevelProof, type StyleCard, type SystemsFile, type SystemsJson } from '@gg/schemas';
 import { createSim, type FeedbackBinding } from '@gg/sdk';
-import { type GenreManifest, type LevelGenParams, levelPlan, levelTicksOf, rolesPresent, runBot, simOptionsFor, systemsJsonFor } from '@gg/template-core';
+import { type GenreManifest, type LevelGenParams, levelPlan, levelTicksOf, rolesPresent, runBot, simOptionsFor, storyFeedback, systemsJsonFor } from '@gg/template-core';
 import { BASE_MANIFESTS, checkFreeformObjectives, freeformManifest, generatorParams, IDENTITY_ROSTER, idleWins, proveLevel, type FreeformExample } from '@gg/template-freeform/node';
 import { catalogFor, genre as genreOf } from '@gg/templates/node';
 import { checkComposition, checkSystems, parseFrontmatter, type Issue } from '@gg/validators';
@@ -75,7 +75,9 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   const systems = opts.systems;
   const freeform = systems.genre === 'freeform' ? systems : null;
   const roster = opts.roster ?? IDENTITY_ROSTER;
-  const g: GenreManifest = freeform ? freeformManifest(freeform, roster) : genreOf(opts.genre);
+  // A composed game's levels carry the people its own talk places in them, where it brings one.
+  const story = DialogueFile.safeParse(opts.content?.['dialogue']);
+  const g: GenreManifest = freeform ? freeformManifest(freeform, roster, [], story.success ? story.data : null) : genreOf(opts.genre);
   const out = resolve(opts.outDir);
   const files: string[] = [];
   const seed = opts.seed ?? 1;
@@ -139,6 +141,8 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   // The GDD's table binds the fixed events; the genre adds its own custom ones (a finisher, a boss slam, a door).
   const feedback: FeedbackBinding[] = [...(gdd.data.feedbackEvents as FeedbackBinding[])];
   for (const x of g.feedbackExtras ?? []) if (!feedback.some((f) => f.event === x.event)) feedback.push(x as FeedbackBinding);
+  // A talk the game brings is heard: its talks, quests and ending each bound to a sound.
+  if (story.success) for (const x of storyFeedback(story.data)) if (!feedback.some((f) => f.event === x.event)) feedback.push(x as FeedbackBinding);
   write(files, out, 'design/feedback.json', JSON.stringify(feedback, null, 2) + '\n');
   write(files, out, 'design/mechanics.json', F.MECHANICS_JSON);
   write(files, out, 'design/deviations.md', F.DEVIATIONS_MD);
@@ -185,7 +189,7 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   const extra = freeform ? generatorParams(freeform, gdd.data.targets.levelTimeS) : {};
   let s = seed;
   for (const slot of plan) {
-    const paramsAt = (genSeed: number): LevelGenParams => (arena ? { seed: genSeed, difficulty: slot.difficulty } : { seed: genSeed, difficulty: slot.difficulty, boss: slot.boss, ...extra });
+    const paramsAt = (genSeed: number): LevelGenParams => (arena ? { seed: genSeed, difficulty: slot.difficulty, level: slot.index } : { seed: genSeed, difficulty: slot.difficulty, boss: slot.boss, ...extra, level: slot.index });
     // The level as the game ships it (its id is what proofs and the editor know it by).
     const named = (l: LevelJson): LevelJson => (arena ? { ...l, id: 'arena', name: 'Arena' } : { ...l, id: slot.id, name: `Level ${slot.index + 1}`, ramp: { segment: slot.index, difficulty: slot.difficulty } });
     let params = paramsAt(s);

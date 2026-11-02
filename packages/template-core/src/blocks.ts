@@ -1,8 +1,11 @@
+import { peopleOn } from '@gg/schemas';
 import { courier } from './courier.js';
+import { checkPeople, dressPeople, type PeopleCtx } from './level/people.js';
 import { checkStations, dressStations, type StationsCtx } from './level/stations.js';
 import type { BlockLevelCtx, BlockModule } from './manifest.js';
 import { carry, meta as carryMeta } from './systems/carry.js';
 import { orders, meta as ordersMeta } from './systems/orders.js';
+import { talk, blockMeta as talkBlockMeta } from './systems/talk.js';
 import { vehicle, meta as vehicleMeta } from './systems/vehicle.js';
 
 /** The courier's stations as a game names and sizes them, with as many dropoffs as it asks for. */
@@ -71,4 +74,32 @@ export const vehicleBlock: BlockModule = {
   meta: vehicleMeta,
   create: () => vehicle,
   feedbackExtras: [{ event: 'custom:bump', channels: ['shake', 'sfx'] }],
+};
+
+/** A person as a game names and sizes them, with the people its story places in the level (where both are known). */
+function peopleCtx(ctx: BlockLevelCtx): PeopleCtx {
+  const type = ctx.typeOf('person');
+  const def = ctx.defOf(type);
+  return {
+    movementMode: ctx.movementMode,
+    feel: ctx.feel,
+    type,
+    size: { w: def?.w ?? 8, h: def?.h ?? 8 },
+    people: ctx.level !== undefined && ctx.story ? peopleOn(ctx.story, ctx.level).map((p) => ({ speaker: p.speaker, near: p.near, look: p.look })) : undefined,
+  };
+}
+
+/**
+ * People to talk to, as a block for any base the player walks or runs and jumps on: the talk system on the key the game
+ * gives it, a person (someone to talk to: no behaviour, no harm, movement-neutral) for the roster to name, the feedback
+ * a talk needs, and the hooks that put the people the story places in each level on it and check they stand where they
+ * can be met. A level with nobody in its story is left as it was.
+ */
+export const talkBlock: BlockModule = {
+  meta: talkBlockMeta,
+  create: () => talk,
+  archetypes: [{ def: { type: 'person', w: 8, h: 8, gravity: false, npc: true }, roles: [] }],
+  feedbackExtras: [{ event: 'custom:talk', channels: ['sfx'] }],
+  dress: (level, seed, ctx) => dressPeople(level, seed, peopleCtx(ctx)),
+  checkLevel: (level, ctx) => checkPeople(level, peopleCtx(ctx)),
 };

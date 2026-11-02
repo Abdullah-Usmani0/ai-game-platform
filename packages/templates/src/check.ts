@@ -1,4 +1,4 @@
-import type { EntityRoster, LevelProof, SystemsFile } from '@gg/schemas';
+import type { DialogueFile, EntityRoster, LevelProof, SystemsFile } from '@gg/schemas';
 import { castleCheck } from '@gg/template-castle/check';
 import type { GenreCheck } from '@gg/template-core';
 import { freeformCheck } from '@gg/template-freeform/check';
@@ -33,10 +33,10 @@ export function checkKit(genreId: string): GenreCheck {
 
 /**
  * A game's check kit from its systems.json: its curated genre's, or a freeform game's own, composed from its systems and
- * roster with its proofs as the solver. Browser-safe, like every kit.
+ * roster with its proofs as the solver (and its talk, which says who stands in each level). Browser-safe, like every kit.
  */
-export function kitFor(systems: SystemsFile, files: { roster?: EntityRoster | null; proofs?: readonly LevelProof[] } = {}): GenreCheck {
-  return systems.genre === 'freeform' ? freeformCheck(systems, files.roster ?? undefined, files.proofs ?? []) : checkKit(systems.genre);
+export function kitFor(systems: SystemsFile, files: { roster?: EntityRoster | null; proofs?: readonly LevelProof[]; dialogue?: DialogueFile | null } = {}): GenreCheck {
+  return systems.genre === 'freeform' ? freeformCheck(systems, files.roster ?? undefined, files.proofs ?? [], files.dialogue ?? null) : checkKit(systems.genre);
 }
 
 export { checkLevel, type LevelCheck } from '@gg/template-core';

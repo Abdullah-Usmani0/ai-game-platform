@@ -7,7 +7,7 @@ import { lifesimRuntime } from '@gg/template-lifesim';
 import { shmupRuntime } from '@gg/template-shmup';
 import { survivorsRuntime } from '@gg/template-survivors';
 import { topdownActionRuntime } from '@gg/template-topdown-action';
-import { carryBlock, objectives, ordersBlock, objectivesMeta, rolesOf, vehicleBlock, type BlockModule, type GenreRuntime, type SystemModule } from '@gg/template-core';
+import { carryBlock, objectives, ordersBlock, objectivesMeta, rolesOf, talkBlock, vehicleBlock, type BlockModule, type GenreRuntime, type SystemModule } from '@gg/template-core';
 import type { EntityRole, MovementKind, SystemsCatalog } from '@gg/validators';
 
 /** The curated genres' runtimes: every system, entity and behaviour a freeform game can be made of. */
@@ -24,13 +24,15 @@ export const CURATED_IDS = Object.keys(RUNTIMES) as FreeformBase[];
 
 /**
  * The blocks only freeform games compose: systems that belong to no genre, some with what they bring beyond the system
- * (a courier's job brings its own entities, the stations it places on every level and the bot that plays it).
+ * (a courier's job brings its own entities, the stations it places on every level and the bot that plays it; people to
+ * talk to bring a person, placed in each level where the game's story says).
  */
 export const BLOCKS: Readonly<Record<string, BlockModule>> = {
   [autoRunMeta.id]: { meta: autoRunMeta, create: () => autoRun },
   [carryBlock.meta.id]: carryBlock,
   [ordersBlock.meta.id]: ordersBlock,
   [vehicleBlock.meta.id]: vehicleBlock,
+  [talkBlock.meta.id]: talkBlock,
 };
 
 /**

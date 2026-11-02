@@ -16,6 +16,8 @@ export interface GameFiles {
   proofs: LevelProof[];
   /** Hints for levels the explorer could not finish alone (content/hints/<level>.json). */
   hints: LevelHints[];
+  /** The game's talk (content/dialogue.json): in a composed game, who its story places in which level. */
+  dialogue?: DialogueFile | null;
 }
 
 function readJson(path: string): unknown {
@@ -26,7 +28,10 @@ function readJson(path: string): unknown {
   }
 }
 
-/** Reads a game directory's design/systems.json, design/gdd.md front matter, content/entities.json, content/proofs/ and content/hints/. */
+/**
+ * Reads a game directory's design/systems.json, design/gdd.md front matter, content/entities.json, content/proofs/,
+ * content/hints/ and content/dialogue.json.
+ */
 export function readGameFiles(gameDir: string): GameFiles {
   const systems = parseSystemsFile(readJson(join(gameDir, 'design', 'systems.json')));
   const gddPath = join(gameDir, 'design', 'gdd.md');
@@ -45,16 +50,17 @@ export function readGameFiles(gameDir: string): GameFiles {
       : [];
   const proofs = each(join(gameDir, 'content', 'proofs'), (v) => LevelProof.safeParse(v));
   const hints = each(join(gameDir, 'content', 'hints'), (v) => LevelHints.safeParse(v));
-  return { systems: systems.success ? systems.data : null, gdd: gdd?.success ? gdd.data : null, roster: roster.success ? roster.data : null, proofs, hints };
+  const dialogue = DialogueFile.safeParse(readJson(join(gameDir, 'content', 'dialogue.json')));
+  return { systems: systems.success ? systems.data : null, gdd: gdd?.success ? gdd.data : null, roster: roster.success ? roster.data : null, proofs, hints, dialogue: dialogue.success ? dialogue.data : null };
 }
 
 /**
  * The manifest of a game: its curated genre's own, the very object the genre registry holds; or a freeform game's
- * composition on its base (its systems, roster and proofs), or before its systems are chosen, the base offering every
+ * composition on its base (its systems, roster, proofs and talk), or before its systems are chosen, the base offering every
  * system that works with its movement. The request's genre is the last resort, for a game with no design files yet.
  */
 export function manifestFor(files: Partial<GameFiles>, requestGenre?: string): GenreManifest {
-  if (files.systems?.genre === 'freeform') return freeformManifest(files.systems, files.roster ?? IDENTITY_ROSTER, files.proofs ?? []);
+  if (files.systems?.genre === 'freeform') return freeformManifest(files.systems, files.roster ?? IDENTITY_ROSTER, files.proofs ?? [], files.dialogue ?? null);
   if (files.gdd?.genre === 'freeform') return freeformDesignManifest(files.gdd.base);
   const id = files.systems?.genre ?? files.gdd?.genre ?? requestGenre;
   if (!id) throw new Error('cannot determine the genre: no request, systems.json or gdd.md');
@@ -264,8 +270,9 @@ const STORY_EVENTS = ['custom:dialogue', 'custom:dialogue_choice', 'custom:quest
 
 /**
  * What a game's story may use, read from the game itself: the people its levels place (types marked as someone to talk
- * to), every event it emits (its systems', its own systems' contracts', its behaviours', the sim's, never the page's),
- * its entity types, and its levels (those written, else as many as its design plans).
+ * to; in a composed game that runs the talk block, the people its talk places, the block's own person aside), every
+ * event it emits (its systems', its own systems' contracts', its behaviours', the sim's, never the page's), its entity
+ * types, and its levels (those written, else as many as its design plans).
  */
 export function storyFactsOf(gameDir: string): StoryFacts {
   const files = readGameFiles(gameDir);
@@ -279,11 +286,15 @@ export function storyFactsOf(gameDir: string): StoryFacts {
   const core = GAME_EVENTS.filter((e) => !UNSTABLE_DEED_EVENTS.includes(e));
   const written = readGameLevels(gameDir).length;
   const levels = written > 0 ? written : plannedLevelCount(g.levelGrammar.kind, files.gdd?.scope.levels ?? 1);
+  // A composed game with the talk block places people from its talk: the block's person talks as whoever it is placed as.
+  const people = files.systems?.genre === 'freeform' && chosen.includes('talk');
+  const person = people ? String(g.composedParams?.['talk']?.['personType'] ?? 'person') : null;
   return {
-    speakers: g.entityDefs.filter((d) => (d as { npc?: boolean }).npc === true).map((d) => d.type),
+    speakers: g.entityDefs.filter((d) => (d as { npc?: boolean }).npc === true && d.type !== person).map((d) => d.type),
     events: [...new Set([...core, ...STORY_EVENTS, ...systemEvents, ...contractEvents, ...behaviourEvents])],
     types: g.entityDefs.map((d) => d.type),
     levels,
+    people,
   };
 }
 

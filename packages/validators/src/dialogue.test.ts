@@ -1,6 +1,6 @@
 import { DialogueFile } from '@gg/schemas';
 import { describe, expect, it } from 'vitest';
-import { checkStory, validateDialogue } from './dialogue.js';
+import { checkStory, validateDialogue, type StoryFacts } from './dialogue.js';
 
 /** A keeper with a quest, a deed and two endings: sound as written. */
 const STORY = {
@@ -79,7 +79,7 @@ describe('validateDialogue', () => {
 });
 
 describe('checkStory', () => {
-  const facts = { speakers: ['keeper'], events: ['death', 'custom:light'], types: ['warden'], levels: 2 };
+  const facts: StoryFacts = { speakers: ['keeper'], events: ['death', 'custom:light'], types: ['warden'], levels: 2 };
   const story = (more: object) => DialogueFile.parse({ ...STORY, ...more });
   const codes = (more: object, f = facts) => checkStory(story(more), f).issues.map((i) => i.code).sort();
 
@@ -92,5 +92,29 @@ describe('checkStory', () => {
     expect(codes({ deeds: [{ on: 'custom:light', set: { lit: true } }, { on: 'custom:ring', set: { rung: true } }] })).toEqual(['deed_event_unknown']);
     expect(codes({ deeds: [...STORY.deeds, { on: 'death', type: 'dragon', set: { slain: true } }] })).toEqual(['deed_type_unknown']);
     expect(codes({ chapters: [{ level: 3, title: 'Beyond' }] })).toEqual(['chapter_beyond']);
+  });
+
+  it('takes the people a composed game places from its talk as its people, in levels it has', () => {
+    // A baker the talk places in level 1 and a shepherd in level 2: nobody else talks as either.
+    const placed = {
+      names: { baker: 'Wren', shepherd: 'Old Tam' },
+      nodes: [...STORY.nodes, { id: 'flour', speaker: 'baker', lines: ['Mind the step.'] }, { id: 'flock', speaker: 'shepherd', lines: ['The hill is steep.'] }],
+      starts: [...STORY.starts, { speaker: 'baker', node: 'flour' }, { speaker: 'shepherd', node: 'flock' }],
+      people: [{ speaker: 'baker', level: 1 }, { speaker: 'shepherd', level: 2, near: 'end' }],
+    };
+    expect(codes(placed, { ...facts, people: true })).toEqual([]);
+    expect(checkStory(story(placed), { ...facts, people: true }).metrics['people']).toBe(2);
+    // A game that places its own people (the castle's) places nobody from its talk.
+    expect(codes(placed)).toEqual(['people_unplaced', 'speaker_unplaced', 'speaker_unplaced']);
+    expect(codes({ ...placed, people: [{ speaker: 'baker', level: 1 }, { speaker: 'shepherd', level: 3 }] }, { ...facts, people: true })).toEqual(['person_beyond']);
+  });
+});
+
+describe('the people a talk places', () => {
+  const base = { ...STORY, names: { ...STORY.names, baker: 'Wren' }, nodes: [...STORY.nodes, { id: 'flour', speaker: 'baker', lines: ['Mind the step.'] }], starts: [...STORY.starts, { speaker: 'baker', node: 'flour' }] };
+  it('stand once in a level, and each has a talk to start', () => {
+    expect(codes({ ...base, people: [{ speaker: 'baker', level: 1 }, { speaker: 'baker', level: 2 }] })).toEqual([]);
+    expect(codes({ ...base, people: [{ speaker: 'baker', level: 1 }, { speaker: 'baker', level: 1, near: 'end' }] })).toEqual(['person_duplicate']);
+    expect(codes({ ...base, people: [{ speaker: 'baker', level: 1 }, { speaker: 'smith', level: 1 }] })).toEqual(['person_silent']);
   });
 });

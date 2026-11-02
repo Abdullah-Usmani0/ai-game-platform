@@ -1,4 +1,4 @@
-import type { EntityRoster, FreeformSystemsJson, LevelJson, LevelProof } from '@gg/schemas';
+import type { DialogueFile, EntityRoster, FreeformSystemsJson, LevelJson, LevelProof } from '@gg/schemas';
 import { emptyInput, inputAtTick } from '@gg/sdk';
 import type { BotPolicy, GenreCheck } from '@gg/template-core';
 import { metroidvaniaCheck } from '@gg/template-metroidvania/check';
@@ -34,10 +34,11 @@ export function proofBot(proofs: readonly LevelProof[]): BotPolicy & { has(level
 /**
  * The check kit of a freeform game, browser-safe like every genre's: its base genre's level validator on the level under
  * the base names (without its blocks' entities, which the base genre knows nothing of: a courier's stations), plus the
- * roster's own problems, entities the game does not define and what its blocks find wrong with theirs; the bots replay
- * the proofs (the solver), press keys at random (chaos, the base genre's) and play its blocks' jobs (the courier).
+ * roster's own problems, entities the game does not define and what its blocks find wrong with theirs (with the game's
+ * talk, the people its story places in each level among them); the bots replay the proofs (the solver), press keys at
+ * random (chaos, the base genre's) and play its blocks' jobs (the courier).
  */
-export function freeformCheck(file: FreeformSystemsJson, roster: EntityRoster = IDENTITY_ROSTER, proofs: readonly LevelProof[] = []): GenreCheck & { composed: Composed } {
+export function freeformCheck(file: FreeformSystemsJson, roster: EntityRoster = IDENTITY_ROSTER, proofs: readonly LevelProof[] = [], story: DialogueFile | null = null): GenreCheck & { composed: Composed } {
   const composed = compose(file, roster);
   const base = BASE_CHECKS[file.composition.base];
   const back = inverse(composed.roster.rename);
@@ -49,7 +50,7 @@ export function freeformCheck(file: FreeformSystemsJson, roster: EntityRoster = 
       const unknown: Issue[] = [...new Set(level.entities.map((e) => e.type).filter((t) => !known.has(t)))].map((t) => err('unknown_entity', `the level places '${t}', which the game's roster does not define`, { path: t }));
       const own = blockTypes(file, composed);
       const r = base.validate(retypeLevel({ ...level, entities: level.entities.filter((e) => !own.has(e.type)) }, back), feel);
-      return report([...composed.issues, ...unknown, ...r.issues, ...blockLevelIssues(level, file, composed, feel)], r.metrics);
+      return report([...composed.issues, ...unknown, ...r.issues, ...blockLevelIssues(level, file, composed, feel, story)], r.metrics);
     },
     bots: { proof: proofBot(proofs), ...(base.bots['chaos'] ? { chaos: base.bots['chaos'] } : {}), ...blockBots(file) },
     solverBot: 'proof',

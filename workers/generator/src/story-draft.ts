@@ -17,16 +17,19 @@ export interface DraftedStory {
 
 /**
  * The story a game tells when no model writes it: a dry run's answer, and the example the story stage shows the model.
- * - A genre that ships a talk of its own (the castle's hermit, keeper, grate and endings) tells that: a rich story.
+ * - A genre that ships a talk of its own (the castle's hermit, keeper, grate and endings) tells that: a rich story. So
+ *   does a composed game with people to talk to whose idea asks for a story, when the hand-made game it was composed
+ *   after tells one (`example`: the lost dog's villagers).
  * - Another game whose idea asks for a story tells a light one: a prologue, a chapter named for each level, an ending.
  * - An idea that asks for none gets none: the play speaks for itself, as it always has.
  */
-export function draftStory(input: { genre: GenreManifest; gdd: AnyGddFrontmatter; levels: number; idea: string }): DraftedStory {
+export function draftStory(input: { genre: GenreManifest; gdd: AnyGddFrontmatter; levels: number; idea: string; example?: DialogueFile | null }): DraftedStory {
   const { genre: g, gdd, levels } = input;
   const shipped = DialogueFile.safeParse(g.shippedContent?.['dialogue']);
   const premise = `${gdd.title}: ${gdd.pillars.join('; ')}.`.slice(0, 400);
-  if (shipped.success) {
-    const talk = shipped.data;
+  const own = shipped.success ? shipped.data : input.example && wantsStory(input.idea) ? input.example : null;
+  if (own) {
+    const talk = own;
     return {
       bible: StoryBible.parse({
         version: 1,

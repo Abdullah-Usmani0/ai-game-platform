@@ -9,7 +9,7 @@ import { artPalette, type ArtPalette, type OutlineMode } from './art/palette.js'
 import { PixelCanvas, hash2 } from './art/pixels.js';
 import { FLAG, PARTICLES, TORCH, paintClouds, paintHangings, paintGlow, paintNebula, paintParticle, paintPlanet, paintRidge, paintScanlines, paintShadow, paintSky, paintSkyOrb, paintStars, paintVignette, paintVoid } from './art/scenery.js';
 import { compileSheet, playerRecipe, spriteFor } from './art/designs.js';
-import { RECIPES, cropRecipe, cropTune, frameSize, legendFor, paintFrames, type Anchor, type Recipe } from './art/sprites.js';
+import { RECIPES, cropRecipe, cropTune, frameSize, legendFor, lookOf, paintFrames, type Anchor, type Recipe } from './art/sprites.js';
 import { themeFor } from './art/backdrop/index.js';
 import { tileable } from './art/backdrop/post.js';
 import { paintRig, RIGS, type Rig } from './art/rig/index.js';
@@ -780,7 +780,10 @@ export class MainScene extends Phaser.Scene {
   /** The sheet an entity draws with: the game's design for its type (or the player's), else its shipped sprite. */
   private recipeName(e: Entity): string | null {
     if (e.isPlayer) return this.setting === 'castle' ? 'rig:knight' : this.designs.has('@player') ? 'game:@player' : playerRecipe(this.setting, e.w);
-    return spriteFor(e.type, { drawAs: this.drawAs.get(e.type), designs: this.designs })?.name ?? (e.isProjectile ? 'orb' : null);
+    const name = spriteFor(e.type, { drawAs: this.drawAs.get(e.type), designs: this.designs })?.name ?? (e.isProjectile ? 'orb' : null);
+    // Someone a story placed wears the look it gave them (a game's own design for them is every look).
+    const look = e.props['look'];
+    return name && typeof look === 'number' ? lookOf(name, look) : name;
   }
 
   private sheetFor(e: Entity): Sheet {

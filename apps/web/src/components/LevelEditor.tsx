@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { Heatmap, HeatCell } from '@gg/db';
-import { EntityRoster, SpriteSheet, type BehaviourFsm, type LevelJson, type SystemsFile, type TileKind } from '@gg/schemas';
+import { DialogueFile, EntityRoster, SpriteSheet, type BehaviourFsm, type LevelJson, type SystemsFile, type TileKind } from '@gg/schemas';
 import { DEFAULT_SEED, levelSeed } from '@gg/sdk';
 import type { GenreCheck, LevelCheck } from '@gg/template-core';
 import { FLAG, PixelCanvas, RECIPES, artPalette, compileSheet, groundUnder, paintFrames, paintRegion, playerRecipe, prepareLevelArt, settingFor, spriteFor, type Anchor, type ArtPalette, type OutlineMode, type PaletteRoles, type Recipe, type Setting } from '@gg/sdk/art';
@@ -250,14 +250,16 @@ export function LevelEditor({
     };
   }, [bundleBase]);
 
-  // The game's own check kit: its curated genre's, or a freeform game's, composed from its systems and roster.
+  // The game's own check kit: its curated genre's, or a freeform game's, composed from its systems and roster (and its
+  // talk, which says who stands in each level).
   useEffect(() => {
     if (!loaded) return;
     let cancelled = false;
     const roster = EntityRoster.safeParse(loaded.content['entities']);
+    const dialogue = DialogueFile.safeParse(loaded.content['dialogue']);
     import('@gg/templates/check')
       .then((m) => {
-        if (!cancelled) setKit(m.kitFor(loaded.systems, { roster: roster.success ? roster.data : null }));
+        if (!cancelled) setKit(m.kitFor(loaded.systems, { roster: roster.success ? roster.data : null, dialogue: dialogue.success ? dialogue.data : null }));
       })
       .catch(() => {
         if (!cancelled) setKit(null);

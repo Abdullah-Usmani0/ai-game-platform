@@ -1,4 +1,4 @@
-import type { ArtifactName, BehaviourFsm, CuratedGenre, EcaRule, FeedbackChannel, GddFrontmatter, LevelJson, ParamValue, ScopeTier, StyleCard, SystemsJson } from '@gg/schemas';
+import type { ArtifactName, BehaviourFsm, CuratedGenre, DialogueFile, EcaRule, FeedbackChannel, GddFrontmatter, LevelJson, ParamValue, ScopeTier, StyleCard, SystemsJson } from '@gg/schemas';
 import type { EntityDef, FeelPreset, InputState, Sim, SystemDef } from '@gg/sdk';
 import type { CatalogSystem, EntityRole, Issue, ValidationReport } from '@gg/validators';
 
@@ -19,6 +19,10 @@ export interface BlockLevelCtx {
   defOf(type: string): EntityDef | undefined;
   /** The block's parameters as the game sets them, over the catalog's defaults. */
   params: Readonly<Record<string, ParamValue>>;
+  /** The level's place in the game, from 0, where it is known (a level generated for a slot, or named for one). */
+  level?: number;
+  /** The game's talk (content/dialogue.json), where it has one: who its story places in which level. */
+  story?: DialogueFile | null;
 }
 
 /**
@@ -58,6 +62,8 @@ export interface LevelGenParams {
   /** 0..1 difficulty target; generators map it to gaps, hazards, enemies. */
   difficulty: number;
   length?: number;
+  /** The level's place in the game, from 0: what blocks place by the level (the people a story puts in it). */
+  level?: number;
   [key: string]: number | undefined;
 }
 

@@ -6,6 +6,7 @@ import type { Store } from '@gg/db';
 import { registerProvider, type Provider, type StructuredRequest, type StructuredResponse, type TextRequest, type TextResponse } from '@gg/llm';
 import { CreateRequest, DialogueFile, GAME_EVENTS, StoryBible, UNSTABLE_DEED_EVENTS, type CuratedGenre } from '@gg/schemas';
 import { plannedLevelCount } from '@gg/template-core';
+import { BASE_MANIFESTS, LOSTDOG } from '@gg/template-freeform/node';
 import { checkGameStory, genre, GENRES, storyFactsOf } from '@gg/templates/node';
 import { checkStory } from '@gg/validators';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -120,6 +121,27 @@ describe('the story stage', () => {
     // The repair prompt names what is wrong: nobody to talk to, an event the game never emits.
     expect(provider.prompts.at(-1)).toMatch(/oracle/);
     expect(provider.prompts.at(-1)).toMatch(/custom:ring/);
+  });
+});
+
+describe('a composed game with people to talk to', () => {
+  it('is told to place its people, and shown a talk told well for its craft alone; the talk it writes places them', async () => {
+    const request = CreateRequest.parse({ prompt: LOSTDOG.prompt, genre: 'freeform', scopeTier: 'small', dryRun: true, seed: 1 });
+    const fake = new FakeProvider({ genre: BASE_MANIFESTS['topdown-action'], request });
+    const provider = new TalkProvider(fake, LOSTDOG.content!['dialogue']);
+    registerProvider('fake', fake);
+    registerProvider('talks', provider);
+    const gameDir = newGame();
+    await run(gameDir, 'fake', request, ['gdd', 'systems', 'composition']);
+    expect(storyFactsOf(gameDir).people).toBe(true);
+    await run(gameDir, 'talks', request, ['story']);
+    const prompt = provider.prompts.at(-1)!;
+    expect(prompt).toMatch(/people \[\{ speaker, level, near: start \| middle \| end, look \}\]/);
+    expect(prompt).toMatch(/^A well-told talk from another game, for its craft only/m);
+    // The craft talk is never what a dry run answers with: only the example of the talk's shape is.
+    expect(prompt.match(/^Example \(a talk's shape/gm)).toHaveLength(1);
+    expect(DialogueFile.parse(read(gameDir, 'content/dialogue.json')).people).toHaveLength(4);
+    expect(checkGameStory(gameDir)).toMatchObject({ ok: true, issues: [] });
   });
 });
 

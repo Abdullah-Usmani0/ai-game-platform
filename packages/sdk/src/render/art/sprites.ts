@@ -581,6 +581,36 @@ const LAMP: Recipe = {
   },
 };
 
+// ---------------------------------------------------------------- people (8 x 11, facing right): someone to talk to
+
+/** A villager: hair in a bun, a dress in the secondary hue under a white apron. */
+const FOLK: Template = ['..pq....', '..qQQq..', '.qQQ555.', '.qQ5k5k.', '..q5555.', '...445..', '..MwwwM.', '.5MwwwM5', '..MwwwM.', '.mMwwwMm', '.mMMMMMm'];
+/** An elder: a hooded cloak in the leaf hue, a weathered face over a white beard, leaning on a staff. */
+const ELDER: Template = ['...vv...', '..vVVv..', '.vVV444.', '.vV44k4.', '.vVw444.', '.vVwww.R', '.vVVwVvR', '.vVVVV4R', '.vVVVVvr', '.vVVVVvr', '.ovvvvor'];
+/** A child: short, a mop of light hair, a bright shirt, little boots. */
+const CHILD: Template = [W8, W8, W8, '..QRRQ..', '.QRRRRQ.', '.QR5k5k.', '..R5555.', '..yYYy..', '.5yYYy5.', '..O..O..', '..O..O..'];
+/** A traveller: a wide hat, a coat in the stone hue belted dark, a pack on the back. */
+const TRAVELLER: Template = ['...pqp..', '..qQQQq.', 'pqQQQQQq', '.rR5k5k.', '.rR5555.', '.rRT44t.', '.rRtTTt.', '.rRtTTt5', '..tOOOt.', '..tTTTt.', '..O..O..'];
+/**
+ * A person standing still, blinking now and then. They stand on a tile of their own top-down (a fixture: the ground is
+ * painted under it) and on the ground in a side view; the hero's own hair and tunic colours are never theirs.
+ */
+const person = (t: Template, row: number, eyes: string, shut: string): Recipe => ({
+  anchor: 'feet',
+  fixture: true,
+  anims: { idle: [...Array.from({ length: 11 }, () => t), withRows(t, { [row]: t[row]!.replace(eyes, shut) })] },
+});
+
+/** The looks a person placed from a game's story wears (its `look`, 0 to 3), by recipe name. */
+export const PERSON_RECIPES: readonly string[] = ['person', 'person-elder', 'person-child', 'person-traveller'];
+
+/** The recipe a sprite draws with in one of its looks: a person's by the look the story gave them; anything else has one. */
+export function lookOf(name: string, look: number): string {
+  if (name !== 'person') return name;
+  const n = PERSON_RECIPES.length;
+  return PERSON_RECIPES[((Math.trunc(look) % n) + n) % n]!;
+}
+
 export const RECIPES: Record<string, Recipe> = {
   'hero-side': SIDE_HERO,
   'hero-topdown': TOPDOWN_HERO,
@@ -625,6 +655,10 @@ export const RECIPES: Record<string, Recipe> = {
   barrel: BARREL,
   table: TABLE,
   lamp: LAMP,
+  person: person(FOLK, 3, '5k5k', '5454'),
+  'person-elder': person(ELDER, 3, '4k4', '444'),
+  'person-child': person(CHILD, 5, '5k5k', '5454'),
+  'person-traveller': person(TRAVELLER, 3, '5k5k', '5454'),
   ...Object.fromEntries(CROP_SHAPE_NAMES.map((shape) => [`crop-${shape}`, cropRecipe(shape)])),
   // The castle tier's cast, drawn by the rig's rasterizer and baked into templates.
   ...CAST_RECIPES,
@@ -670,6 +704,8 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   cargo: 'parcel',
   source: 'counter',
   dropoff: 'table',
+  // The talk block's person, in the first of their looks (lookOf gives the others).
+  person: 'person',
   // The castle tier's cast at its own scale.
   ghoul: 'ghoul',
   hound: 'hound',

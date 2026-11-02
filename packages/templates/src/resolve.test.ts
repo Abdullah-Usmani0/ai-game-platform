@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { LevelProof } from '@gg/schemas';
 import { levelPlan, systemsJsonFor } from '@gg/template-core';
-import { BASE_MANIFESTS, freeformManifest, HEIST, HIVE, LANTERN, proveLevel } from '@gg/template-freeform/node';
+import { BASE_MANIFESTS, freeformManifest, HEIST, HIVE, LANTERN, LOSTDOG, proveLevel } from '@gg/template-freeform/node';
 import { describe, expect, it } from 'vitest';
 import { CHECKS, kitFor } from './check.js';
 import { CATALOG, catalogFor, checkGameStory, checkGameSystems, checkProofs, GENRES, manifestFor, readGameFiles, readGameLevels, resolveGame, storyFactsOf } from './node.js';
@@ -183,6 +183,27 @@ describe("a game's story, held to the game it is told in", () => {
     expect(facts.events).toEqual(expect.arrayContaining(['death', 'pickup', 'custom:door_open']));
     expect(facts.types).toEqual(expect.arrayContaining(['headsman', 'wings']));
     expect(checkGameStory(dir)).toMatchObject({ ok: true, issues: [], metrics: { story: true, endings: 3, quests: 1 } });
+  });
+
+  it("takes a composed game's people from its talk: those it places are its people, the block's own person aside", () => {
+    const talk = LOSTDOG.content!['dialogue'];
+    const feedback = [{ event: 'custom:talk', channels: ['sfx'] }, { event: 'custom:quest', channels: ['sfx'] }, { event: 'custom:ending', channels: ['sfx'] }];
+    const dir = gameDir({ 'design/systems.json': LOSTDOG.systems, 'design/gdd.md': gddMd(LOSTDOG.gdd), 'content/entities.json': LOSTDOG.roster, 'content/dialogue.json': talk, 'design/feedback.json': feedback });
+    try {
+      const facts = storyFactsOf(dir);
+      expect([facts.people, facts.speakers, facts.levels]).toEqual([true, [], 2]);
+      expect(facts.types).toEqual(expect.arrayContaining(['wolf', 'villager']));
+      expect(checkGameStory(dir)).toMatchObject({ ok: true, issues: [], metrics: { story: true, people: 4, endings: 2, quests: 1 } });
+      // The kit that checks its levels knows who stands where: a level without the baker is missing her.
+      expect(readGameFiles(dir).dialogue?.people).toHaveLength(4);
+      // Without the talk block, the same talk places nobody.
+      const plain = { ...LOSTDOG.systems, systems: LOSTDOG.systems.systems.filter((x) => x.id !== 'talk') };
+      writeFileSync(join(dir, 'design', 'systems.json'), JSON.stringify(plain));
+      expect(storyFactsOf(dir).people).toBe(false);
+      expect(checkGameStory(dir).issues.map((i) => i.code)).toContain('people_unplaced');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('passes a game with no story, and finds a story its game cannot tell', () => {
