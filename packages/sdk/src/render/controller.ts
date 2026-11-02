@@ -1,11 +1,16 @@
-import { DialogueFile, type LevelJson, type ParamValue, type StateSnapshot } from '@gg/schemas';
+import { chapterOf, DialogueFile, type DialogueNode, type LevelJson, type ParamValue, type StateSnapshot } from '@gg/schemas';
 import { emptyInput, inputAtTick, type InputSegment, type InputState } from '../sim/input.js';
-import { createSim, levelSeed, type ProgressSave, type Sim, type SimOptions } from '../sim/sim.js';
+import { stepLines } from '../sim/lines.js';
+import { createSim, levelSeed, TICK_RATE, type ProgressSave, type Sim, type SimOptions } from '../sim/sim.js';
+import type { DialogueState } from '../sim/world.js';
 import { Driver, type RunMode } from './driver.js';
 import { Keyboard } from './keyboard.js';
 import { Metrics } from './metrics.js';
 
-export type SceneKey = 'boot' | 'title' | 'play' | 'results';
+/** `story`: a chapter's narration read before its level's first moment (the level waits at tick 0). */
+export type SceneKey = 'boot' | 'title' | 'story' | 'play' | 'results';
+
+const STEP_MS = 1000 / TICK_RATE;
 
 /** How long after the last level is won the story's ending opens, and how long after its epilogue the results follow. */
 const ENDING_DELAY_TICKS = 40;
@@ -67,9 +72,18 @@ export class GameController {
 
   /** Whether the game's story has endings (content/dialogue.json): its last level won plays one, instead of a "clear". */
   readonly storied: boolean;
+  /** The game's story, for its chapters (null: none). */
+  private readonly story: DialogueFile | null;
+  /** The narration being read in the `story` scene, on a clock of its own (the sim does not step while it is read). */
+  private reading: DialogueState | null = null;
+  private storyTick = 0;
+  private storyAcc = 0;
+  /** The keys as they were on the narration's last tick: a key held as it opens is not a press. */
+  private storyPrev: InputState = emptyInput();
 
   constructor(public readonly options: ControllerOptions) {
-    this.storied = (DialogueFile.safeParse(options.simOptions.content?.['dialogue']).data?.endings ?? []).length > 0;
+    this.story = DialogueFile.safeParse(options.simOptions.content?.['dialogue']).data ?? null;
+    this.storied = (this.story?.endings ?? []).length > 0;
     this.seed = options.seed;
     this.sim = this.makeSim(0, this.seed);
     this.driver = new Driver(this.sim, options.mode, (tick) => this.provideInput(tick));
@@ -123,10 +137,78 @@ export class GameController {
     for (const l of this.sceneListeners) l();
   }
 
+  /** The narration being read before a level (the `story` scene), for the view to draw. */
+  get narration(): DialogueState | null {
+    return this.reading;
+  }
+
+  /** The title a level's chapter gives it (counted from 0), or null. */
+  chapterTitle(levelIndex: number): string | null {
+    return chapterOf(this.story, levelIndex)?.title ?? null;
+  }
+
+  /** The player starts, from the title or playing again: the first chapter's narration is read first, when it has one. */
+  begin(): void {
+    if (!this.narrate()) this.setScene('play');
+  }
+
+  /**
+   * Opens the current level's chapter, if it has narration and this is a person playing in real time: never for a
+   * script, a frozen sim, a Continue, or manual stepping (tests, bots, agents), so their runs are exactly as before.
+   */
+  private narrate(): boolean {
+    if (this.mode !== 'realtime' || this.script || this.frozen || this.resume) return false;
+    const chapter = chapterOf(this.story, this.levelIndex);
+    const node = chapter?.node ? this.storyNode(chapter.node) : undefined;
+    if (!node) return false;
+    this.storyTick = 0;
+    this.storyAcc = 0;
+    this.reading = this.readingOf(node);
+    this.storyPrev = this.keyboard.read();
+    this.setScene('story');
+    return true;
+  }
+
+  private storyNode(id: string): DialogueNode | undefined {
+    return this.story?.nodes.find((n) => n.id === id);
+  }
+
+  private readingOf(node: DialogueNode): DialogueState {
+    return { node: node.id, speaker: node.speaker, name: this.story?.names[node.speaker] ?? '', lines: [...node.lines], line: 0, shown: 0, openedTick: this.storyTick };
+  }
+
+  /** One tick of narration: read as a talk is read (the same stepper); its last line read on, the next node or play. */
+  private stepNarration(input: InputState): void {
+    const d = this.reading;
+    if (!d) return;
+    const pressed = (input.action && !this.storyPrev.action) || (input.jump && !this.storyPrev.jump);
+    this.storyPrev = { ...input };
+    const read = stepLines(d, this.storyTick, pressed);
+    this.storyTick++;
+    if (read !== 'end') return;
+    const next = this.storyNode(d.node)?.next;
+    const node = next ? this.storyNode(next) : undefined;
+    if (node) {
+      this.reading = this.readingOf(node);
+      return;
+    }
+    this.reading = null;
+    this.setScene('play');
+  }
+
   /** Called once per rendered frame by the view. Advances in realtime mode and handles win flow. */
   frame(deltaMs: number): void {
     this.metrics.record(deltaMs);
     if (this.frozen) return;
+    // A chapter's narration runs at the sim's rate on its own clock, while the level waits at its first tick.
+    if (this.scene === 'story') {
+      this.storyAcc += Math.min(deltaMs, 250);
+      while (this.storyAcc >= STEP_MS && this.reading) {
+        this.storyAcc -= STEP_MS;
+        this.stepNarration(this.keyboard.read());
+      }
+      return;
+    }
     // The sim runs during play, and keeps ticking on the results screen while a script drives it,
     // so scripted runs behave identically in manual and realtime mode.
     if (this.scene !== 'play' && !(this.scene === 'results' && this.script)) return;
@@ -137,6 +219,8 @@ export class GameController {
 
   step(n = 1): void {
     this.frozen = false;
+    // Stepped through a narration (a test driving the page by hand): its ticks go to the narration, not the sim.
+    for (; n > 0 && this.scene === 'story'; n--) this.stepNarration(this.keyboard.read());
     if (this.scene === 'title') this.setScene('play');
     // One step at a time so level sequencing happens at the same tick as in realtime play.
     for (let i = 0; i < n; i++) {
@@ -165,8 +249,11 @@ export class GameController {
   nextLevel(): void {
     this.winTick = -1;
     // What the player earned on this level (boons, upgrades in its props) comes along to the next one.
-    if (this.levelIndex + 1 < this.options.levels.length) this.loadLevel(this.levelIndex + 1, this.seed, { ...this.sim.world.player.props });
-    else this.setScene('results');
+    if (this.levelIndex + 1 < this.options.levels.length) {
+      this.loadLevel(this.levelIndex + 1, this.seed, { ...this.sim.world.player.props });
+      // The next chapter's narration, when the story has one, before its level begins.
+      this.narrate();
+    } else this.setScene('results');
   }
 
   /**
@@ -183,6 +270,7 @@ export class GameController {
     this.winTick = -1;
     this.ended = false;
     this.frozen = false;
+    this.reading = null;
     for (const l of this.levelListeners) l();
     this.setScene('play');
   }

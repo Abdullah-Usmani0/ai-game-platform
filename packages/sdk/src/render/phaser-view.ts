@@ -267,21 +267,27 @@ export class MainScene extends Phaser.Scene {
     this.unsubs.push(this.controller.onLevelChange(() => this.bindLevel()));
     this.unsubs.push(this.controller.onSceneChange(() => (this.overlaySig = '')));
     this.bindLevel();
-    this.input.keyboard?.on('keydown', (e: KeyboardEvent) => {
+    // The scene keys are heard on the window, not through Phaser's keyboard: Phaser skips a key whose default was
+    // prevented, and the game's own keyboard prevents it for every key it binds (Enter and Space are action and jump),
+    // so through Phaser a player could never leave the title, play again or retry.
+    const onKey = (e: KeyboardEvent): void => {
       this.sfx.unlock();
-      if (e.code !== 'Enter' && e.code !== 'Space') return;
+      if (e.repeat || (e.code !== 'Enter' && e.code !== 'Space')) return;
       const scene = this.controller.scene;
       if (scene === 'title') {
         this.sfx.play('select');
-        this.controller.setScene('play');
+        this.controller.begin();
       } else if (scene === 'results') {
         this.sfx.play('select');
         this.controller.reset();
+        this.controller.begin();
       } else if (scene === 'play' && this.controller.sim.world.flags.gameOver && this.controller.mode === 'realtime') {
         this.sfx.play('select');
         this.controller.loadLevel(this.controller.levelIndex);
       }
-    });
+    };
+    window.addEventListener('keydown', onKey);
+    this.events.once(Phaser.Scenes.Events.DESTROY, () => window.removeEventListener('keydown', onKey));
     this.input.on('pointerdown', () => this.sfx.unlock());
     this.onCreated();
   }
@@ -1605,10 +1611,12 @@ export class MainScene extends Phaser.Scene {
   }
 
   private showBanner(): void {
-    const name = (this.controller.level.name ?? '').toUpperCase();
+    // A story's chapter names the level; otherwise the level's own name does.
+    const chapter = this.controller.chapterTitle(this.controller.levelIndex);
+    const name = (chapter ?? this.controller.level.name ?? '').toUpperCase();
     const levels = this.controller.options.levels.length;
     const named = name !== '' && !/^LEVEL \d+$/.test(name);
-    const text = levels > 1 ? `LEVEL ${this.controller.levelIndex + 1}${named ? ` · ${name}` : ''}` : named ? name : '';
+    const text = levels > 1 ? `${chapter ? 'CHAPTER' : 'LEVEL'} ${this.controller.levelIndex + 1}${named ? ` · ${name}` : ''}` : named ? name : '';
     if (!text) return;
     const pc = this.text(text, this.pal.white);
     this.addCanvasTexture('gg-banner', pc);
@@ -1659,6 +1667,12 @@ export class MainScene extends Phaser.Scene {
   private drawOverlay(): void {
     const scene = this.controller.scene;
     const w = this.controller.sim.world;
+    // A chapter's narration, read in the same box over the level as it waits to begin.
+    const told = this.controller.narration;
+    if (scene === 'story' && told) {
+      this.drawDialogue(told, null, 150);
+      return;
+    }
     // A talk draws its own answers, in its box.
     if (scene === 'play' && w.dialogue) {
       this.drawDialogue(w.dialogue, w.menu?.id.startsWith('dialogue:') ? w.menu : null);
@@ -1744,7 +1758,8 @@ export class MainScene extends Phaser.Scene {
    * first, so a word never jumps lines as it appears); a marker once the line is done; the answers listed under it
    * when the node asks, the highlighted one pointed at.
    */
-  private drawDialogue(d: DialogueState, menu: Menu | null): void {
+  /** `dim`: how dark the view behind the box goes (a talk barely dims play; narration before a level more). */
+  private drawDialogue(d: DialogueState, menu: Menu | null, dim = 60): void {
     const seen = `${d.node}|${d.line}`;
     const was = this.talkSeen.startsWith(`${seen}|`) ? Number(this.talkSeen.slice(seen.length + 1)) : 0;
     const text = d.lines[d.line] ?? '';
@@ -1757,13 +1772,13 @@ export class MainScene extends Phaser.Scene {
       this.menuSeen = `${sel}|${menu.selected}`;
     } else this.menuSeen = '';
     const blink = Math.floor(performance.now() / 400) % 2 === 0;
-    const sig = JSON.stringify(['talk', d.node, d.line, d.shown, menu ? [menu.selected, menu.options.map((o) => o.id)] : null, d.shown >= text.length && blink]);
+    const sig = JSON.stringify(['talk', d.node, d.line, d.shown, menu ? [menu.selected, menu.options.map((o) => o.id)] : null, d.shown >= text.length && blink, dim]);
     if (sig === this.overlaySig) return;
     this.overlaySig = sig;
     const { w: cw, h: ch } = this.style.canvas;
     const pal = this.pal;
     const pc = new PixelCanvas(cw, ch);
-    pc.fillRect(0, 0, cw, ch, pal.ink, 60);
+    pc.fillRect(0, 0, cw, ch, pal.ink, dim);
     const portrait = this.portraitOf(d.speaker);
     const pad = 9;
     const x = 12;

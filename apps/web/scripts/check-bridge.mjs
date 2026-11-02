@@ -30,8 +30,21 @@ try {
   await page.waitForSelector('[data-testid="state"]', { timeout: 5000 });
   const stateText = await page.textContent('[data-testid="state"]');
   const tick = Number(/tick (\d+)/.exec(stateText ?? '')?.[1] ?? 0);
-  // Saves: one this browser holds for the game is offered as Continue, and the game picks its level up there.
   const game = () => page.frames().find((f) => f !== page.mainFrame());
+  // A player starts from the title with the keyboard: Enter, held as a person holds it, in the frame the play page
+  // gives the game (the game's own keyboard claims Enter; the title must still hear it).
+  await page.goto(`${url}/play/sample?seed=7`, { waitUntil: 'load', timeout: 30000 });
+  await page.waitForSelector('[data-testid="status"]:has-text("ready")', { timeout: 20000 });
+  const sceneNow = () => game()?.evaluate(() => (window.__TEST__?.ready ? window.__game.state().scene : null)).catch(() => null);
+  let titled = null;
+  for (const until = Date.now() + 10000; Date.now() < until && titled !== 'title'; await page.waitForTimeout(150)) titled = await sceneNow();
+  await page.click('iframe');
+  await page.keyboard.down('Enter');
+  await page.waitForTimeout(120);
+  await page.keyboard.up('Enter');
+  let started = titled;
+  for (const until = Date.now() + 5000; Date.now() < until && started !== 'play'; await page.waitForTimeout(150)) started = await sceneNow();
+  // Saves: one this browser holds for the game is offered as Continue, and the game picks its level up there.
   const levelId = await game().evaluate(() => window.__game.levels()[0]);
   const save = { v: 1, level: 0, levelId, save: { at: { x: 64, y: 40 }, facing: -1, props: {}, removed: [], tiles: [] }, carry: {} };
   await page.evaluate(([k, v]) => localStorage.setItem(k, v), ['gg-save:/bundles/sample/index.html', JSON.stringify(save)]);
@@ -49,8 +62,8 @@ try {
       })
       .catch(() => null);
   }
-  ok = tick > 30 && continued?.scene === 'play' && continued.x === 64 && continued.facing === -1 && errors.length === 0;
-  console.log(JSON.stringify({ ok, stateText, continued, errors }, null, 2));
+  ok = tick > 30 && titled === 'title' && started === 'play' && continued?.scene === 'play' && continued.x === 64 && continued.facing === -1 && errors.length === 0;
+  console.log(JSON.stringify({ ok, stateText, started: { titled, started }, continued, errors }, null, 2));
 } catch (e) {
   console.error('check-bridge failed:', e.message);
   try { console.error('status text:', await page.textContent('[data-testid="status"]')); } catch {}

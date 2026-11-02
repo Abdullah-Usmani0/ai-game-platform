@@ -9,17 +9,15 @@ import { Rng } from './rng.js';
 import type { MenuSpec, SimCtx, SystemDef } from './system.js';
 import { Tilemap } from './tilemap.js';
 import { makeEntity, staysGone, type DialogueState, type Entity, type EntityDef, type Menu, type World, type WorldEnding } from './world.js';
+import { MENU_GRACE_TICKS, stepLines } from './lines.js';
 
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
 /** How fast a staggered body slides to a stop, in px/s². */
 const STUN_FRICTION = 720;
-/** A menu ignores picks for this many ticks after it opens (0.3 s), so a held or mashed key never chooses unread. */
-export const MENU_GRACE_TICKS = 18;
 /** Options a menu shows at most (four cards fit the smallest canvas). */
 export const MENU_MAX_OPTIONS = 4;
-/** Characters a line of dialogue types out a tick (120 a second). */
-export const DIALOGUE_CHARS_PER_TICK = 2;
+export { DIALOGUE_CHARS_PER_TICK, MENU_GRACE_TICKS } from './lines.js';
 
 export interface SimOptions {
   level: LevelJson;
@@ -377,19 +375,8 @@ class SimImpl implements Sim {
    * after a node opens, so a mashed key never skips one unread.
    */
   private stepDialogue(d: DialogueState, input: InputState, prev: InputState): void {
-    const pressed = (k: keyof InputState) => input[k] && !prev[k];
-    const text = d.lines[d.line] ?? '';
-    if (d.shown < text.length) d.shown = Math.min(text.length, d.shown + DIALOGUE_CHARS_PER_TICK);
-    if (this.tick - d.openedTick < MENU_GRACE_TICKS || !(pressed('action') || pressed('jump'))) return;
-    if (d.shown < text.length) {
-      d.shown = text.length;
-      return;
-    }
-    if (d.line + 1 < d.lines.length) {
-      d.line++;
-      d.shown = 0;
-      return;
-    }
+    const pressed = (k: keyof InputState) => input[k] === true && prev[k] !== true;
+    if (stepLines(d, this.tick, pressed('action') || pressed('jump')) !== 'end') return;
     const node = this.dialogueNode(d.node);
     const p = this.world.player;
     for (const [flag, value] of Object.entries(node?.set ?? {})) p.props[`f:${flag}`] = value;

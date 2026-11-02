@@ -907,6 +907,16 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
   },
   "nodes": [
     {
+      "id": "prologue",
+      "speaker": "narrator",
+      "lines": [
+        "Long ago the great bell above these halls cracked, and the dark came in.",
+        "Those it took wake again in the deep halls, one at a time.",
+        "Tonight, you wake."
+      ],
+      "choices": []
+    },
+    {
       "id": "hermit-hello",
       "speaker": "hermit",
       "lines": [
@@ -1177,6 +1187,12 @@ exports[`scaffold output is pinned for curated genres > castle files are unchang
     {
       "speaker": "candle-keeper",
       "node": "keeper-hello"
+    }
+  ],
+  "chapters": [
+    {
+      "level": 1,
+      "node": "prologue"
     }
   ],
   "endings": [

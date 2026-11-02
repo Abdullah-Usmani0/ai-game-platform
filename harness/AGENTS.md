@@ -67,8 +67,11 @@ once a player wins the level and the worker, replaying that run on the version, 
   dialogue.json is what the game's people say: nodes of up to six lines, up to four answers that set the story's flags,
   and where each person's talk starts, by the flags that hold; and what the flags decide: deeds (an event of the game,
   about a type, sets flags), quests (named side goals, begun and done by flags) and endings (tried in order as the game
-  ends, the last with no tests; the first that holds is the player's and its node is the epilogue). The sim keeps the
-  story in any game that has one, of any genre, with no system to choose. Held together on write: every node named
+  ends, the last with no tests; the first that holds is the player's and its node is the epilogue), and chapters (a
+  level's title, and narration read before it begins: chapter 1's is the prologue; words only, no answers or flags).
+  Narration shows only to a person playing in real time: manual stepping, scripts, bots and the test seam never see
+  it, so check it in a realtime page. The sim keeps the story in any game that has one, of any genre, with no system
+  to choose. Held together on write: every node named
   exists, one default ending and last, no flag tested set that nothing sets, no deed on an event only the page emits);
   a farm has crops.json (written from the idea after the systems and held to their rules by validate:systems); every
   game may have sprites.json (its cast's own look: per type a shipped sprite of its build, ramp colours and overlays,

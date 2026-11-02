@@ -2,6 +2,7 @@ import { DialogueFile } from '@gg/schemas';
 
 /**
  * The story every castle game ships (content/dialogue.json), until its own story writes it.
+ * - A prologue, read before the region begins: the great bell cracked and the dark came in; tonight the player wakes.
  * - The hermit kneeling by the start points the way back for the wings, and once they are found he tells of the
  *   cracked bell, said to ring for whoever leaves the way open behind them.
  * - The candle-keeper by the second altar warns of the Headsman and how his cleaver is turned, prays for the player,
@@ -16,6 +17,11 @@ export const DEFAULT_DIALOGUE: DialogueFile = DialogueFile.parse({
   version: 1,
   names: { hermit: 'The Hermit', 'candle-keeper': 'The Candle-Keeper' },
   nodes: [
+    {
+      id: 'prologue',
+      speaker: 'narrator',
+      lines: ['Long ago the great bell above these halls cracked, and the dark came in.', 'Those it took wake again in the deep halls, one at a time.', 'Tonight, you wake.'],
+    },
     {
       id: 'hermit-hello',
       speaker: 'hermit',
@@ -86,6 +92,8 @@ export const DEFAULT_DIALOGUE: DialogueFile = DialogueFile.parse({
     { speaker: 'candle-keeper', node: 'keeper-again', when: [{ flag: 'met-keeper', is: true }] },
     { speaker: 'candle-keeper', node: 'keeper-hello' },
   ],
+  // The prologue, read before the region begins.
+  chapters: [{ level: 1, node: 'prologue' }],
   endings: [
     { id: 'way-left-open', title: 'The Way Left Open', when: [{ flag: 'grate-open', is: true }], node: 'end-open' },
     { id: 'cleaver-rusts', title: 'The Cleaver Rusts', when: [{ flag: 'headsman-slain', is: true }], node: 'end-cleaver' },

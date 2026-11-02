@@ -157,6 +157,111 @@ describe('GameController ending', () => {
   });
 });
 
+describe('GameController chapters', () => {
+  const story = {
+    version: 1,
+    nodes: [
+      { id: 'prologue', speaker: 'narrator', lines: ['It began in the dark.'], next: 'prologue-2' },
+      { id: 'prologue-2', speaker: 'narrator', lines: ['Then a light.'] },
+      { id: 'second', speaker: 'narrator', lines: ['The second hall.'] },
+    ],
+    chapters: [
+      { level: 1, title: 'The Dark', node: 'prologue' },
+      { level: 2, title: 'The Light', node: 'second' },
+    ],
+  };
+  const winsAt10 = defineSystem<null>({
+    id: 'wins',
+    init: () => null,
+    fixedUpdate(_s, _input, ctx) {
+      if (ctx.tick === 10) ctx.world.flags.won = true;
+    },
+  });
+  const game = (mode: 'realtime' | 'manual', dialogue: unknown = story) =>
+    new GameController({
+      levels: [room('a'), room('b')],
+      simOptions: { feel: CELESTE_CLASS, systems: [winsAt10], entityDefs: [], player: { w: 8, h: 8, hp: 3 }, movementMode: 'topdown', content: { dialogue } },
+      seed: 1,
+      mode,
+      build: { gameId: 'test', versionId: 'v', engine: 'test' },
+    });
+  /** A keyboard the test presses, the way the browser reports keys. */
+  const keys = (c: GameController) => {
+    const on: Record<string, (e: KeyboardEvent) => void> = {};
+    c.keyboard.attach({ addEventListener: (type: string, fn: (e: KeyboardEvent) => void) => void (on[type] = fn), removeEventListener() {} } as unknown as Window);
+    const ev = (code: string) => ({ code, preventDefault() {} }) as KeyboardEvent;
+    return { down: (code: string) => on['keydown']!(ev(code)), up: (code: string) => on['keyup']!(ev(code)) };
+  };
+  /** Rendered frames, one sim tick each. */
+  const frames = (c: GameController, n: number) => {
+    for (let i = 0; i < n; i++) c.frame(1000 / 60);
+  };
+  const tap = (c: GameController, k: ReturnType<typeof keys>, code: string) => {
+    k.down(code);
+    frames(c, 1);
+    k.up(code);
+    frames(c, 1);
+  };
+
+  it('reads the first chapter before the first level begins, the level waiting at its first tick', () => {
+    const c = game('realtime');
+    const k = keys(c);
+    c.setScene('title');
+    // Enter starts the game, and is still held as the narration opens: holding it reads nothing on.
+    k.down('Enter');
+    c.begin();
+    expect([c.scene, c.narration?.node, c.narration?.name]).toEqual(['story', 'prologue', '']);
+    frames(c, 60);
+    expect([c.narration?.node, c.narration?.shown, c.sim.tick]).toEqual(['prologue', 'It began in the dark.'.length, 0]);
+    k.up('Enter');
+    frames(c, 1);
+    tap(c, k, 'Enter');
+    // Its node goes on to the next, read the same way.
+    expect(c.narration?.node).toBe('prologue-2');
+    frames(c, 30);
+    k.down('Space');
+    frames(c, 1);
+    // Read: the level begins at its first tick, and plays on from there.
+    expect([c.scene, c.narration, c.sim.tick]).toEqual(['play', null, 0]);
+    k.up('Space');
+    frames(c, 5);
+    expect(c.sim.tick).toBe(5);
+    expect([c.chapterTitle(0), c.chapterTitle(1)]).toEqual(['The Dark', 'The Light']);
+  });
+
+  it('reads the next chapter as its level comes up', () => {
+    const c = game('realtime');
+    const k = keys(c);
+    c.begin();
+    frames(c, 30);
+    tap(c, k, 'Enter');
+    frames(c, 30);
+    tap(c, k, 'Enter');
+    // Won at tick 10; the next level starts 90 ticks later, behind its chapter.
+    frames(c, 110);
+    expect([c.levelIndex, c.scene, c.narration?.node, c.sim.tick]).toEqual([1, 'story', 'second', 0]);
+  });
+
+  it('never narrates for manual stepping, a script, a Continue or a game without chapters', async () => {
+    const manual = game('manual');
+    manual.begin();
+    expect([manual.scene, manual.narration]).toEqual(['play', null]);
+    const scripted = game('realtime');
+    const done = scripted.runScript([{ from: 0, to: 30, input: {} }], 30);
+    frames(scripted, 40);
+    await done;
+    scripted.begin();
+    expect(scripted.scene).toBe('play');
+    const resumed = game('realtime');
+    resumed.loadLevel(0, 1, {}, { at: { x: 16, y: 24 }, props: {}, removed: [], tiles: [] });
+    resumed.begin();
+    expect(resumed.scene).toBe('play');
+    const plain = game('realtime', { version: 1, nodes: [{ id: 'n', speaker: 'narrator', lines: ['x'] }] });
+    plain.begin();
+    expect([plain.scene, plain.chapterTitle(0)]).toEqual(['play', null]);
+  });
+});
+
 describe('GameController saves', () => {
   it('picks a level up from a save, and starts it at its start for a script or a retry', () => {
     const c = make(grant);

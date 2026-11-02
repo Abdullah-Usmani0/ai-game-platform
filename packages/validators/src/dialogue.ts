@@ -15,7 +15,9 @@ export interface DialogueCast {
  * - a flag tested to be set is set somewhere: by a node, an answer or a deed (otherwise what tests it is dead: a talk
  *   never offered, an answer never shown, an ending nobody reaches, a quest that never begins or never ends);
  * - each start's speaker is someone in the game (a warning: a level may name its people as it likes);
- * - no deed listens to an event only the page emits (ui_open, ui_close, feedback, audio_play).
+ * - no deed listens to an event only the page emits (ui_open, ui_close, feedback, audio_play);
+ * - a level has one chapter at most, and its narration (the node and those its `next` leads to) exists, asks for no
+ *   answer and sets no flag.
  * Whether each ending can actually be reached in play is the story prover's.
  */
 export function validateDialogue(file: DialogueFile, cast: DialogueCast = {}): ValidationReport {
@@ -52,6 +54,23 @@ export function validateDialogue(file: DialogueFile, cast: DialogueCast = {}): V
     if (last && tested) issues.push(err('ending_no_default', `the last ending, '${e.id}', has tests: the last ending is every other player's, so it has none`, { path: `endings.${e.id}` }));
     if (!last && !tested) issues.push(err('ending_shadowed', `ending '${e.id}' has no tests, so no ending after it can be reached: only the last ending may have none`, { path: `endings.${e.id}` }));
   });
+
+  // Chapters: one a level, their narration there to read, and narration only (it is read before play begins, so it
+  // can neither ask nor change anything).
+  const byId = new Map(file.nodes.map((n) => [n.id, n]));
+  const chaptered = new Set<number>();
+  for (const c of file.chapters ?? []) {
+    if (chaptered.has(c.level)) issues.push(err('chapter_duplicate', `level ${c.level} has two chapters`, { path: `chapters.${c.level}` }));
+    chaptered.add(c.level);
+    if (!c.node) continue;
+    known(c.node, `chapters.${c.level}`, `chapter ${c.level}`);
+    const read = new Set<string>();
+    for (let n = byId.get(c.node); n && !read.has(n.id); n = n.next ? byId.get(n.next) : undefined) {
+      read.add(n.id);
+      if (n.choices.length > 0) issues.push(err('narration_answers', `chapter ${c.level}'s narration reaches node '${n.id}', which asks for an answer: narration is read before play, so it may not ask`, { path: `nodes.${n.id}` }));
+      if (Object.keys(n.set ?? {}).length > 0) issues.push(err('narration_flags', `chapter ${c.level}'s narration reaches node '${n.id}', which sets flags: narration changes nothing in play`, { path: `nodes.${n.id}` }));
+    }
+  }
 
   // A deed hears the game, never the page: scenes and feedback happen only in the browser.
   deeds.forEach((d, i) => {

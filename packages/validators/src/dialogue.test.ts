@@ -55,6 +55,23 @@ describe('validateDialogue', () => {
     expect(codes({ ...STORY, deeds: [...STORY.deeds, { on: 'ui_close', set: { closed: true } }] })).toEqual(['deed_unstable']);
   });
 
+  it('holds chapters to one a level, and their narration to words alone', () => {
+    const told = { ...STORY, nodes: [...STORY.nodes, { id: 'once', speaker: 'narrator', lines: ['Once, a candle burned.'], next: 'still' }, { id: 'still', speaker: 'narrator', lines: ['It burns still.'] }] };
+    expect(codes({ ...told, chapters: [{ level: 1, title: 'The Candle', node: 'once' }, { level: 2, title: 'Dark' }] })).toEqual([]);
+    expect(codes({ ...told, chapters: [{ level: 1, node: 'once' }, { level: 1, node: 'still' }] })).toEqual(['chapter_duplicate']);
+    expect(codes({ ...told, chapters: [{ level: 1, node: 'gone' }] })).toEqual(['node_unknown']);
+    // A narration that leads on to a question, or that sets a flag on the way, is not narration.
+    expect(codes({ ...told, chapters: [{ level: 1, node: 'bye' }] })).toEqual([]);
+    expect(codes({ ...told, chapters: [{ level: 1, node: 'hello' }] })).toEqual(['narration_answers']);
+    const flagging = { ...told, nodes: told.nodes.map((n) => (n.id === 'still' ? { ...n, set: { lit: true } } : n)) };
+    expect(codes({ ...flagging, chapters: [{ level: 1, node: 'once' }] })).toEqual(['narration_flags']);
+  });
+
+  it('reads a story told without people: chapters and an ending, no talks', () => {
+    const r = validateDialogue(DialogueFile.parse({ version: 1, nodes: [{ id: 'once', speaker: 'narrator', lines: ['Once.'] }, { id: 'end', speaker: 'narrator', lines: ['The end.'] }], chapters: [{ level: 1, node: 'once' }], endings: [{ id: 'end', title: 'The End', node: 'end' }] }));
+    expect(r.issues).toEqual([]);
+  });
+
   it('warns of talks for someone the game does not have', () => {
     const r = validateDialogue(DialogueFile.parse(STORY), { speakers: ['hermit'] });
     expect([r.ok, r.issues.map((i) => `${i.severity}:${i.code}`)]).toEqual([true, ['warning:start_nobody']]);

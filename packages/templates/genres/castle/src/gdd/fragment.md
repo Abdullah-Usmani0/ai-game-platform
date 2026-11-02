@@ -54,7 +54,8 @@ Story: the same file holds what the flags decide, and the sim keeps it (in every
 of a type beaten, a relic found, a grate opened). Quests are named side goals, told as they begin and end
 (custom:quest), each a test of flags to begin and one to be done. Endings (up to four) are tried in order as the game
 ends, the last having no tests: the first whose flags hold is the player's, its epilogue read as a talk
-(custom:ending), and the results name it ("ending 2 of 3"). The default story: the keeper's quest to open the grate
+(custom:ending), and the results name it ("ending 2 of 3"). Chapters give a level a title (on its banner) and
+narration read before it begins (chapter 1's is the prologue): words only, no answers, no flags. The default story: a prologue (the great bell cracked and the dark came in), the keeper's quest to open the grate
 under the first altar, shut from below, so the way back is short for those who wake later (its shaft climbs from the
 way out), and three endings: the way left open, the headsman slain, or neither.
 Feel presets: castle-agile (default), castle-weighty. Every gate is sized to hold under both.

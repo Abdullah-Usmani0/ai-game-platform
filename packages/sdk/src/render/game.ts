@@ -64,7 +64,7 @@ export async function createGame(opts: GameOptions): Promise<GameHandle> {
       if (mode === 'manual' || query.autoplay || init?.mode === 'preview' || start) controller.setScene('play');
       else controller.setScene('title');
       markReady();
-      bridge.send({ type: 'ready', scenes: ['title', 'play', 'results'], levels: opts.levels.map((l) => l.id) });
+      bridge.send({ type: 'ready', scenes: ['title', 'story', 'play', 'results'], levels: opts.levels.map((l) => l.id) });
       resolve();
     }));
   });

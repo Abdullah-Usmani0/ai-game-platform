@@ -86,12 +86,27 @@ export const Deed = z.object({
 });
 export type Deed = z.infer<typeof Deed>;
 
+/**
+ * A level's chapter: its title, shown as the level begins, and the narration read before its first moment (chapter 1's
+ * is the prologue). Narration only: its nodes give no answers and set no flags, so nothing in it changes play.
+ */
+export const DialogueChapter = z.object({
+  /** The level, counted from 1. */
+  level: z.int().min(1).max(20),
+  title: z.string().min(1).max(40).optional(),
+  /** The node read before the level starts, and the nodes its `next` leads on to. */
+  node: Id.optional(),
+});
+export type DialogueChapter = z.infer<typeof DialogueChapter>;
+
 export const DialogueFile = z.object({
   version: z.literal(1),
   /** The cast's names as shown over their lines, by speaker id. */
   names: z.record(Id, z.string().min(1).max(32)).default({}),
   nodes: z.array(DialogueNode).min(1).max(96),
-  starts: z.array(DialogueStart).min(1).max(48),
+  /** Where talks with the game's people begin (none: a story told without them, in chapters and an ending). */
+  starts: z.array(DialogueStart).max(48).default([]),
+  chapters: z.array(DialogueChapter).max(20).optional(),
   /** How the story ends, tried in order; the last is the default. None: the game ends without an epilogue. */
   endings: z.array(DialogueEnding).max(4).optional(),
   quests: z.array(Quest).max(8).optional(),
@@ -112,6 +127,11 @@ export const QUEST_PREFIX = 'q:';
  * story that heard them would set different flags in the browser than when its runs are replayed.
  */
 export const UNSTABLE_DEED_EVENTS: readonly string[] = ['ui_open', 'ui_close', 'feedback', 'audio_play'];
+
+/** The chapter of a level (counted from 0, as the game counts them), if the story gives it one. */
+export function chapterOf(file: Pick<DialogueFile, 'chapters'> | null | undefined, levelIndex: number): DialogueChapter | null {
+  return (file?.chapters ?? []).find((c) => c.level === levelIndex + 1) ?? null;
+}
 
 /** The ending a player's flags reach: the first whose tests hold (null for a game with no endings). */
 export function endingFor(file: Pick<DialogueFile, 'endings'>, props: Readonly<Record<string, unknown>>): DialogueEnding | null {
