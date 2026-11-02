@@ -1,5 +1,5 @@
 {
-  "$comment": "Benchmark prompts for every genre and scope tier, round-robin by genre so --limit 8 covers each curated genre once (--limit 2: platformer and survivors). Freeform ideas follow (--genre freeform), by tier: F0 an idea a curated genre covers, F1 systems from several genres, F2 a mechanic no system has yet, F3 an idea of its own; the dry run builds each on the base genre its words point at. Each row is graded by the full gate set. Reference-tier ideas come last (--tier R): the castle slice and two contrasts in look, built on the castle and graded by the rubric (src/rubric.ts) against the bar.",
+  "$comment": "Benchmark prompts for every genre and scope tier, round-robin by genre so --limit 8 covers each curated genre once (--limit 2: platformer and survivors). Freeform ideas follow (--genre freeform), by tier: F0 an idea a curated genre covers, F1 systems from several genres, F2 a mechanic no system has yet, F3 an idea of its own; the dry run builds each on the base genre its words point at. Each row is graded by the full gate set. Reference-tier ideas come last (--tier R): the castle slice and two contrasts in look, built on the castle and graded by the rubric (src/rubric.ts) against the bar. Story ideas close the list (--tier S): one that asks for a tale on a curated genre, and one on a composed game with people to talk to; every finished game's story, of any tier, is graded by the story bar (src/rubric.ts).",
   "prompts": [
     {
       "id": "p01",
@@ -409,6 +409,20 @@
       "tier": "R",
       "scopeTier": "large",
       "prompt": "An exiled lantern-maker descends through a frozen clockwork city to restart its heart, hammering through brass automatons under an aurora."
+    },
+    {
+      "id": "st01",
+      "genre": "platformer",
+      "tier": "S",
+      "scopeTier": "small",
+      "prompt": "The tale of a young bell-keeper climbing the old clock tower before dawn to set its stopped bell ringing again, chapter by chapter."
+    },
+    {
+      "id": "st02",
+      "genre": "freeform",
+      "tier": "S",
+      "scopeTier": "small",
+      "prompt": "A kid searching the village for their lost cat before supper: ask the villagers where it went, clear the rats out of the old mill rooms with a wooden sword, and bring it home."
     }
   ]
 }

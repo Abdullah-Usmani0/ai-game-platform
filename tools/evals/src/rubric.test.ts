@@ -1,8 +1,13 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MoveSet, type BehaviourFsm, type LevelJson } from '@gg/schemas';
-import { GENRES } from '@gg/templates/node';
+import { DialogueFile, MoveSet, type BehaviourFsm, type LevelJson } from '@gg/schemas';
+import { levelPlan } from '@gg/template-core';
+import { EXAMPLES, GENRES, resolveGame } from '@gg/templates/node';
+import { draftStory, storyMentions } from '@gg/worker-generator';
 import { describe, expect, it } from 'vitest';
-import { CASTLE_RUBRIC, grade, measure, rubricInputsOf, type RubricInputs } from './rubric.js';
+import { CASTLE_RUBRIC, grade, measure, measureStory, rubricInputsOf, storyInputsOf, STORY_RUBRIC, type RubricInputs } from './rubric.js';
 
 const mv = GENRES['metroidvania']!;
 const caverns = [{}, {}, {}] as unknown as LevelJson[];
@@ -76,5 +81,66 @@ describe('the castle rubric', () => {
     const g = grade([{ id: 'altar_spacing', area: 'world', text: '', target: 4, most: true }], { altar_spacing: 5 });
     expect(g.results[0]!.pass).toBe(false);
     expect(grade([{ id: 'altar_spacing', area: 'world', text: '', target: 4, most: true }], { altar_spacing: 3 }).results[0]!.pass).toBe(true);
+  });
+});
+
+describe('the story bar', () => {
+  const castleDir = fileURLToPath(new URL('../../../samples/castle', import.meta.url));
+  const lines = (g: ReturnType<typeof grade>) => Object.fromEntries(g.results.map((r) => [r.id, r.pass]));
+
+  it("passes the castle sample's story whole: its two people placed, three endings, a quest, a prologue, nothing borrowed", () => {
+    const s = storyInputsOf(castleDir, 'The legend of a bell-ringer in a drowned abbey.');
+    expect([s.asked, s.depth, s.levels, s.placed, s.mentions]).toEqual([true, 'rich', 1, 2, 0]);
+    const g = grade(STORY_RUBRIC, measureStory(s));
+    expect([g.passed, g.total]).toEqual([STORY_RUBRIC.length, STORY_RUBRIC.length]);
+  });
+
+  it("passes the lost dog's: four villagers standing in its two woods, two endings, its quest", () => {
+    const LOSTDOG = EXAMPLES.find((e) => e.id === 'lostdog')!;
+    const story = DialogueFile.parse(LOSTDOG.content!['dialogue']);
+    const dir = mkdtempSync(join(tmpdir(), 'gg-story-bar-'));
+    try {
+      const write = (rel: string, v: unknown) => {
+        mkdirSync(join(dir, rel, '..'), { recursive: true });
+        writeFileSync(join(dir, rel), typeof v === 'string' ? v : JSON.stringify(v));
+      };
+      write('design/systems.json', LOSTDOG.systems);
+      write('design/gdd.md', `---\n${JSON.stringify(LOSTDOG.gdd)}\n---\n## Concept\nx\n`);
+      write('content/entities.json', LOSTDOG.roster);
+      write('content/dialogue.json', story);
+      // Its levels as the levels stage makes them: through the seam, with the people its talk places.
+      const m = resolveGame(dir);
+      for (const slot of levelPlan(m.levelGrammar.kind, { levels: 2, bosses: 0, tier: 'small' })) write(`content/levels/L0${slot.index + 1}-${slot.id}.json`, { ...m.levelGrammar.generate({ seed: slot.seed, difficulty: slot.difficulty, level: slot.index }), id: slot.id });
+      const s = storyInputsOf(dir, LOSTDOG.prompt);
+      expect([s.asked, s.depth, s.levels, s.placed]).toEqual([true, 'rich', 2, 4]);
+      expect(lines(grade(STORY_RUBRIC, measureStory(s)))).toEqual(Object.fromEntries(STORY_RUBRIC.map((l) => [l.id, true])));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("grades a light story on what a light story is: a chapter for each level, a prologue, an ending; the rich lines are left out", () => {
+    const g = GENRES['platformer']!;
+    const gdd = { title: 'The Long Climb', pillars: ['the climb', 'the bell', 'the dawn'] } as never;
+    const drafted = draftStory({ genre: g, gdd, levels: 3, idea: 'the tale of a climb' });
+    const v = measureStory({ asked: true, depth: drafted.bible.depth, talk: drafted.dialogue, levels: 3, placed: 0, mentions: 0 });
+    expect(lines(grade(STORY_RUBRIC, v))).toEqual({ story_told: true, chapters: true, prologue: true, story_ends: true, clean_text: true });
+    // A chapter short, and no epilogue: both missed.
+    const short = { ...drafted.dialogue!, chapters: drafted.dialogue!.chapters!.slice(0, 2), endings: [] };
+    expect(lines(grade(STORY_RUBRIC, measureStory({ asked: true, depth: 'light', talk: short, levels: 3, placed: 0, mentions: 0 })))).toMatchObject({ chapters: false, story_ends: false, prologue: true });
+  });
+
+  it('has nothing to grade where no story is asked or told, fails an idea that asked for one and got none, and a story naming another work', () => {
+    expect(grade(STORY_RUBRIC, measureStory({ asked: false, depth: 'none', talk: null, levels: 2, placed: 0, mentions: 0 })).total).toBe(0);
+    expect(lines(grade(STORY_RUBRIC, measureStory({ asked: true, depth: 'none', talk: null, levels: 2, placed: 0, mentions: 0 })))).toEqual({ story_told: false });
+    // A rich story with one person and one ending falls short on both.
+    const castle = DialogueFile.parse(GENRES['castle']!.shippedContent!['dialogue']);
+    const thin = { ...castle, endings: castle.endings!.slice(-1) };
+    expect(lines(grade(STORY_RUBRIC, measureStory({ asked: false, depth: 'rich', talk: thin, levels: 1, placed: 1, mentions: 0 })))).toMatchObject({ rich_endings: false, people_met: false, quest: true });
+    // Words from the work the idea cites are caught.
+    const borrowed = { ...castle, nodes: castle.nodes.map((n, i) => (i === 0 ? { ...n, lines: ['They say the climb is like Celeste.'] } : n)) };
+    const s = storyMentions(borrowed, 'A climbing tale like Celeste');
+    expect(s.length).toBeGreaterThan(0);
+    expect(lines(grade(STORY_RUBRIC, measureStory({ asked: true, depth: 'rich', talk: borrowed, levels: 1, placed: 2, mentions: s.length })))).toMatchObject({ clean_text: false });
   });
 });

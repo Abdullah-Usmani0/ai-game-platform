@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { FileStore } from '@gg/db';
 import { CreateRequest, ModelPolicy } from '@gg/schemas';
 import { runJob } from '@gg/worker-generator';
-import { CASTLE_RUBRIC, grade, measure, rubricInputsOf } from './rubric.js';
+import { CASTLE_RUBRIC, grade, measure, measureStory, rubricInputsOf, storyInputsOf, STORY_RUBRIC } from './rubric.js';
 
 /**
  * `pnpm bench`: run every benchmark prompt k times through the create pipeline and report pass rate per stage,
@@ -58,6 +58,8 @@ interface Run {
   stages: Record<string, { passed: boolean; attempts: number }>;
   /** A reference-tier game graded against the bar (tier R): lines passed of those measured, and the misses. */
   rubric: { passed: number; measured: number; total: number; misses: string[] } | null;
+  /** Every finished game's story graded against the story bar, where a line of it applies (null: none does). */
+  story: { passed: number; measured: number; total: number; misses: string[] } | null;
 }
 const runs: Run[] = [];
 const t0 = Date.now();
@@ -96,10 +98,17 @@ for (const p of prompts) {
       const g = grade(CASTLE_RUBRIC, measure(rubricInputsOf(resolve(values['work-root'], job.id, 'game'))));
       rubric = { passed: g.passed, measured: g.measured, total: g.total, misses: g.results.filter((r) => r.pass === false).map((r) => `${r.id} ${r.value} (${r.target})`) };
     }
-    const run: Run = { prompt: p.id, genre: p.genre, tier: p.tier ?? null, run: i + 1, status, costUsd: after?.costUsd ?? 0, durationMs: Date.now() - start, failedStage: error?.stage ?? null, failure, stages, rubric };
+    // Every finished game's story, of any genre, against the story bar (where any of it applies).
+    let story: Run['story'] = null;
+    if (status === 'succeeded') {
+      const g = grade(STORY_RUBRIC, measureStory(storyInputsOf(resolve(values['work-root'], job.id, 'game'), p.prompt)));
+      if (g.total > 0) story = { passed: g.passed, measured: g.measured, total: g.total, misses: g.results.filter((r) => r.pass === false).map((r) => `${r.id} ${r.value} (${r.target})`) };
+    }
+    const run: Run = { prompt: p.id, genre: p.genre, tier: p.tier ?? null, run: i + 1, status, costUsd: after?.costUsd ?? 0, durationMs: Date.now() - start, failedStage: error?.stage ?? null, failure, stages, rubric, story };
     runs.push(run);
     console.log(`${p.id} run ${i + 1}: ${status} in ${Math.round(run.durationMs / 1000)} s, $${run.costUsd.toFixed(3)}${run.failedStage ? ` (failed at ${run.failedStage}: ${failure})` : ''}`);
     if (rubric) console.log(`  rubric: ${rubric.passed} of ${rubric.measured} measured lines pass (${rubric.total} in all)${rubric.misses.length ? `; short of the bar: ${rubric.misses.join(', ')}` : ''}`);
+    if (story) console.log(`  story: ${story.passed} of ${story.total} lines pass${story.misses.length ? `; short of the bar: ${story.misses.join(', ')}` : ''}`);
     rmSync(resolve(values['work-root'], job.id), { recursive: true, force: true });
   }
 }
@@ -118,6 +127,7 @@ const perStage = Object.fromEntries(
   }),
 );
 const passing = runs.filter((r) => r.status === 'succeeded');
+const storied = runs.filter((r) => r.story);
 const summary = {
   mode: dryRun ? 'dry' : 'live',
   policy: policy?.name ?? (dryRun ? 'fake' : 'store-default'),
@@ -128,6 +138,8 @@ const summary = {
   meanCostPerPassingGame: passing.length ? Math.round((passing.reduce((a, r) => a + r.costUsd, 0) / passing.length) * 1000) / 1000 : null,
   meanDurationS: runs.length ? Math.round(runs.reduce((a, r) => a + r.durationMs, 0) / runs.length / 1000) : null,
   totalDurationS: Math.round((Date.now() - t0) / 1000),
+  /** Finished games with a story to grade, and how many of them meet the whole story bar. */
+  story: { graded: storied.length, atBar: storied.filter((r) => r.story!.misses.length === 0).length },
   perStage,
 };
 const report = { createdAt: new Date().toISOString(), summary, byPrompt, runs };
@@ -135,7 +147,10 @@ const outFile = resolve(values.out, `bench-${summary.mode}-${(policy?.name ?? 'f
 writeFileSync(outFile, JSON.stringify(report, null, 2) + '\n');
 console.log(JSON.stringify(summary, null, 2));
 console.log(`report: ${outFile}`);
-// A dry run grades the harness itself, which is deterministic: every prompt must pass. A live run grades a model policy.
-const passed = summary.passAtK === 1 || (!dryRun && (summary.runPassRate ?? 0) >= 0.9);
+// A dry run grades the harness itself, which is deterministic: every prompt must pass, and every story it tells must meet
+// the story bar (the drafts are written to it). A live run grades a model policy.
+const storyMissed = runs.filter((r) => (r.story?.misses.length ?? 0) > 0);
+const passed = (summary.passAtK === 1 && (!dryRun || storyMissed.length === 0)) || (!dryRun && (summary.runPassRate ?? 0) >= 0.9);
+for (const r of storyMissed) console.log(`STORY ${r.prompt} run ${r.run} short of the story bar: ${r.story!.misses.join(', ')}`);
 for (const r of runs) if (r.failure) console.log(`FAILED ${r.prompt} run ${r.run} at ${r.failedStage ?? '?'}: ${r.failure}`);
 process.exit(passed ? 0 : 1);

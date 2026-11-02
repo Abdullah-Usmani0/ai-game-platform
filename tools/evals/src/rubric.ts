@@ -1,10 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DialogueFile, LevelJson, MoveSet, type BehaviourFsm, type Condition, type Move } from '@gg/schemas';
+import { DialogueFile, LevelJson, MoveSet, StoryBible, type BehaviourFsm, type Condition, type Move } from '@gg/schemas';
 import { createSim, type EntityDef } from '@gg/sdk';
 import { afkWins, levelTicksOf, simOptionsFor, systemsJsonFor } from '@gg/template-core';
 import { frameSize, playerRecipe, RECIPES, RIGS, SETTING_BY_GENRE, type Setting } from '@gg/sdk/art';
-import { GENRES, readGameInputs, resolveGame } from '@gg/templates/node';
+import { GENRES, readGameInputs, readGameLevels, resolveGame } from '@gg/templates/node';
+import { storyMentions, wantsStory } from '@gg/worker-generator';
 
 /**
  * The bar, written down. Each line is something a reference-tier game shows, with a number to reach; `most` lines are
@@ -120,8 +121,12 @@ export interface RubricResult {
   pass: boolean | null;
 }
 
-export function grade(lines: readonly RubricLine[], values: Record<string, number | null>): { results: RubricResult[]; passed: number; measured: number; total: number } {
-  const results = lines.map((l) => {
+/**
+ * Each line against its target. A line whose value is null is not measured yet (pending, never a pass); a line whose
+ * value is undefined does not apply to the game (a rich story's endings, in a light one) and is left out.
+ */
+export function grade(lines: readonly RubricLine[], values: Record<string, number | null | undefined>): { results: RubricResult[]; passed: number; measured: number; total: number } {
+  const results = lines.filter((l) => values[l.id] !== undefined).map((l) => {
     const value = values[l.id] ?? null;
     return { id: l.id, area: l.area, text: l.text, target: l.target, value, pass: value === null ? null : l.most ? value <= l.target : value >= l.target };
   });
@@ -143,4 +148,79 @@ export function rubricInputsOf(gameDir: string): RubricInputs {
   const talk = DialogueFile.safeParse(content['dialogue'] ?? g.shippedContent?.['dialogue']);
   const endings = talk.success ? (talk.data.endings ?? []).length : 0;
   return { genre: g.id, entityDefs: g.entityDefs, player: g.player, behaviours: all, levels, assets, ...(moves.success ? { moves: moves.data.moves } : {}), ...(endings > 0 ? { endings } : {}) };
+}
+
+/**
+ * The story's bar, for every genre (R6.3): an idea that asks for a story is told one, and every story is told with the
+ * craft the reference games show. Every level has a chapter, the first opens on narration, and the story ends; a rich
+ * story has endings to choose between, people placed where they can be met, and a quest where its people talk; no word
+ * of it names another work. A line that does not apply to the story told is left out, so a light story is graded only
+ * on what a light story is.
+ */
+export const STORY_RUBRIC: readonly RubricLine[] = [
+  { id: 'story_told', area: 'story', text: 'an idea that asks for a story is told one', target: 1 },
+  { id: 'chapters', area: 'story', text: 'every level has a chapter', target: 1 },
+  { id: 'prologue', area: 'story', text: 'the first level opens on narration', target: 1 },
+  { id: 'story_ends', area: 'story', text: 'the story ends, with an epilogue', target: 1 },
+  { id: 'rich_endings', area: 'story', text: 'a rich story has at least 2 endings', target: 2 },
+  { id: 'people_met', area: 'story', text: 'a rich story places at least 2 people to talk to where they can be met', target: 2 },
+  { id: 'quest', area: 'story', text: 'where people talk, at least 1 quest', target: 1 },
+  { id: 'clean_text', area: 'story', text: 'no word of the story names another work', target: 0, most: true },
+];
+
+/** What a game's story is made of, as the story bar reads it. */
+export interface StoryInputs {
+  /** The idea asks for a story in so many words. */
+  asked: boolean;
+  /** How deep its story plan goes (design/story.json; none without one). */
+  depth: StoryBible['depth'];
+  /** The talk it tells (its own, else its genre's), or null for none. */
+  talk: DialogueFile | null;
+  /** How many levels it has. */
+  levels: number;
+  /** The people standing in its levels with a talk to start: speakers, each counted once. */
+  placed: number;
+  /** Names of other works its story's words carry. */
+  mentions: number;
+}
+
+/** Each story line's value; undefined where the line does not apply (no story told; a light story's rich lines). */
+export function measureStory(s: StoryInputs): Record<string, number | undefined> {
+  const t = s.talk;
+  const rich = t !== null && s.depth === 'rich';
+  const chaptered = new Set((t?.chapters ?? []).map((c) => c.level));
+  return {
+    story_told: s.asked ? (t !== null && s.depth !== 'none' ? 1 : 0) : undefined,
+    chapters: t ? (Array.from({ length: s.levels }, (_, i) => i + 1).every((l) => chaptered.has(l)) ? 1 : 0) : undefined,
+    prologue: t ? ((t.chapters ?? []).some((c) => c.level === 1 && c.node !== undefined) ? 1 : 0) : undefined,
+    story_ends: t ? ((t.endings ?? []).length > 0 ? 1 : 0) : undefined,
+    rich_endings: rich ? (t.endings ?? []).length : undefined,
+    people_met: rich ? s.placed : undefined,
+    quest: t && t.starts.length > 0 ? (t.quests ?? []).length : undefined,
+    clean_text: t ? s.mentions : undefined,
+  };
+}
+
+/** The story bar's inputs read from a built game's directory, and the idea it was made from. */
+export function storyInputsOf(gameDir: string, idea: string): StoryInputs {
+  const g = resolveGame(gameDir);
+  const { content } = readGameInputs(gameDir);
+  const parsed = DialogueFile.safeParse(content['dialogue'] ?? g.shippedContent?.['dialogue']);
+  const talk = parsed.success ? parsed.data : null;
+  const path = join(gameDir, 'design', 'story.json');
+  const bible = existsSync(path) ? StoryBible.safeParse(JSON.parse(readFileSync(path, 'utf8'))) : null;
+  const levels = readGameLevels(gameDir).map((l) => l.level);
+  // Someone to talk to stands in a level: a type marked as one, talking as its speaker prop (else its type), with a start.
+  const npc = new Set(g.entityDefs.filter((d) => (d as { npc?: boolean }).npc === true).map((d) => d.type));
+  const speaks = new Set((talk?.starts ?? []).map((s) => s.speaker));
+  const placed = new Set(levels.flatMap((l) => l.entities.filter((e) => npc.has(e.type)).map((e) => (typeof e.props['speaker'] === 'string' ? e.props['speaker'] : e.type)).filter((s) => speaks.has(s))));
+  return {
+    asked: wantsStory(idea),
+    // Without a plan (a sample made by hand), a talk with people is rich, one told in narration alone light.
+    depth: bible?.success ? bible.data.depth : talk ? (talk.starts.length > 0 ? 'rich' : 'light') : 'none',
+    talk,
+    levels: levels.length,
+    placed: placed.size,
+    mentions: talk ? storyMentions(talk, idea).length : 0,
+  };
 }

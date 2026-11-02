@@ -34,8 +34,14 @@ const DIALOGUE_RULES = [
 ].join('\n');
 
 /** Every word of a talk a player reads or a quest shows: what the blocked-term screen looks at. */
-function textOf(d: DialogueFile): string {
+export function storyText(d: DialogueFile): string {
   return [...Object.values(d.names), ...d.nodes.flatMap((n) => [...n.lines, ...n.choices.map((c) => c.label)]), ...(d.chapters ?? []).flatMap((c) => (c.title ? [c.title] : [])), ...(d.endings ?? []).map((e) => e.title), ...(d.quests ?? []).map((q) => q.title)].join('\n');
+}
+
+/** The names of other works a talk's words carry, for an idea (the works it cites, by title or by their names). */
+export function storyMentions(d: DialogueFile, idea: string, referenceTitles: readonly string[] = []): string[] {
+  const refs = referencesForRequest(idea, [...referenceTitles]);
+  return mentions(storyText(d), blockedTermsFor(refs.matched, refs.unmatched));
 }
 
 function bibleText(b: StoryBible): string {
@@ -172,7 +178,7 @@ export async function story(ctx: StageContext): Promise<StageOutcome> {
     prompt: talkPrompt,
     k,
     repairRounds,
-    verify: (v) => [...checkStory(v, facts).issues.filter((i) => i.severity === 'error').map((i) => i.message), ...mentions(textOf(v), blocked).map((m) => `names "${m}", which belongs to another work: leave it out`)],
+    verify: (v) => [...checkStory(v, facts).issues.filter((i) => i.severity === 'error').map((i) => i.message), ...mentions(storyText(v), blocked).map((m) => `names "${m}", which belongs to another work: leave it out`)],
     score: (v) => v.nodes.length + 2 * (v.endings ?? []).length + (v.quests ?? []).length,
   });
   usage = add(usage, talkRes.samples.reduce((a, s) => add(a, s.usage), { ...ZERO }));
