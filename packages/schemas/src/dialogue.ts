@@ -104,6 +104,15 @@ export function flagsHold(tests: readonly FlagTest[] | undefined, props: Readonl
   return (tests ?? []).every((t) => (props[`f:${t.flag}`] === true) === t.is);
 }
 
+/** Where a quest was last told to stand, kept as a player prop: `q:<id>` is 'on' or 'done' (absent: not begun). */
+export const QUEST_PREFIX = 'q:';
+
+/**
+ * Events a deed may not listen to: the page alone emits them (scenes opening and closing, the feedback it plays), so a
+ * story that heard them would set different flags in the browser than when its runs are replayed.
+ */
+export const UNSTABLE_DEED_EVENTS: readonly string[] = ['ui_open', 'ui_close', 'feedback', 'audio_play'];
+
 /** The ending a player's flags reach: the first whose tests hold (null for a game with no endings). */
 export function endingFor(file: Pick<DialogueFile, 'endings'>, props: Readonly<Record<string, unknown>>): DialogueEnding | null {
   return (file.endings ?? []).find((e) => flagsHold(e.when, props)) ?? null;

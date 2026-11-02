@@ -1,4 +1,4 @@
-import { pickups, pickupsMeta, rest, restMeta, rooms, roomsMeta, story, storyMeta, talk, talkMeta, type GenreRuntime, type SystemModule } from '@gg/template-core';
+import { pickups, pickupsMeta, rest, restMeta, rooms, roomsMeta, talk, talkMeta, type GenreRuntime, type SystemModule } from '@gg/template-core';
 import { metroidvaniaRuntime } from '@gg/template-metroidvania';
 import { platformerRuntime } from '@gg/template-platformer';
 import { DEFAULT_BEHAVIOURS, VOCAB } from './behaviours.js';
@@ -41,13 +41,12 @@ export const castleRuntime: GenreRuntime = {
     [roomsMeta.id]: { meta: roomsMeta, create: () => rooms },
     [restMeta.id]: { meta: restMeta, create: () => rest },
     [talkMeta.id]: { meta: talkMeta, create: () => talk },
-    [storyMeta.id]: { meta: storyMeta, create: () => story },
     hazards: forCastle(platformerRuntime.systems['hazards']),
     goal: forCastle(platformerRuntime.systems['goal']),
     [pickupsMeta.id]: forCastle({ meta: pickupsMeta, create: () => pickups }),
   },
   // The sword before the movement: a cut pressed this tick roots the hero this tick.
-  requiredSystems: ['combat', 'movement-castle', 'relics', 'abilities', 'rooms', 'rest', 'talk', 'story', 'shortcuts', 'arena', 'hazards', 'goal'],
+  requiredSystems: ['combat', 'movement-castle', 'relics', 'abilities', 'rooms', 'rest', 'talk', 'shortcuts', 'arena', 'hazards', 'goal'],
   optionalSystems: ['pickups'],
   feelPresets: FEEL,
   defaultFeel: DEFAULT_FEEL,

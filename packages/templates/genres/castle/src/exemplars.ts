@@ -26,6 +26,7 @@ export const EXEMPLARS: Exemplar[] = [
         { id: 'abilities', params: {} },
         { id: 'rooms', params: {} },
         { id: 'rest', params: { reach: 8 } },
+        { id: 'talk', params: {} },
         { id: 'shortcuts', params: {} },
         { id: 'arena', params: {} },
         { id: 'hazards', params: { respawnDelayTicks: 30 } },

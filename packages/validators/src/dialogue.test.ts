@@ -51,6 +51,10 @@ describe('validateDialogue', () => {
     expect(codes({ ...STORY, starts: [{ speaker: 'keeper', node: 'hello', when: [{ flag: 'gone', is: true }] }] })).toEqual(['flag_never_set']);
   });
 
+  it('keeps deeds to the game: none hears what only the page emits', () => {
+    expect(codes({ ...STORY, deeds: [...STORY.deeds, { on: 'ui_close', set: { closed: true } }] })).toEqual(['deed_unstable']);
+  });
+
   it('warns of talks for someone the game does not have', () => {
     const r = validateDialogue(DialogueFile.parse(STORY), { speakers: ['hermit'] });
     expect([r.ok, r.issues.map((i) => `${i.severity}:${i.code}`)]).toEqual([true, ['warning:start_nobody']]);

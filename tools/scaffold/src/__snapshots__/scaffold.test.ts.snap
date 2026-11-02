@@ -2791,10 +2791,6 @@ Jumps and landings sound, the dash trails particles, hits shake and flash, relic
       }
     },
     {
-      "id": "story",
-      "params": {}
-    },
-    {
       "id": "shortcuts",
       "params": {}
     },

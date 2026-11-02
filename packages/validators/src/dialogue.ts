@@ -1,4 +1,4 @@
-import type { DialogueFile, FlagTest } from '@gg/schemas';
+import { UNSTABLE_DEED_EVENTS, type DialogueFile, type FlagTest } from '@gg/schemas';
 import { err, report, warn, type Issue, type ValidationReport } from './report.js';
 
 export interface DialogueCast {
@@ -14,7 +14,8 @@ export interface DialogueCast {
  *   (it would hide the endings after it);
  * - a flag tested to be set is set somewhere: by a node, an answer or a deed (otherwise what tests it is dead: a talk
  *   never offered, an answer never shown, an ending nobody reaches, a quest that never begins or never ends);
- * - each start's speaker is someone in the game (a warning: a level may name its people as it likes).
+ * - each start's speaker is someone in the game (a warning: a level may name its people as it likes);
+ * - no deed listens to an event only the page emits (ui_open, ui_close, feedback, audio_play).
  * Whether each ending can actually be reached in play is the story prover's.
  */
 export function validateDialogue(file: DialogueFile, cast: DialogueCast = {}): ValidationReport {
@@ -50,6 +51,11 @@ export function validateDialogue(file: DialogueFile, cast: DialogueCast = {}): V
     const tested = (e.when ?? []).length > 0;
     if (last && tested) issues.push(err('ending_no_default', `the last ending, '${e.id}', has tests: the last ending is every other player's, so it has none`, { path: `endings.${e.id}` }));
     if (!last && !tested) issues.push(err('ending_shadowed', `ending '${e.id}' has no tests, so no ending after it can be reached: only the last ending may have none`, { path: `endings.${e.id}` }));
+  });
+
+  // A deed hears the game, never the page: scenes and feedback happen only in the browser.
+  deeds.forEach((d, i) => {
+    if (UNSTABLE_DEED_EVENTS.includes(d.on)) issues.push(err('deed_unstable', `deed ${i + 1} listens to '${d.on}', which only the page emits, so a replay of the same run would set other flags`, { path: `deeds.${i}` }));
   });
 
   // What sets each flag: a node read, an answer given, a deed done.

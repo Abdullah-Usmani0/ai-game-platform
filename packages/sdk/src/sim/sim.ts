@@ -1,4 +1,4 @@
-import { DialogueFile, endingFor, flagsHold, questState, type BehaviourFsm, type DialogueNode, type EcaRule, type GameEventRecord, type LevelJson, type LevelProof, type ParamValue, type StateSnapshot, type TileKind } from '@gg/schemas';
+import { DialogueFile, endingFor, flagsHold, QUEST_PREFIX, questState, type BehaviourFsm, type DialogueNode, type EcaRule, type GameEventRecord, type LevelJson, type LevelProof, type ParamValue, type StateSnapshot, type TileKind } from '@gg/schemas';
 import { EventBus } from './events.js';
 import type { FeelPreset } from './feel.js';
 import { fireRule, stepFsm } from './fsm.js';
@@ -159,10 +159,10 @@ class SimImpl implements Sim {
     this.placeEntities(resume, true);
     const ctx = this.ctx('');
     this.startSystems();
-    for (const s of this.options.systems) {
-      if (!s.onEvent) continue;
+    // The step's events are gathered for the systems that hear them, and for the story's deeds and quests.
+    const story = this.dialogue;
+    if (this.options.systems.some((s) => s.onEvent) || (story?.deeds ?? []).length > 0 || (story?.quests ?? []).length > 0) {
       this.unsubs.push(this.events.on('*', (ev) => this.pendingEvents.push(ev)));
-      break;
     }
     for (const rule of this.options.rules ?? []) {
       this.unsubs.push(this.events.on(rule.on, () => fireRule(rule, ctx)));
@@ -573,6 +573,8 @@ class SimImpl implements Sim {
     if (this.pendingEvents.length === 0) return;
     const batch = this.pendingEvents;
     this.pendingEvents = [];
+    // The story first, so what it tells is answered on this tick.
+    this.tellStory(batch);
     for (const s of this.options.systems) {
       if (!s.onEvent) continue;
       const ctx = this.ctx(s.id);
@@ -612,9 +614,36 @@ class SimImpl implements Sim {
     return this.snapshot().hash;
   }
 
+  /**
+   * The story keeps count (content/dialogue.json), in every game that has one. Its deeds turn what the player does into
+   * flags: a foe of a type beaten, a relic picked up, a grate opened. Each quest is told as it begins and as it is done
+   * (custom:quest), whatever set its flags: an answer, a node read, a deed. Where a quest stands lives on the player
+   * (`q:<id>`), so rests, reloads and saves keep it and nothing is told twice. It runs as the step's events are handed
+   * out, never as an event is emitted, so nothing it says is taken for a system's own.
+   */
+  private tellStory(batch: readonly GameEventRecord[]): void {
+    const file = this.dialogue;
+    if (!file || (!file.deeds?.length && !file.quests?.length)) return;
+    const p = this.world.player;
+    for (const ev of batch) {
+      for (const d of file.deeds ?? []) {
+        if (d.on !== ev.name || (d.type !== undefined && ev.payload['type'] !== d.type)) continue;
+        for (const [flag, value] of Object.entries(d.set)) p.props[`f:${flag}`] = value;
+      }
+    }
+    for (const q of file.quests ?? []) {
+      const state = questState(q, p.props);
+      if (state === 'none' || p.props[`${QUEST_PREFIX}${q.id}`] === state) continue;
+      p.props[`${QUEST_PREFIX}${q.id}`] = state;
+      this.events.emit(this.tick, 'custom:quest', { quest: q.id, title: q.title, state });
+    }
+  }
+
   end(): WorldEnding | null {
     const w = this.world;
     if (w.ending) return w.ending;
+    // Deeds of the last steps not yet handed out (a won level steps no more) count toward the ending.
+    this.tellStory(this.pendingEvents);
     const file = this.dialogue;
     const ending = file ? endingFor(file, w.player.props) : null;
     if (!file || !ending) return null;

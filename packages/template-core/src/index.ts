@@ -16,7 +16,6 @@ export { vehicle, meta as vehicleMeta, vehicleKind, HANDLING, HEADING, VEHICLE_K
 export { rooms, meta as roomsMeta, roomAt, MAP_PREFIX, REGION_TICKS } from './systems/rooms.js';
 export { rest, meta as restMeta, progressSaveOf } from './systems/rest.js';
 export { talk, meta as talkMeta } from './systems/talk.js';
-export { story, meta as storyMeta, QUEST_PREFIX } from './systems/story.js';
 export { checkStations, dressStations, SERVICE_WINDOW, SIDE_REACH, type StationsCtx } from './level/stations.js';
 export { suggestHints } from './level/hints.js';
 export { validateArena, validateWaves } from './level/arena.js';

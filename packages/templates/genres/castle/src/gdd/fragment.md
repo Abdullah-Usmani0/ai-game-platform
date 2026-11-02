@@ -50,7 +50,7 @@ beside an altar still rests): the world holds still while the player reads, each
 can set the story's flags (`f:` props on the player, kept by saves). Their words are content/dialogue.json: every castle
 game ships a default (the hermit points the way back, the keeper warns of the headsman and how his cleaver is turned),
 which a game's own story replaces.
-Story: the same file holds what the flags decide (the story system). Deeds set flags from what the player does (a foe
+Story: the same file holds what the flags decide, and the sim keeps it (in every game that has one). Deeds set flags from what the player does (a foe
 of a type beaten, a relic found, a grate opened). Quests are named side goals, told as they begin and end
 (custom:quest), each a test of flags to begin and one to be done. Endings (up to four) are tried in order as the game
 ends, the last having no tests: the first whose flags hold is the player's, its epilogue read as a talk
