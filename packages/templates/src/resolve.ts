@@ -1,11 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { EntityRoster, LevelHints, LevelJson, LevelProof, MechanicsFile, Objectives, parseAnyGdd, parseSystemsFile, SpriteSheet, StyleCard, type AnyGddFrontmatter, type BehaviourFsm, type EcaRule, type Mechanic, type SystemsFile } from '@gg/schemas';
+import { DialogueFile, EntityRoster, GAME_EVENTS, LevelHints, LevelJson, LevelProof, MechanicsFile, Objectives, parseAnyGdd, parseSystemsFile, SpriteSheet, StyleCard, UNSTABLE_DEED_EVENTS, type AnyGddFrontmatter, type BehaviourFsm, type EcaRule, type Mechanic, type SystemsFile } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding, type SimOptions } from '@gg/sdk';
 import { artPalette, settingFor, type Setting } from '@gg/sdk/art';
-import { rolesPresent, simOptionsFor, type GenreManifest } from '@gg/template-core';
+import { plannedLevelCount, rolesPresent, simOptionsFor, type GenreManifest } from '@gg/template-core';
 import { checkFreeformObjectives, FREEFORM_CATALOG, freeformDesignManifest, freeformManifest, IDENTITY_ROSTER } from '@gg/template-freeform/node';
-import { checkComposition, checkSpriteSheet, checkSystems, err, mechanicMeta, parseFrontmatter, report, spriteCast, warn, type CastMember, type Issue, type SystemsCatalog, type ValidationReport } from '@gg/validators';
+import { checkComposition, checkSpriteSheet, checkStory, checkSystems, err, mechanicMeta, parseFrontmatter, report, spriteCast, warn, type CastMember, type Issue, type StoryFacts, type SystemsCatalog, type ValidationReport } from '@gg/validators';
 import { CATALOG, genre, GENRES } from './genres.js';
 
 /** What a game's design files say about it; a file that is missing or invalid is null (proofs: left out). */
@@ -257,4 +257,55 @@ export function checkGameSprites(gameDir: string): ValidationReport {
   const style = StyleCard.safeParse(readJson(join(gameDir, 'design', 'style.json')));
   if (!style.success) return report([err('style_missing', "design/style.json is missing or invalid: sprites are judged in the game's palette")]);
   return checkSpriteSheet(sheet.data, { pal: artPalette(style.data.palette, style.data.outline), types: castOf(readGameFiles(gameDir)) });
+}
+
+/** Events the sim emits of itself as a story is read and kept, which a deed may hear. */
+const STORY_EVENTS = ['custom:dialogue', 'custom:dialogue_choice', 'custom:quest'];
+
+/**
+ * What a game's story may use, read from the game itself: the people its levels place (types marked as someone to talk
+ * to), every event it emits (its systems', its own systems' contracts', its behaviours', the sim's, never the page's),
+ * its entity types, and its levels (those written, else as many as its design plans).
+ */
+export function storyFactsOf(gameDir: string): StoryFacts {
+  const files = readGameFiles(gameDir);
+  const g = manifestFor(files);
+  const chosen = files.systems ? files.systems.systems.map((s) => s.id) : Object.keys(g.systems);
+  const systemEvents = chosen.flatMap((id) => [...(g.systems[id]?.meta.emits ?? [])]);
+  const contractEvents = readMechanics(gameDir, []).flatMap((m) => [...(m.emits ?? [])]);
+  const own = readGameInputs(gameDir).behaviours;
+  const behaviours = [...g.defaultBehaviours.filter((b) => !own.some((o) => o.id === b.id)), ...own];
+  const behaviourEvents = behaviours.flatMap((b) => Object.values(b.states).flatMap((st) => [...st.onEnter, ...st.update].flatMap((a) => (a.kind === 'emit' ? [a.event] : []))));
+  const core = GAME_EVENTS.filter((e) => !UNSTABLE_DEED_EVENTS.includes(e));
+  const written = readGameLevels(gameDir).length;
+  const levels = written > 0 ? written : plannedLevelCount(g.levelGrammar.kind, files.gdd?.scope.levels ?? 1);
+  return {
+    speakers: g.entityDefs.filter((d) => (d as { npc?: boolean }).npc === true).map((d) => d.type),
+    events: [...new Set([...core, ...STORY_EVENTS, ...systemEvents, ...contractEvents, ...behaviourEvents])],
+    types: g.entityDefs.map((d) => d.type),
+    levels,
+  };
+}
+
+/**
+ * content/dialogue.json, held to the game it is told in (checkStory: its people, its events, its types, its levels) and
+ * heard: the events the story raises (a talk, a quest, an ending) are bound in design/feedback.json. A game without a
+ * story passes.
+ */
+export function checkGameStory(gameDir: string): ValidationReport {
+  const path = join(gameDir, 'content', 'dialogue.json');
+  if (!existsSync(path)) return report([], { story: false });
+  const parsed = DialogueFile.safeParse(readJson(path));
+  if (!parsed.success) return report(parsed.error.issues.map((i) => err('dialogue_schema', `content/dialogue.json ${i.path.join('.') || '(root)'}: ${i.message}`)));
+  const file = parsed.data;
+  const r = checkStory(file, storyFactsOf(gameDir));
+  const feedback = readJson(join(gameDir, 'design', 'feedback.json'));
+  const bound = new Set(Array.isArray(feedback) ? feedback.flatMap((b) => (typeof (b as { event?: unknown }).event === 'string' ? [(b as { event: string }).event] : [])) : []);
+  const raised: Array<[boolean, string, string]> = [
+    [file.starts.length > 0, 'custom:talk', 'its people talk'],
+    [(file.quests ?? []).length > 0, 'custom:quest', 'its quests are told'],
+    [(file.endings ?? []).length > 0, 'custom:ending', 'its ending is played'],
+  ];
+  const unheard = raised.flatMap(([raisedHere, event, what]) => (raisedHere && !bound.has(event) ? [err('story_unheard', `${what}, but design/feedback.json binds no ${event}`, { path: event })] : []));
+  return report([...r.issues, ...unheard], { ...r.metrics, story: true });
 }

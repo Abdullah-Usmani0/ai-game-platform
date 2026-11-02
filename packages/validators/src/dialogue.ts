@@ -105,3 +105,36 @@ export function validateDialogue(file: DialogueFile, cast: DialogueCast = {}): V
   }
   return report(issues, { nodes: file.nodes.length, endings: endings.length, quests: quests.length, deeds: deeds.length });
 }
+
+/** What a game's story may use, read from the game: its people, the events it emits, its types, its levels. */
+export interface StoryFacts {
+  /** The speakers the game's people talk as: the only ones a talk can start with. */
+  speakers: readonly string[];
+  /** The events the game emits: its systems', its own systems' contracts', its behaviours', the sim's. */
+  events: readonly string[];
+  /** The game's entity types: what a deed's type may name. */
+  types: readonly string[];
+  /** How many levels the game has: a chapter is for one of them. */
+  levels: number;
+}
+
+/**
+ * A story held to the game it is written for, beyond validateDialogue's rules: its talks start only with people the
+ * game places (an error here, not a warning: a talk with nobody is never heard); its deeds hear events the game emits,
+ * about types it has (a deed on anything else never happens, so what tests its flags is dead); its chapters are for
+ * levels it has.
+ */
+export function checkStory(file: DialogueFile, facts: StoryFacts): ValidationReport {
+  const base = validateDialogue(file, { speakers: facts.speakers });
+  const issues: Issue[] = base.issues.map((i) => (i.code === 'start_nobody' ? { ...i, code: 'speaker_unplaced', severity: 'error' } : i));
+  const events = new Set(facts.events);
+  const types = new Set(facts.types);
+  (file.deeds ?? []).forEach((d, i) => {
+    if (!events.has(d.on)) issues.push(err('deed_event_unknown', `deed ${i + 1} listens to '${d.on}', which this game never emits`, { path: `deeds.${i}` }));
+    if (d.type !== undefined && !types.has(d.type)) issues.push(err('deed_type_unknown', `deed ${i + 1} is about '${d.type}', and this game has no such thing`, { path: `deeds.${i}` }));
+  });
+  for (const c of file.chapters ?? []) {
+    if (c.level > facts.levels) issues.push(err('chapter_beyond', `chapter ${c.level} is for a level the game does not have (it has ${facts.levels})`, { path: `chapters.${c.level}` }));
+  }
+  return report(issues, base.metrics);
+}

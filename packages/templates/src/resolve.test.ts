@@ -7,7 +7,7 @@ import { levelPlan, systemsJsonFor } from '@gg/template-core';
 import { BASE_MANIFESTS, freeformManifest, HEIST, HIVE, LANTERN, proveLevel } from '@gg/template-freeform/node';
 import { describe, expect, it } from 'vitest';
 import { CHECKS, kitFor } from './check.js';
-import { CATALOG, catalogFor, checkGameSystems, checkProofs, GENRES, manifestFor, readGameFiles, readGameLevels, resolveGame } from './node.js';
+import { CATALOG, catalogFor, checkGameStory, checkGameSystems, checkProofs, GENRES, manifestFor, readGameFiles, readGameLevels, resolveGame, storyFactsOf } from './node.js';
 
 const samples = fileURLToPath(new URL('../../../samples/', import.meta.url));
 
@@ -172,5 +172,33 @@ describe('checkGameSystems', () => {
     expect(r.issues.map((i) => i.code)).toContain('objective_type');
     expect(checkGameSystems(gameDir({ 'design/systems.json': { version: 1 } })).issues[0]?.code).toBe('systems_schema');
     expect(checkGameSystems(gameDir({})).issues[0]?.code).toBe('systems_missing');
+  });
+});
+
+describe("a game's story, held to the game it is told in", () => {
+  it("holds the castle sample's story: its two people, the events and types its deeds hear, its one region, all heard", () => {
+    const dir = join(samples, 'castle');
+    const facts = storyFactsOf(dir);
+    expect([facts.speakers, facts.levels]).toEqual([['hermit', 'candle-keeper'], 1]);
+    expect(facts.events).toEqual(expect.arrayContaining(['death', 'pickup', 'custom:door_open']));
+    expect(facts.types).toEqual(expect.arrayContaining(['headsman', 'wings']));
+    expect(checkGameStory(dir)).toMatchObject({ ok: true, issues: [], metrics: { story: true, endings: 3, quests: 1 } });
+  });
+
+  it('passes a game with no story, and finds a story its game cannot tell', () => {
+    expect(checkGameStory(join(samples, 'platformer'))).toMatchObject({ ok: true, metrics: { story: false } });
+    const dir = mkdtempSync(join(tmpdir(), 'gg-story-'));
+    try {
+      mkdirSync(join(dir, 'design'), { recursive: true });
+      mkdirSync(join(dir, 'content'), { recursive: true });
+      writeFileSync(join(dir, 'design', 'gdd.md'), readFileSync(join(samples, 'castle', 'design', 'gdd.md'), 'utf8'));
+      writeFileSync(join(dir, 'design', 'feedback.json'), '[]');
+      const talk = { version: 1, nodes: [{ id: 'end', speaker: 'narrator', lines: ['The end.'] }], starts: [{ speaker: 'oracle', node: 'end' }], deeds: [{ on: 'death', type: 'dragon', set: { slain: true } }], endings: [{ id: 'slain', title: 'Slain', when: [{ flag: 'slain', is: true }], node: 'end' }, { id: 'end', title: 'End', node: 'end' }], chapters: [{ level: 4, title: 'Beyond' }] };
+      writeFileSync(join(dir, 'content', 'dialogue.json'), JSON.stringify(talk));
+      const codes = checkGameStory(dir).issues.map((i) => i.code).sort();
+      expect(codes).toEqual(['chapter_beyond', 'deed_type_unknown', 'speaker_unplaced', 'story_unheard', 'story_unheard']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

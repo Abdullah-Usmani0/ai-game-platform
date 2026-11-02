@@ -42,6 +42,16 @@ describe('scaffold output is pinned for curated genres', () => {
 /** A freeform example scaffolded as the worker would (scaffoldExample), pinned at seed 5. */
 const scaffoldPinned = (ex: FreeformExample, out: string, link: boolean) => scaffoldExample(ex, out, { linkNodeModules: link });
 
+describe("a game's own content", () => {
+  it("wins over what its genre ships: a castle game's own story is kept, its moves still shipped", () => {
+    const out = mkdtempSync(join(tmpdir(), 'gg-scaffold-own-'));
+    const own = { version: 1, nodes: [{ id: 'once', speaker: 'narrator', lines: ['Once, a bell.'] }], chapters: [{ level: 1, node: 'once' }] };
+    scaffold({ outDir: out, genre: 'castle', gameId: 'own', title: 'Own', systems: defaultSystems('castle', []), style: DEFAULT_STYLE, gddMarkdown: sampleGdd('castle'), levels: 1, seed: 5, linkNodeModules: false, content: { dialogue: own } });
+    expect(JSON.parse(readFileSync(join(out, 'content', 'dialogue.json'), 'utf8'))).toEqual(own);
+    expect(existsSync(join(out, 'content', 'moves.json'))).toBe(true);
+  });
+});
+
 describe('scaffold output is pinned for the freeform examples', () => {
   for (const ex of EXAMPLES) {
     it(`${ex.id} files are unchanged`, () => {

@@ -53,7 +53,7 @@ interface Resolved {
  * Stages a policy may leave out, and the stage whose entry they run on then: a freeform game's composition and the
  * cast's look are structured calls of the design phase, as choosing the systems is.
  */
-const POLICY_FALLBACK: Readonly<Record<string, Stage>> = { composition: 'systems', sprites: 'systems', bot: 'implement' };
+const POLICY_FALLBACK: Readonly<Record<string, Stage>> = { composition: 'systems', sprites: 'systems', bot: 'implement', story: 'gdd' };
 
 /**
  * Whether a stage has work in this game: a stage with a condition (`when`) runs only while it holds, and is otherwise

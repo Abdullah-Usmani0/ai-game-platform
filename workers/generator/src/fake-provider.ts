@@ -138,6 +138,14 @@ export class FakeProvider implements Provider {
         data = JSON.parse(walk) as unknown;
         break;
       }
+      case 'StoryBible':
+      case 'DialogueFile': {
+        // The prompt ends with the story drafted from the game's design (story-draft.ts): a dry run tells that one.
+        const example = /^Example \(a (?:story|talk)'s shape[^\n]*\n(\{.*\})$/m.exec(req.prompt)?.[1];
+        if (!example) throw new Error(`fake provider: the ${req.schemaName} prompt carries no example`);
+        data = JSON.parse(example) as unknown;
+        break;
+      }
       case 'EditRoute': {
         // The router's prompt lists the game's behaviours ("Behaviours: grunt, brute.").
         const listed = (marker(/^Genre: .*Behaviours: ([^.]*)\./m) ?? '').split(', ').filter((b) => b && b !== '(none)');

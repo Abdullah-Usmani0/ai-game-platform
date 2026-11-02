@@ -41,13 +41,13 @@ interface GameView {
   jobs: Array<{ id: string; kind: string; status: string; stage: string | null; costUsd: number; createdAt: string; error: { reason?: string } | null }>;
 }
 
-const CREATE_STAGES = ['gdd', 'systems', 'sprites', 'scaffold', 'behaviour', 'implement', 'levels', 'integrate', 'playtest', 'juice', 'review', 'budget', 'publish'];
+const CREATE_STAGES = ['gdd', 'systems', 'sprites', 'scaffold', 'behaviour', 'implement', 'story', 'levels', 'integrate', 'playtest', 'juice', 'review', 'budget', 'publish'];
 /**
  * A freeform game names its cast after its systems, records its winning runs again after its code changes, and gets a
  * bot of its own for levels no bot of the platform wins (passed over when none waits).
  */
 const FREEFORM_STAGES = CREATE_STAGES.flatMap((s) => (s === 'systems' ? [s, 'composition'] : s === 'implement' ? [s, 'prove'] : s === 'levels' ? [s, 'bot'] : [s]));
-const STAGE_LABELS: Record<string, string> = { verify: 'Replay', gdd: 'Design', systems: 'Systems', composition: 'Cast', prove: 'Proofs', bot: 'Bot', sprites: 'Sprites', scaffold: 'Scaffold', behaviour: 'Behaviour', implement: 'Code', levels: 'Levels', integrate: 'Integrate', playtest: 'Playtest', juice: 'Juice', review: 'Review', budget: 'Budget', publish: 'Publish' };
+const STAGE_LABELS: Record<string, string> = { verify: 'Replay', gdd: 'Design', systems: 'Systems', composition: 'Cast', prove: 'Proofs', bot: 'Bot', sprites: 'Sprites', scaffold: 'Scaffold', behaviour: 'Behaviour', implement: 'Code', story: 'Story', levels: 'Levels', integrate: 'Integrate', playtest: 'Playtest', juice: 'Juice', review: 'Review', budget: 'Budget', publish: 'Publish' };
 const JOB_TONE: Record<string, string> = { queued: 'info', running: 'brand', succeeded: 'ok', failed: 'err', needs_human: 'warn', cancelled: 'neutral' };
 const JOB_TITLE: Record<string, string> = { create: 'Building the game', edit: 'Applying an edit', edit_content: 'Applying a level edit', verify_proof: "Checking a player's winning run" };
 const EDIT_EXAMPLES = ['make the walker chase more aggressively', 'make jumps a little floatier', 'a warmer, sunset palette', 'add a third level that is harder'];

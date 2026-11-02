@@ -1,6 +1,6 @@
 import { DialogueFile } from '@gg/schemas';
 import { describe, expect, it } from 'vitest';
-import { validateDialogue } from './dialogue.js';
+import { checkStory, validateDialogue } from './dialogue.js';
 
 /** A keeper with a quest, a deed and two endings: sound as written. */
 const STORY = {
@@ -75,5 +75,22 @@ describe('validateDialogue', () => {
   it('warns of talks for someone the game does not have', () => {
     const r = validateDialogue(DialogueFile.parse(STORY), { speakers: ['hermit'] });
     expect([r.ok, r.issues.map((i) => `${i.severity}:${i.code}`)]).toEqual([true, ['warning:start_nobody']]);
+  });
+});
+
+describe('checkStory', () => {
+  const facts = { speakers: ['keeper'], events: ['death', 'custom:light'], types: ['warden'], levels: 2 };
+  const story = (more: object) => DialogueFile.parse({ ...STORY, ...more });
+  const codes = (more: object, f = facts) => checkStory(story(more), f).issues.map((i) => i.code).sort();
+
+  it('passes a story the game can tell', () => {
+    expect(codes({ deeds: [...STORY.deeds, { on: 'death', type: 'warden', set: { 'warden-down': true } }], chapters: [{ level: 2, title: 'The End' }] })).toEqual([]);
+  });
+
+  it('holds it to the game: people it places, events it emits, types it has, levels it has', () => {
+    expect(codes({}, { ...facts, speakers: [] })).toEqual(['speaker_unplaced']);
+    expect(codes({ deeds: [{ on: 'custom:light', set: { lit: true } }, { on: 'custom:ring', set: { rung: true } }] })).toEqual(['deed_event_unknown']);
+    expect(codes({ deeds: [...STORY.deeds, { on: 'death', type: 'dragon', set: { slain: true } }] })).toEqual(['deed_type_unknown']);
+    expect(codes({ chapters: [{ level: 3, title: 'Beyond' }] })).toEqual(['chapter_beyond']);
   });
 });

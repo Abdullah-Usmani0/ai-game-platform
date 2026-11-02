@@ -19,6 +19,7 @@ import { MechanicsFile } from './mechanics';
 import { SpriteSheet } from './sprites';
 import { MoveSet } from './moves';
 import { DialogueFile } from './dialogue';
+import { StoryBible } from './story';
 
 export * from './common';
 export * from './events';
@@ -36,6 +37,7 @@ export * from './mechanics';
 export * from './sprites';
 export * from './moves';
 export * from './dialogue';
+export * from './story';
 export * from './playtest';
 export * from './bundle';
 export * from './bridge';
@@ -66,6 +68,7 @@ export const ARTIFACT_SCHEMAS = {
   SpriteSheet,
   MoveSet,
   DialogueFile,
+  StoryBible,
   PlaytestReport,
   GateReport,
   BundleManifest,

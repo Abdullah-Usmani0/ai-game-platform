@@ -221,7 +221,8 @@ export function scaffold(opts: ScaffoldOptions): ScaffoldResult {
   }
   for (const p of proofs) write(files, out, `content/proofs/${p.level}.json`, JSON.stringify(p) + '\n');
   for (const b of g.defaultBehaviours) write(files, out, `content/behaviour/${b.id}.fsm.json`, JSON.stringify(b, null, 2) + '\n');
-  for (const [key, value] of Object.entries(g.shippedContent ?? {})) write(files, out, `content/${key}.json`, JSON.stringify(value, null, 2) + '\n');
+  // What every game of the genre ships (the castle's moves and talk), unless this game brings its own.
+  for (const [key, value] of Object.entries(g.shippedContent ?? {})) if (opts.content?.[key] === undefined) write(files, out, `content/${key}.json`, JSON.stringify(value, null, 2) + '\n');
 
   if (opts.linkNodeModules ?? true) linkGameBase(out);
   return { outDir: out, files, levels };

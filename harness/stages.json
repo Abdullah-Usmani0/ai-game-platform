@@ -84,6 +84,18 @@
     "skills": ["mechanic-author", "verify"],
     "task": "Implement any mechanic the GDD requires that no selected catalog system provides, as bespoke GlueTS systems under game/src/systems with unit tests, each with its contract in game/design/mechanics.json (the game's own test holds the code to it). If every GDD mechanic is already covered, append one line to game/design/deviations.md saying so and stop."
   },
+  "story": {
+    "runner": "worker",
+    "gate": ["validate:story"],
+    "allowedWrite": ["game/design/story.json", "game/content/dialogue.json", "game/design/feedback.json"],
+    "caps": {
+      "turns": 0,
+      "usd": 0.5,
+      "wallMin": 5
+    },
+    "skills": [],
+    "task": "Plan the game's story from the idea in game/design/story.json (depth none, light or rich) and write the talk that tells it in game/content/dialogue.json: narration for its chapters, its people's talks, its deeds and quests, its endings, held to the game's own people, events, types and levels."
+  },
   "prove": {
     "runner": "worker",
     "gate": ["prove", "test"],
@@ -217,6 +229,7 @@
       "validate:gdd",
       "validate:levels",
       "validate:behaviour",
+      "validate:story",
       "build",
       "smoke",
       "juice",
