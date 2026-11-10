@@ -1,16 +1,16 @@
-import { mix, type RGB } from './color.js';
+import { hslToRgb, mix, ramp, rgbToHsl, type Ramp, type RGB } from './color.js';
 import type { ArtPalette } from './palette.js';
 import { hash2, type PixelCanvas } from './pixels.js';
 
 /**
- * The level itself. A level is drawn in one of five settings: side (rock under a sky), dungeon (3/4 walls, flagstone
- * floors, torchlight), field (grass, stone pillars), farm (a meadow inside a wooden fence) or space (nothing: stars
- * behind). The painter works on the whole
+ * The level itself. A level is drawn in one of seven settings: side (rock under a sky), castle (cut stone), dungeon (3/4
+ * walls, flagstone floors, torchlight), field (grass, stone pillars), farm (a meadow inside a wooden fence), sea (water
+ * round rocky islets, for a game that sails) or space (nothing: stars behind). The painter works on the whole
  * level, not tile by tile: rock darkens with depth below its surface, moss grows on top of it, walls cast shadows on
  * the floor and torches light it. Everything is seeded by position, so a level looks the same every time it loads.
  */
 
-export type Setting = 'side' | 'dungeon' | 'field' | 'farm' | 'space' | 'castle';
+export type Setting = 'side' | 'dungeon' | 'field' | 'farm' | 'space' | 'castle' | 'sea';
 
 /** The setting each genre is drawn in; a genre not listed here falls back by how its player moves. */
 export const SETTING_BY_GENRE: Readonly<Record<string, Setting>> = {
@@ -31,7 +31,15 @@ export function sideView(setting: Setting): boolean {
   return setting === 'side' || setting === 'castle';
 }
 
-export function settingFor(genre: string | undefined, movementMode: 'platformer' | 'topdown' | undefined): Setting {
+/** The vehicles that sail: a game that drives one is drawn at sea, whatever its base genre's setting. */
+export const SAILING: readonly string[] = ['boat', 'galleon'];
+
+/**
+ * The setting a game is drawn in: its genre's (a freeform game's base genre's), or the sea for a game that sails
+ * (movement-vehicle's kind), else by how its player moves.
+ */
+export function settingFor(genre: string | undefined, movementMode: 'platformer' | 'topdown' | undefined, vehicle?: unknown): Setting {
+  if (typeof vehicle === 'string' && SAILING.includes(vehicle)) return 'sea';
   return SETTING_BY_GENRE[genre ?? ''] ?? (movementMode === 'topdown' ? 'dungeon' : 'side');
 }
 
@@ -58,6 +66,16 @@ export interface LevelArt {
   /** Torchlight baked into the floor (dungeon settings). */
   lights: Light[];
   exitLocked: boolean;
+  /** At sea: how far each pixel is from the shore, either way, and the water's and the sand's colours. */
+  shore?: Shore;
+}
+
+/** The sea's shore, by the pixel: distance from water to land and from land to water, and the colours of each. */
+export interface Shore {
+  toLand: Float32Array;
+  toSea: Float32Array;
+  water: Ramp;
+  sand: Ramp;
 }
 
 const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
@@ -157,7 +175,7 @@ export function groundUnder(map: TerrainMap, setting: Setting, fixtures: Readonl
 export function prepareLevelArt(pal: ArtPalette, setting: Setting, map: TerrainMap, exitLocked: boolean): LevelArt {
   const ts = map.tileSize;
   const lights = setting === 'dungeon' ? torchSpots(map).map((s) => ({ x: s.tx * ts + ts / 2, y: (s.ty + 1) * ts, radius: Math.max(40, ts * 4.5) })) : [];
-  return { pal, setting, map, depth: sideView(setting) ? depthField(map) : null, lights, exitLocked };
+  return { pal, setting, map, depth: sideView(setting) ? depthField(map) : null, lights, exitLocked, ...(setting === 'sea' ? { shore: prepareShore(pal, map) } : {}) };
 }
 
 // ---------------------------------------------------------------- cobbles
@@ -656,6 +674,111 @@ function applyLight(art: LevelArt, pc: PixelCanvas, x0: number, y0: number): voi
   }
 }
 
+// ---------------------------------------------------------------- sea
+
+/** How far the corner of an islet is rounded off, in pixels, where water lies on both sides of it and across. */
+const ISLET_ROUND = 3;
+
+/** Land at sea, by the pixel: the solid tiles, their outer corners rounded off so a rock is never a square. */
+function landPx(map: TerrainMap, gx: number, gy: number): boolean {
+  const ts = map.tileSize;
+  const tx = Math.floor(gx / ts);
+  const ty = Math.floor(gy / ts);
+  if (!solidTile(map, tx, ty)) return false;
+  const lx = gx - tx * ts;
+  const ly = gy - ty * ts;
+  for (const [cx, cy, sx, sy] of [[0, 0, -1, -1], [ts - 1, 0, 1, -1], [0, ts - 1, -1, 1], [ts - 1, ts - 1, 1, 1]] as const) {
+    const ox = Math.abs(lx - cx);
+    const oy = Math.abs(ly - cy);
+    if (ox >= ISLET_ROUND || oy >= ISLET_ROUND || solidTile(map, tx + sx, ty) || solidTile(map, tx, ty + sy) || solidTile(map, tx + sx, ty + sy)) continue;
+    const r = ISLET_ROUND - 0.5;
+    if ((r - ox) ** 2 + (r - oy) ** 2 > r * r) return false;
+  }
+  return true;
+}
+
+/** Distance in pixels from every pixel to the nearest pixel outside `inside` (two chamfer passes). */
+function distanceField(w: number, h: number, inside: (x: number, y: number) => boolean): Float32Array {
+  const d = new Float32Array(w * h).fill(1e9);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!inside(x, y)) d[y * w + x] = 0;
+  const diag = Math.SQRT2;
+  const relax = (i: number, j: number, cost: number): void => {
+    if (d[j]! + cost < d[i]!) d[i] = d[j]! + cost;
+  };
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (x > 0) relax(i, i - 1, 1);
+      if (y > 0) {
+        relax(i, i - w, 1);
+        if (x > 0) relax(i, i - w - 1, diag);
+        if (x < w - 1) relax(i, i - w + 1, diag);
+      }
+    }
+  }
+  for (let y = h - 1; y >= 0; y--) {
+    for (let x = w - 1; x >= 0; x--) {
+      const i = y * w + x;
+      if (x < w - 1) relax(i, i + 1, 1);
+      if (y < h - 1) {
+        relax(i, i + w, 1);
+        if (x < w - 1) relax(i, i + w + 1, diag);
+        if (x > 0) relax(i, i + w - 1, diag);
+      }
+    }
+  }
+  return d;
+}
+
+/** The sea's colours: a blue nudged toward the game's accent, about as light as its stone. */
+function waterRamp(pal: ArtPalette): Ramp {
+  const [accentHue] = rgbToHsl(pal.accent[2]);
+  const [, , stoneL] = rgbToHsl(pal.terrain[2]);
+  const hue = 205 + (((accentHue - 205 + 540) % 360) - 180) * 0.15;
+  return ramp(hslToRgb(hue, 0.5, Math.max(0.32, Math.min(0.45, stoneL + 0.12))));
+}
+
+/** The shore of a level at sea, measured once as the level's art is prepared. */
+function prepareShore(pal: ArtPalette, map: TerrainMap): Shore {
+  const w = map.width * map.tileSize;
+  const h = map.height * map.tileSize;
+  return {
+    toLand: distanceField(w, h, (x, y) => !landPx(map, x, y)),
+    toSea: distanceField(w, h, (x, y) => landPx(map, x, y)),
+    water: waterRamp(pal),
+    sand: ramp(mix(pal.wood[4], [236, 214, 160], 0.6)),
+  };
+}
+
+/**
+ * Sea: deep water out in the open and shallow by the shore, soft swells across it and a glint riding one now and then;
+ * a broken line of foam where it meets the land. Land is rock (grass on the tops of the bigger islands) behind a rim
+ * of sand.
+ */
+function paintSeaPx(art: LevelArt, gx: number, gy: number): RGB {
+  const { pal, map } = art;
+  const shore = art.shore!;
+  const i = gy * map.width * map.tileSize + gx;
+  const S = shore.water;
+  if (landPx(map, gx, gy)) {
+    const d = shore.toSea[i]!;
+    if (d <= 2.5) return d <= 1.2 ? shore.sand[3] : shore.sand[2];
+    const n = valueNoise(gx / 7, gy / 7, 11) + (bayer(gx, gy) - 0.5) * 0.15;
+    if (d > 6 && n > 0.45) return n > 0.7 ? pal.rim[3] : pal.rim[2];
+    return n > 0.62 ? pal.terrain[3] : n > 0.3 ? pal.terrain[2] : pal.terrain[1];
+  }
+  const d = shore.toLand[i]!;
+  const foam = valueNoise(gx / 4, gy / 4, 31);
+  if (d <= 1.5 && foam > 0.32) return pal.white;
+  if (d <= 2.5 && foam > 0.55) return mix(pal.white, S[3], 0.45);
+  const swell = valueNoise(gx / 26, gy / 12, 41) * 0.6 + valueNoise(gx / 9, gy / 5, 43) * 0.4;
+  const shallow = Math.max(0, 1 - d / 9);
+  const t = swell * 0.42 + shallow * 0.55 + (bayer(gx, gy) - 0.5) * 0.16;
+  const glint = hash2(Math.floor(gx / 4), Math.floor(gy / 3), 47);
+  if (glint < 0.006 && gy % 3 === 0 && gx % 4 < 2 + Math.floor(glint * 300)) return S[4];
+  return t > 0.85 ? S[3] : t > 0.55 ? mix(S[2], S[3], 0.5) : t > 0.3 ? S[2] : S[1];
+}
+
 // ---------------------------------------------------------------- the painter
 
 /** Paints the part of the level that `pc` covers, whose top-left is pixel (x0, y0) of the level. */
@@ -674,7 +797,8 @@ export function paintRegion(art: LevelArt, pc: PixelCanvas, x0: number, y0: numb
         if (kind === 'solid') paintSideRock(art, pc, x0, y0, gx, gy);
       } else if (setting === 'castle') {
         if (kind === 'solid') paintCastleStone(art, pc, x0, y0, gx, gy);
-      } else if (setting === 'farm' && (kind === 'solid' || kind === 'air' || kind === 'spawn')) pc.set(px, py, paintFarmPx(art, gx, gy));
+      } else if (setting === 'sea') pc.set(px, py, paintSeaPx(art, gx, gy));
+      else if (setting === 'farm' && (kind === 'solid' || kind === 'air' || kind === 'spawn')) pc.set(px, py, paintFarmPx(art, gx, gy));
       else if (kind === 'solid') pc.set(px, py, paintWallPx(art, gx, gy));
       else pc.set(px, py, paintFloorPx(art, gx, gy));
     }

@@ -151,6 +151,11 @@ describe('golden lock: art and sound', () => {
         golden[`${g.id}:${setting}:${exitLocked ? 'locked' : 'open'}`] = pixels(pc);
       }
     }
+    // At sea, as a game that sails draws: the survivors arena's walls and pillars as rocky shore, its floor as water.
+    const arena = GENRES['survivors']!.levelGrammar.generate({ seed: 3, difficulty: 0.5 });
+    const sea = new PixelCanvas(Math.min(256, arena.width * arena.tileSize), Math.min(144, arena.height * arena.tileSize));
+    paintRegion(prepareLevelArt(pal, 'sea', new Tilemap(arena), false), sea, 0, 0);
+    golden['survivors:sea:open'] = pixels(sea);
     check('terrain', golden);
   });
 

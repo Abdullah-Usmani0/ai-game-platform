@@ -2,6 +2,8 @@ import { approach, defineSystem, sinCosDeg, type SimCtx } from '@gg/sdk';
 
 /** The player's heading, on its props, in degrees: 0 faces east and 90 south (y runs down the screen). */
 export const HEADING = 'heading';
+/** The kind of vehicle the player drives, on its props: what the view draws and the setting it is drawn in (a boat sails). */
+export const VEHICLE = 'vehicle';
 
 export const VEHICLE_KINDS = ['bike', 'car', 'boat', 'galleon'] as const;
 export type VehicleKind = (typeof VEHICLE_KINDS)[number];
@@ -74,6 +76,7 @@ export const vehicle = defineSystem<VehicleState>({
   init(ctx) {
     const p = ctx.world.player;
     p.props[HEADING] = startHeading(ctx);
+    p.props[VEHICLE] = vehicleKind(ctx.params);
     p.facing = sinCosDeg(Number(p.props[HEADING]))[1] < 0 ? -1 : 1;
     return { prevDash: false, boost: 0, cooldown: 0 };
   },

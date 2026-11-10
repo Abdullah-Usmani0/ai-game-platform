@@ -14,6 +14,7 @@ import { themeFor } from './art/backdrop/index.js';
 import { tileable } from './art/backdrop/post.js';
 import { paintRig, RIGS, type Rig } from './art/rig/index.js';
 import { groundUnder, paintRegion, prepareLevelArt, settingFor, sideView, torchSpots, type Setting } from './art/terrain.js';
+import { headingFrame, paintTurns, turnFrameSize } from './art/turn.js';
 import { toCanvas } from './canvas.js';
 import type { GameController } from './controller.js';
 import { moveClipFrame } from './move-frames.js';
@@ -99,6 +100,8 @@ interface Sheet {
   tops: Map<string, number>;
   /** A rig's clips that hit: the frames that draw the blow (a move's clip is drawn by its clock around them). */
   actives?: Map<string, readonly number[]>;
+  /** Drawn turned to where it heads (a vehicle from above): each frame `anim:frame` is in the sheet as `anim:frame@0..15`. */
+  turns?: boolean;
 }
 
 interface Shown {
@@ -107,6 +110,8 @@ interface Shown {
   glow: Phaser.GameObjects.Image | null;
   sheet: Sheet;
   dir: 'down' | 'up' | 'side';
+  /** The way a turning sprite last headed, in degrees: it keeps facing that way when it stops. */
+  heading: number;
 }
 
 interface Particle {
@@ -231,7 +236,7 @@ export class MainScene extends Phaser.Scene {
     this.pal = artPalette(this.style.palette, this.style.outline ?? 'dark');
     this.fx = { ...this.fx, ...(this.style.postFx ?? {}) };
     this.fps = { ...this.fps, ...(this.style.animationFps ?? {}) };
-    this.setting = settingFor(this.style.genre, this.controller.sim.options.movementMode);
+    this.setting = settingFor(this.style.genre, this.controller.sim.options.movementMode, this.controller.sim.world.player.props['vehicle']);
     this.readDesigns();
     this.readMoves();
     const { w, h } = this.style.canvas;
@@ -307,6 +312,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   private sheetFromRecipe(name: string, recipe: Recipe): Sheet {
+    if (recipe.turns) return this.sheetFromTurns(name, recipe);
     const frames = paintFrames(recipe, this.pal);
     const { w, h } = frameSize(recipe);
     const pc = new PixelCanvas(w * frames.length, h);
@@ -334,6 +340,30 @@ export class MainScene extends Phaser.Scene {
       tops,
       ...(recipe.active ? { actives: new Map(Object.entries(recipe.active)) } : {}),
     };
+    this.sheets.set(name, sheet);
+    return sheet;
+  }
+
+  /** A turning sprite's frames in each of the sixteen headings, as a grid: `anim:frame@heading`. */
+  private sheetFromTurns(name: string, recipe: Recipe): Sheet {
+    const frames = paintTurns(recipe, this.pal);
+    const size = turnFrameSize(recipe);
+    const cols = Math.max(1, Math.min(frames.length, Math.floor(2048 / size)));
+    const pc = new PixelCanvas(cols * size, Math.ceil(frames.length / cols) * size);
+    const at = (i: number) => ({ x: (i % cols) * size, y: Math.floor(i / cols) * size });
+    frames.forEach((f, i) => pc.blit(f.pc, at(i).x, at(i).y));
+    const key = `gg-sheet-${name}`;
+    const tex = this.addCanvasTexture(key, pc);
+    const anims = new Map<string, string[]>();
+    const tops = new Map<string, number>();
+    frames.forEach((f, i) => {
+      const frame = `${f.anim}:${f.frame}`;
+      tex?.add(`${frame}@${f.heading}`, 0, at(i).x, at(i).y, size, size);
+      if (f.heading !== 0) return;
+      anims.set(f.anim, [...(anims.get(f.anim) ?? []), frame]);
+      tops.set(frame, firstPaintedRow(f.pc));
+    });
+    const sheet: Sheet = { key, w: size, h: size, anchor: 'center', anims, directional: false, floor: false, noShadow: recipe.noShadow === true, fixture: false, tops, turns: true };
     this.sheets.set(name, sheet);
     return sheet;
   }
@@ -779,7 +809,7 @@ export class MainScene extends Phaser.Scene {
 
   /** The sheet an entity draws with: the game's design for its type (or the player's), else its shipped sprite. */
   private recipeName(e: Entity): string | null {
-    if (e.isPlayer) return this.setting === 'castle' ? 'rig:knight' : this.designs.has('@player') ? 'game:@player' : playerRecipe(this.setting, e.w);
+    if (e.isPlayer) return this.setting === 'castle' ? 'rig:knight' : this.designs.has('@player') ? 'game:@player' : playerRecipe(this.setting, e.w, typeof e.props['vehicle'] === 'string' ? e.props['vehicle'] : undefined);
     const name = spriteFor(e.type, { drawAs: this.drawAs.get(e.type), designs: this.designs })?.name ?? (e.isProjectile ? 'orb' : null);
     // Someone a story placed wears the look it gave them (a game's own design for them is every look).
     const look = e.props['look'];
@@ -829,6 +859,17 @@ export class MainScene extends Phaser.Scene {
     return has('idle') ? 'idle' : has('run') ? 'run' : s.sheet.anims.keys().next().value!;
   }
 
+  /** A moving vehicle's trail: foam off a hull's stern at sea, dust off the back wheel on land. */
+  private trail(e: Entity, heading: number): void {
+    const r = (heading * Math.PI) / 180;
+    const back = Math.max(e.w, e.h) / 2 + 2;
+    const x = e.x + e.w / 2 - Math.cos(r) * back;
+    const y = e.y + e.h / 2 - Math.sin(r) * back;
+    const sea = this.setting === 'sea';
+    const colors = sea ? [this.pal.white, mix(this.pal.white, this.pal.accent[2], 0.4)] : [this.pal.floor[2], this.pal.floor[3]];
+    this.burst('dot', x, y, colors, sea ? 2 : 1, { speed: 0.25, angle: r + Math.PI, spread: 1.6, life: sea ? 26 : 16 });
+  }
+
   private dropShown(s: Shown): void {
     s.img.destroy();
     s.shadow?.destroy();
@@ -847,12 +888,13 @@ export class MainScene extends Phaser.Scene {
       let s = this.shown.get(e.id);
       if (!s) {
         const sheet = this.sheetFor(e);
-        const img = this.add.image(0, 0, sheet.key, sheet.anims.values().next().value![0]);
+        const first = sheet.anims.values().next().value![0]!;
+        const img = this.add.image(0, 0, sheet.key, sheet.turns ? `${first}@0` : first);
         img.setOrigin(0.5, sheet.anchor === 'feet' ? 1 : 0.5);
         const grounded = !e.isProjectile && (sheet.anchor === 'feet' || e.pickup || e.fsm !== null);
         const shadow = shadows && grounded && !sheet.noShadow && (this.drawAs.get(e.type) ?? e.type) !== 'target' ? this.add.image(0, 0, 'gg-shadow') : null;
         const glow = this.fx.bloom && (e.pickup || e.isProjectile) ? this.add.image(0, 0, 'gg-glow').setBlendMode(Phaser.BlendModes.ADD) : null;
-        s = { img, shadow, glow, sheet, dir: 'down' };
+        s = { img, shadow, glow, sheet, dir: 'down', heading: 0 };
         this.shown.set(e.id, s);
       }
       const anim = this.animFor(e, s, tick);
@@ -863,7 +905,15 @@ export class MainScene extends Phaser.Scene {
       // A move's clip runs by the move's clock, its blow drawn exactly while the move strikes; the rest by the wall clock.
       const move = anim === e.anim ? this.moveOn(e) : null;
       const moveTick = Number(e.props[MOVE_TICK] ?? 0);
-      s.img.setFrame(frames[move ? moveClipFrame(move, moveTick, frames.length, s.sheet.actives?.get(anim)) : (Math.floor((tick * fps) / 60) + phase) % frames.length]!);
+      const frame = frames[move ? moveClipFrame(move, moveTick, frames.length, s.sheet.actives?.get(anim)) : (Math.floor((tick * fps) / 60) + phase) % frames.length]!;
+      if (s.sheet.turns) {
+        // Turned to its heading: the player's vehicle keeps one; anything else heads the way it moves.
+        const heading = e.props['heading'];
+        if (typeof heading === 'number') s.heading = heading;
+        else if (Math.hypot(e.vx, e.vy) > 4) s.heading = (Math.atan2(e.vy, e.vx) * 180) / Math.PI;
+        s.img.setFrame(`${frame}@${headingFrame(s.heading)}`);
+        if (e.isPlayer && tick % 3 === 0 && Math.hypot(e.vx, e.vy) > 25) this.trail(e, s.heading);
+      } else s.img.setFrame(frame);
       const cx = e.x + e.w / 2;
       const cy = e.y + e.h / 2;
       const feet = e.y + e.h;
@@ -873,7 +923,7 @@ export class MainScene extends Phaser.Scene {
       else s.img.setPosition(Math.round(cx), Math.round(cy) + bob);
       s.img.setScale(e.scaleX, e.scaleY);
       const flips = sideView(this.setting) ? true : s.sheet.directional ? s.dir === 'side' : this.setting !== 'space' && !e.pickup;
-      s.img.setFlipX(flips && e.facing < 0);
+      s.img.setFlipX(!s.sheet.turns && flips && e.facing < 0);
       const kind = this.drawAs.get(e.type) ?? e.type;
       if (kind === 'arrow') s.img.setRotation(Math.atan2(e.vy, e.vx));
       // A shot is drawn flying up: one aimed another way turns to fly along its path.
@@ -1461,7 +1511,7 @@ export class MainScene extends Phaser.Scene {
       const frames = heldSheet.anims.values().next().value!;
       // The top of the body in the frame it shows (a step sits a pixel lower), and a pixel into it, as if held there.
       const imgTop = ps.img.y - ps.sheet.h * ps.img.scaleY * ps.img.originY;
-      const top = imgTop + (ps.sheet.tops.get(ps.img.frame.name) ?? 0) * ps.img.scaleY + 1;
+      const top = imgTop + (ps.sheet.tops.get(ps.img.frame.name.replace(/@\d+$/, '')) ?? 0) * ps.img.scaleY + 1;
       const t = tick - this.liftedTick;
       const squash = t >= 0 && t < 10 ? 1 - t / 10 : 0;
       this.heldImg

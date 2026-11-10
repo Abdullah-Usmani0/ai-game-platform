@@ -3,7 +3,7 @@ import { parseHex, ramp, type RGB } from './color.js';
 import { drawText, GLYPHS, measure } from './font.js';
 import type { ArtPalette } from './palette.js';
 import { PixelCanvas, type Template } from './pixels.js';
-import { frameSize, paintFrames, RECIPES, recipeForType, type Recipe } from './sprites.js';
+import { frameSize, paintFrames, RECIPES, recipeForType, vehicleRecipe, type Recipe } from './sprites.js';
 import { sideView, type Setting } from './terrain.js';
 
 /** The slot letters each ramp a design may recolour paints with, and the shade of the ramp each takes. */
@@ -137,10 +137,13 @@ export function spriteBases(recipe: string): string[] {
 }
 
 /**
- * The shipped sprite the player draws with in a setting (a top-down player 12 px wide or more is the keeper). The
- * castle's view draws its hero with the knight's rig; designs and art QA still judge it as the side hero.
+ * The shipped sprite the player draws with in a setting (a top-down player 12 px wide or more is the keeper), or the
+ * vehicle it drives (movement-vehicle's kind). The castle's view draws its hero with the knight's rig; designs and art QA
+ * still judge it as the side hero.
  */
-export function playerRecipe(setting: Setting, playerW: number): string {
+export function playerRecipe(setting: Setting, playerW: number, vehicle?: string): string {
+  const drives = vehicleRecipe(vehicle);
+  if (drives) return drives;
   if (sideView(setting)) return 'hero-side';
   if (setting === 'space') return 'ship';
   if (setting === 'farm') return 'farmer';

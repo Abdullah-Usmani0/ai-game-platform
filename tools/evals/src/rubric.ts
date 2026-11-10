@@ -52,7 +52,7 @@ export interface RubricInputs {
 }
 
 /** Parallax layers the view draws behind the play in each setting (phaser-view's scenery). */
-const PARALLAX: Readonly<Record<Setting, number>> = { side: 3, space: 3, dungeon: 0, field: 0, farm: 0, castle: 3 };
+const PARALLAX: Readonly<Record<Setting, number>> = { side: 3, space: 3, dungeon: 0, field: 0, farm: 0, castle: 3, sea: 0 };
 
 const timerOf = (c: Condition): number => (c.kind === 'timer_elapsed' ? c.ms : c.kind === 'all' ? Math.max(0, ...c.of.map(timerOf)) : c.kind === 'any' ? Math.min(...c.of.map(timerOf)) : 0);
 const hpThresholds = (c: Condition): number[] => (c.kind === 'hp_below' ? [c.fraction] : c.kind === 'all' || c.kind === 'any' ? c.of.flatMap(hpThresholds) : []);

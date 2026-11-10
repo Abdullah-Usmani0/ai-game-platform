@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { DialogueFile, EntityRoster, GAME_EVENTS, LevelHints, LevelJson, LevelProof, MechanicsFile, Objectives, parseAnyGdd, parseSystemsFile, SpriteSheet, StyleCard, UNSTABLE_DEED_EVENTS, type AnyGddFrontmatter, type BehaviourFsm, type EcaRule, type Mechanic, type SystemsFile } from '@gg/schemas';
 import { createSim, DEFAULT_SEED, levelSeed, type FeedbackBinding, type SimOptions } from '@gg/sdk';
 import { artPalette, settingFor, type Setting } from '@gg/sdk/art';
-import { plannedLevelCount, rolesPresent, simOptionsFor, type GenreManifest } from '@gg/template-core';
+import { plannedLevelCount, rolesPresent, simOptionsFor, vehicleKind, type GenreManifest } from '@gg/template-core';
 import { checkFreeformObjectives, FREEFORM_CATALOG, freeformDesignManifest, freeformManifest, IDENTITY_ROSTER } from '@gg/template-freeform/node';
 import { checkComposition, checkSpriteSheet, checkStory, checkSystems, err, mechanicMeta, parseFrontmatter, report, spriteCast, warn, type CastMember, type Issue, type StoryFacts, type SystemsCatalog, type ValidationReport } from '@gg/validators';
 import { CATALOG, genre, GENRES } from './genres.js';
@@ -238,16 +238,23 @@ export function checkGameSystems(gameDir: string): ValidationReport {
   return report(issues);
 }
 
-/** The setting a game is drawn in: its genre's, a freeform game's base genre's. */
+/** The vehicle a game's player drives (movement-vehicle's kind), if it drives one. */
+export function vehicleOf(files: Partial<GameFiles>): string | undefined {
+  const drive = files.systems?.systems.find((s) => s.id === 'movement-vehicle');
+  return drive ? vehicleKind(drive.params) : undefined;
+}
+
+/** The setting a game is drawn in: its genre's, a freeform game's base genre's; at sea when it sails. */
 export function settingOf(files: Partial<GameFiles>, g: GenreManifest): Setting {
   const base = files.systems?.genre === 'freeform' ? files.systems.composition.base : files.gdd?.genre === 'freeform' ? files.gdd.base : g.id;
-  return settingFor(base, g.movementMode);
+  return settingFor(base, g.movementMode, vehicleOf(files));
 }
 
 /** The types a game draws, the player first, each with what it is for and the shipped sprite it draws with. */
 export function castOf(files: Partial<GameFiles>, requestGenre?: string): CastMember[] {
   const g = manifestFor(files, requestGenre);
-  return spriteCast(g.entityDefs, { setting: settingOf(files, g), w: g.player.w });
+  const vehicle = vehicleOf(files);
+  return spriteCast(g.entityDefs, { setting: settingOf(files, g), w: g.player.w, ...(vehicle ? { vehicle } : {}) });
 }
 
 /**

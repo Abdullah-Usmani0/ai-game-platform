@@ -18,8 +18,8 @@ export interface CastMember {
  * (a renamed type's archetype's). Crops are left out (a crop draws by its shape and colour, from the crop table), as are
  * types no shipped sprite draws.
  */
-export function spriteCast(defs: readonly EntityDef[], player: { setting: Setting; w: number }): CastMember[] {
-  const cast: CastMember[] = [{ type: '@player', role: 'player', recipe: playerRecipe(player.setting, player.w) }];
+export function spriteCast(defs: readonly EntityDef[], player: { setting: Setting; w: number; vehicle?: string }): CastMember[] {
+  const cast: CastMember[] = [{ type: '@player', role: 'player', recipe: playerRecipe(player.setting, player.w, player.vehicle) }];
   for (const d of defs) {
     const recipe = recipeForType(d.type, d.drawAs);
     if (!recipe || (d.drawAs ?? d.type) === 'crop') continue;

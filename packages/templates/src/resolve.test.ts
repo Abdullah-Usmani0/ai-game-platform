@@ -7,7 +7,7 @@ import { levelPlan, systemsJsonFor } from '@gg/template-core';
 import { BASE_MANIFESTS, freeformManifest, HEIST, HIVE, LANTERN, LOSTDOG, proveLevel } from '@gg/template-freeform/node';
 import { describe, expect, it } from 'vitest';
 import { CHECKS, kitFor } from './check.js';
-import { CATALOG, catalogFor, checkGameStory, checkGameSystems, checkProofs, GENRES, manifestFor, readGameFiles, readGameLevels, resolveGame, storyFactsOf } from './node.js';
+import { CATALOG, castOf, catalogFor, checkGameStory, checkGameSystems, checkProofs, GENRES, manifestFor, readGameFiles, readGameLevels, resolveGame, settingOf, storyFactsOf, type GameFiles } from './node.js';
 
 const samples = fileURLToPath(new URL('../../../samples/', import.meta.url));
 
@@ -221,5 +221,32 @@ describe("a game's story, held to the game it is told in", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('a game that drives', () => {
+  const driving = (kind: string): Partial<GameFiles> => ({
+    systems: {
+      version: 1,
+      genre: 'freeform',
+      composition: { base: 'survivors' },
+      feelPreset: BASE_MANIFESTS.survivors.defaultFeel,
+      systems: [
+        { id: 'movement-vehicle', params: { kind } },
+        { id: 'objectives', params: {} },
+      ],
+    },
+  });
+
+  it('casts its player as the vehicle, and draws a game that sails at sea', () => {
+    for (const [kind, setting] of [['bike', 'field'], ['car', 'field'], ['boat', 'sea'], ['galleon', 'sea']] as const) {
+      const files = driving(kind);
+      expect(castOf(files)[0], kind).toEqual({ type: '@player', role: 'player', recipe: `vehicle-${kind}` });
+      expect(settingOf(files, manifestFor(files)), kind).toBe(setting);
+    }
+    // A game that walks is cast and drawn as before.
+    const walks = { systems: { ...driving('car').systems!, systems: [{ id: 'movement-topdown', params: {} }, { id: 'objectives', params: {} }] } };
+    expect(castOf(walks)[0]!.recipe).toBe('hero-topdown');
+    expect(settingOf(walks, manifestFor(walks))).toBe('field');
   });
 });

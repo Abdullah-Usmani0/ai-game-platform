@@ -12,7 +12,7 @@ export { orders, meta as ordersMeta, orderTiming, HURRY_TICKS, ORDER_MAX, ORDER_
 export { courier } from './courier.js';
 export { goalSpot, goToward, type Spot } from './navigate.js';
 export { carryBlock, ordersBlock, talkBlock, vehicleBlock } from './blocks.js';
-export { vehicle, meta as vehicleMeta, vehicleKind, HANDLING, HEADING, VEHICLE_KINDS, type Handling, type VehicleKind } from './systems/vehicle.js';
+export { vehicle, meta as vehicleMeta, vehicleKind, HANDLING, HEADING, VEHICLE, VEHICLE_KINDS, type Handling, type VehicleKind } from './systems/vehicle.js';
 export { rooms, meta as roomsMeta, roomAt, MAP_PREFIX, REGION_TICKS } from './systems/rooms.js';
 export { rest, meta as restMeta, progressSaveOf } from './systems/rest.js';
 export { talk, meta as talkMeta, blockMeta as talkBlockMeta, TALK_KEYS, type TalkKey } from './systems/talk.js';

@@ -270,6 +270,8 @@ export function LevelEditor({
   }, [loaded]);
   // A freeform game is drawn in its base genre's setting.
   const artGenre = loaded?.systems.genre === 'freeform' ? loaded.systems.composition.base : genre;
+  // A game that drives draws its player as the vehicle, and one that sails is at sea.
+  const vehicle = loaded?.systems.systems.find((s) => s.id === 'movement-vehicle')?.params['kind'] ?? (loaded?.systems.systems.some((s) => s.id === 'movement-vehicle') ? 'car' : undefined);
 
   const entityTypes = useMemo(() => {
     const types = new Set<string>();
@@ -306,7 +308,7 @@ export function LevelEditor({
     const timer = window.setTimeout(() => {
       try {
         const pal = artPalette(look.palette, look.outline ?? 'dark');
-        const setting = settingFor(artGenre, movementMode);
+        const setting = settingFor(artGenre, movementMode, vehicle);
         const map = { width: draft.width, height: draft.height, tileSize: draft.tileSize, kindAt: (x: number, y: number) => kindAt(draft, x, y) ?? 'air' };
         // A fixture (a café table) stands on solid tiles of its own: the game paints the ground under it, not a wall.
         const ts = draft.tileSize;
@@ -323,7 +325,7 @@ export function LevelEditor({
       }
     }, 90);
     return () => window.clearTimeout(timer);
-  }, [draft, look, artGenre, movementMode, entityDefs]);
+  }, [draft, look, artGenre, movementMode, entityDefs, vehicle]);
   // First frame of each entity type's sprite (and the player's, and the side-view goal flag), in the game's palette.
   const sprites = useMemo(() => {
     const map = new Map<string, { image: HTMLCanvasElement; anchor: Anchor }>();
@@ -338,10 +340,10 @@ export function LevelEditor({
     const designs = compileSheet(sheet.success ? sheet.data : null).recipes;
     const drawAs = new Map((kit?.runtime.entityDefs ?? []).flatMap((d) => (d.drawAs ? [[d.type, d.drawAs] as const] : [])));
     for (const t of entityTypes) add(t, spriteFor(t, { drawAs: drawAs.get(t), designs })?.recipe);
-    add('@player', designs.get('@player') ?? RECIPES[playerRecipe(art.setting, kit?.runtime.player.w ?? 8)]);
+    add('@player', designs.get('@player') ?? RECIPES[playerRecipe(art.setting, kit?.runtime.player.w ?? 8, typeof vehicle === 'string' ? vehicle : undefined)]);
     if (art.setting === 'side') add('@goal', FLAG);
     return map;
-  }, [art, entityTypes, kit, loaded]);
+  }, [art, entityTypes, kit, loaded, vehicle]);
 
   // Other players' heat on this version, counted per tile (the heatmap's cell is the level's tile size).
   const tileSize = draft?.tileSize ?? null;

@@ -37,6 +37,11 @@ export interface Recipe {
    * before these over its startup, these over its active ticks and the rest over its recovery.
    */
   active?: Readonly<Record<string, readonly number[]>>;
+  /**
+   * Drawn from above facing east and turned to face where it goes (a vehicle): its sheet holds every frame in sixteen
+   * headings (paintTurns), and the view picks the one nearest its heading.
+   */
+  turns?: boolean;
 }
 
 export function legendFor(pal: ArtPalette, tune?: Partial<Record<string, RGB | null>>): Legend {
@@ -601,6 +606,78 @@ const person = (t: Template, row: number, eyes: string, shut: string): Recipe =>
   anims: { idle: [...Array.from({ length: 11 }, () => t), withRows(t, { [row]: t[row]!.replace(eyes, shut) })] },
 });
 
+// ---------------------------------------------------------------- vehicles (from above, facing east; turned to every heading)
+
+/**
+ * A courier on a bicycle, seen from above: a parcel strapped on the rack over the back wheel, the rider's shoulders and
+ * head over the frame, hands on the bars, the front wheel out ahead. Pedalling, a knee comes up each side in turn.
+ */
+const BIKE_BASE: Template = [
+  '......gGh........',
+  '.....gGGGh44.k...',
+  '.pqQ.gGaAb..4k...',
+  '.qQRdgaAAAb..k...',
+  'kpqQDgaAABbDDDkkk',
+  '.qQRdgaAAAb..k...',
+  '.pqQ.gGaAb..4k...',
+  '.....gGGGh44.k...',
+  '......gGh........',
+];
+const BIKE: Recipe = {
+  anchor: 'center',
+  turns: true,
+  anims: { idle: [BIKE_BASE], run: [withRows(BIKE_BASE, { 3: '.qQRdgaAAAb4.k...' }), withRows(BIKE_BASE, { 5: '.qQRdgaAAAb4.k...' })] },
+};
+/** A car: dark glass fore and aft with a glint, the roof between, headlights at the front corners, the tyres showing. */
+const CAR: Recipe = {
+  anchor: 'center',
+  turns: true,
+  anims: {
+    idle: [['..kkkk....kkkk..', '.gGGGGGGGGGGGGh.', 'gGGkkGGGGGGkkkGw', 'gGkkiGhGGGhkikkG', 'gGkkkGhGGGhkkkkh', 'gGkkiGhGGGhkikkG', 'gGGkkGGGGGGkkkGw', '.gGGGGGGGGGGGGh.', '..kkkk....kkkk..']],
+  },
+};
+/** A rowing boat with a pointed bow, two thwarts, the rower in the middle and the outboard at the stern. */
+const BOAT: Recipe = {
+  anchor: 'center',
+  turns: true,
+  anims: {
+    idle: [['...qqqqqqqq.....', '.qqQQQQQQQQqq...', 'qQQrrrrrrrrQQqq.', 'qQrRpRRaARpRrQQq', 'kkrRpRaAAbpRRrQq', 'qQrRpRRaARpRrQQq', 'qQQrrrrrrrrQQqq.', '.qqQQQQQQQQqq...', '...qqqqqqqq.....']],
+  },
+};
+/** A galleon: a long hull with a bowsprit and a stern cabin, two square sails across her masts, bellied with the wind. */
+const GALLEON: Recipe = {
+  anchor: 'center',
+  turns: true,
+  anims: {
+    idle: [
+      [
+        '..........iw.........iw........',
+        '.....qqqqqiwqqqqqqqqqiwqqq.....',
+        '...qqQQQQiwwQQQQQQQQiwwQQQq....',
+        '..qQQpprRiwwRRRRRRRRiwwRRQQq...',
+        '.qQQpprrRiwwrrrrrrrRiwwrrRQQq..',
+        'qQQQppRRRkkkRRRRRRRRkkkRRRQQQpp',
+        '.qQQpprrRiwwrrrrrrrRiwwrrRQQq..',
+        '..qQQpprRiwwRRRRRRRRiwwRRQQq...',
+        '...qqQQQQiwwQQQQQQQQiwwQQQq....',
+        '.....qqqqqiwqqqqqqqqqiwqqq.....',
+        '..........iw.........iw........',
+      ],
+    ],
+  },
+};
+/** A raider's sloop: a short hull under one dark red sail, a lantern burning at her bow. Hostile ships draw from it. */
+const SLOOP: Recipe = {
+  anchor: 'center',
+  turns: true,
+  anims: { idle: [['.......xd.......', '......xdd.......', '...qqxddDqqq....', '.qQQQxdDDQQQq...', 'qQrRRxdDDRRRQQqE', '.qQQQxdDDQQQq...', '...qqxddDqqq....', '......xdd.......', '.......xd.......']] },
+};
+
+/** The vehicle a player drives, by kind (movement-vehicle's `kind`): its recipe's name. */
+export function vehicleRecipe(kind: unknown): string | undefined {
+  return typeof kind === 'string' && RECIPES[`vehicle-${kind}`] ? `vehicle-${kind}` : undefined;
+}
+
 /** The looks a person placed from a game's story wears (its `look`, 0 to 3), by recipe name. */
 export const PERSON_RECIPES: readonly string[] = ['person', 'person-elder', 'person-child', 'person-traveller'];
 
@@ -662,6 +739,12 @@ export const RECIPES: Record<string, Recipe> = {
   ...Object.fromEntries(CROP_SHAPE_NAMES.map((shape) => [`crop-${shape}`, cropRecipe(shape)])),
   // The castle tier's cast, drawn by the rig's rasterizer and baked into templates.
   ...CAST_RECIPES,
+  // Vehicles, turned to every heading.
+  'vehicle-bike': BIKE,
+  'vehicle-car': CAR,
+  'vehicle-boat': BOAT,
+  'vehicle-galleon': GALLEON,
+  sloop: SLOOP,
 };
 
 /** Entity types of the shipped genres and the recipe each draws with; anything else falls back by role. */
@@ -722,6 +805,8 @@ export const TYPE_RECIPES: Readonly<Record<string, string>> = {
   hermit: 'hermit',
   'candle-keeper': 'candle-keeper',
   gate: 'gate',
+  // A hostile ship at sea, turned to where she sails.
+  sloop: 'sloop',
 };
 
 /** The recipe an entity type draws with: its own, or that of the shipped type it is drawn as (a renamed type). */
