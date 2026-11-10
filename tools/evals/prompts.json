@@ -423,6 +423,20 @@
       "tier": "S",
       "scopeTier": "small",
       "prompt": "A kid searching the village for their lost cat before supper: ask the villagers where it went, clear the rats out of the old mill rooms with a wooden sword, and bring it home."
+    },
+    {
+      "id": "f17",
+      "genre": "freeform",
+      "tier": "F1",
+      "scopeTier": "small",
+      "prompt": "A bike courier in a busy old town: pick up parcels at the depot and pedal them to the doorsteps that are waiting, before each customer gives up."
+    },
+    {
+      "id": "f18",
+      "genre": "freeform",
+      "tier": "F1",
+      "scopeTier": "small",
+      "prompt": "A pirate galleon guarding its cove: sail between the islets and sink the raiders' sloops with broadsides until their fleet gives up."
     }
   ]
 }

@@ -1,7 +1,8 @@
 import type { LevelJson } from '@gg/schemas';
 import { CELESTE_CLASS, createSim, emptyInput, sinCosDeg, type InputState, type Sim } from '@gg/sdk';
 import { describe, expect, it } from 'vitest';
-import { HANDLING, HEADING, vehicle, VEHICLE_KINDS, type VehicleKind } from './systems/vehicle.js';
+import { driveToward, goToward } from './navigate.js';
+import { HANDLING, HEADING, VEHICLE, vehicle, VEHICLE_KINDS, type VehicleKind } from './systems/vehicle.js';
 import { level } from './test-games.js';
 
 /** An open lot inside a wall, the spawn at its west end: room to reach top speed and coast to a stop. */
@@ -143,3 +144,57 @@ describe('movement-vehicle', () => {
     expect(d.hash()).toBe(a.hash());
   });
 });
+
+describe('driving bots', () => {
+  /** The lot with a wall across its middle and a gap at its south end: the way to the east side runs round it. */
+  function walled(): LevelJson {
+    const rows = Array.from({ length: 40 }, (_, y) =>
+      Array.from({ length: 120 }, (_, x) => (x === 0 || y === 0 || x === 119 || y === 39 || (x === 60 && y < 30) ? '#' : x === 4 && y === 8 ? 'S' : '.')).join(''),
+    );
+    return level(rows);
+  }
+
+  it('each kind drives round a wall to a spot on the far side, and stops there', () => {
+    for (const kind of VEHICLE_KINDS) {
+      const sim = drive(kind, {}, walled());
+      expect(sim.world.player.props[VEHICLE]).toBe(kind);
+      const spot = { x: 100 * 8, y: 8 * 8, w: 8, h: 8 };
+      const mem: Record<string, number> = {};
+      let at = -1;
+      for (let t = 0; t < 60 * 40 && at < 0; t++) {
+        const input = emptyInput();
+        goToward(sim, spot, input, sim.tick, mem, 4);
+        sim.step(input);
+        const p = sim.world.player;
+        if (Math.abs(p.x - spot.x) < 16 && Math.abs(p.y - spot.y) < 16) at = t;
+      }
+      expect(at, kind).toBeGreaterThan(0);
+      // Arrived, it brakes rather than overshooting off into the lot.
+      for (let t = 0; t < 120; t++) {
+        const input = emptyInput();
+        driveToward(sim, spot, input, sim.tick, mem, 4);
+        sim.step(input);
+      }
+      expect(speed(sim), kind).toBeLessThan(HANDLING[kind].top * 0.3);
+    }
+  });
+
+  it('backs out when it has driven nose first into a wall', () => {
+    const sim = drive('car', {}, walled());
+    // Driven hard into the wall, then asked for a spot behind it.
+    hold(sim, { up: true }, 120);
+    const before = sim.world.player.x;
+    const mem: Record<string, number> = {};
+    const spot = { x: 4 * 8, y: 30 * 8, w: 8, h: 8 };
+    let backed = false;
+    for (let t = 0; t < 600; t++) {
+      const input = emptyInput();
+      driveToward(sim, spot, input, sim.tick, mem, 4);
+      if (input.down && sim.world.player.x < before) backed = true;
+      sim.step(input);
+    }
+    expect(backed).toBe(true);
+    expect(Math.hypot(sim.world.player.x - spot.x, sim.world.player.y - spot.y)).toBeLessThan(24);
+  });
+});
+

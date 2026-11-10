@@ -88,7 +88,9 @@ export function compileRoster(base: FreeformBase, roster: EntityRoster, systemId
   // made apart where they differ.
   const fsmOwner = new Map<string, { genre: FreeformBase | null; json: string }>();
   const fsmId = (a: Archetype): string | undefined => {
-    if (!a.behaviour || a.genre === null) return a.def.fsm;
+    if (!a.behaviour) return a.def.fsm;
+    // A block's foe behaves by its block's own FSM, which names nothing of any genre's.
+    if (a.genre === null) return a.behaviour.id;
     const json = JSON.stringify(a.behaviour);
     const owner = fsmOwner.get(a.behaviour.id);
     if (!owner) fsmOwner.set(a.behaviour.id, { genre: a.genre, json });
@@ -106,7 +108,7 @@ export function compileRoster(base: FreeformBase, roster: EntityRoster, systemId
     if (scale !== 1) def.hp = Math.max(1, Math.round((a.def.hp ?? 1) * scale));
     const fsm = fsmId(a);
     if (fsm !== undefined) def.fsm = fsm;
-    if (a.behaviour && a.genre !== null && fsm && !behaviours.some((b) => b.id === fsm)) behaviours.push(retypeFsm({ ...a.behaviour, id: fsm }, nameIn(a.genre)));
+    if (a.behaviour && fsm && !behaviours.some((b) => b.id === fsm)) behaviours.push(a.genre === null ? a.behaviour : retypeFsm({ ...a.behaviour, id: fsm }, nameIn(a.genre)));
     defs.push(def);
     roles[type] = a.roles;
   }

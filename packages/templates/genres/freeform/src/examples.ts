@@ -753,7 +753,103 @@ export const LOSTDOG: FreeformExample = {
   },
 };
 
-export const EXAMPLES: readonly FreeformExample[] = [HIVE, HEIST, LANTERN, MOON, ROOFTOP, GNOME, TEAROOM, LIGHTHOUSE, LOSTDOG];
+/**
+ * A courier on a bike in a market square: the tea room's job (carry and timed orders) on wheels. The bike corners on
+ * rails but cannot stop on a sixpence: ten parcels delivered before three customers give up waiting.
+ */
+export const PARCEL: FreeformExample = {
+  id: 'parcel',
+  prompt: 'A courier on a bike racing parcels from the depot to doorsteps round the market square, before each customer gives up waiting.',
+  gdd: {
+    title: 'Parcel Dash',
+    genre: 'freeform',
+    base: 'survivors',
+    scopeTier: 'small',
+    pillars: ['every doorstep is waiting on you', 'the bike corners on rails, the square does not move', 'ten delivered before three give up'],
+    scope: { levels: 1, enemies: 0, items: 1, bosses: 0 },
+    targets: { sessionMin: 5, levelTimeS: 75, deathsPerLevel: 1 },
+    verbs: ['move', 'dash', 'carry'],
+    feedbackEvents: [
+      { event: 'dash', channels: ['sfx'] },
+      { event: 'hit', channels: ['shake', 'flash', 'sfx'] },
+      { event: 'death', channels: ['shake', 'sfx'] },
+      { event: 'level_complete', channels: ['sfx', 'particle'] },
+    ],
+  },
+  systems: {
+    version: 1,
+    genre: 'freeform',
+    composition: { base: 'survivors' },
+    feelPreset: 'arena-melee',
+    systems: [
+      { id: 'movement-vehicle', params: { kind: 'bike', boost: true } },
+      { id: 'carry', params: { dropoffs: 4 } },
+      { id: 'orders', params: { everyS: 6, patienceS: 20, maxOpen: 2 } },
+      { id: 'objectives', params: {} },
+    ],
+  },
+  roster: {
+    version: 1,
+    designNotes: 'The cargo is a parcel, the source is the depot counter, the dropoffs are the doorsteps round the square.',
+    player: { hp: 3 },
+    types: [
+      { type: 'parcel', archetype: 'carry:cargo', hp: 1 },
+      { type: 'doorstep', archetype: 'carry:dropoff', hp: 1 },
+      { type: 'depot', archetype: 'carry:source', hp: 1 },
+    ],
+  },
+  // Ten delivered before three customers give up; each one who does costs one of the courier's three hearts.
+  objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'hud_at_least', key: 'delivered', value: 10 }] }, lose: [{ kind: 'lives', count: 1 }] },
+};
+
+/**
+ * A galleon holding a bay against raiders: the survivors arena at sea, sailed rather than walked, its guns bearing only
+ * abeam. The sloops close to ram; a broadside sinks them. A minute on three lives.
+ */
+export const BROADSIDE: FreeformExample = {
+  id: 'broadside',
+  prompt: 'A pirate galleon holding the bay against raiders: sail round the islets and sink their ships with broadsides until the raiding fleet turns back.',
+  gdd: {
+    title: 'Broadside',
+    genre: 'freeform',
+    base: 'survivors',
+    scopeTier: 'small',
+    pillars: ['the guns bear only abeam', 'a galleon turns slow and drifts wide', 'hold the bay until the fleet turns back'],
+    scope: { levels: 1, enemies: 1, items: 0, bosses: 0 },
+    targets: { sessionMin: 5, levelTimeS: 60, deathsPerLevel: 1 },
+    verbs: ['move', 'shoot'],
+    feedbackEvents: [
+      { event: 'hit', channels: ['shake', 'flash', 'sfx'] },
+      { event: 'death', channels: ['shake', 'sfx'] },
+      { event: 'level_complete', channels: ['sfx', 'particle'] },
+    ],
+  },
+  systems: {
+    version: 1,
+    genre: 'freeform',
+    composition: { base: 'survivors' },
+    feelPreset: 'arena-melee',
+    systems: [
+      { id: 'movement-vehicle', params: { kind: 'galleon' } },
+      { id: 'player-shooter', params: { aim: 'broadside', fireCooldownTicks: 24, spread: 2, range: 110 } },
+      { id: 'spawner', params: {} },
+      { id: 'objectives', params: {} },
+    ],
+  },
+  roster: {
+    version: 1,
+    designNotes: "The raiders are sloops (the vehicle block's own foe at sea); the shots are cannonballs.",
+    player: { hp: 3 },
+    types: [
+      { type: 'raider', archetype: 'movement-vehicle:sloop', hp: 1 },
+      { type: 'cannonball', archetype: 'shmup:shot', hp: 1 },
+    ],
+  },
+  // A minute on three lives, against the base's waves: the raiders are the game's first foe, so they come in them.
+  objectives: { version: 1, win: { mode: 'all', clauses: [{ kind: 'survive', seconds: 60 }] }, lose: [{ kind: 'lives', count: 3 }] },
+};
+
+export const EXAMPLES: readonly FreeformExample[] = [HIVE, HEIST, LANTERN, MOON, ROOFTOP, GNOME, TEAROOM, LIGHTHOUSE, LOSTDOG, PARCEL, BROADSIDE];
 
 /** An example's talk (content/dialogue.json), if it tells a story: who its levels place, among the rest. */
 export function exampleStory(ex: FreeformExample): DialogueFile | null {

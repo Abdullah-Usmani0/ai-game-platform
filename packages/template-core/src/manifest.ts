@@ -33,7 +33,8 @@ export interface BlockLevelCtx {
  * them there.
  */
 export interface BlockModule extends SystemModule {
-  archetypes?: ReadonlyArray<{ def: EntityDef; roles: readonly EntityRole[] }>;
+  /** The block's own entities: each a def, what it is for, and how it behaves where it is a foe (its own FSM, by its def's fsm id). */
+  archetypes?: ReadonlyArray<{ def: EntityDef; roles: readonly EntityRole[]; behaviour?: BehaviourFsm }>;
   feedbackExtras?: Array<{ event: string; channels: FeedbackChannel[] }>;
   bot?: BotPolicy;
   /** The level with the block's entities placed: deterministic from the generator's seed. */

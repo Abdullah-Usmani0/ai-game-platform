@@ -21,7 +21,7 @@ export const MECHANICS: Readonly<Record<string, readonly string[]>> = {
   'move-topdown': ['movement-topdown'],
   'move-free': ['movement-topdown'],
   'move-grid': ['grid-push'],
-  'move-vehicle': [],
+  'move-vehicle': ['movement-vehicle'],
   flap: [],
   'auto-run': ['auto-run'],
   'auto-scroll': [],

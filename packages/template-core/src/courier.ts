@@ -1,6 +1,6 @@
 import { emptyInput, type Entity, type Sim } from '@gg/sdk';
 import type { BotPolicy } from './manifest.js';
-import { runToward, walkToward } from './navigate.js';
+import { driveToward, drives, runToward, walkToward } from './navigate.js';
 import { boxGap, CARRY_KEYS, CARRYING, carryTypes, ORDER_LEFT, ordersOn, READY_AT, type CarryKey } from './systems/carry.js';
 
 /**
@@ -9,7 +9,8 @@ import { boxGap, CARRY_KEYS, CARRYING, carryTypes, ORDER_LEFT, ordersOn, READY_A
  * takes it to the dropoff whose order runs out first (or the nearest, with no orders in the game), and waits there
  * when none asks yet. It presses the carry key once the thing it wants is in reach.
  *
- * Top-down it walks a shortest path, at its own size, to a spot beside its target. Side view it heads for the target's
+ * Top-down it walks a shortest path, at its own size, to a spot beside its target, or drives one (a courier on a bike).
+ * Side view it heads for the target's
  * column and jumps at walls, pits, hazards and foes ahead, and when the target stands above it; coming down, it steers
  * to land on solid ground; a stall turns it round for a moment with a jump.
  */
@@ -49,7 +50,8 @@ export const courier: BotPolicy = (sim, tick, mem) => {
   const raw = String(sim.options.params?.['carry']?.['key'] ?? 'action');
   const key: CarryKey = (CARRY_KEYS as readonly string[]).includes(raw) ? (raw as CarryKey) : 'action';
   const reach = Number(sim.options.params?.['carry']?.['reach'] ?? 6);
-  if (sim.options.movementMode === 'topdown') walkToward(sim, job.e, input, Math.max(1, reach - 2));
+  if (drives(sim)) driveToward(sim, job.e, input, tick, mem, Math.max(1, reach - 2));
+  else if (sim.options.movementMode === 'topdown') walkToward(sim, job.e, input, Math.max(1, reach - 2));
   else runToward(sim, job.e, input, tick, mem);
   // A press is a new hold: press on one tick, let go on the next.
   if (job.act && mem['pressed'] !== 1) {

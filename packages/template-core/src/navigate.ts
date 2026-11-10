@@ -1,4 +1,4 @@
-import { centerX, centerY, type Entity, type InputState, type Sim } from '@gg/sdk';
+import { centerX, centerY, sinCosDeg, type Entity, type InputState, type Sim } from '@gg/sdk';
 import { boxGap } from './systems/carry.js';
 
 /**
@@ -111,21 +111,8 @@ function stuckInto(sim: Sim, p: Entity): 'up' | 'down' | 'left' | 'right' | null
   return m.isSolid(p.x + e, p.y + e, 1, p.h - 2 * e) ? 'left' : 'right';
 }
 
-/**
- * Top-down: the arrows toward the next spot on a shortest walk to one within `near` pixels of the target, at the
- * player's own size; straight at the target when no walk leads there.
- */
-export function walkToward(sim: Sim, target: Spot, input: InputState, near: number): void {
-  const p = sim.world.player;
-  if (boxGap(p, target) <= near) return;
-  const out = stuckInto(sim, p);
-  if (out) {
-    input[out] = true;
-    return;
-  }
-  const m = walksOf(sim);
-  const dist = fieldTo(sim, m, target, near);
-  // Where the player is: the nearest spot round it with a walk to the target.
+/** Where the player is on the walk grid: the nearest spot round it with a walk to the target, or -1. */
+function spotAt(m: Walks, dist: Int32Array, p: Entity): number {
   const gx0 = Math.round(p.x / STEP);
   const gy0 = Math.round(p.y / STEP);
   let at = -1;
@@ -142,6 +129,24 @@ export function walkToward(sim: Sim, target: Spot, input: InputState, near: numb
       }
     }
   }
+  return at;
+}
+
+/**
+ * Top-down: the arrows toward the next spot on a shortest walk to one within `near` pixels of the target, at the
+ * player's own size; straight at the target when no walk leads there.
+ */
+export function walkToward(sim: Sim, target: Spot, input: InputState, near: number): void {
+  const p = sim.world.player;
+  if (boxGap(p, target) <= near) return;
+  const out = stuckInto(sim, p);
+  if (out) {
+    input[out] = true;
+    return;
+  }
+  const m = walksOf(sim);
+  const dist = fieldTo(sim, m, target, near);
+  const at = spotAt(m, dist, p);
   let tx = centerX(target) - centerX(p);
   let ty = centerY(target) - centerY(p);
   if (at >= 0) {
@@ -237,19 +242,105 @@ export function runToward(sim: Sim, target: Spot, input: InputState, tick: numbe
 }
 
 /** The keys goToward keeps in a bot's memory. */
-const GO_KEYS = ['goTick', 'goLastX', 'goStill', 'goEscapeUntil', 'goEscapeDir', 'goHold', 'goJumpPrev'];
+const GO_KEYS = ['goTick', 'goLastX', 'goStill', 'goEscapeUntil', 'goEscapeDir', 'goHold', 'goJumpPrev', 'goBackUntil', 'goBackDir', 'goStuckFor'];
+
+/** How many steps along the way ahead a driver steers at: far enough to take a corner wide, near enough to keep to the way. */
+const DRIVE_AHEAD = 8;
+
+/**
+ * A vehicle (movement-vehicle) heading for a spot, the way a driver gets about: along the same shortest way at its own
+ * size, steering at a point a few steps on along it, on the throttle while it faces near enough that way and braking into
+ * a sharp turn at speed; stopped against something, it backs up a moment with the wheel the other way. Arrived, it
+ * brakes to a stop.
+ */
+export function driveToward(sim: Sim, target: Spot, input: InputState, tick: number, mem: Record<string, number>, near: number): void {
+  const p = sim.world.player;
+  const heading = Number(p.props['heading'] ?? 0);
+  const [sin, cos] = sinCosDeg(heading);
+  const along = p.vx * cos + p.vy * sin;
+  if (boxGap(p, target) <= near) {
+    // Down brakes while it rolls forward; once stopped it would back up, so it lets go.
+    if (along > 8) input.down = true;
+    return;
+  }
+  if (tick < (mem['goBackUntil'] ?? -1)) {
+    // Backing up turns the nose the other way, so the wheel goes the other way too.
+    input.down = true;
+    input[mem['goBackDir'] === 1 ? 'right' : 'left'] = true;
+    return;
+  }
+  const m = walksOf(sim);
+  const dist = fieldTo(sim, m, target, near);
+  let aimX = centerX(target);
+  let aimY = centerY(target);
+  let next = spotAt(m, dist, p);
+  if (next >= 0) {
+    for (let k = 0; k < DRIVE_AHEAD; k++) {
+      let best = next;
+      for (const [dx, dy] of NEIGHBOURS) {
+        const j = stepOpen(m, next, dx, dy);
+        if (j >= 0 && dist[j]! >= 0 && dist[j]! < dist[best]!) best = j;
+      }
+      if (best === next) break;
+      next = best;
+    }
+    aimX = (next % m.cols) * STEP + p.w / 2;
+    aimY = Math.floor(next / m.cols) * STEP + p.h / 2;
+  }
+  const want = (Math.atan2(aimY - centerY(p), aimX - centerX(p)) * 180) / Math.PI;
+  const off = ((((want - heading) % 360) + 540) % 360) - 180;
+  if (off > 6) input.right = true;
+  else if (off < -6) input.left = true;
+  if (Math.abs(off) < 75 || along < 20) input.up = true;
+  else if (along > 45) input.down = true;
+  // On the throttle and going nowhere: stuck against a wall or a rock. Back up a moment.
+  if (input.up && Math.hypot(p.vx, p.vy) < 6) {
+    mem['goStuckFor'] = (mem['goStuckFor'] ?? 0) + 1;
+    if (mem['goStuckFor']! > 20) {
+      mem['goBackUntil'] = tick + 24;
+      mem['goBackDir'] = off > 0 ? -1 : 1;
+      mem['goStuckFor'] = 0;
+    }
+  } else mem['goStuckFor'] = 0;
+}
 
 /**
  * Heads for a spot: sets the arrows (and jump, side view) on `input` for this tick. Top-down it walks a shortest way to
- * within `near` pixels of the spot; side view it runs toward it and jumps what is in the way. It keeps what it needs
+ * within `near` pixels of the spot, or drives one in a vehicle; side view it runs toward it and jumps what is in the way. It keeps what it needs
  * between ticks in the bot's memory, under keys starting with `go`; a bot that stops calling it for a while (to wait, to
  * hide) starts afresh when it calls again.
  */
 export function goToward(sim: Sim, spot: Spot, input: InputState, tick: number, mem: Record<string, number>, near = 2): void {
   if (tick - (mem['goTick'] ?? -Infinity) > 1) for (const k of GO_KEYS) delete mem[k];
   mem['goTick'] = tick;
-  if (sim.options.movementMode === 'topdown') walkToward(sim, spot, input, near);
+  if (drives(sim)) driveToward(sim, spot, input, tick, mem, near);
+  else if (sim.options.movementMode === 'topdown') walkToward(sim, spot, input, near);
   else runToward(sim, spot, input, tick, mem);
+}
+
+/**
+ * The open place nearest a point (pixels) where the player's whole body fits, as a spot at the body's middle; null on a
+ * level with nowhere open. Top-down only (a side view stands on ground, not anywhere open).
+ */
+export function openSpotNear(sim: Sim, x: number, y: number): Spot | null {
+  const m = walksOf(sim);
+  const { w, h } = sim.world.player;
+  let best = -1;
+  let gap = Infinity;
+  for (let i = 0; i < m.free.length; i++) {
+    if (!m.free[i]) continue;
+    const d = Math.hypot((i % m.cols) * STEP + w / 2 - x, Math.floor(i / m.cols) * STEP + h / 2 - y);
+    if (d < gap) {
+      gap = d;
+      best = i;
+    }
+  }
+  return best < 0 ? null : { x: (best % m.cols) * STEP + w / 2 - 1, y: Math.floor(best / m.cols) * STEP + h / 2 - 1, w: 2, h: 2 };
+}
+
+/** The player drives a vehicle (movement-vehicle puts its kind on the player): it is steered, not walked. */
+export function drives(sim: Sim): boolean {
+  return typeof sim.world.player.props['vehicle'] === 'string';
 }
 
 /** The level's goal, as a spot at the middle of its tile: reaching it stands the player on the goal. */

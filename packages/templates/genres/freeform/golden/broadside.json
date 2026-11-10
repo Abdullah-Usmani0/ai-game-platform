@@ -1,0 +1,40 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-vehicle",
+      "player-shooter",
+      "spawner",
+      "objectives"
+    ],
+    "entityDefs": "d50d3e3331029d88",
+    "types": [
+      "chaser",
+      "brute",
+      "xp",
+      "raider<sloop",
+      "cannonball<shot"
+    ],
+    "behaviours": "77773f286dff86e0",
+    "vocab": "3c23db6356fb1f7f",
+    "composedParams": {
+      "player-shooter": {
+        "shotType": "cannonball"
+      }
+    },
+    "feedbackExtras": [
+      "custom:bump"
+    ],
+    "player": {
+      "w": 8,
+      "h": 10,
+      "hp": 3
+    }
+  },
+  "arena": {
+    "level": "42ad3572df6c0420",
+    "content": "2c79b4832335549a",
+    "by": "bot",
+    "ticks": 3600,
+    "script": "e6d27e13c0ab9201"
+  }
+}

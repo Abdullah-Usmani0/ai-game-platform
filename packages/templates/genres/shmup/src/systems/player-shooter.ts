@@ -1,4 +1,4 @@
-import { centerX, centerY, defineSystem, isHostile, overlaps, type Entity, type InputState, type SimCtx } from '@gg/sdk';
+import { centerX, centerY, defineSystem, isHostile, overlaps, sinCosDeg, type Entity, type InputState, type SimCtx } from '@gg/sdk';
 
 interface ShooterState {
   cooldown: number;
@@ -11,6 +11,8 @@ interface ShooterState {
 
 /** How far apart an aimed spread's shots fly, in radians: the upward spread's fan (40 px/s sideways at 220 up). */
 const FAN = 0.18;
+/** A broadside bears on a foe within this many degrees of either beam (square across the heading). */
+const BEAM = 50;
 
 /**
  * Hold the action key to fire shots on a cooldown; shots damage the first hostile they overlap and vanish. They fly
@@ -39,7 +41,9 @@ export const playerShooter = defineSystem<ShooterState>({
     if (s.cooldown > 0) s.cooldown--;
     const damage = Number(ctx.params['damage'] ?? 1);
     const shotType = String(ctx.params['shotType'] ?? 'shot');
-    if (input.action && s.cooldown === 0) {
+    // A broadside fires only when a foe lies abeam: until then the guns hold, and their cooldown with them.
+    const bears = aim !== 'broadside' || aimOf(aim, s, input, ctx) !== null;
+    if (input.action && s.cooldown === 0 && bears) {
       s.cooldown = Math.max(1, Math.round(Number(ctx.params['fireCooldownTicks'] ?? 8)));
       const speed = Number(ctx.params['shotSpeed'] ?? 220);
       const spread = Math.max(1, Math.min(3, Math.round(Number(ctx.params['spread'] ?? 1))));
@@ -54,7 +58,7 @@ export const playerShooter = defineSystem<ShooterState>({
         }
         ctx.emit('custom:fire', { x: p.x, y: p.y });
       } else {
-        const [ax, ay] = aimOf(aim, s, input, ctx);
+        const [ax, ay] = aimOf(aim, s, input, ctx) ?? [p.facing < 0 ? -1 : 1, 0];
         const def = ctx.defOf(shotType);
         const heading = Math.atan2(ay, ax);
         for (let i = 0; i < spread; i++) {
@@ -86,10 +90,36 @@ export const playerShooter = defineSystem<ShooterState>({
   },
 });
 
-/** The way an aimed volley flies, as a unit vector: at the nearest hostile in range, else where the player faces. */
-function aimOf(aim: string, s: ShooterState, input: InputState, ctx: SimCtx): [number, number] {
+/**
+ * The way an aimed volley flies, as a unit vector: at the nearest hostile in range, else where the player faces; a
+ * broadside at the nearest in range lying abeam, or null when none does. A vehicle faces its heading.
+ */
+function aimOf(aim: string, s: ShooterState, input: InputState, ctx: SimCtx): [number, number] | null {
   const p = ctx.world.player;
   const forward = p.facing < 0 ? -1 : 1;
+  const heading = typeof p.props['heading'] === 'number' ? p.props['heading'] : null;
+  if (aim === 'broadside') {
+    const h = heading ?? (Math.atan2(s.dirY, s.dirX) * 180) / Math.PI;
+    let best: [number, number] | null = null;
+    let reach = Number(ctx.params['range'] ?? 160);
+    for (const e of ctx.world.entities) {
+      if (!isHostile(e)) continue;
+      const dx = centerX(e) - centerX(p);
+      const dy = centerY(e) - centerY(p);
+      const d = Math.hypot(dx, dy);
+      if (d <= 0 || d > reach) continue;
+      // How far off the nearer beam it lies: 90 degrees off the bow either side is square abeam.
+      const bearing = ((((Math.atan2(dy, dx) * 180) / Math.PI - h) % 360) + 360) % 360;
+      if (Math.min(Math.abs(bearing - 90), Math.abs(bearing - 270)) > BEAM) continue;
+      best = [dx / d, dy / d];
+      reach = d;
+    }
+    return best;
+  }
+  if (aim === 'facing' && heading !== null) {
+    const [sin, cos] = sinCosDeg(heading);
+    return [cos, sin];
+  }
   if (aim === 'nearest') {
     let best: Entity | null = null;
     let reach = Number(ctx.params['range'] ?? 160);
@@ -118,7 +148,7 @@ export const meta = {
   genres: ['shmup'],
   required: true,
   summary:
-    "Hold the action key to fire shots that damage hostiles; spread fans extra shots; kills score. aim: 'up' fires straight up (a vertical shooter), 'facing' the way the player faces (top-down: where the arrows last pointed; side view: forward, up with up held), 'nearest' at the closest hostile within range (twin-stick arenas; one key to fire). A side view aims 'facing' or 'nearest'.",
+    "Hold the action key to fire shots that damage hostiles; spread fans extra shots; kills score. aim: 'up' fires straight up (a vertical shooter), 'facing' the way the player faces (top-down: where the arrows last pointed; side view: forward, up with up held), 'nearest' at the closest hostile within range (twin-stick arenas; one key to fire), 'broadside' (a ship's guns, top-down) at the closest hostile within range lying abeam, holding fire until one does. A vehicle's 'facing' is its heading. A side view aims 'facing' or 'nearest'.",
   params: {
     fireCooldownTicks: { type: 'number', min: 4, max: 30, default: 8, affects: 'levels' },
     shotSpeed: { type: 'number', min: 80, max: 400, default: 220, affects: 'none' },
@@ -126,7 +156,7 @@ export const meta = {
     spread: { type: 'number', min: 1, max: 3, default: 1, affects: 'levels' },
     killScore: { type: 'number', min: 0, max: 100, default: 10, affects: 'none' },
     // Shots fired straight up hit nothing that walks a side-view floor.
-    aim: { type: 'string', values: ['up', 'facing', 'nearest'], default: 'up', affects: 'levels', valuesWith: { platformer: ['facing', 'nearest'] } },
+    aim: { type: 'string', values: ['up', 'facing', 'nearest', 'broadside'], default: 'up', affects: 'levels', valuesWith: { platformer: ['facing', 'nearest'] } },
     range: { type: 'number', min: 48, max: 320, default: 160, affects: 'levels' },
     shotType: { type: 'string', default: 'shot', affects: 'none', composed: 'entity' },
   },

@@ -101,7 +101,7 @@ export const ARCHETYPES: Readonly<Record<string, Archetype>> = (() => {
     }
   }
   for (const [block, b] of Object.entries(BLOCKS)) {
-    for (const a of b.archetypes ?? []) out[`${block}:${a.def.type}`] = { id: `${block}:${a.def.type}`, genre: null, block, def: a.def, behaviour: null, roles: [...a.roles] };
+    for (const a of b.archetypes ?? []) out[`${block}:${a.def.type}`] = { id: `${block}:${a.def.type}`, genre: null, block, def: a.def, behaviour: a.behaviour ?? null, roles: [...a.roles] };
   }
   return out;
 })();

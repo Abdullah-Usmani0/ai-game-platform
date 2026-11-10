@@ -104,6 +104,8 @@ export const GENRES: GenreInfo[] = [
       "A moth keeping a moon garden: sow glowcaps in the moonbeds, leave the harvest in the offering chest, buy spores at the beetle's stall.",
       'A cat waiter in a garden tea house at the afternoon rush: carry the tea from the kitchen to each table before the customer gives up and leaves.',
       'A lighthouse keeper on a stormy night: carry oil up from the cellar to keep the lamp lit, leaping the gaps in the cliff path and the crabs on it.',
+      'A courier on a bike racing parcels from the depot to doorsteps round the market square, before each customer gives up waiting.',
+      'A pirate galleon holding the bay against raiders: sail round the islets and sink their ships with broadsides until the raiding fleet turns back.',
     ],
   },
 ];

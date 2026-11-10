@@ -10,17 +10,17 @@ describe('the mechanic-gap report', () => {
     const ideas: Idea[] = [
       { id: 'a', prompt: 'a platformer', needs: ['move-side', 'collect', 'reach-goal'] },
       { id: 'b', prompt: 'a flapper', needs: ['move-side', 'flap', 'hazards'] },
-      { id: 'c', prompt: 'a racer', needs: ['move-vehicle', 'laps'] },
+      { id: 'c', prompt: 'a swinger', needs: ['grapple', 'laps'] },
       { id: 'd', prompt: 'an angler on the pier', needs: ['move-topdown', 'fishing'] },
-      { id: 'e', prompt: 'an angler in a boat', needs: ['move-vehicle', 'fishing'] },
+      { id: 'e', prompt: 'an angler on a cliff', needs: ['grapple', 'fishing'] },
     ];
     const r = gapReport(ideas, catalog);
     expect(r.buildable).toEqual(['a']);
     expect(r.missing.find((g) => g.mechanic === 'fishing')).toEqual({ mechanic: 'fishing', askedBy: 2, completes: 1 });
     expect(r.missing.find((g) => g.mechanic === 'laps')).toMatchObject({ askedBy: 1, completes: 0 });
     // Each of the first three makes one idea whole: the tie goes to the one more ideas ask for (fishing, then the
-    // vehicle, which the boat now needs alone), then flapping; laps make the racer whole last.
-    expect(r.plan.map((p) => p.mechanic)).toEqual(['fishing', 'move-vehicle', 'flap', 'laps']);
+    // grapple, which the cliff angler now needs alone), then flapping; laps make the swinger whole last.
+    expect(r.plan.map((p) => p.mechanic)).toEqual(['fishing', 'grapple', 'flap', 'laps']);
     expect(r.plan.at(-1)!.buildable).toBe(5);
   });
 

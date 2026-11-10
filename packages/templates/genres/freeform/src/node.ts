@@ -13,6 +13,21 @@ import { freeformCheck } from './check.js';
 import { compose, IDENTITY_ROSTER } from './compose.js';
 import { SYSTEMS, usableSystems } from './registry.js';
 import { retypeContent, retypeLevel } from './retype.js';
+import type { CompiledRoster } from './roster.js';
+
+/**
+ * The base genre's names under the game's, for what the base generates besides its levels (its waves): a foe of the base
+ * the game does not name stands for the game's first foe of its own, so a game whose foes are a block's (a raider's
+ * sloop at sea) is still sent them by the base's waves.
+ */
+function foesIn(roster: CompiledRoster, base: GenreManifest): ReadonlyMap<string, string> {
+  const foe = roster.defs.find((d) => (roster.roles[d.type] ?? []).includes('hostile') && d.projectile !== true)?.type;
+  if (!foe) return roster.rename;
+  const out = new Map(roster.rename);
+  const roles = rolesOf(base);
+  for (const d of base.entityDefs) if (roles.get(d.type)?.has('hostile') && d.projectile !== true && !out.has(d.type)) out.set(d.type, foe);
+  return out;
+}
 
 export * from './index.js';
 export * from './check.js';
@@ -52,7 +67,7 @@ export function freeformManifest(file: FreeformSystemsJson, roster: EntityRoster
     // The base genre's level under the game's names, with what its blocks place on it (a courier's stations, the people
     // its story puts in the level).
     levelGrammar: { kind: base.levelGrammar.kind, generate: (params) => dressLevel(retypeLevel(base.levelGrammar.generate(params), rename), params.seed, file, kit.composed, feel, { level: params.level ?? 0, story }), validate: kit.validate },
-    extraContent: extra ? (params) => retypeContent(extra(params), rename) : undefined,
+    extraContent: extra ? (params) => retypeContent(extra(params), foesIn(kit.composed.roster, base)) : undefined,
     designContent: designContentFor(file.systems.map((s) => s.id)),
     bots: kit.bots,
     solverBot: kit.solverBot,

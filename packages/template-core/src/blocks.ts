@@ -1,5 +1,6 @@
-import { peopleOn } from '@gg/schemas';
+import { peopleOn, type BehaviourFsm } from '@gg/schemas';
 import { courier } from './courier.js';
+import { helmsman } from './helmsman.js';
 import { checkPeople, dressPeople, type PeopleCtx } from './level/people.js';
 import { checkStations, dressStations, type StationsCtx } from './level/stations.js';
 import type { BlockLevelCtx, BlockModule } from './manifest.js';
@@ -67,12 +68,28 @@ export const ordersBlock: BlockModule = {
 };
 
 /**
- * A vehicle, as a block: the movement a game drives instead of walking, and the feedback a hard hit on a wall needs
- * (a boost is the dash every game already answers).
+ * A vehicle, as a block: the movement a game drives instead of walking, the feedback a hard hit on a wall needs (a
+ * boost is the dash every game already answers), and the helmsman, who drives it to the goal or keeps it under way
+ * with its guns bearing.
  */
+/** A raider's sloop under sail: it closes on the player to ram; struck, it falls away a moment, then comes on again. */
+const SLOOP: BehaviourFsm = {
+  version: 1,
+  id: 'sloop',
+  designNotes: 'Sails straight at the player to ram; struck, it falls away a moment.',
+  initial: 'close',
+  states: {
+    close: { onEnter: [], update: [{ kind: 'move_toward_player', speed: 30 }], transitions: [{ to: 'fall_off', when: { kind: 'took_damage' } }] },
+    fall_off: { onEnter: [{ kind: 'move_away_from_player', speed: 50 }], update: [], transitions: [{ to: 'close', when: { kind: 'timer_elapsed', ms: 400 } }] },
+  },
+};
+
 export const vehicleBlock: BlockModule = {
   meta: vehicleMeta,
   create: () => vehicle,
+  bot: helmsman,
+  // A foe of its own kind for a game at sea (a raider's sloop, drawn turned to where it sails); a game names it as it likes.
+  archetypes: [{ def: { type: 'sloop', w: 12, h: 12, hp: 2, gravity: false, fsm: 'sloop', contactDamage: 1 }, roles: ['hostile'], behaviour: SLOOP }],
   feedbackExtras: [{ event: 'custom:bump', channels: ['shake', 'sfx'] }],
 };
 

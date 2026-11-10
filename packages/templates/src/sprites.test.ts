@@ -32,7 +32,9 @@ describe('sprite designs', () => {
 
   it("passes each example game's designs in its own game, in every sample palette", () => {
     for (const ex of EXAMPLES) {
-      const sheet = SpriteSheet.parse(ex.content?.['sprites']);
+      // A game without designs of its own draws its cast as it ships (Parcel Dash, Broadside).
+      if (ex.content?.['sprites'] === undefined) continue;
+      const sheet = SpriteSheet.parse(ex.content['sprites']);
       const cast = castOf({ systems: ex.systems, roster: ex.roster, gdd: ex.gdd });
       expect(sheet.sprites.map((d) => d.type).filter((t) => !cast.some((c) => c.type === t)), ex.id).toEqual([]);
       for (const [name, roles] of Object.entries(PALETTES)) {

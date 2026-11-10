@@ -1,0 +1,52 @@
+{
+  "runtime": {
+    "systems": [
+      "movement-vehicle",
+      "carry",
+      "orders",
+      "objectives"
+    ],
+    "entityDefs": "6d6a3cd8c26b4b98",
+    "types": [
+      "chaser",
+      "brute",
+      "xp",
+      "parcel<cargo",
+      "doorstep<dropoff",
+      "depot<source"
+    ],
+    "behaviours": "94810155a5ff6f2c",
+    "vocab": "3c23db6356fb1f7f",
+    "composedParams": {
+      "carry": {
+        "cargoType": "parcel",
+        "sourceType": "depot",
+        "dropoffType": "doorstep"
+      }
+    },
+    "feedbackExtras": [
+      "custom:bump",
+      "custom:lift",
+      "custom:deliver",
+      "custom:drop",
+      "custom:no_order",
+      "custom:not_ready",
+      "custom:order",
+      "custom:order_hurry",
+      "custom:order_filled",
+      "custom:order_missed"
+    ],
+    "player": {
+      "w": 8,
+      "h": 10,
+      "hp": 3
+    }
+  },
+  "arena": {
+    "level": "f631062d7c523cae",
+    "content": "ce065e7844a85dd7",
+    "by": "bot",
+    "ticks": 4208,
+    "script": "15f8dad981574e4e"
+  }
+}

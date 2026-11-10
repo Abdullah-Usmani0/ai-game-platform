@@ -57,9 +57,15 @@ Blocks only freeform games compose:
   (`talk:person`, named in the roster like any archetype: a villager, a deckhand), and the story stage places them in
   its levels from its talk. Its `key` is one the game uses for nothing else: `up` or `down` in a side view; top-down,
   where the arrows walk, `jump`, `dash` (with the movement's dash off) or `action` (with no weapon or work on it).
-- `player-shooter` `aim`: `up` (a vertical shooter), `facing` (top-down where the arrows last pointed; side view forward,
-  or up with up held), `nearest` (the closest hostile within `range`: a twin-stick arena on one fire key). A side view
-  takes `facing` or `nearest`. In an arena, a `defeat` clause beside `survive` makes the shots needed: a good kiter
+- `movement-vehicle` drives instead of walking (top-down, in place of `movement-topdown`): `kind` `bike`, `car`, `boat`
+  or `galleon` sets its handling and its look, and a `boat` or `galleon` is drawn at sea. It brings a foe for a game at
+  sea, `movement-vehicle:sloop` (a raider that sails at the player to ram; name it in the roster), and its helmsman bot
+  proves the levels: to the goal where the game is won there, else under way round the open water with the guns held.
+  A courier on wheels is `movement-vehicle` with `carry` (the courier drives).
+- `player-shooter` `aim`: `up` (a vertical shooter), `facing` (top-down where the arrows last pointed, a vehicle's
+  heading; side view forward, or up with up held), `nearest` (the closest hostile within `range`: a twin-stick arena on
+  one fire key), `broadside` (a ship's guns: the closest hostile within `range` lying abeam; they hold fire until one
+  does). A side view takes `facing` or `nearest`. In an arena, a `defeat` clause beside `survive` makes the shots needed: a good kiter
   outlasts a minute without firing.
 
 The composition stage then writes, as data:
