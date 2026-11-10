@@ -13,7 +13,8 @@ import { catalogFor } from '@gg/templates/node';
  * behaviour as data, which bosses, chasers, telegraphs and enemy shots are made of). An empty list is a gap. A runner
  * ('auto-run') runs on its own in a side view; a view that scrolls on while the player steers ('auto-scroll': a
  * side-scrolling shooter, a ski run) is another mechanic. Carrying things from where they are made to where they go is
- * 'carry-deliver'; places that ask for them in turn, against the clock, are 'timed-orders'.
+ * 'carry-deliver'; places that ask for them in turn, against the clock, are 'timed-orders'. People to talk to are the
+ * talk block, and so are quests: they are written in the talk (content/dialogue.json) the sim keeps.
  */
 export const MECHANICS: Readonly<Record<string, readonly string[]>> = {
   'move-side': ['movement-platformer', 'movement-metroidvania'],
@@ -67,8 +68,8 @@ export const MECHANICS: Readonly<Record<string, readonly string[]>> = {
   'physics-sim': [],
   stealth: [],
   'light-cone': [],
-  dialogue: [],
-  quests: [],
+  dialogue: ['talk'],
+  quests: ['talk'],
   deduction: [],
   follower: [],
   herd: [],

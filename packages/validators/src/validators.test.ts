@@ -312,6 +312,16 @@ describe('controlsLegend', () => {
     expect(controlsLegend([])).toEqual([['Esc / P', 'pause']]);
   });
 
+  it("names the parry and the flask where a system reads them (the castle's guard and item keys), after the action", () => {
+    const sword = { controls: { action: 'attack', guard: 'parry', item: 'drink a flask' }, params: {} };
+    expect(controlsLegend([{ meta: sword }])).toEqual([
+      ['E / Enter', 'attack'],
+      ['Q / V', 'parry'],
+      ['R / F', 'drink a flask'],
+      ['Esc / P', 'pause'],
+    ]);
+  });
+
   it('reads a key only with the parameter values it is used with, and leaves out the keys a system takes over', () => {
     const arrows = { param: 'aim', values: ['facing'] };
     const shooter = {

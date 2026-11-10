@@ -70,8 +70,8 @@ export interface SystemRequires {
   systems?: readonly string[];
 }
 
-/** The keys a system can read: the SDK's inputs. */
-export type ControlKey = 'left' | 'right' | 'up' | 'down' | 'jump' | 'dash' | 'action' | 'pause';
+/** The keys a system can read: the SDK's inputs, with the two a game binds only when a system reads them (guard, item). */
+export type ControlKey = 'left' | 'right' | 'up' | 'down' | 'jump' | 'dash' | 'action' | 'guard' | 'item' | 'pause';
 
 /**
  * When a key is in use: the boolean parameter it needs on (movement-topdown's dash), or a parameter and the values it
@@ -209,7 +209,7 @@ export function impact(before: Pick<SystemsJson, 'feelPreset' | 'systems'>, afte
 }
 
 /** Where each input sits on the keyboard (the SDK's bindings), as the play page names it. */
-const KEY_NAMES = { jump: 'Z / Space', dash: 'X / Shift', action: 'E / Enter', pause: 'Esc / P' } as const;
+const KEY_NAMES = { jump: 'Z / Space', dash: 'X / Shift', action: 'E / Enter', guard: 'Q / V', item: 'R / F', pause: 'Esc / P' } as const;
 
 /**
  * What a system does with each key it reads, with the parameters a game gives it: its declared controls, less the keys
@@ -239,7 +239,8 @@ function directionKeys(keys: readonly string[]): string {
  * The keys a game uses and what each does in it, from its systems' declared controls (catalog systems with the values
  * the game gives their parameters, its own systems' contracts): the movement keys first (arrows and WASD, or left and
  * right only; keys that do different things apart, as a vehicle steers with left and right and drives with up and
- * down), then jump, dash and action, then pause. A key a parameter switches off is left out, and so is a key a system
+ * down), then jump, dash and action, then guard and item where a system reads them (the castle's parry and flask), then
+ * pause. A key a parameter switches off is left out, and so is a key a system
  * takes over (a runner's left and right).
  */
 export function controlsLegend(systems: ReadonlyArray<{ meta: Pick<CatalogSystem, 'controls' | 'controlGates' | 'params' | 'takesOver'> | undefined; params?: Readonly<Record<string, unknown>> }>): Array<[keys: string, action: string]> {
@@ -261,7 +262,7 @@ export function controlsLegend(systems: ReadonlyArray<{ meta: Pick<CatalogSystem
     groups.set(what, [...(groups.get(what) ?? []), k]);
   }
   for (const [what, keys] of groups) out.push([directionKeys(keys), what]);
-  for (const k of ['jump', 'dash', 'action'] as const) if (uses.has(k)) out.push([KEY_NAMES[k], uses.get(k)!.join(', ')]);
+  for (const k of ['jump', 'dash', 'action', 'guard', 'item'] as const) if (uses.has(k)) out.push([KEY_NAMES[k], uses.get(k)!.join(', ')]);
   out.push([KEY_NAMES.pause, 'pause']);
   return out;
 }
