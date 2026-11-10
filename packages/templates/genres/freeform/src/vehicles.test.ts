@@ -1,7 +1,7 @@
 import { createSim, emptyInput, type Entity, type Sim } from '@gg/sdk';
 import { simOptionsFor } from '@gg/template-core';
 import { describe, expect, it } from 'vitest';
-import { BROADSIDE } from './examples.js';
+import { BROADSIDE, HIVE } from './examples.js';
 import { freeformManifest } from './node.js';
 
 /** Broadside's bay with no raiding fleet: the galleon alone, facing east, and the raiders the test puts where it wants. */
@@ -22,6 +22,16 @@ describe('a game at sea', () => {
     const raider = m.entityDefs.find((d) => d.type === 'raider')!;
     expect(raider).toMatchObject({ drawAs: 'sloop', fsm: 'sloop', contactDamage: 1, gravity: false });
     expect(m.defaultBehaviours.map((b) => b.id)).toContain('sloop');
+  });
+
+  it("is sent its own raiders by the base's waves, where a game that names the base's foes keeps them", () => {
+    const enemies = (ex: typeof BROADSIDE) => {
+      const waves = freeformManifest(ex.systems, ex.roster).extraContent!({ seed: 1, difficulty: 0.8 })['waves'] as { waves: Array<{ spawns: Array<{ enemy: string }> }> };
+      return [...new Set(waves.waves.flatMap((w) => w.spawns.map((x) => x.enemy)))].sort();
+    };
+    expect(enemies(BROADSIDE)).toEqual(['raider']);
+    // The hive names the arena's chasers and brutes as its wasps and hornets: its waves send those.
+    expect(enemies(HIVE)).toEqual(['hornet', 'wasp']);
   });
 
   it('fires its guns only at a raider lying abeam, and at that raider', () => {

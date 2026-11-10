@@ -17,15 +17,16 @@ import type { CompiledRoster } from './roster.js';
 
 /**
  * The base genre's names under the game's, for what the base generates besides its levels (its waves): a foe of the base
- * the game does not name stands for the game's first foe of its own, so a game whose foes are a block's (a raider's
- * sloop at sea) is still sent them by the base's waves.
+ * the game's roster does not name stands for the first foe the roster does name, so a game whose foes are a block's (a
+ * raider's sloop at sea) is sent them by the base's waves, not the base's own foes.
  */
-function foesIn(roster: CompiledRoster, base: GenreManifest): ReadonlyMap<string, string> {
-  const foe = roster.defs.find((d) => (roster.roles[d.type] ?? []).includes('hostile') && d.projectile !== true)?.type;
-  if (!foe) return roster.rename;
-  const out = new Map(roster.rename);
+function foesIn(compiled: CompiledRoster, roster: EntityRoster, baseId: FreeformBase, base: GenreManifest): ReadonlyMap<string, string> {
+  const named = new Set(roster.types.map((t) => t.archetype));
+  const foe = roster.types.find((t) => (compiled.roles[t.type] ?? []).includes('hostile') && compiled.defs.find((d) => d.type === t.type)?.projectile !== true)?.type;
+  if (!foe) return compiled.rename;
+  const out = new Map(compiled.rename);
   const roles = rolesOf(base);
-  for (const d of base.entityDefs) if (roles.get(d.type)?.has('hostile') && d.projectile !== true && !out.has(d.type)) out.set(d.type, foe);
+  for (const d of base.entityDefs) if (roles.get(d.type)?.has('hostile') && d.projectile !== true && !named.has(`${baseId}:${d.type}`)) out.set(d.type, foe);
   return out;
 }
 
@@ -67,7 +68,7 @@ export function freeformManifest(file: FreeformSystemsJson, roster: EntityRoster
     // The base genre's level under the game's names, with what its blocks place on it (a courier's stations, the people
     // its story puts in the level).
     levelGrammar: { kind: base.levelGrammar.kind, generate: (params) => dressLevel(retypeLevel(base.levelGrammar.generate(params), rename), params.seed, file, kit.composed, feel, { level: params.level ?? 0, story }), validate: kit.validate },
-    extraContent: extra ? (params) => retypeContent(extra(params), foesIn(kit.composed.roster, base)) : undefined,
+    extraContent: extra ? (params) => retypeContent(extra(params), foesIn(kit.composed.roster, roster, file.composition.base, base)) : undefined,
     designContent: designContentFor(file.systems.map((s) => s.id)),
     bots: kit.bots,
     solverBot: kit.solverBot,
